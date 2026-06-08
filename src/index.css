@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* code-by-wire dark theme tokens. Mostly monochrome on slate dark #141413,
+   blue #407fbf for active/primary, amber #bf8040 for attention/waiting. */
+@theme {
+  --color-ink-950: #141413;
+  --color-ink-925: #181715;
+  --color-ink-900: #1c1b18;
+  --color-ink-850: #22201d;
+  --color-ink-800: #2a2723;
+  --color-ink-750: #332f2a;
+  --color-ink-700: #423d36;
+  --color-ink-600: #585249;
+
+  --color-fg: #e9e7e2;
+  --color-fg-muted: #968f85;
+  --color-fg-faint: #645e56;
+
+  --color-primary: #407fbf;
+  --color-primary-bright: #5e9bd6;
+  --color-accent: #bf8040;
+  --color-accent-bright: #d99a5b;
+  --color-danger: #c75f54;
+  --color-ok: #5f9e79;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-ink-950);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@keyframes pulse-soft { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+.animate-pulse-soft { animation: pulse-soft 1.8s ease-in-out infinite; }
+
+@keyframes blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+.cursor-blink { animation: blink 1.1s step-end infinite; }
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #2e2b27; border-radius: 8px; border: 2px solid var(--color-ink-950); }
+*::-webkit-scrollbar-thumb:hover { background: #3a352f; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* subtle grain-free vignette on the app root for depth */
+.app-bg {
+  background:
+    radial-gradient(1200px 600px at 70% -10%, rgba(64,127,191,0.05), transparent 60%),
+    radial-gradient(900px 500px at 0% 110%, rgba(191,128,64,0.035), transparent 55%),
+    var(--color-ink-950);
+}

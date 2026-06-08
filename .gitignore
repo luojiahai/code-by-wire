@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+*.local
+.DS_Store
+.vite/
+
+# Vendored Claude Code skills — reproducible from skills-lock.json via /setup-matt-pocock-skills
+.claude/skills/
