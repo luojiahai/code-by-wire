@@ -49,4 +49,16 @@ describe('discoverSessions', () => {
     const c = sessions.find((s) => s.id === 'cccc3333-3333-3333-3333-333333333333')!
     expect(c.state).toBe('idle')
   })
+
+  it('falls back to cwd basename and updatedAt when a live session has no transcript', () => {
+    const sessions = discoverSessions({ claudeDir: CLAUDE_DIR, isPidAlive: (pid) => pid === 1002 })
+    expect(sessions).toHaveLength(1)
+    const b = sessions[0]
+    expect(b.id).toBe('bbbb2222-2222-2222-2222-222222222222')
+    expect(b.title).toBe('old-thing')
+    expect(b.project).toBe('old-thing')
+    expect(b.branch).toBeUndefined()
+    expect(b.lastActivityMs).toBe(1780950000000)
+    expect(b.state).toBe('idle')
+  })
 })
