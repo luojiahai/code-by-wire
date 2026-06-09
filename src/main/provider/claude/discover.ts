@@ -17,13 +17,21 @@ export interface DiscoverDeps {
   isPidAlive: (pid: number) => boolean
 }
 
+/** List a directory, treating a missing or unreadable dir as empty rather than throwing. */
+function safeReaddir(dir: string): string[] {
+  try {
+    return readdirSync(dir)
+  } catch {
+    return []
+  }
+}
+
 /** Read every well-formed `sessions/*.json`, skipping malformed files. */
 export function readSessionFiles(claudeDir: string): RawSessionFile[] {
   const dir = join(claudeDir, 'sessions')
-  if (!existsSync(dir)) return []
 
   const out: RawSessionFile[] = []
-  for (const name of readdirSync(dir)) {
+  for (const name of safeReaddir(dir)) {
     if (!name.endsWith('.json')) continue
     try {
       const j = JSON.parse(readFileSync(join(dir, name), 'utf8'))
@@ -46,23 +54,35 @@ export function readSessionFiles(claudeDir: string): RawSessionFile[] {
 /** Find `projects/<encoded>/<sessionId>.jsonl` without depending on the cwd→dir encoding. */
 export function findTranscriptPath(claudeDir: string, sessionId: string): string | null {
   const projects = join(claudeDir, 'projects')
-  if (!existsSync(projects)) return null
 
-  for (const proj of readdirSync(projects)) {
+  for (const proj of safeReaddir(projects)) {
     const candidate = join(projects, proj, `${sessionId}.jsonl`)
     if (existsSync(candidate)) return candidate
   }
   return null
 }
 
+/** Parse a session's transcript, treating a missing or unreadable file as no transcript. */
+function readTranscriptSummary(
+  claudeDir: string,
+  sessionId: string,
+  cwd: string,
+): TranscriptSummary | null {
+  const path = findTranscriptPath(claudeDir, sessionId)
+  if (!path) return null
+  try {
+    return parseTranscript(readFileSync(path, 'utf8'), cwd)
+  } catch {
+    // A transcript that vanished or can't be read shouldn't sink the whole list;
+    // this session degrades to its skeleton fallbacks (basename title, updatedAt).
+    return null
+  }
+}
+
 export function discoverSessions({ claudeDir, isPidAlive }: DiscoverDeps): Session[] {
   return readSessionFiles(claudeDir)
     .filter((s) => isPidAlive(s.pid))
-    .map((s) => {
-      const path = findTranscriptPath(claudeDir, s.sessionId)
-      const summary = path ? parseTranscript(readFileSync(path, 'utf8'), s.cwd) : null
-      return toSession(s, summary)
-    })
+    .map((s) => toSession(s, readTranscriptSummary(claudeDir, s.sessionId, s.cwd)))
 }
 
 /** Minimal skeleton state. Full Working/Waiting/Idle/Ended derivation is a later issue. */

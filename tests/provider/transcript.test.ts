@@ -39,4 +39,24 @@ describe('deriveTitle', () => {
       deriveTitle(['<command-message></command-message>', '   ', 'Fix the timeout bug'], '/x/y'),
     ).toBe('Fix the timeout bug')
   })
+
+  it('surfaces the command name for a slash-command turn, not the stripped soup', () => {
+    expect(
+      deriveTitle(
+        [
+          '<command-name>/code-review</command-name>\n<command-message>code-review</command-message>',
+        ],
+        '/x/y',
+      ),
+    ).toBe('/code-review')
+  })
+
+  it('keeps prose containing angle-bracket operators, JSX, and generics intact', () => {
+    expect(deriveTitle(['Why does a < b && b > c fail?'], '/x/y')).toBe(
+      'Why does a < b && b > c fail?',
+    )
+    expect(deriveTitle(['Render <Button onClick={fn}/> in the modal'], '/x/y')).toBe(
+      'Render <Button onClick={fn}/> in the modal',
+    )
+  })
 })

@@ -22,18 +22,29 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(async () => {
-  const db = openDb(join(app.getPath('userData'), 'index.db'))
-  const provider = createClaudeProvider()
-  const { sync } = registerIpc({ db, provider })
+app.whenReady()
+  .then(async () => {
+    const db = openDb(join(app.getPath('userData'), 'index.db'))
+    const provider = createClaudeProvider()
+    const { sync } = registerIpc({ db, provider })
 
-  await sync() // parse ~/.claude → SQLite once, before the window asks for rows
+    try {
+      await sync() // parse ~/.claude → SQLite once, before the window asks for rows
+    } catch (err) {
+      // A failed sync must not cost the user a window. Open with an empty list;
+      // a manual Refresh retries, and surfacing the error in the UI is a later issue.
+      console.error('initial session sync failed; opening the window anyway', err)
+    }
 
-  createWindow()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    createWindow()
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
   })
-})
+  .catch((err) => {
+    // Last resort: never let a startup throw vanish as a silent unhandled rejection.
+    console.error('failed to start the app', err)
+  })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
