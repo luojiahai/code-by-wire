@@ -123,3 +123,60 @@ describe('parseTranscriptEvents — events', () => {
     expect(events).toEqual([{ kind: 'user', text: 'hi' }])
   })
 })
+
+describe('parseTranscriptEvents — waiting + sidechain', () => {
+  it('reports a waiting reason from an unanswered AskUserQuestion at the tail', () => {
+    const { waitingReason } = parseTranscriptEvents(
+      jsonl(
+        { type: 'user', isMeta: false, message: { role: 'user', content: 'go' } },
+        { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'q1', name: 'AskUserQuestion', input: { questions: [{ question: 'A or B?' }] } }] } },
+      ),
+    )
+    expect(waitingReason).toBe('A or B?')
+  })
+
+  it('joins multiple questions', () => {
+    const { waitingReason } = parseTranscriptEvents(
+      jsonl({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'q1', name: 'AskUserQuestion', input: { questions: [{ question: 'A?' }, { question: 'B?' }] } }] } }),
+    )
+    expect(waitingReason).toBe('A? · B?')
+  })
+
+  it('reports a permission-style reason for a non-question pending tool', () => {
+    const { waitingReason } = parseTranscriptEvents(
+      jsonl({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'b1', name: 'Bash', input: { command: 'rm -rf x' } }] } }),
+    )
+    expect(waitingReason).toBe('Permission: Bash')
+  })
+
+  it('clears the waiting reason once the tool has a result', () => {
+    const { waitingReason } = parseTranscriptEvents(
+      jsonl(
+        { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'b1', name: 'Bash', input: {} }] } },
+        { type: 'user', isMeta: false, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'b1', content: 'done' }] } },
+      ),
+    )
+    expect(waitingReason).toBeNull()
+  })
+
+  it('does not latch on a tool the user interrupted earlier (only the latest turn counts)', () => {
+    const { waitingReason } = parseTranscriptEvents(
+      jsonl(
+        { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'old', name: 'Read', input: {} }] } },
+        { type: 'user', isMeta: false, message: { role: 'user', content: 'actually do this instead' } },
+        { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Done.' }] } },
+      ),
+    )
+    expect(waitingReason).toBeNull()
+  })
+
+  it('drops subagent-internal (isSidechain) turns', () => {
+    const { events } = parseTranscriptEvents(
+      jsonl(
+        { type: 'user', isMeta: false, message: { role: 'user', content: 'parent prompt' } },
+        { type: 'assistant', isSidechain: true, message: { role: 'assistant', content: [{ type: 'text', text: 'subagent internal' }] } },
+      ),
+    )
+    expect(events).toEqual([{ kind: 'user', text: 'parent prompt' }])
+  })
+})
