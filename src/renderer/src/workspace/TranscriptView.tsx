@@ -25,6 +25,7 @@ export function TranscriptView({
   useEffect(() => {
     let alive = true
     mtimeRef.current = -1
+    countRef.current = 0
     setLoaded(false)
     setDoc(null)
 
