@@ -26,6 +26,9 @@ interface InstallState {
   originalAbsent: boolean
   /** The statusLine command we wrapped, for the wrapper script (issue #11) to call through to. */
   wrappedCommand: string | null
+  /** Whether a statusLine existed at all (decoupled from wrappedCommand, which is null for a
+   *  command-less or non-string statusLine). Persisted so an idempotent re-install reports it. */
+  wrappedExisting: boolean
 }
 
 export interface SettingsManagerDeps {
@@ -89,6 +92,11 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
   }
 
   function install(): InstallResult {
+    if (isInstalled()) {
+      const state = readState()
+      return { wrappedExisting: state?.wrappedExisting ?? false, backupPath: state?.backupPath ?? null }
+    }
+
     const originalText = readSettingsRaw()
     const originalAbsent = originalText === null
     // Parse before touching disk: a malformed settings.json aborts the install untouched, never clobbered.
@@ -96,7 +104,8 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
 
     const original = settings.statusLine
     const wrappedExisting = original !== undefined
-    const wrappedCommand = original?.command ?? null
+    // A hand-edited file could hold a non-string command; only a real string is callable.
+    const wrappedCommand = typeof original?.command === 'string' ? original.command : null
 
     const iso = new Date(now()).toISOString()
     mkdirSync(appDir, { recursive: true })
@@ -107,7 +116,7 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
       writeFileSync(backupPath, originalText, { flag: 'wx' }) // never overwrite an existing backup
     }
 
-    const state: InstallState = { installedAt: iso, backupPath, originalAbsent, wrappedCommand }
+    const state: InstallState = { installedAt: iso, backupPath, originalAbsent, wrappedCommand, wrappedExisting }
     writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n')
 
     settings.statusLine = { type: 'command', command: appCommand }

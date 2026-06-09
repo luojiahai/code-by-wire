@@ -156,3 +156,58 @@ describe('uninstall — restore byte-for-byte (AC #4)', () => {
     expect(mgr.isInstalled()).toBe(true) // still wrapped — we did NOT silently clear it
   })
 })
+
+describe('trust-safety', () => {
+  it('install is idempotent: a second install neither re-wraps nor writes a second backup', () => {
+    const home = makeHome()
+    const original = JSON.stringify({ statusLine: { type: 'command', command: 'my-prompt' }, theme: 'dark' }, null, 2) + '\n'
+    writeFileSync(settingsPath(home), original)
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    const first = mgr.install()
+    const second = mgr.install() // must be a no-op
+
+    expect(readdirSync(home).filter((f) => f.endsWith('.bak'))).toHaveLength(1) // no second backup
+    expect(readState(home).wrappedCommand).toBe('my-prompt') // still the user's, not our own command
+    expect(second.wrappedExisting).toBe(true)
+    expect(second.backupPath).toBe(first.backupPath)
+
+    mgr.uninstall()
+    expect(readRaw(home)).toBe(original) // round-trip still pristine
+  })
+
+  it('refuses to touch a malformed settings.json (parse before any write)', () => {
+    const home = makeHome()
+    const malformed = '{ this is not valid json'
+    writeFileSync(settingsPath(home), malformed)
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    expect(() => mgr.install()).toThrow()
+    expect(readRaw(home)).toBe(malformed) // untouched
+    expect(existsSync(join(home, '.code-by-wire', 'state.json'))).toBe(false) // no state written
+    expect(readdirSync(home).filter((f) => f.endsWith('.bak'))).toHaveLength(0) // no backup written
+  })
+
+  it('uninstall is a no-op when nothing was installed', () => {
+    const home = makeHome()
+    const original = JSON.stringify({ theme: 'dark' }, null, 2)
+    writeFileSync(settingsPath(home), original)
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    expect(() => mgr.uninstall()).not.toThrow()
+    expect(readRaw(home)).toBe(original) // untouched
+  })
+
+  it('captures a non-string statusLine command as null, but still marks it wrapped', () => {
+    const home = makeHome()
+    // A hand-edited file could hold a non-string command. StatusLine.command is *typed* string,
+    // but the value comes from JSON.parse with no runtime check — guard the trust boundary.
+    writeFileSync(settingsPath(home), JSON.stringify({ statusLine: { type: 'command', command: 123 } }, null, 2))
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    const result = mgr.install()
+
+    expect(result.wrappedExisting).toBe(true) // a statusLine did exist
+    expect(readState(home).wrappedCommand).toBeNull() // ...but there was no string command to call through to
+  })
+})
