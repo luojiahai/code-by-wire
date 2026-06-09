@@ -71,8 +71,8 @@ export function computeStats(sessions: PersistedSession[], now: number): Stats {
     bucketByDay.set(bucket.dayStartMs, bucket)
   }
 
-  const byModel = new Map<ModelId, ModelMixEntry>()
-  const byProject = new Map<string, ProjectRollup>()
+  const byModel = new Map<ModelId, Tally>()
+  const byProject = new Map<string, Tally>()
 
   for (const s of sessions) {
     const value = equivApiValue(s.usage, s.model)
@@ -84,30 +84,37 @@ export function computeStats(sessions: PersistedSession[], now: number): Stats {
       bucket.equivApiValueUsd += value
     }
 
-    // Model mix — every indexed session.
-    let m = byModel.get(s.model)
-    if (!m) {
-      m = { model: s.model, sessions: 0, equivApiValueUsd: 0 }
-      byModel.set(s.model, m)
-    }
-    m.sessions += 1
-    m.equivApiValueUsd += value
-
-    // Project rollup — every indexed session.
-    let p = byProject.get(s.project)
-    if (!p) {
-      p = { project: s.project, sessions: 0, equivApiValueUsd: 0 }
-      byProject.set(s.project, p)
-    }
-    p.sessions += 1
-    p.equivApiValueUsd += value
+    // Model mix and project rollup — every indexed session, same add-or-create fold.
+    addToGroup(byModel, s.model, value)
+    addToGroup(byProject, s.project, value)
   }
 
   return {
     weeklyActivity,
-    modelMix: [...byModel.values()].sort(byValueDesc((e) => e.equivApiValueUsd, (e) => e.model)),
-    projectRollup: [...byProject.values()].sort(byValueDesc((e) => e.equivApiValueUsd, (e) => e.project)),
+    modelMix: [...byModel]
+      .map(([model, t]) => ({ model, ...t }))
+      .sort(byValueDesc((e) => e.equivApiValueUsd, (e) => e.model)),
+    projectRollup: [...byProject]
+      .map(([project, t]) => ({ project, ...t }))
+      .sort(byValueDesc((e) => e.equivApiValueUsd, (e) => e.project)),
   }
+}
+
+/** A running session count and summed Equivalent API value for one group key (model or project). */
+interface Tally {
+  sessions: number
+  equivApiValueUsd: number
+}
+
+/** Fold one session into a keyed group: bump its count and value, creating the tally on first sight. */
+function addToGroup<K>(groups: Map<K, Tally>, key: K, value: number): void {
+  let tally = groups.get(key)
+  if (!tally) {
+    tally = { sessions: 0, equivApiValueUsd: 0 }
+    groups.set(key, tally)
+  }
+  tally.sessions += 1
+  tally.equivApiValueUsd += value
 }
 
 /** Sort by a numeric value descending, breaking ties on a string key ascending so the order is

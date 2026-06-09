@@ -26,6 +26,9 @@ const statsLabel: CSSProperties = {
 }
 const statsRow: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, padding: '2px 0', fontSize: 12 }
 
+/** Projects shown in the rollup before collapsing the rest into a "+N more" row. */
+const TOP_PROJECTS = 8
+
 interface Props {
   sessions: Session[]
   caps: ProviderCapabilities | null
@@ -153,8 +156,9 @@ function weekdayUtc(dayStartMs: number): string {
 
 function StatsSection({ stats }: { stats: Stats }) {
   const weekTotal = stats.weeklyActivity.reduce((sum, d) => sum + d.equivApiValueUsd, 0)
-  const maxSessions = Math.max(1, ...stats.weeklyActivity.map((d) => d.sessions))
   const weekSessions = stats.weeklyActivity.reduce((n, d) => n + d.sessions, 0)
+  // Bars track daily Equivalent API value so the chart measures the same thing as its dollar headline.
+  const maxValue = Math.max(0, ...stats.weeklyActivity.map((d) => d.equivApiValueUsd))
 
   return (
     <section style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -176,7 +180,7 @@ function StatsSection({ stats }: { stats: Stats }) {
                 <div
                   style={{
                     width: '100%',
-                    height: `${(d.sessions / maxSessions) * 100}%`,
+                    height: `${maxValue > 0 ? (d.equivApiValueUsd / maxValue) * 100 : 0}%`,
                     minHeight: d.sessions > 0 ? 2 : 0,
                     background: 'var(--color-primary)',
                     borderRadius: 2,
@@ -190,7 +194,7 @@ function StatsSection({ stats }: { stats: Stats }) {
       </div>
 
       <div style={statsCard}>
-        <div style={statsLabel}>Model mix</div>
+        <div style={statsLabel}>Model mix · last 7 days</div>
         {stats.modelMix.length === 0 ? (
           <span style={{ fontSize: 12, color: 'var(--color-fg-faint)' }}>No usage yet.</span>
         ) : (
@@ -206,18 +210,25 @@ function StatsSection({ stats }: { stats: Stats }) {
       </div>
 
       <div style={statsCard}>
-        <div style={statsLabel}>By project</div>
+        <div style={statsLabel}>By project · last 7 days</div>
         {stats.projectRollup.length === 0 ? (
           <span style={{ fontSize: 12, color: 'var(--color-fg-faint)' }}>No usage yet.</span>
         ) : (
-          stats.projectRollup.slice(0, 8).map((p) => (
-            <div key={p.project} style={statsRow}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project}</span>
-              <span style={{ color: 'var(--color-fg-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                {p.sessions} · ~{formatUsd(p.equivApiValueUsd)}
-              </span>
-            </div>
-          ))
+          <>
+            {stats.projectRollup.slice(0, TOP_PROJECTS).map((p) => (
+              <div key={p.project} style={statsRow}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project}</span>
+                <span style={{ color: 'var(--color-fg-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                  {p.sessions} · ~{formatUsd(p.equivApiValueUsd)}
+                </span>
+              </div>
+            ))}
+            {stats.projectRollup.length > TOP_PROJECTS && (
+              <div style={{ ...statsRow, color: 'var(--color-fg-faint)' }}>
+                +{stats.projectRollup.length - TOP_PROJECTS} more
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>

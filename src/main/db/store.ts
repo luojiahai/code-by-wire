@@ -1,6 +1,7 @@
 import type { Session, PersistedSession } from '@shared/types'
 import { contextWindowFor, equivApiValue, normalizeModelId } from '@shared/models'
 import { computeStats, type Stats } from '@shared/stats'
+import type { OverviewData } from '@shared/ipc'
 import { transaction, type SqliteDb } from './driver'
 
 /** Bump when the schema changes; `migrate` rebuilds the index (a disposable cache) to match. */
@@ -186,6 +187,17 @@ export function getSessions(db: SqliteDb): Session[] {
  */
 export function getStats(db: SqliteDb, now: number): Stats {
   return computeStats(getPersisted(db), now)
+}
+
+/**
+ * Sessions and usage aggregates from a single index read, so the list the Overview renders and the
+ * stats beside it always reflect the same snapshot (and the renderer makes one IPC round trip, not
+ * two). One `getPersisted` pass feeds both the hydrate and the fold. `now` is injected for the
+ * trend's day boundaries, exactly as `getStats` does.
+ */
+export function getOverview(db: SqliteDb, now: number): OverviewData {
+  const persisted = getPersisted(db)
+  return { sessions: persisted.map(hydrate), stats: computeStats(persisted, now) }
 }
 
 /** Drop every row whose id isn't in `keepIds` — sessions that aged out of the window and aren't live.

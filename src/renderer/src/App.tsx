@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session, ProviderCapabilities, ModelId } from '@shared/types'
 import type { Stats } from '@shared/stats'
+import type { OverviewData } from '@shared/ipc'
 import { mergeManaged } from '@shared/managed'
 import { newSessionId } from '@shared/terminal'
 import { Overview } from './Overview'
@@ -24,17 +25,19 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
+  // Sessions and stats come from one index read (getOverview), so apply them together — a stale or
+  // failed half can't leave the list and the stats disagreeing.
+  function applyOverview(o: OverviewData): void {
+    setSessions(o.sessions)
+    setStats(o.stats)
+  }
+
   async function load(): Promise<void> {
     setLoading(true)
     try {
-      const [s, c, st] = await Promise.all([
-        window.api.listSessions(),
-        window.api.capabilities(),
-        window.api.stats(),
-      ])
-      setSessions(s)
+      const [o, c] = await Promise.all([window.api.overview(), window.api.capabilities()])
+      applyOverview(o)
       setCaps(c)
-      setStats(st)
     } finally {
       setLoading(false)
     }
@@ -51,12 +54,8 @@ export function App() {
     async function tick(): Promise<void> {
       if (document.hidden) return
       try {
-        const s = await window.api.refresh()
-        const st = await window.api.stats()
-        if (alive) {
-          setSessions(s)
-          setStats(st)
-        }
+        const o = await window.api.refresh()
+        if (alive) applyOverview(o)
       } catch {
         // Keep the last-known list; the next tick retries.
       }
@@ -86,8 +85,7 @@ export function App() {
   async function refresh(): Promise<void> {
     setLoading(true)
     try {
-      setSessions(await window.api.refresh())
-      setStats(await window.api.stats())
+      applyOverview(await window.api.refresh())
     } finally {
       setLoading(false)
     }

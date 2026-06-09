@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import type { Session, PersistedSession } from '@shared/types'
-import type { Stats } from '@shared/stats'
-import { IPC } from '@shared/ipc'
+import type { PersistedSession } from '@shared/types'
+import { IPC, type OverviewData } from '@shared/ipc'
 import type { Provider } from '../src/main/provider/types'
 
 // Capture the handlers registerIpc registers, without a real Electron ipcMain.
@@ -51,11 +50,11 @@ describe('registerIpc refresh', () => {
     })
 
     const refresh = handlers.get(IPC.refresh)!
-    let rows: Session[] = []
+    let result: OverviewData | undefined
     expect(() => {
-      rows = refresh() as Session[]
+      result = refresh() as OverviewData
     }).not.toThrow()
-    expect(rows.map((s) => s.id)).toEqual(['seed'])
+    expect(result?.sessions.map((s) => s.id)).toEqual(['seed'])
   })
 })
 
@@ -69,17 +68,18 @@ describe('registerIpc readTranscript', () => {
   })
 })
 
-describe('registerIpc stats', () => {
-  it('returns the index aggregates for the seeded rows', () => {
+describe('registerIpc overview', () => {
+  it('returns the seeded sessions and their index aggregates from one read', () => {
     const db = openTestDb()
     migrate(db)
     upsertSessions(db, [seed]) // opus, project 'p', zero usage
     registerIpc({ db, provider: provider(() => []) })
 
-    const handler = handlers.get(IPC.stats)!
-    const stats = handler() as Stats
-    expect(stats.weeklyActivity).toHaveLength(7)
-    expect(stats.modelMix).toEqual([{ model: 'claude-opus-4-8', sessions: 1, equivApiValueUsd: 0 }])
-    expect(stats.projectRollup).toEqual([{ project: 'p', sessions: 1, equivApiValueUsd: 0 }])
+    const handler = handlers.get(IPC.overview)!
+    const o = handler() as OverviewData
+    expect(o.sessions.map((s) => s.id)).toEqual(['seed'])
+    expect(o.stats.weeklyActivity).toHaveLength(7)
+    expect(o.stats.modelMix).toEqual([{ model: 'claude-opus-4-8', sessions: 1, equivApiValueUsd: 0 }])
+    expect(o.stats.projectRollup).toEqual([{ project: 'p', sessions: 1, equivApiValueUsd: 0 }])
   })
 })
