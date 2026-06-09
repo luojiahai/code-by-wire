@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import type { Session, ProviderCapabilities } from '@shared/types'
+import { pinWaiting } from '@shared/overview'
 
 const STATE_LABEL: Record<Session['state'], string> = {
   working: 'Working',
@@ -40,12 +41,14 @@ export function App() {
     }
   }
 
+  const rows = pinWaiting(sessions)
+
   return (
     <div className="app-bg" style={{ minHeight: '100vh', padding: 24, color: 'var(--color-fg)' }}>
       <header style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>code-by-wire</h1>
         <span style={{ color: 'var(--color-fg-muted)', fontSize: 13 }}>
-          {sessions.length} running session{sessions.length === 1 ? '' : 's'}
+          {sessions.length} session{sessions.length === 1 ? '' : 's'}
         </span>
         <button
           onClick={() => void refresh()}
@@ -65,7 +68,7 @@ export function App() {
       </header>
 
       {sessions.length === 0 && !loading ? (
-        <p style={{ color: 'var(--color-fg-muted)' }}>No running Claude Code sessions found.</p>
+        <p style={{ color: 'var(--color-fg-muted)' }}>No Claude Code sessions found.</p>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
@@ -85,7 +88,7 @@ export function App() {
             </tr>
           </thead>
           <tbody>
-            {sessions.map((s) => (
+            {rows.map((s) => (
               <tr key={s.id} style={{ borderBottom: '1px solid var(--color-ink-850)' }}>
                 <td style={cell}>{STATE_LABEL[s.state]}</td>
                 <td style={cell}>{s.title}</td>
