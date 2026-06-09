@@ -3,18 +3,20 @@ import type { SessionState } from '@shared/types'
 export interface SessionStateSignals {
   /** Is the session's process still alive? */
   alive: boolean
-  /** The `sessions/*.json` status field; `'busy'` means actively generating. */
+  /** The `sessions/*.json` status field. Claude Code writes `'busy'` while generating and
+   *  `'waiting'` while blocked on the user; both are authoritative. */
   status: string | undefined
-  /** Did the last turn leave a question or permission prompt unanswered? */
+  /** Transcript-tail fallback: the last turn left a question or permission prompt unanswered.
+   *  Catches a blocked session whose status field hasn't (yet) flipped to `'waiting'`. */
   awaitingUser: boolean
 }
 
 /**
- * Heuristic Session state from liveness, the status field, and the Transcript tail.
- * Precedence (top wins): a gone process is Ended no matter what; a live one that's
- * generating is Working; a quiet one blocked on an unanswered prompt is Waiting;
- * otherwise Idle. The opt-in Notification hook later upgrades Waiting to an exact
- * signal — this is the default heuristic.
+ * Session state from liveness and the status field, with the Transcript tail as a fallback.
+ * Precedence (top wins): a gone process is Ended no matter what; a live one that's generating
+ * is Working; a live one the status field calls `'waiting'` (or whose transcript tail shows an
+ * unanswered prompt) is Waiting; otherwise Idle. The opt-in Notification hook later upgrades
+ * Waiting to an exact signal.
  */
 export function deriveSessionState({
   alive,
@@ -23,6 +25,6 @@ export function deriveSessionState({
 }: SessionStateSignals): SessionState {
   if (!alive) return 'ended'
   if (status === 'busy') return 'working'
-  if (awaitingUser) return 'waiting'
+  if (status === 'waiting' || awaitingUser) return 'waiting'
   return 'idle'
 }

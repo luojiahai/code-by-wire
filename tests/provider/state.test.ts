@@ -10,6 +10,12 @@ describe('deriveSessionState', () => {
     expect(deriveSessionState({ alive: true, status: 'idle', awaitingUser: true })).toBe('waiting')
   })
 
+  it('is waiting when the session file status says so, even with no transcript signal', () => {
+    // Claude Code writes status "waiting" directly when a session is blocked on the user;
+    // it's the primary, authoritative signal. awaitingUser is only a transcript fallback.
+    expect(deriveSessionState({ alive: true, status: 'waiting', awaitingUser: false })).toBe('waiting')
+  })
+
   it('is idle when alive, quiet, and the last turn is finished', () => {
     expect(deriveSessionState({ alive: true, status: 'idle', awaitingUser: false })).toBe('idle')
   })

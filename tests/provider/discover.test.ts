@@ -60,6 +60,14 @@ describe('discoverSessions', () => {
     expect(d.state).toBe('waiting')
   })
 
+  it('maps a live session whose status field is "waiting" to waiting (no transcript needed)', () => {
+    // This is how real Claude Code reports a blocked session: status "waiting" in the
+    // session file, often with no unanswered tool_use in the transcript tail.
+    const sessions = discoverSessions({ claudeDir: CLAUDE_DIR, isPidAlive: () => true })
+    const e = sessions.find((s) => s.id === 'eeee5555-5555-5555-5555-555555555555')!
+    expect(e.state).toBe('waiting')
+  })
+
   it('surfaces a dead session as ended instead of dropping it', () => {
     // Only 1001 is alive; the rest are gone and must read as ended, not vanish.
     const sessions = discoverSessions({ claudeDir: CLAUDE_DIR, isPidAlive: (pid) => pid === 1001 })
@@ -79,6 +87,7 @@ describe('discoverSessions', () => {
       'bbbb2222-2222-2222-2222-222222222222',
       'cccc3333-3333-3333-3333-333333333333',
       'dddd4444-4444-4444-4444-444444444444',
+      'eeee5555-5555-5555-5555-555555555555',
     ])
     expect(sessions.every((s) => s.state === 'ended')).toBe(true)
   })
