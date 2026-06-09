@@ -1,6 +1,8 @@
+import { statSync } from 'node:fs'
 import type { Provider } from '../types'
-import { resolveClaudeDir } from '../../claude-config'
-import { listCandidates, summarize, restate } from './discover'
+import { readTextOrNull, resolveClaudeDir } from '../../claude-config'
+import { indexTranscripts, listCandidates, summarize, restate } from './discover'
+import { parseTranscriptEvents } from './transcript-events'
 
 export interface ClaudeProviderDeps {
   claudeDir?: string
@@ -29,6 +31,11 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
   const now = deps.now ?? (() => Date.now())
   const recentWindowMs = deps.recentWindowMs ?? DEFAULT_RECENT_WINDOW_MS
 
+  // Last-resolved transcript path per session id. The Observed view polls one session every ~1.5s,
+  // so caching the path lets a steady poll stat ONE file instead of re-walking all of projects/ each
+  // time; the full sweep runs only on the first read or after the file moves/vanishes.
+  const pathById = new Map<string, string>()
+
   return {
     id: 'claude',
     // What Claude Code can do; the surfaces land in later issues, but the capability contract is stable.
@@ -36,5 +43,42 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
     listCandidates: () => listCandidates({ claudeDir, isPidAlive, now: now(), recentWindowMs }),
     summarize,
     restate,
+    readTranscript: (id, sinceMtimeMs) => {
+      try {
+        // Fast path: stat the last-known file for this id, avoiding a projects/ sweep per poll.
+        let path = pathById.get(id)
+        let mtimeMs: number | undefined
+        if (path !== undefined) {
+          try {
+            mtimeMs = statSync(path).mtimeMs
+          } catch {
+            pathById.delete(id) // moved/deleted — fall through to a fresh sweep
+            path = undefined
+          }
+        }
+        // Slow path: resolve by id from the projects sweep (freshest wins if an id appears twice).
+        if (path === undefined) {
+          const hit = indexTranscripts(claudeDir).get(id)
+          if (!hit) return { status: 'absent' }
+          path = hit.path
+          mtimeMs = hit.mtimeMs
+          pathById.set(id, path)
+        }
+        // Unchanged since the caller last saw it — skip the read AND the parse, not just the render.
+        if (mtimeMs === sinceMtimeMs) return { status: 'unchanged', mtimeMs: mtimeMs! }
+
+        const jsonl = readTextOrNull(path)
+        if (jsonl === null) {
+          pathById.delete(id)
+          return { status: 'absent' } // ENOENT — genuinely gone (bounding a large read is issue #20)
+        }
+        return { status: 'changed', mtimeMs: mtimeMs!, doc: parseTranscriptEvents(jsonl) }
+      } catch {
+        // A non-ENOENT read failure (EACCES, EIO, …) is transient, not absence. Degrade like
+        // summarize does: report an error so the view keeps its last doc, rather than rejecting the
+        // IPC or masquerading as "no transcript".
+        return { status: 'error' }
+      }
+    },
   }
 }

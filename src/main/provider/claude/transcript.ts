@@ -1,6 +1,7 @@
 import { basename } from 'node:path'
 import { normalizeModelId, type ModelId } from '@shared/models'
 import type { Usage } from '@shared/types'
+import { extractCommandName, stripCommandEnvelope } from './command-envelope'
 
 export interface TranscriptSummary {
   title: string
@@ -17,19 +18,11 @@ export interface TranscriptSummary {
   contextTokens: number
 }
 
-// A slash-command user turn is a bundle of these envelope tags; its useful label
-// is the command name, so we surface that and drop the rest. Everything outside
-// this known set is left alone, so prose keeps its angle brackets (a < b, JSX,
-// generics) instead of being shredded by a blanket tag strip.
-const COMMAND_NAME = /<command-name>([\s\S]*?)<\/command-name>/
-const COMMAND_ENVELOPE =
-  /<(command-name|command-message|command-args|command-contents|local-command-stdout|local-command-stderr)>[\s\S]*?<\/\1>/g
-
 /** First non-empty user prompt (slash commands shown by name), else the project basename. */
 export function deriveTitle(userPrompts: string[], cwd: string): string {
   for (const raw of userPrompts) {
-    const command = raw.match(COMMAND_NAME)?.[1]?.trim()
-    const cleaned = command || raw.replace(COMMAND_ENVELOPE, '').replace(/\s+/g, ' ').trim()
+    const command = extractCommandName(raw)
+    const cleaned = command || stripCommandEnvelope(raw).replace(/\s+/g, ' ').trim()
     if (cleaned) return cleaned.length > 80 ? cleaned.slice(0, 79) + '…' : cleaned
   }
   return basename(cwd) || 'session'

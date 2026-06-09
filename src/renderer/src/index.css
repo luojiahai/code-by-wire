@@ -55,3 +55,13 @@ body {
     radial-gradient(900px 500px at 0% 110%, rgba(191,128,64,0.035), transparent 55%),
     var(--color-ink-950);
 }
+
+/* Overview rows drill into the workspace. Keyboard-reachable (role=button, tabIndex), so give focus
+   a visible ring alongside the hover tint. */
+.row-clickable { cursor: pointer; }
+.row-clickable:hover { background: var(--color-ink-925); }
+.row-clickable:focus-visible {
+  background: var(--color-ink-925);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}

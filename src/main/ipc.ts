@@ -27,6 +27,9 @@ export function registerIpc({ db, provider }: IpcDeps): { sync: () => void } {
     return getSessions(db)
   })
   ipcMain.handle(IPC.capabilities, () => provider.capabilities)
+  ipcMain.handle(IPC.readTranscript, (_e, id: string, sinceMtimeMs?: number) =>
+    provider.readTranscript(id, sinceMtimeMs),
+  )
 
   return { sync }
 }
