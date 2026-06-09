@@ -1,6 +1,6 @@
 import type { PersistedSession } from '@shared/types'
 import type { Provider } from './provider/types'
-import type { SqliteDb } from './db/driver'
+import { transaction, type SqliteDb } from './db/driver'
 import { getPersisted, upsertSessions, pruneSessions } from './db/store'
 
 export interface SyncResult {
@@ -37,11 +37,15 @@ export function syncSessions(db: SqliteDb, provider: Provider): SyncResult {
     }
   }
 
-  upsertSessions(db, snapshots)
-
   const keep = new Set(candidates.map((c) => c.id))
   const prunedIds = [...stored.keys()].filter((id) => !keep.has(id))
-  pruneSessions(db, [...keep])
+
+  // One transaction so the pass is all-or-nothing: a crash or throw between the upsert and the
+  // prune can't leave the index holding both fresh snapshots and rows that should have aged out.
+  transaction(db, () => {
+    upsertSessions(db, snapshots)
+    pruneSessions(db, [...keep])
+  })
 
   return { parsedIds, prunedIds }
 }

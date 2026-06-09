@@ -114,4 +114,25 @@ describe('syncSessions', () => {
     expect(r.parsedIds).toEqual([]) // no transcript → not a parse
     expect(getSessions(db).map((s) => s.id)).toEqual(['skel'])
   })
+
+  it('rolls back the upsert when pruning fails mid-pass, leaving the prior index intact', () => {
+    const db = openTestDb()
+    migrate(db)
+    syncSessions(db, fakeProvider([cand('a')]).provider)
+    const before = getPersisted(db)
+
+    // After the upsert has run, make the prune statement throw. Upsert and prune share one
+    // transaction now, so the advanced 'a' and the new 'z' must roll back with the failed prune.
+    const realPrepare = db.prepare.bind(db)
+    db.prepare = ((sql: string) => {
+      if (/DELETE FROM sessions WHERE/i.test(sql)) throw new Error('prune boom')
+      return realPrepare(sql)
+    }) as typeof db.prepare
+    expect(() =>
+      syncSessions(db, fakeProvider([cand('a', { transcriptMtimeMs: 200 }), cand('z')]).provider),
+    ).toThrow('prune boom')
+    db.prepare = realPrepare
+
+    expect(getPersisted(db)).toEqual(before)
+  })
 })
