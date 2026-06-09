@@ -79,3 +79,37 @@ describe('install — backup before modification (AC #3)', () => {
     expect(readdirSync(home).filter((f) => f.endsWith('.bak'))).toHaveLength(0)
   })
 })
+
+describe('install — wrap an existing statusLine (AC #1)', () => {
+  it('records the original command in state.json and reports it wrapped, not clobbered', () => {
+    const home = makeHome()
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify({ statusLine: { type: 'command', command: 'my-prompt --color', padding: 2 } }, null, 2),
+    )
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    const result = mgr.install()
+
+    // The app's command is now installed...
+    expect(readJson(home).statusLine).toEqual({ type: 'command', command: appCommandFor(home) })
+    // ...and the user's original is preserved for the wrapper (issue #11) to call through to.
+    const state = readState(home)
+    expect(state.wrappedCommand).toBe('my-prompt --color')
+    expect(state.originalAbsent).toBe(false)
+    expect(state.backupPath).toBe(result.backupPath)
+    expect(result.wrappedExisting).toBe(true)
+  })
+
+  it('records originalAbsent + null wrappedCommand when settings.json did not exist', () => {
+    const home = makeHome()
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    mgr.install()
+
+    const state = readState(home)
+    expect(state.originalAbsent).toBe(true)
+    expect(state.wrappedCommand).toBeNull()
+    expect(state.backupPath).toBeNull()
+  })
+})
