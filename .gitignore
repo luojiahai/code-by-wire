@@ -8,3 +8,7 @@ out/
 
 # Vendored Claude Code skills — reproducible from skills-lock.json via /setup-matt-pocock-skills
 .claude/skills/
+
+# Superpowers plugin state and generated docs: local only, never tracked
+.superpowers/
+docs/superpowers/
