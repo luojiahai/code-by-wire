@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import type { Session, ProviderCapabilities } from '@shared/types'
 import { pinWaiting } from '@shared/overview'
+import { formatUsd, formatRelativeTime } from '@shared/format'
 
 const STATE_LABEL: Record<Session['state'], string> = {
   working: 'Working',
@@ -11,6 +12,7 @@ const STATE_LABEL: Record<Session['state'], string> = {
 
 const cell: CSSProperties = { padding: '6px 8px' }
 const muted: CSSProperties = { ...cell, color: 'var(--color-fg-muted)' }
+const numeric: CSSProperties = { ...cell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 
 export function App() {
   const [sessions, setSessions] = useState<Session[]>([])
@@ -42,6 +44,7 @@ export function App() {
   }
 
   const rows = useMemo(() => pinWaiting(sessions), [sessions])
+  const now = Date.now()
 
   return (
     <div className="app-bg" style={{ minHeight: '100vh', padding: 24, color: 'var(--color-fg)' }}>
@@ -84,6 +87,9 @@ export function App() {
               <th style={cell}>Project</th>
               <th style={cell}>Branch</th>
               <th style={cell}>Model</th>
+              <th style={numeric}>Context</th>
+              <th style={numeric}>Equiv. value</th>
+              <th style={cell}>Last activity</th>
               <th style={cell}>Mgmt</th>
             </tr>
           </thead>
@@ -95,6 +101,9 @@ export function App() {
                 <td style={muted}>{s.project}</td>
                 <td style={muted}>{s.branch ?? '—'}</td>
                 <td style={cell}>{s.model}</td>
+                <td style={numeric}>{s.contextPct}%</td>
+                <td style={numeric}>{formatUsd(s.equivApiValueUsd)}</td>
+                <td style={muted}>{formatRelativeTime(s.lastActivityMs, now)}</td>
                 <td style={muted}>{s.management}</td>
               </tr>
             ))}

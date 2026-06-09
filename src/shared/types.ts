@@ -49,9 +49,9 @@ export interface Session {
 }
 
 /**
- * The narrow per-session snapshot the index actually persists. Everything a SQLite row holds and
- * nothing the skeleton fabricates: no zeroed usage/cost/context/tasks — those are filled by
- * `hydrate` in one place when a row is read back, so the DB stops hand-authoring defaults twice.
+ * The narrow per-session snapshot the index actually persists. Everything a SQLite row holds.
+ * Derived display values (contextPct, equivApiValueUsd) are NOT stored — `hydrate` computes them
+ * from these fields when a row is read back, so the formula lives in exactly one place.
  */
 export interface PersistedSession {
   id: string
@@ -68,6 +68,10 @@ export interface PersistedSession {
   /** mtime (ms) of the transcript when it was last parsed — the incremental high-water mark. A sync
    *  reparses only when the file's current mtime exceeds this. 0 means the session has no transcript. */
   transcriptMtimeMs: number
+  /** Token usage summed across the transcript's assistant turns — the basis for Equivalent API value. */
+  usage: Usage
+  /** Latest turn's full prompt (input + cache-read + cache-creation): the current context size, for context %. */
+  contextTokens: number
 }
 
 /**

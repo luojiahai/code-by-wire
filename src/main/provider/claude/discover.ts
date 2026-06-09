@@ -174,6 +174,8 @@ export function summarize(c: SessionCandidate): PersistedSession {
     lastActivityMs: t?.lastActivityMs || c.updatedAt || 0,
     awaitingUser,
     transcriptMtimeMs: c.transcriptMtimeMs,
+    usage: t?.usage ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+    contextTokens: t?.contextTokens ?? 0,
   }
 }
 

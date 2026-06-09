@@ -26,6 +26,8 @@ const snapOf = (c: SessionCandidate): PersistedSession => ({
   lastActivityMs: c.transcriptMtimeMs,
   awaitingUser: false,
   transcriptMtimeMs: c.transcriptMtimeMs,
+  usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+  contextTokens: 0,
 })
 
 // A fake provider with spied primitives, so we can assert exactly which candidates were summarized

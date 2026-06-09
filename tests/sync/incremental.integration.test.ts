@@ -33,7 +33,17 @@ function writeTranscript(home: string, proj: string, id: string, cwd: string, ac
     path,
     [
       JSON.stringify({ type: 'user', isMeta: false, cwd, message: { role: 'user', content: `work on ${id}` } }),
-      JSON.stringify({ type: 'assistant', cwd, timestamp: activityIso, message: { role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: 'ok' }] } }),
+      JSON.stringify({
+        type: 'assistant',
+        cwd,
+        timestamp: activityIso,
+        message: {
+          role: 'assistant',
+          model: 'claude-opus-4-8',
+          usage: { input_tokens: 50000, output_tokens: 1000, cache_read_input_tokens: 30000, cache_creation_input_tokens: 2000 },
+          content: [{ type: 'text', text: 'ok' }],
+        },
+      }),
     ].join('\n') + '\n',
   )
   utimesSync(path, new Date(mtimeMs), new Date(mtimeMs))
@@ -64,6 +74,11 @@ describe('incremental sync (real provider, scratch SQLite)', () => {
     expect(byId1['live'].state).toBe('working')
     expect(byId1['ended'].state).toBe('ended')
     expect(byId1['ancient']).toBeUndefined()
+    // AC1: context % and Equivalent API value are computed from the parsed token data.
+    expect(byId1['live'].usage).toEqual({ inputTokens: 50000, outputTokens: 1000, cacheReadTokens: 30000, cacheCreationTokens: 2000 })
+    expect(byId1['live'].contextWindow).toBe(1_000_000) // Opus runs the 1M window
+    expect(byId1['live'].contextPct).toBe(8) // (50000 + 30000 + 2000) / 1_000_000, rounded
+    expect(byId1['live'].equivApiValueUsd).toBeCloseTo(0.3025) // opus: (50000*5 + 1000*25 + 30000*0.5 + 2000*6.25)/1e6
 
     // AC2: a second pass with no file changes reparses nothing and leaves the rows identical.
     const before = getSessions(db)

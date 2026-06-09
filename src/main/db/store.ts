@@ -1,9 +1,9 @@
 import type { Session, PersistedSession } from '@shared/types'
-import { contextWindowFor, normalizeModelId } from '@shared/models'
+import { contextWindowFor, equivApiValue, normalizeModelId } from '@shared/models'
 import { transaction, type SqliteDb } from './driver'
 
 /** Bump when the schema changes; `migrate` rebuilds the index (a disposable cache) to match. */
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 3
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version
@@ -28,7 +28,12 @@ export function migrate(db: SqliteDb): void {
         model TEXT NOT NULL,
         last_activity_ms INTEGER NOT NULL,
         awaiting_user INTEGER NOT NULL DEFAULT 0,
-        transcript_mtime_ms INTEGER NOT NULL DEFAULT 0
+        transcript_mtime_ms INTEGER NOT NULL DEFAULT 0,
+        input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+        context_tokens INTEGER NOT NULL DEFAULT 0
       );
       PRAGMA user_version = ${SCHEMA_VERSION};
     `)
@@ -46,6 +51,11 @@ interface Row {
   last_activity_ms: number
   awaiting_user: number
   transcript_mtime_ms: number
+  input_tokens: number
+  output_tokens: number
+  cache_read_tokens: number
+  cache_creation_tokens: number
+  context_tokens: number
 }
 
 function rowToPersisted(r: Row): PersistedSession {
@@ -60,15 +70,30 @@ function rowToPersisted(r: Row): PersistedSession {
     lastActivityMs: r.last_activity_ms,
     awaitingUser: !!r.awaiting_user,
     transcriptMtimeMs: r.transcript_mtime_ms,
+    usage: {
+      inputTokens: r.input_tokens,
+      outputTokens: r.output_tokens,
+      cacheReadTokens: r.cache_read_tokens,
+      cacheCreationTokens: r.cache_creation_tokens,
+    },
+    contextTokens: r.context_tokens,
   }
 }
 
+/** Context fill as a whole-number percent, capped at 100; 0 when the window is unknown. The cap
+ *  guards a model run on a larger window than its family default (e.g. Sonnet on the 1M beta). */
+function pctOfWindow(tokens: number, window: number): number {
+  return window > 0 ? Math.min(100, Math.round((tokens / window) * 100)) : 0
+}
+
 /**
- * Fill the deferred-scope fields a persisted snapshot doesn't carry — the single place these zeros
- * and empties live, so discovery and the DB read no longer hand-author the same defaults in two
- * spots. Real usage/cost/context/tasks/subagents arrive in later issues.
+ * Turn a persisted snapshot into a renderer-facing Session, computing the derived display values
+ * (context window, context %, Equivalent API value) from the stored raw numbers + model — the single
+ * place those formulas live. The window is a fixed per-family property of the model, so it's derived
+ * here, not stored. Tasks and subagents stay empty until later issues populate them.
  */
 export function hydrate(p: PersistedSession): Session {
+  const contextWindow = contextWindowFor(p.model)
   return {
     id: p.id,
     title: p.title,
@@ -77,10 +102,10 @@ export function hydrate(p: PersistedSession): Session {
     state: p.state,
     management: p.management,
     model: p.model,
-    contextPct: 0,
-    contextWindow: contextWindowFor(p.model),
-    usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
-    equivApiValueUsd: 0,
+    contextPct: pctOfWindow(p.contextTokens, contextWindow),
+    contextWindow,
+    usage: p.usage,
+    equivApiValueUsd: equivApiValue(p.usage, p.model),
     lastActivityMs: p.lastActivityMs,
     tasks: [],
     subagents: [],
@@ -89,9 +114,11 @@ export function hydrate(p: PersistedSession): Session {
 
 const UPSERT = `
   INSERT INTO sessions
-    (id, title, project, branch, state, management, model, last_activity_ms, awaiting_user, transcript_mtime_ms)
+    (id, title, project, branch, state, management, model, last_activity_ms, awaiting_user, transcript_mtime_ms,
+     input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, context_tokens)
   VALUES
-    (@id, @title, @project, @branch, @state, @management, @model, @last_activity_ms, @awaiting_user, @transcript_mtime_ms)
+    (@id, @title, @project, @branch, @state, @management, @model, @last_activity_ms, @awaiting_user, @transcript_mtime_ms,
+     @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @context_tokens)
   ON CONFLICT(id) DO UPDATE SET
     title = excluded.title,
     project = excluded.project,
@@ -101,7 +128,12 @@ const UPSERT = `
     model = excluded.model,
     last_activity_ms = excluded.last_activity_ms,
     awaiting_user = excluded.awaiting_user,
-    transcript_mtime_ms = excluded.transcript_mtime_ms
+    transcript_mtime_ms = excluded.transcript_mtime_ms,
+    input_tokens = excluded.input_tokens,
+    output_tokens = excluded.output_tokens,
+    cache_read_tokens = excluded.cache_read_tokens,
+    cache_creation_tokens = excluded.cache_creation_tokens,
+    context_tokens = excluded.context_tokens
 `
 
 /**
@@ -124,6 +156,11 @@ export function upsertSessions(db: SqliteDb, snapshots: PersistedSession[]): voi
         last_activity_ms: s.lastActivityMs,
         awaiting_user: s.awaitingUser ? 1 : 0,
         transcript_mtime_ms: s.transcriptMtimeMs,
+        input_tokens: s.usage.inputTokens,
+        output_tokens: s.usage.outputTokens,
+        cache_read_tokens: s.usage.cacheReadTokens,
+        cache_creation_tokens: s.usage.cacheCreationTokens,
+        context_tokens: s.contextTokens,
       })
     }
   })
@@ -136,7 +173,7 @@ export function getPersisted(db: SqliteDb): PersistedSession[] {
   return rows.map(rowToPersisted)
 }
 
-/** The renderer-facing sessions: persisted snapshots hydrated with the deferred-scope defaults. */
+/** The renderer-facing sessions: persisted snapshots hydrated with the derived display values. */
 export function getSessions(db: SqliteDb): Session[] {
   return getPersisted(db).map(hydrate)
 }

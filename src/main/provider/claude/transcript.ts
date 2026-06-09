@@ -1,5 +1,6 @@
 import { basename } from 'node:path'
 import { normalizeModelId, type ModelId } from '@shared/models'
+import type { Usage } from '@shared/types'
 
 export interface TranscriptSummary {
   title: string
@@ -10,6 +11,10 @@ export interface TranscriptSummary {
   lastActivityMs: number
   /** The last turn left a question or permission prompt unanswered (a tool_use with no result). */
   awaitingUser: boolean
+  /** Token usage summed across the transcript's assistant turns — the basis for Equivalent API value. */
+  usage: Usage
+  /** Latest turn's full prompt (input + cache-read + cache-creation): the current context size, for context %. */
+  contextTokens: number
 }
 
 // A slash-command user turn is a bundle of these envelope tags; its useful label
@@ -42,6 +47,15 @@ function userPromptText(content: unknown): string {
   return ''
 }
 
+/** A finite number or 0 — usage fields can be absent or malformed in a half-written transcript line. */
+function num(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0
+}
+
+/** Claude Code injects '<synthetic>' assistant turns (cancelled or over-limit placeholders) that
+ *  carry a zero usage block. They're not a real model and don't represent the session's context. */
+const SYNTHETIC_MODEL = '<synthetic>'
+
 /**
  * Reduce a transcript's JSONL into a normalized summary. Parses line by line and
  * skips any unparseable line, so a transcript being appended to right now (a
@@ -58,6 +72,18 @@ export function parseTranscript(jsonl: string, fallbackCwd = ''): TranscriptSumm
   // AskUserQuestion) — which, once the session has gone quiet, is the Waiting signal. Scoped to
   // the latest turn (reset below) so an interrupted tool_use the user walked past doesn't latch.
   const unansweredToolUse = new Set<string>()
+
+  // Token usage summed over every assistant turn (cost is billed per turn). contextTokens tracks
+  // the LATEST turn's input + cache-read — the prompt size at that point, i.e. the current context.
+  let inputTokens = 0
+  let outputTokens = 0
+  let cacheReadTokens = 0
+  let cacheCreationTokens = 0
+  let contextTokens = 0
+  // Message ids whose usage we've already counted. Claude Code writes one assistant turn across
+  // several JSONL lines (one per content block), each repeating the same id and usage; counting
+  // per line would multiply the turn's tokens (2x-7x on real transcripts).
+  const countedTurns = new Set<string>()
 
   for (const line of jsonl.split('\n')) {
     const trimmed = line.trim()
@@ -79,11 +105,33 @@ export function parseTranscript(jsonl: string, fallbackCwd = ''): TranscriptSumm
     }
 
     if (row.type === 'assistant' && typeof row.message?.model === 'string') {
-      lastModelRaw = row.message.model
+      // Skip the '<synthetic>' sentinel: it would otherwise override the real model with the
+      // Opus default (normalizeModelId maps every unknown string to Opus).
+      if (row.message.model !== SYNTHETIC_MODEL) lastModelRaw = row.message.model
     }
 
     const content = row.message?.content
     if (row.type === 'assistant') {
+      // Count each turn's usage once, keyed on message id (see countedTurns). contextTokens tracks
+      // the latest turn that actually holds context: its full prompt, which is input + both cache
+      // parts. A zero-usage turn like a '<synthetic>' placeholder leaves it untouched.
+      const usage = row.message?.usage
+      if (usage && typeof usage === 'object') {
+        const id = typeof row.message?.id === 'string' ? row.message.id : undefined
+        const inp = num(usage.input_tokens)
+        const cacheRead = num(usage.cache_read_input_tokens)
+        const cacheCreation = num(usage.cache_creation_input_tokens)
+        if (!id || !countedTurns.has(id)) {
+          if (id) countedTurns.add(id)
+          inputTokens += inp
+          outputTokens += num(usage.output_tokens)
+          cacheReadTokens += cacheRead
+          cacheCreationTokens += cacheCreation
+        }
+        const prompt = inp + cacheRead + cacheCreation
+        if (prompt > 0) contextTokens = prompt
+      }
+
       // A new assistant turn supersedes the last, so only its own tool_use blocks can still be
       // blocking the user. Reset first: a tool_use the user walked past (interrupted, then typed
       // something else) lingers earlier in the file, and accumulating it would latch awaitingUser
@@ -124,5 +172,7 @@ export function parseTranscript(jsonl: string, fallbackCwd = ''): TranscriptSumm
     model: normalizeModelId(lastModelRaw),
     lastActivityMs,
     awaitingUser: unansweredToolUse.size > 0,
+    usage: { inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens },
+    contextTokens,
   }
 }
