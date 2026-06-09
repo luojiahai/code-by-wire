@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session, ProviderCapabilities, ModelId } from '@shared/types'
+import type { Stats } from '@shared/stats'
 import { mergeManaged } from '@shared/managed'
 import { newSessionId } from '@shared/terminal'
 import { Overview } from './Overview'
@@ -18,6 +19,7 @@ export function App() {
   // list so a new session shows + opens immediately; pruned once its real row lands.
   const [drafts, setDrafts] = useState<Session[]>([])
   const [caps, setCaps] = useState<ProviderCapabilities | null>(null)
+  const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -25,9 +27,14 @@ export function App() {
   async function load(): Promise<void> {
     setLoading(true)
     try {
-      const [s, c] = await Promise.all([window.api.listSessions(), window.api.capabilities()])
+      const [s, c, st] = await Promise.all([
+        window.api.listSessions(),
+        window.api.capabilities(),
+        window.api.stats(),
+      ])
       setSessions(s)
       setCaps(c)
+      setStats(st)
     } finally {
       setLoading(false)
     }
@@ -45,7 +52,11 @@ export function App() {
       if (document.hidden) return
       try {
         const s = await window.api.refresh()
-        if (alive) setSessions(s)
+        const st = await window.api.stats()
+        if (alive) {
+          setSessions(s)
+          setStats(st)
+        }
       } catch {
         // Keep the last-known list; the next tick retries.
       }
@@ -76,6 +87,7 @@ export function App() {
     setLoading(true)
     try {
       setSessions(await window.api.refresh())
+      setStats(await window.api.stats())
     } finally {
       setLoading(false)
     }
@@ -109,6 +121,7 @@ export function App() {
       <Overview
         sessions={all}
         caps={caps}
+        stats={stats}
         loading={loading}
         onRefresh={() => void refresh()}
         onOpen={(s) => setSelectedId(s.id)}
