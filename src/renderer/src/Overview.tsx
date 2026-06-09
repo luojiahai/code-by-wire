@@ -14,9 +14,10 @@ interface Props {
   loading: boolean
   onRefresh: () => void
   onOpen: (session: Session) => void
+  onNew: () => void
 }
 
-export function Overview({ sessions, caps, loading, onRefresh, onOpen }: Props) {
+export function Overview({ sessions, caps, loading, onRefresh, onOpen, onNew }: Props) {
   const rows = useMemo(() => pinWaiting(sessions), [sessions])
   const now = Date.now()
 
@@ -27,21 +28,36 @@ export function Overview({ sessions, caps, loading, onRefresh, onOpen }: Props) 
         <span style={{ color: 'var(--color-fg-muted)', fontSize: 13 }}>
           {sessions.length} session{sessions.length === 1 ? '' : 's'}
         </span>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          style={{
-            marginLeft: 'auto',
-            background: 'var(--color-ink-800)',
-            color: 'var(--color-fg)',
-            border: '1px solid var(--color-ink-700)',
-            borderRadius: 6,
-            padding: '4px 12px',
-            cursor: loading ? 'default' : 'pointer',
-          }}
-        >
-          {loading ? 'Syncing…' : 'Refresh'}
-        </button>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button
+            onClick={onNew}
+            style={{
+              background: 'var(--color-primary)',
+              color: 'var(--color-ink-950)',
+              border: 'none',
+              borderRadius: 6,
+              padding: '4px 12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            + New session
+          </button>
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            style={{
+              background: 'var(--color-ink-800)',
+              color: 'var(--color-fg)',
+              border: '1px solid var(--color-ink-700)',
+              borderRadius: 6,
+              padding: '4px 12px',
+              cursor: loading ? 'default' : 'pointer',
+            }}
+          >
+            {loading ? 'Syncing…' : 'Refresh'}
+          </button>
+        </div>
       </header>
 
       {sessions.length === 0 && !loading ? (

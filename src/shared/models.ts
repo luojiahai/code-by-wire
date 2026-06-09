@@ -74,6 +74,12 @@ export function priceFor(model: ModelId): ModelPricing {
   return specById(model).pricing
 }
 
+/** The model's short family name ('opus' | 'sonnet' | 'haiku'), which doubles as the stable
+ *  `claude --model` alias. One source of truth so the spawn flag can't drift from the MODELS table. */
+export function familyFor(model: ModelId): string {
+  return specById(model).family
+}
+
 /**
  * Equivalent API value (USD) for a session's summed token usage at the model's API rates. On a
  * subscription account this is a reference figure, not money owed (see CONTEXT.md). Rates are per

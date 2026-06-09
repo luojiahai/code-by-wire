@@ -55,3 +55,35 @@ describe('ClaudeProvider.readTranscript', () => {
     expect(provider.readTranscript('no-such-session')).toEqual({ status: 'absent' })
   })
 })
+
+describe('ClaudeProvider managed labelling', () => {
+  const claudeDir = resolve('tests/fixtures/claude-home')
+  const liveId = 'aaaa1111-1111-1111-1111-111111111111'
+
+  it('labels a session Managed when the registry has its id, Observed otherwise', () => {
+    const provider = createClaudeProvider({
+      claudeDir,
+      isPidAlive: () => true,
+      managed: { has: (id) => id === liveId },
+    })
+    const candidates = provider.listCandidates()
+    const otherId = 'bbbb2222-2222-2222-2222-222222222222'
+    const live = candidates.find((c) => c.id === liveId)!
+    const other = candidates.find((c) => c.id === otherId)!
+    expect(provider.summarize(live).management).toBe('managed')
+    expect(provider.summarize(other).management).toBe('observed')
+  })
+
+  it('defaults to Observed when no registry is injected', () => {
+    const provider = createClaudeProvider({ claudeDir, isPidAlive: () => true })
+    const live = provider.listCandidates().find((c) => c.id === liveId)!
+    expect(provider.summarize(live).management).toBe('observed')
+  })
+
+  it('reverts a previously-Managed snapshot to Observed when the registry no longer has it (restate)', () => {
+    const provider = createClaudeProvider({ claudeDir, isPidAlive: () => true, managed: { has: () => false } })
+    const live = provider.listCandidates().find((c) => c.id === liveId)!
+    const wasManaged = { ...provider.summarize(live), management: 'managed' as const }
+    expect(provider.restate(live, wasManaged).management).toBe('observed')
+  })
+})

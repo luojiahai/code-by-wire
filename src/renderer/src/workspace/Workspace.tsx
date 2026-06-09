@@ -2,6 +2,7 @@ import type { Session } from '@shared/types'
 import { ManagementChip, StateBadge } from '../ui/atoms'
 import { MODEL_LABEL } from '../ui/meta'
 import { TranscriptView } from './TranscriptView'
+import { TerminalView } from '../terminal/TerminalView'
 
 export function Workspace({ session: s, onBack }: { session: Session; onBack: () => void }) {
   const isObserved = s.management === 'observed'
@@ -34,26 +35,16 @@ export function Workspace({ session: s, onBack }: { session: Session; onBack: ()
         )}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1">
         {isObserved ? (
-          <TranscriptView sessionId={s.id} project={s.project} state={s.state} />
+          <div className="h-full overflow-auto">
+            <TranscriptView sessionId={s.id} project={s.project} state={s.state} />
+          </div>
         ) : (
-          <ManagedPlaceholder />
+          <div className="h-full p-2">
+            <TerminalView sessionId={s.id} />
+          </div>
         )}
-      </div>
-    </div>
-  )
-}
-
-function ManagedPlaceholder() {
-  return (
-    <div className="flex h-full items-center justify-center p-8 text-center text-[13px]">
-      <div>
-        <div className="text-fg">Managed session</div>
-        <p className="mt-2 max-w-sm text-fg-faint">
-          The live terminal for Managed sessions lands in a later slice. This workspace currently covers the frame
-          and the Observed read-only transcript.
-        </p>
       </div>
     </div>
   )

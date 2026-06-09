@@ -1,5 +1,6 @@
 import type { Session, ProviderCapabilities } from './types'
 import type { TranscriptRead } from './transcript'
+import type { TerminalApi } from './terminal'
 
 export const IPC = {
   listSessions: 'sessions:list',
@@ -14,3 +15,6 @@ export interface IpcApi {
   capabilities(): Promise<ProviderCapabilities>
   readTranscript(id: string, sinceMtimeMs?: number): Promise<TranscriptRead>
 }
+
+/** Everything exposed on `window.api`: the request/response surface plus the Managed-terminal surface. */
+export type AppApi = IpcApi & { terminal: TerminalApi }
