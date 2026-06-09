@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { buildClaudeCommand, newSessionId } from '../../src/main/terminal/command'
+import { buildClaudeCommand } from '../../src/main/terminal/command'
+import { newSessionId } from '../../src/shared/terminal'
 
 describe('buildClaudeCommand', () => {
   it('pins the session id and maps the model to a stable CLI alias', () => {

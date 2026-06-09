@@ -54,10 +54,12 @@ function harness() {
   const sent: Array<[string, string]> = []
   const exited: Array<[string, number]> = []
   const spawned: string[] = []
+  const closed: string[] = []
   const manager = createTerminalManager({
     send: (id, data) => sent.push([id, data]),
     notifyExit: (id, code) => exited.push([id, code]),
     onSpawned: (id) => spawned.push(id),
+    onClosed: (id) => closed.push(id),
     createPty: (o) => {
       const f = fakePty()
       f.state.spawnedWith = o
@@ -67,7 +69,7 @@ function harness() {
     createBufferer: passthroughBufferer,
     env: { PATH: '/usr/bin' },
   })
-  return { manager, ptys, sent, exited, spawned }
+  return { manager, ptys, sent, exited, spawned, closed }
 }
 
 const REQ = { id: 'sess-1', cwd: '/work/app', model: 'claude-sonnet-4-6' as const, cols: 80, rows: 30 }
@@ -133,6 +135,13 @@ describe('createTerminalManager', () => {
     expect(h.ptys[0].state.writes).toEqual([])
   })
 
+  it('reports the id closed on natural exit, so the registry drops its Managed label', () => {
+    const h = harness()
+    h.manager.spawn(REQ)
+    h.ptys[0].emitExit(0)
+    expect(h.closed).toEqual(['sess-1'])
+  })
+
   it('kills every pty on disposeAll', () => {
     const h = harness()
     h.manager.spawn(REQ)
@@ -141,5 +150,13 @@ describe('createTerminalManager', () => {
     expect(h.ptys.map((p) => p.state.killed)).toEqual([true, true])
     h.manager.write('sess-1', 'after-dispose')
     expect(h.ptys[0].state.writes).toEqual([])
+  })
+
+  it('reports every id closed on disposeAll, so a closed window leaves no stale Managed labels', () => {
+    const h = harness()
+    h.manager.spawn(REQ)
+    h.manager.spawn({ ...REQ, id: 'sess-2' })
+    h.manager.disposeAll()
+    expect(h.closed.sort()).toEqual(['sess-1', 'sess-2'])
   })
 })

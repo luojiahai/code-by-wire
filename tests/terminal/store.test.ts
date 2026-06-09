@@ -73,6 +73,14 @@ describe('createTerminalStore', () => {
     expect(() => h.route('ghost', 'x')).not.toThrow() // no handle → dropped, no throw
   })
 
+  it('acks a chunk it has to drop, so the pty never leaks flow-control credit', () => {
+    const h = harness()
+    // No handle for 'ghost'. The manager already counted these chars as unacked when it sent them,
+    // so the store credits them straight back instead of stranding them and wedging a paused pty.
+    h.route('ghost', 'xyz')
+    expect(h.api.ack).toHaveBeenCalledWith('ghost', 3)
+  })
+
   it('forwards user keystrokes to the pty for the right id', () => {
     const h = harness()
     h.store.create('a')
@@ -90,11 +98,11 @@ describe('createTerminalStore', () => {
     expect(h.api.ack).toHaveBeenCalledWith('a', FLOW.ackChars) // one full chunk; the 10 remainder waits
   })
 
-  it('marks a handle exited and writes a notice, keeping the buffer', () => {
+  it('writes an exit notice on process exit, keeping the buffer', () => {
     const h = harness()
     h.store.create('a')
     h.exit('a', 0)
-    expect(h.store.get('a')?.exited).toBe(true)
+    expect(h.store.get('a')).toBeDefined() // handle kept so the scrollback stays readable
     expect(h.made[0].writes.at(-1)?.data).toContain('exited')
   })
 

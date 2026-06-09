@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { ModelId } from '@shared/types'
 import { MODEL_IDS } from '@shared/models'
 import { MODEL_LABEL } from '../ui/meta'
@@ -15,6 +15,7 @@ export function NewSessionDialog({
   const [model, setModel] = useState<ModelId>('claude-sonnet-4-6')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -23,6 +24,34 @@ export function NewSessionDialog({
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [busy, onCancel])
+
+  // Move focus into the dialog on open and restore it to whatever had focus when it closes, so keyboard
+  // and screen-reader users aren't stranded on the now-obscured Overview behind the overlay.
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null
+    panelRef.current?.focus()
+    return () => prev?.focus?.()
+  }, [])
+
+  // Minimal focus trap: keep Tab cycling within the dialog instead of wandering to the hidden Overview.
+  function trapTab(e: ReactKeyboardEvent<HTMLDivElement>) {
+    if (e.key !== 'Tab') return
+    const panel = panelRef.current
+    if (!panel) return
+    const focusable = Array.from(
+      panel.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+    ).filter((el) => !el.hasAttribute('disabled'))
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
 
   async function pick() {
     const dir = await window.api.terminal.pickDirectory()
@@ -44,10 +73,18 @@ export function NewSessionDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={busy ? undefined : onCancel}>
       <div
-        className="w-[28rem] rounded-xl border border-ink-800 bg-ink-925 p-5 text-fg shadow-2xl"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-session-title"
+        tabIndex={-1}
+        className="w-[28rem] rounded-xl border border-ink-800 bg-ink-925 p-5 text-fg shadow-2xl outline-none"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={trapTab}
       >
-        <div className="text-sm font-medium">New Managed session</div>
+        <div id="new-session-title" className="text-sm font-medium">
+          New Managed session
+        </div>
         <p className="mt-1 text-[12px] text-fg-faint">
           Spawns <span className="font-mono">claude</span> in the chosen directory and drives it from a live terminal.
         </p>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session, ProviderCapabilities, ModelId } from '@shared/types'
 import { mergeManaged } from '@shared/managed'
+import { newSessionId } from '@shared/terminal'
 import { Overview } from './Overview'
 import { Workspace } from './workspace/Workspace'
 import { NewSessionDialog } from './terminal/NewSessionDialog'
@@ -62,6 +63,15 @@ export function App() {
     setDrafts((ds) => ds.filter((d) => !sessions.some((s) => s.id === d.id)))
   }, [sessions])
 
+  // A draft discovery never indexes (the process died before writing a transcript) would otherwise sit
+  // at 'working' forever. When its pty exits, flip the draft to 'ended' so the row stops lying. A draft
+  // that did get discovered is already gone, so this is a no-op for it.
+  useEffect(() => {
+    return window.api.terminal.onExit((id) => {
+      setDrafts((ds) => ds.map((d) => (d.id === id ? { ...d, state: 'ended' } : d)))
+    })
+  }, [])
+
   async function refresh(): Promise<void> {
     setLoading(true)
     try {
@@ -72,11 +82,19 @@ export function App() {
   }
 
   async function createSession(cwd: string, model: ModelId): Promise<void> {
-    const draft = await window.api.terminal.spawn({ cwd, model, cols: 80, rows: 30 })
-    terminalStore.create(draft.id) // stand the xterm + subscription up now, so no early output is lost
-    setDrafts((ds) => [draft, ...ds])
-    setCreating(false)
-    setSelectedId(draft.id)
+    // Mint the id here and stand the terminal up BEFORE spawning, so the very first pty bytes land on a
+    // live handle. Rows match xterm's pre-fit default (80x24); the view's first fit corrects it.
+    const id = newSessionId()
+    terminalStore.create(id)
+    try {
+      const draft = await window.api.terminal.spawn({ id, cwd, model, cols: 80, rows: 24 })
+      setDrafts((ds) => [draft, ...ds])
+      setCreating(false)
+      setSelectedId(id)
+    } catch (e) {
+      terminalStore.dispose(id) // spawn failed → nothing will ever feed this handle; don't leak it
+      throw e // surfaced by the dialog's catch
+    }
   }
 
   const all = mergeManaged(sessions, drafts)

@@ -29,6 +29,10 @@ export interface TerminalManagerDeps {
   notifyExit: (id: string, exitCode: number) => void
   /** Record `id` as Managed (the registry's `add`), so discovery labels it. */
   onSpawned: (id: string) => void
+  /** Drop `id`'s Managed label (the registry's `remove`) once its pty is gone — natural exit or a
+   *  disposeAll on window close — so Managed-ness stays anchored to the pty's actual lifetime and a
+   *  reopened window doesn't resurrect a dead session as Managed. */
+  onClosed: (id: string) => void
   /** The node-pty factory. REQUIRED (injected at the composition root, not defaulted) so the manager
    *  carries no value import of node-pty and stays unit-testable with a fake. */
   createPty: (o: SpawnOptions) => PtyProcess
@@ -84,6 +88,7 @@ export function createTerminalManager(deps: TerminalManagerDeps): TerminalManage
       bufferer.flush() // drain the tail of output instead of stranding it behind the 5ms timer
       bufferer.dispose()
       terms.delete(req.id)
+      deps.onClosed(req.id) // pty is gone → drop the Managed label so it re-derives as Observed
       deps.notifyExit(req.id, exitCode)
     })
 
@@ -111,6 +116,7 @@ export function createTerminalManager(deps: TerminalManagerDeps): TerminalManage
         term.bufferer.dispose()
         terms.delete(id)
         term.pty.kill()
+        deps.onClosed(id) // window closing → the pty dies, so drop its Managed label too
       }
       terms.clear()
     },

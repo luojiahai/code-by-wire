@@ -28,7 +28,21 @@ export const TERMINAL = {
  */
 export const FLOW = { highWaterChars: 100_000, lowWaterChars: 5_000, ackChars: 5_000 } as const
 
+// Enforce the invariant in code, not just prose: a future tweak that drops lowWaterChars below ackChars
+// would silently wedge a paused pty, so fail loudly at import instead.
+if (FLOW.lowWaterChars < FLOW.ackChars) {
+  throw new Error('FLOW invariant violated: lowWaterChars must be >= ackChars (a paused pty would never resume)')
+}
+
+/** A fresh pinned session id (uuid v4) — the id the app correlates to the session's Transcript at
+ *  `projects/<cwd-slug>/<id>.jsonl`. Minted in the renderer so its terminal is standing before spawn. */
+export function newSessionId(): string {
+  return crypto.randomUUID()
+}
+
 export interface SpawnRequest {
+  /** The pinned session id, minted by the caller so the renderer can stand up its terminal first. */
+  id: string
   /** Absolute project directory the session runs in. */
   cwd: string
   model: ModelId

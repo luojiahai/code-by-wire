@@ -72,4 +72,16 @@ describe('createDataBufferer', () => {
     t.fire()
     expect(out).toEqual([])
   })
+
+  it('ignores add() after dispose() — a disposed bufferer never re-arms or emits', () => {
+    const t = fakeTimers()
+    const out: string[] = []
+    const buf = createDataBufferer((d) => out.push(d), { setTimer: t.setTimer, clearTimer: t.clearTimer })
+
+    buf.dispose()
+    buf.add('late') // a stray pty read after teardown
+    expect(t.armed()).toBe(false) // no timer re-armed
+    t.fire()
+    expect(out).toEqual([]) // nothing emitted
+  })
 })

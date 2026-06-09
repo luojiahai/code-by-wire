@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { join } from 'node:path'
 import type { PersistedSession, SessionCandidate } from '@shared/types'
 import { normalizeModelId } from '@shared/models'
+import { projectFromCwd } from '../../project-name'
 import { parseTranscript, type TranscriptSummary } from './transcript'
 import { deriveSessionState } from './state'
 
@@ -159,14 +160,14 @@ export function summarize(c: SessionCandidate): PersistedSession {
       t = null
     }
   }
-  const projectFromCwd = (c.cwd && basename(c.cwd)) || 'unknown'
+  const fallbackName = projectFromCwd(c.cwd)
   const model = t ? t.model : normalizeModelId(undefined)
   const awaitingUser = t?.awaitingUser ?? false
 
   return {
     id: c.id,
-    title: t?.title ?? projectFromCwd,
-    project: t?.project ?? projectFromCwd,
+    title: t?.title ?? fallbackName,
+    project: t?.project ?? fallbackName,
     branch: t?.branch,
     state: deriveSessionState({ alive: c.alive, status: c.status, awaitingUser }),
     management: 'observed', // default; overridden to 'managed' in createClaudeProvider for app-spawned ids

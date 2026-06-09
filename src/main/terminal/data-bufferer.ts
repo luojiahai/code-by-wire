@@ -28,6 +28,7 @@ export function createDataBufferer(flush: (data: string) => void, opts: Bufferer
 
   let buffer: string[] = []
   let timer: ReturnType<typeof setTimeout> | null = null
+  let disposed = false
 
   function emit(): void {
     if (timer !== null) {
@@ -42,11 +43,13 @@ export function createDataBufferer(flush: (data: string) => void, opts: Bufferer
 
   return {
     add(data) {
+      if (disposed) return // a late pty read after teardown must not resurrect the timer
       buffer.push(data)
       if (timer === null) timer = setTimer(emit, throttleMs)
     },
     flush: emit,
     dispose() {
+      disposed = true
       if (timer !== null) {
         clearTimer(timer)
         timer = null

@@ -22,14 +22,13 @@ export interface FitLike {
 }
 
 /** One live terminal: the xterm instance, its fit addon, and a persistent wrapper div that moves
- *  between containers on attach/detach. `opened` guards the one-time `term.open`; `exited` records
- *  that the process is gone (the buffer is kept so its scrollback stays readable). */
+ *  between containers on attach/detach. `opened` guards the one-time `term.open`. On process exit the
+ *  buffer is kept (the dim '[process exited]' line marks the end), so no separate flag is needed. */
 export interface TerminalHandle {
   term: XtermLike
   fit: FitLike
   wrapper: HTMLElement
   opened: boolean
-  exited: boolean
 }
 
 export interface TerminalStoreDeps {
@@ -69,18 +68,22 @@ export function createTerminalStore({ api, createTerminal }: TerminalStoreDeps):
     pendingAck.set(id, pending)
   }
 
-  // Subscribe ONCE, at construction — the singleton is built at app startup, before any session is
-  // spawned — so the very first bytes of a freshly-spawned session aren't missed. Chunks for an
-  // unknown/closed id are dropped.
+  // Subscribe ONCE, at construction — the singleton is built at app startup — so the multiplexed
+  // routing is live before any session spawns.
   api.onData((id, data) => {
     const h = handles.get(id)
-    if (!h) return
+    // No handle for this id (already disposed, or a stray after teardown): we can't render it, but the
+    // manager already counted these chars as unacked, so ack them straight back. Dropping them silently
+    // would leak flow-control credit and could wedge a paused pty (see FLOW's invariant).
+    if (!h) {
+      api.ack(id, data.length)
+      return
+    }
     h.term.write(data, () => ackConsumed(id, data.length))
   })
   api.onExit((id, code) => {
     const h = handles.get(id)
     if (!h) return
-    h.exited = true
     // Keep the scrollback; just mark the end inline (dim).
     h.term.write(`\r\n\x1b[2m[process exited${code ? ` (${code})` : ''}]\x1b[0m\r\n`)
   })
@@ -90,7 +93,7 @@ export function createTerminalStore({ api, createTerminal }: TerminalStoreDeps):
       const existing = handles.get(id)
       if (existing) return existing
       const { term, fit, wrapper } = createTerminal()
-      const handle: TerminalHandle = { term, fit, wrapper, opened: false, exited: false }
+      const handle: TerminalHandle = { term, fit, wrapper, opened: false }
       handles.set(id, handle)
       term.onData((data) => api.write(id, data)) // user keystrokes → pty (independent of DOM attach)
       return handle
