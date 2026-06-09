@@ -57,3 +57,13 @@ describe('registerIpc refresh', () => {
     expect(rows.map((s) => s.id)).toEqual(['seed'])
   })
 })
+
+describe('registerIpc readTranscript', () => {
+  it('delegates to the provider (null when no transcript)', () => {
+    const db = openTestDb()
+    migrate(db)
+    registerIpc({ db, provider: provider(() => []) })
+    const handler = handlers.get(IPC.readTranscript)!
+    expect(handler({}, 'any-id')).toBeNull()
+  })
+})
