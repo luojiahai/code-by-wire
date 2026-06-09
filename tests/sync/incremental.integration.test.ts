@@ -77,7 +77,7 @@ describe('incremental sync (real provider, scratch SQLite)', () => {
     // AC1: context % and Equivalent API value are computed from the parsed token data.
     expect(byId1['live'].usage).toEqual({ inputTokens: 50000, outputTokens: 1000, cacheReadTokens: 30000, cacheCreationTokens: 2000 })
     expect(byId1['live'].contextWindow).toBe(1_000_000) // Opus runs the 1M window
-    expect(byId1['live'].contextPct).toBe(8) // (50000 + 30000) / 1_000_000
+    expect(byId1['live'].contextPct).toBe(8) // (50000 + 30000 + 2000) / 1_000_000, rounded
     expect(byId1['live'].equivApiValueUsd).toBeCloseTo(0.3025) // opus: (50000*5 + 1000*25 + 30000*0.5 + 2000*6.25)/1e6
 
     // AC2: a second pass with no file changes reparses nothing and leaves the rows identical.

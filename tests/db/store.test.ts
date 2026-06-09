@@ -91,6 +91,14 @@ describe('store', () => {
     expect(s.contextPct).toBe(25) // 250000 / 1_000_000
   })
 
+  it('clamps context % at 100 when context exceeds the window', () => {
+    // A Sonnet/Haiku session on the 1M beta is modeled with a 200K window, so its real context can
+    // run past that. Context % must not render above 100.
+    const s = hydrate(snap({ model: 'claude-sonnet-4-6', contextTokens: 600_000 }))
+    expect(s.contextWindow).toBe(200_000)
+    expect(s.contextPct).toBe(100)
+  })
+
   it('serves sessions freshest-first', () => {
     const db = openTestDb()
     migrate(db)

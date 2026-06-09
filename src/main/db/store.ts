@@ -80,9 +80,10 @@ function rowToPersisted(r: Row): PersistedSession {
   }
 }
 
-/** Context fill as a whole-number percent; 0 when the window is unknown. */
+/** Context fill as a whole-number percent, capped at 100; 0 when the window is unknown. The cap
+ *  guards a model run on a larger window than its family default (e.g. Sonnet on the 1M beta). */
 function pctOfWindow(tokens: number, window: number): number {
-  return window > 0 ? Math.round((tokens / window) * 100) : 0
+  return window > 0 ? Math.min(100, Math.round((tokens / window) * 100)) : 0
 }
 
 /**

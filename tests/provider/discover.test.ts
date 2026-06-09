@@ -56,7 +56,7 @@ describe('summarize', () => {
     expect(s.awaitingUser).toBe(false)
     expect(s.transcriptMtimeMs).toBe(1)
     expect(s.usage).toEqual({ inputTokens: 100, outputTokens: 50, cacheReadTokens: 10, cacheCreationTokens: 5 })
-    expect(s.contextTokens).toBe(110)
+    expect(s.contextTokens).toBe(115) // input (100) + cache-read (10) + cache-creation (5)
   })
 
   it('derives ended when the candidate process is gone', () => {

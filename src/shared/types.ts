@@ -70,7 +70,7 @@ export interface PersistedSession {
   transcriptMtimeMs: number
   /** Token usage summed across the transcript's assistant turns — the basis for Equivalent API value. */
   usage: Usage
-  /** Latest turn's input + cache-read: the current context size, for context %. */
+  /** Latest turn's full prompt (input + cache-read + cache-creation): the current context size, for context %. */
   contextTokens: number
 }
 
