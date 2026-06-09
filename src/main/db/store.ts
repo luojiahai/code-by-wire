@@ -1,5 +1,6 @@
 import type { Session, PersistedSession } from '@shared/types'
 import { contextWindowFor, equivApiValue, normalizeModelId } from '@shared/models'
+import { computeStats, type Stats } from '@shared/stats'
 import { transaction, type SqliteDb } from './driver'
 
 /** Bump when the schema changes; `migrate` rebuilds the index (a disposable cache) to match. */
@@ -176,6 +177,15 @@ export function getPersisted(db: SqliteDb): PersistedSession[] {
 /** The renderer-facing sessions: persisted snapshots hydrated with the derived display values. */
 export function getSessions(db: SqliteDb): Session[] {
   return getPersisted(db).map(hydrate)
+}
+
+/**
+ * The Overview's usage aggregates, computed from the index — `getPersisted` reads the SQLite rows,
+ * never a transcript (ADR-0002). `now` is injected so the 7-day trend's day boundaries are
+ * deterministic in tests.
+ */
+export function getStats(db: SqliteDb, now: number): Stats {
+  return computeStats(getPersisted(db), now)
 }
 
 /** Drop every row whose id isn't in `keepIds` — sessions that aged out of the window and aren't live.
