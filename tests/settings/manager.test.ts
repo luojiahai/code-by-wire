@@ -1,20 +1,12 @@
-import { describe, it, expect, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { describe, it, expect } from 'vitest'
+import { writeFileSync, readFileSync, existsSync, readdirSync, rmSync, statSync, chmodSync, symlinkSync, lstatSync } from 'node:fs'
 import { join } from 'node:path'
 import { createSettingsManager } from '../../src/main/settings/manager'
+import { tempHomes } from '../helpers/temp-home'
 
 const NOW = 1781000000000 // fixed clock (ms) for deterministic backup timestamps
 
-const tmpHomes: string[] = []
-function makeHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'cbw-settings-'))
-  tmpHomes.push(home)
-  return home
-}
-afterEach(() => {
-  for (const home of tmpHomes.splice(0)) rmSync(home, { recursive: true, force: true })
-})
+const makeHome = tempHomes('cbw-settings-')
 
 const settingsPath = (home: string) => join(home, 'settings.json')
 const readRaw = (home: string) => readFileSync(settingsPath(home), 'utf8')
@@ -57,7 +49,9 @@ describe('install — clean (AC #2)', () => {
 describe('install — backup before modification (AC #3)', () => {
   it('writes a timestamped backup whose bytes equal the original, before modifying', () => {
     const home = makeHome()
-    const original = JSON.stringify({ theme: 'dark' }, null, 2) + '\n'
+    // Deliberately non-canonical (single-line, no trailing newline) so this can't pass against a backup
+    // taken from the reserialized in-memory settings instead of the raw pre-install bytes.
+    const original = '{"theme":"dark"}'
     writeFileSync(settingsPath(home), original)
     const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
 
@@ -66,7 +60,7 @@ describe('install — backup before modification (AC #3)', () => {
     expect(backupPath).not.toBeNull()
     expect(backupPath!.endsWith('.bak')).toBe(true)
     expect(backupPath!.startsWith(home)).toBe(true) // next to settings.json, easy to find by hand
-    expect(readFileSync(backupPath!, 'utf8')).toBe(original) // exact pre-install bytes
+    expect(readFileSync(backupPath!, 'utf8')).toBe(original) // exact pre-install bytes, formatting and all
   })
 
   it('writes no backup when there was no settings.json to back up', () => {
@@ -154,6 +148,7 @@ describe('uninstall — restore byte-for-byte (AC #4)', () => {
 
     expect(() => mgr.uninstall()).toThrow(/backup missing/)
     expect(mgr.isInstalled()).toBe(true) // still wrapped — we did NOT silently clear it
+    expect(existsSync(join(home, '.code-by-wire', 'state.json'))).toBe(true) // record kept so a retry can restore
   })
 })
 
@@ -221,5 +216,123 @@ describe('trust-safety', () => {
 
     expect(() => mgr.uninstall()).toThrow()
     expect(mgr.isInstalled()).toBe(true) // still wrapped — we did NOT silently pretend to uninstall
+    expect(existsSync(join(home, '.code-by-wire', 'state.json'))).toBe(true) // broken record kept, not deleted
+  })
+})
+
+describe('trust-safety — desync between settings.json and state.json', () => {
+  it('uninstall surfaces a wrapped settings.json whose state record is missing, never silently no-ops', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), JSON.stringify({ statusLine: { type: 'command', command: 'mine' } }, null, 2))
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+    mgr.install()
+
+    rmSync(join(home, '.code-by-wire', 'state.json')) // the record we rely on vanishes while still wrapped
+
+    expect(() => mgr.uninstall()).toThrow(/install record|wrapped/i)
+    expect(mgr.isInstalled()).toBe(true) // still wrapped — a missing record must not read as "not installed"
+  })
+
+  it('install refuses to reinstall over a wrapped settings.json with no state record', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), JSON.stringify({ statusLine: { type: 'command', command: 'mine' } }, null, 2))
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+    const first = mgr.install()
+
+    rmSync(join(home, '.code-by-wire', 'state.json'))
+
+    // Must not fabricate a clean-install result over an already-wrapped file.
+    expect(() => mgr.install()).toThrow(/install record|wrapped/i)
+    // ...and must not mint a second backup behind the user's back.
+    expect(readdirSync(home).filter((f) => f.endsWith('.bak'))).toHaveLength(1)
+    expect(first.backupPath).not.toBeNull()
+  })
+
+  it('uninstall surfaces a structurally wrong (but valid JSON) state.json', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), JSON.stringify({ statusLine: { type: 'command', command: 'mine' } }, null, 2))
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+    mgr.install()
+
+    writeFileSync(join(home, '.code-by-wire', 'state.json'), '{}') // valid JSON, wrong shape
+
+    expect(() => mgr.uninstall()).toThrow(/corrupt|invalid/i)
+    expect(mgr.isInstalled()).toBe(true) // still wrapped — wrong-shape state must not strand the user
+  })
+})
+
+describe('trust-safety — valid-but-non-object settings.json', () => {
+  it('refuses a settings.json that is a JSON array, leaving it untouched', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), '[]')
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    expect(() => mgr.install()).toThrow(/not a JSON object/i)
+    expect(readRaw(home)).toBe('[]') // untouched
+    expect(existsSync(join(home, '.code-by-wire', 'state.json'))).toBe(false) // no state written
+    expect(readdirSync(home).filter((f) => f.endsWith('.bak'))).toHaveLength(0) // no backup written
+  })
+
+  it('refuses a settings.json that is the literal null, with a clear error not a raw TypeError', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), 'null')
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    expect(() => mgr.install()).toThrow(/not a JSON object/i)
+    expect(readRaw(home)).toBe('null') // untouched
+  })
+})
+
+describe('trust-safety — reinstall after uninstall (backup collision)', () => {
+  it('does not collide on the backup filename when the clock has not advanced', () => {
+    const home = makeHome()
+    const original = JSON.stringify({ statusLine: { type: 'command', command: 'mine' } }, null, 2) + '\n'
+    writeFileSync(settingsPath(home), original)
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    mgr.install()
+    mgr.uninstall() // keeps the first backup as an audit trail
+    expect(() => mgr.install()).not.toThrow() // same NOW must not throw EEXIST on the kept backup
+
+    expect(mgr.isInstalled()).toBe(true)
+    expect(readdirSync(home).filter((f) => f.endsWith('.bak'))).toHaveLength(2) // both backups kept, distinct names
+  })
+})
+
+describe.skipIf(process.platform === 'win32')('trust-safety — symlinked settings.json', () => {
+  it('writes through a symlinked settings.json instead of replacing the link (dotfiles-style)', () => {
+    const home = makeHome()
+    const real = join(home, 'real-settings.json')
+    writeFileSync(real, JSON.stringify({ statusLine: { type: 'command', command: 'mine' } }, null, 2))
+    symlinkSync(real, settingsPath(home)) // settings.json → real-settings.json, e.g. linked into a dotfiles repo
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    mgr.install()
+
+    expect(lstatSync(settingsPath(home)).isSymbolicLink()).toBe(true) // link preserved, not clobbered to a file
+    expect(JSON.parse(readFileSync(real, 'utf8')).statusLine.command).toBe(appCommandFor(home)) // written through
+
+    mgr.uninstall()
+
+    expect(lstatSync(settingsPath(home)).isSymbolicLink()).toBe(true) // still a link after restore
+    expect(JSON.parse(readFileSync(real, 'utf8')).statusLine.command).toBe('mine') // restored through the link
+  })
+})
+
+describe.skipIf(process.platform === 'win32')('trust-safety — file permissions', () => {
+  it('preserves a restrictive (0600) settings.json mode through install and uninstall', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), JSON.stringify({ statusLine: { type: 'command', command: 'mine' } }, null, 2))
+    chmodSync(settingsPath(home), 0o600)
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    const { backupPath } = mgr.install()
+
+    const mask = 0o777
+    expect(statSync(backupPath!).mode & mask).toBe(0o600) // backup must not widen a 0600 secret to 0644
+    expect(statSync(settingsPath(home)).mode & mask).toBe(0o600) // nor the live wrapped file
+
+    mgr.uninstall()
+    expect(statSync(settingsPath(home)).mode & mask).toBe(0o600) // nor the restored file
   })
 })

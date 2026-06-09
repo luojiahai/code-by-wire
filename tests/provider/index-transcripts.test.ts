@@ -1,18 +1,10 @@
-import { describe, it, expect, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync, symlinkSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { describe, it, expect } from 'vitest'
+import { mkdirSync, writeFileSync, utimesSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { indexTranscripts } from '../../src/main/provider/claude/discover'
+import { tempHomes } from '../helpers/temp-home'
 
-const tmpHomes: string[] = []
-function makeHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'cbw-'))
-  tmpHomes.push(home)
-  return home
-}
-afterEach(() => {
-  for (const home of tmpHomes.splice(0)) rmSync(home, { recursive: true, force: true })
-})
+const makeHome = tempHomes('cbw-')
 
 // Whole-second mtimes dodge filesystem mtime granularity; the helper returns the file path.
 function writeTranscript(home: string, proj: string, id: string, mtimeSec: number): string {

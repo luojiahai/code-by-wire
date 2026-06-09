@@ -1,6 +1,5 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import type { Provider } from '../types'
+import { resolveClaudeDir } from '../../claude-config'
 import { listCandidates, summarize, restate } from './discover'
 
 export interface ClaudeProviderDeps {
@@ -25,7 +24,7 @@ function defaultIsPidAlive(pid: number): boolean {
 }
 
 export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
-  const claudeDir = deps.claudeDir ?? join(homedir(), '.claude')
+  const claudeDir = resolveClaudeDir(deps.claudeDir)
   const isPidAlive = deps.isPidAlive ?? defaultIsPidAlive
   const now = deps.now ?? (() => Date.now())
   const recentWindowMs = deps.recentWindowMs ?? DEFAULT_RECENT_WINDOW_MS

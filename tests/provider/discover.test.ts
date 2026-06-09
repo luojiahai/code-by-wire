@@ -1,21 +1,13 @@
-import { describe, it, expect, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { describe, it, expect } from 'vitest'
+import { mkdirSync, writeFileSync, utimesSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { listCandidates, summarize, restate, readSessionFiles } from '../../src/main/provider/claude/discover'
 import type { SessionCandidate } from '@shared/types'
+import { tempHomes } from '../helpers/temp-home'
 
 const CLAUDE_DIR = resolve('tests/fixtures/claude-home')
 
-const tmpHomes: string[] = []
-function makeHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'cbw-'))
-  tmpHomes.push(home)
-  return home
-}
-afterEach(() => {
-  for (const home of tmpHomes.splice(0)) rmSync(home, { recursive: true, force: true })
-})
+const makeHome = tempHomes('cbw-')
 
 function writeSessionFile(home: string, raw: Record<string, unknown>): void {
   mkdirSync(join(home, 'sessions'), { recursive: true })

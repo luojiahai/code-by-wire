@@ -1,10 +1,22 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
+import { readTextOrNull, resolveClaudeDir } from '../claude-config'
 
-/** The Claude Code statusLine block. `additionalProperties: false` upstream means we must not stash
- *  our own fields inside it — bookkeeping lives in our own state file instead. The index signature
- *  keeps padding / refreshInterval / etc. intact on a round-trip. */
+/** The Claude Code statusLine block. `additionalProperties: false` upstream means we must not stash our
+ *  own fields inside it — bookkeeping lives in our own state file instead. While installed we replace this
+ *  block with just `{ type, command }`; the user's original (padding, refreshInterval, …) is preserved in
+ *  the timestamped backup and restored verbatim on uninstall, not carried in the live config. The index
+ *  signature only lets us parse a richer block without dropping the fields we don't model. */
 interface StatusLine {
   type: string
   command: string
@@ -32,7 +44,7 @@ interface InstallState {
 }
 
 export interface SettingsManagerDeps {
-  /** Claude config dir; defaults to ~/.claude. The seam tests inject a temp dir through. */
+  /** Claude config dir; defaults via resolveClaudeDir (CLAUDE_CONFIG_DIR, else ~/.claude). Tests inject a temp dir. */
   claudeDir?: string
   /** Wall clock (ms) for the backup timestamp; injected so tests are deterministic. */
   now?: () => number
@@ -52,7 +64,7 @@ export interface SettingsManager {
 }
 
 export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsManager {
-  const claudeDir = deps.claudeDir ?? join(homedir(), '.claude')
+  const claudeDir = resolveClaudeDir(deps.claudeDir)
   const now = deps.now ?? (() => Date.now())
 
   const settingsPath = join(claudeDir, 'settings.json')
@@ -63,76 +75,159 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
   const wrapperPath = join(appDir, 'statusline-wrapper.sh')
   const appCommand = `"${wrapperPath}"`
 
-  function readSettingsRaw(): string | null {
+  /** Read + parse settings.json. Returns nulls when absent. Throws (before any write) on a file we can't
+   *  safely round-trip: invalid JSON, or valid JSON that isn't an object (an array / null / primitive would
+   *  silently drop our statusLine on re-serialize). The "parse before touch" trust-safety guard. */
+  function readSettings(): { raw: string | null; parsed: ClaudeSettings | null } {
+    const raw = readTextOrNull(settingsPath)
+    if (raw === null) return { raw: null, parsed: null }
+    let value: unknown
     try {
-      return readFileSync(settingsPath, 'utf8')
+      value = JSON.parse(raw)
+    } catch {
+      throw new Error('code-by-wire: settings.json is not valid JSON; refusing to touch it')
+    }
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('code-by-wire: settings.json is not a JSON object; refusing to touch it')
+    }
+    return { raw, parsed: value as ClaudeSettings }
+  }
+
+  function isInstallState(v: unknown): v is InstallState {
+    if (v === null || typeof v !== 'object') return false
+    const s = v as Record<string, unknown>
+    return (
+      typeof s.installedAt === 'string' &&
+      (typeof s.backupPath === 'string' || s.backupPath === null) &&
+      typeof s.originalAbsent === 'boolean' &&
+      (typeof s.wrappedCommand === 'string' || s.wrappedCommand === null) &&
+      typeof s.wrappedExisting === 'boolean'
+    )
+  }
+
+  /** Our install record, or null when genuinely absent. A present-but-broken record (unreadable, bad JSON,
+   *  or wrong shape) throws: we DID install, so it must surface, never masquerade as "nothing to do". */
+  function readState(): InstallState | null {
+    const raw = readTextOrNull(statePath)
+    if (raw === null) return null
+    let value: unknown
+    try {
+      value = JSON.parse(raw)
+    } catch {
+      throw new Error('code-by-wire: state.json is corrupt or unreadable')
+    }
+    if (!isInstallState(value)) {
+      throw new Error('code-by-wire: state.json is corrupt or invalid')
+    }
+    return value
+  }
+
+  function ensureAppDir(): void {
+    try {
+      mkdirSync(appDir, { recursive: true })
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
-      throw err
+      throw new Error(`code-by-wire: cannot create ${appDir}: ${(err as Error).message}`)
     }
   }
 
-  function readState(): InstallState | null {
-    let raw: string
-    try {
-      raw = readFileSync(statePath, 'utf8')
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null // absent ⇒ never installed
-      throw err // a present-but-unreadable record must surface, not masquerade as "not installed"
+  /** A backup path that does not already exist, so the kept-forever audit trail never collides — even on a
+   *  same-millisecond reinstall (the injected fixed test clock makes this the common case, not the rare one). */
+  function freeBackupPath(iso: string): string {
+    const stamp = iso.replace(/[:.]/g, '-')
+    let candidate = join(claudeDir, `settings.json.${stamp}.bak`)
+    for (let i = 1; existsSync(candidate); i++) {
+      candidate = join(claudeDir, `settings.json.${stamp}-${i}.bak`)
     }
-    // A present-but-corrupt state.json must surface too: we DID install, so silently treating it as
-    // "nothing to do" would strand the user wrapped with no uninstall. Let JSON.parse throw.
-    return JSON.parse(raw) as InstallState
+    return candidate
+  }
+
+  /** Write via a temp file + rename so a crash or partial write can never leave a truncated settings.json /
+   *  state.json on disk — the file flips from old to new atomically. Preserves an explicit mode when given.
+   *  A symlinked target (settings.json linked into a dotfiles repo) is written THROUGH instead, since a
+   *  rename would replace the link with a regular file; this keeps the original write-through behavior. */
+  function writeFileAtomic(path: string, data: string, mode?: number): void {
+    let isSymlink = false
+    try {
+      isSymlink = lstatSync(path).isSymbolicLink()
+    } catch {
+      isSymlink = false // absent ⇒ not a link
+    }
+    if (isSymlink) {
+      writeFileSync(path, data, mode !== undefined ? { mode } : {})
+      if (mode !== undefined) chmodSync(path, mode)
+      return
+    }
+    const tmp = `${path}.tmp`
+    writeFileSync(tmp, data, mode !== undefined ? { mode } : {})
+    if (mode !== undefined) chmodSync(tmp, mode) // exact bits despite umask
+    renameSync(tmp, path)
   }
 
   function isInstalled(): boolean {
-    const raw = readSettingsRaw()
-    if (raw === null) return false
+    let parsed: ClaudeSettings | null
     try {
-      const settings = JSON.parse(raw) as ClaudeSettings
-      return settings.statusLine?.command === appCommand
+      parsed = readSettings().parsed
     } catch {
-      return false // a file we can't parse isn't a confirmed install
+      return false // a file we can't parse / isn't an object isn't a confirmed install
     }
+    return parsed?.statusLine?.command === appCommand
   }
 
   function install(): InstallResult {
-    if (isInstalled()) {
-      const state = readState()
-      return { wrappedExisting: state?.wrappedExisting ?? false, backupPath: state?.backupPath ?? null }
+    const { raw, parsed } = readSettings() // single read; throws on a file we can't safely touch
+    const alreadyWrapped = parsed?.statusLine?.command === appCommand
+
+    if (alreadyWrapped) {
+      const state = readState() // throws on a corrupt record
+      if (state === null) {
+        // Wrapped on disk but no record to back it: re-wrapping would clobber and double-back-up. Surface it.
+        throw new Error(
+          'code-by-wire: settings.json is wrapped but the install record is missing; refusing to reinstall. ' +
+            'Remove the statusLine from settings.json by hand, or restore .code-by-wire/state.json.',
+        )
+      }
+      return { wrappedExisting: state.wrappedExisting, backupPath: state.backupPath }
     }
 
-    const originalText = readSettingsRaw()
-    const originalAbsent = originalText === null
-    // Parse before touching disk: a malformed settings.json aborts the install untouched, never clobbered.
-    const settings: ClaudeSettings = originalText === null ? {} : (JSON.parse(originalText) as ClaudeSettings)
-
-    const original = settings.statusLine
+    const originalAbsent = raw === null
+    const original = parsed?.statusLine
     const wrappedExisting = original !== undefined
     // A hand-edited file could hold a non-string command; only a real string is callable.
     const wrappedCommand = typeof original?.command === 'string' ? original.command : null
 
     const iso = new Date(now()).toISOString()
-    mkdirSync(appDir, { recursive: true })
+    ensureAppDir()
 
     let backupPath: string | null = null
-    if (originalText !== null) {
-      backupPath = join(claudeDir, `settings.json.${iso.replace(/[:.]/g, '-')}.bak`)
-      writeFileSync(backupPath, originalText, { flag: 'wx' }) // never overwrite an existing backup
+    let mode: number | undefined
+    if (raw !== null) {
+      mode = statSync(settingsPath).mode & 0o777
+      backupPath = freeBackupPath(iso)
+      writeFileSync(backupPath, raw, { flag: 'wx', mode }) // never overwrite an existing backup
+      chmodSync(backupPath, mode) // keep a 0600 secret at 0600, not the default 0644
     }
 
     const state: InstallState = { installedAt: iso, backupPath, originalAbsent, wrappedCommand, wrappedExisting }
-    writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n')
+    writeFileAtomic(statePath, JSON.stringify(state, null, 2) + '\n')
 
-    settings.statusLine = { type: 'command', command: appCommand }
-    writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n')
+    const next: ClaudeSettings = { ...(parsed ?? {}), statusLine: { type: 'command', command: appCommand } }
+    writeFileAtomic(settingsPath, JSON.stringify(next, null, 2) + '\n', mode) // mode preserved while wrapped
 
     return { wrappedExisting, backupPath }
   }
 
   function uninstall(): void {
-    const state = readState()
-    if (state === null) return // nothing we installed
+    const state = readState() // throws on a corrupt record — a record we can't read must surface
+    if (state === null) {
+      if (isInstalled()) {
+        // Wrapped on disk with no record to restore from: silently no-op'ing would strand the user wrapped.
+        throw new Error(
+          'code-by-wire: settings.json is wrapped but the install record is missing; cannot restore. ' +
+            'Remove the statusLine from settings.json by hand.',
+        )
+      }
+      return // genuinely nothing we installed
+    }
 
     if (state.originalAbsent) {
       rmSync(settingsPath, { force: true }) // restore "did not exist"
@@ -142,6 +237,7 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
         throw new Error(`code-by-wire: cannot restore settings.json; backup missing (${state.backupPath})`)
       }
       copyFileSync(state.backupPath, settingsPath) // byte-for-byte restore
+      chmodSync(settingsPath, statSync(state.backupPath).mode & 0o777) // ...and its original permissions
     }
 
     rmSync(statePath, { force: true })

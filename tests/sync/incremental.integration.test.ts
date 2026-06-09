@@ -1,24 +1,16 @@
-import { describe, it, expect, afterEach, vi } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { describe, it, expect, vi } from 'vitest'
+import { mkdirSync, writeFileSync, utimesSync } from 'node:fs'
 import { join } from 'node:path'
 import { createClaudeProvider } from '../../src/main/provider/claude'
 import { syncSessions } from '../../src/main/sync'
 import { migrate, getSessions } from '../../src/main/db/store'
 import { openTestDb } from '../helpers/sqlite'
+import { tempHomes } from '../helpers/temp-home'
 
 const NOW = 20_000_000_000 // fixed clock (ms), far in the future so fixture mtimes can't drift into range
 const WINDOW = 60_000 // 60s recency window
 
-const tmpHomes: string[] = []
-function makeHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'cbw-int-'))
-  tmpHomes.push(home)
-  return home
-}
-afterEach(() => {
-  for (const home of tmpHomes.splice(0)) rmSync(home, { recursive: true, force: true })
-})
+const makeHome = tempHomes('cbw-int-')
 
 function writeSession(home: string, pid: number, id: string, cwd: string, status: string): void {
   mkdirSync(join(home, 'sessions'), { recursive: true })
