@@ -3,9 +3,12 @@ import { join } from 'node:path'
 import { openDb } from './db/sqlite'
 import { migrate } from './db/store'
 import { createClaudeProvider } from './provider/claude'
+import { createManagedRegistry } from './managed-registry'
+import type { ManagedRegistry } from './managed-registry'
 import { registerIpc } from './ipc'
+import { registerTerminalIpc } from './terminal/ipc'
 
-function createWindow(): void {
+function createWindow(managed: ManagedRegistry): void {
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
@@ -15,6 +18,10 @@ function createWindow(): void {
       sandbox: false,
     },
   })
+
+  // Managed-terminal IPC is per-window: the manager pushes pty output to this window's renderer and
+  // kills its ptys when the window closes.
+  registerTerminalIpc({ window: win, managed })
 
   if (process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -27,7 +34,10 @@ app.whenReady()
   .then(async () => {
     const db = openDb(join(app.getPath('userData'), 'index.db'))
     migrate(db) // bring the index schema up to date before the first sync
-    const provider = createClaudeProvider()
+    // The registry of app-spawned ids, shared by reference: the terminal IPC writes it on spawn, the
+    // provider reads it to label discovered sessions Managed.
+    const managed = createManagedRegistry()
+    const provider = createClaudeProvider({ managed })
     const { sync } = registerIpc({ db, provider })
 
     try {
@@ -38,9 +48,9 @@ app.whenReady()
       console.error('initial session sync failed; opening the window anyway', err)
     }
 
-    createWindow()
+    createWindow(managed)
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+      if (BrowserWindow.getAllWindows().length === 0) createWindow(managed)
     })
   })
   .catch((err) => {
