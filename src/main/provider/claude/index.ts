@@ -6,6 +6,7 @@ import { indexTranscripts, listCandidates, summarize, restate } from './discover
 import { parseTranscriptEvents } from './transcript-events'
 import { parseJsonlRows } from './transcript-row'
 import { buildSubagentForest, readSubagentSources, subagentsDirFor, subagentsNewestMtime } from './subagents'
+import { readTasksForSession, tasksNewestMtime } from './tasks'
 
 export interface ClaudeProviderDeps {
   claudeDir?: string
@@ -96,6 +97,16 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
         // summarize does: report an error so the view keeps its last doc, rather than rejecting the
         // IPC or masquerading as "no transcript".
         return { status: 'error' }
+      }
+    },
+    readTasks: (id, sinceMtimeMs) => {
+      try {
+        const mtimeMs = tasksNewestMtime(claudeDir, id)
+        if (mtimeMs === 0) return { status: 'absent' } // no tasks dir / no task files for this session
+        if (mtimeMs === sinceMtimeMs) return { status: 'unchanged', mtimeMs }
+        return { status: 'changed', mtimeMs, tasks: readTasksForSession(claudeDir, id) }
+      } catch {
+        return { status: 'error' } // transient read failure — caller keeps its last list
       }
     },
   }
