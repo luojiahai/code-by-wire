@@ -64,7 +64,7 @@ export function Workspace({
             {s.branch && ` · ${s.branch}`}
           </div>
         </div>
-        <RateLimits account={account} now={now} variant="compact" />
+        <RateLimits account={account} now={now} />
         <ManagementChip kind={s.management} />
         {isObserved && (
           <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-faint">
