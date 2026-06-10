@@ -10,7 +10,10 @@ import { createSettingsManager } from './settings/manager'
 import { createStatusLineReader } from './statusline/reader'
 import { registerTerminalIpc } from './terminal/ipc'
 
-function createWindow(managed: ManagedRegistry): void {
+function createWindow(
+  managed: ManagedRegistry,
+  resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null,
+): void {
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
@@ -23,7 +26,7 @@ function createWindow(managed: ManagedRegistry): void {
 
   // Managed-terminal IPC is per-window: the manager pushes pty output to this window's renderer and
   // kills its ptys when the window closes.
-  registerTerminalIpc({ window: win, managed })
+  registerTerminalIpc({ window: win, managed, resolveAdoptTarget })
 
   if (process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -58,9 +61,9 @@ app.whenReady()
       console.error('initial session sync failed; opening the window anyway', err)
     }
 
-    createWindow(managed)
+    createWindow(managed, provider.resolveAdoptTarget)
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow(managed)
+      if (BrowserWindow.getAllWindows().length === 0) createWindow(managed, provider.resolveAdoptTarget)
     })
   })
   .catch((err) => {
