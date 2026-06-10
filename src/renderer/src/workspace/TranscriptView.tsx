@@ -42,25 +42,27 @@ export function TranscriptView({
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-5">
+    <div>
       {readOnly && (
-        <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-1 border-b border-ink-800 bg-ink-925/90 px-5 py-2 text-center text-[10px] uppercase tracking-wider text-fg-faint backdrop-blur">
+        <div className="sticky top-0 z-10 border-b border-ink-800 bg-ink-925/90 px-5 py-2 text-center text-[10px] uppercase tracking-wider text-fg-faint backdrop-blur">
           ● Read-only — live transcript from {project}. You can't type into an Observed session.
         </div>
       )}
 
-      {doc?.events.map((e, i) => <EventItem key={i} event={e} />)}
+      <div className="mx-auto max-w-3xl space-y-4 p-5">
+        {doc?.events.map((e, i) => <EventItem key={i} event={e} />)}
 
-      {state === 'waiting' && (
-        <div className="rounded-lg border border-accent/40 bg-accent/[0.08] p-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-accent-bright">Waiting for you</div>
-          <p className="mt-1 whitespace-pre-wrap font-mono text-[12px] text-accent-bright">
-            {doc?.waitingReason ?? 'Waiting for your input'}
-          </p>
-        </div>
-      )}
+        {state === 'waiting' && (
+          <div className="rounded-lg border border-accent/40 bg-accent/[0.08] p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-accent-bright">Waiting for you</div>
+            <p className="mt-1 whitespace-pre-wrap font-mono text-[12px] text-accent-bright">
+              {doc?.waitingReason ?? 'Waiting for your input'}
+            </p>
+          </div>
+        )}
 
-      <div ref={bottomRef} />
+        <div ref={bottomRef} />
+      </div>
     </div>
   )
 }
