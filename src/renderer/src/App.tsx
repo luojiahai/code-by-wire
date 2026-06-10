@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Session, ProviderCapabilities, ModelId, Account } from '@shared/types'
 import type { Stats } from '@shared/stats'
 import type { OverviewData } from '@shared/ipc'
-import { mergeManaged } from '@shared/managed'
+import { mergeManaged, applyAdopting } from '@shared/managed'
 import { newSessionId } from '@shared/terminal'
 import { Overview } from './Overview'
 import { Workspace } from './workspace/Workspace'
@@ -19,6 +19,9 @@ export function App() {
   // Optimistic Managed sessions spawned this run that discovery hasn't indexed yet. Merged into the
   // list so a new session shows + opens immediately; pruned once its real row lands.
   const [drafts, setDrafts] = useState<Session[]>([])
+  // Ids adopted this run that discovery has not yet relabeled Managed. Overlaid by applyAdopting so the
+  // adopted row reads Managed/Working immediately, until the next sync confirms it (or its pty exits).
+  const [adopting, setAdopting] = useState<Set<string>>(new Set())
   const [caps, setCaps] = useState<ProviderCapabilities | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
   const [account, setAccount] = useState<Account | null>(null)
@@ -75,12 +78,29 @@ export function App() {
     setDrafts((ds) => ds.filter((d) => !sessions.some((s) => s.id === d.id)))
   }, [sessions])
 
-  // A draft discovery never indexes (the process died before writing a transcript) would otherwise sit
-  // at 'working' forever. When its pty exits, flip the draft to 'ended' so the row stops lying. A draft
-  // that did get discovered is already gone, so this is a no-op for it.
+  // Drop an adopting override once discovery has relabeled its id Managed — the real row now carries the
+  // live state, so the optimistic overlay is done.
+  useEffect(() => {
+    setAdopting((prev) => {
+      if (prev.size === 0) return prev
+      const next = new Set(prev)
+      for (const session of sessions) if (session.management === 'managed') next.delete(session.id)
+      return next.size === prev.size ? prev : next
+    })
+  }, [sessions])
+
+  // A draft discovery never indexes (the process died before writing a transcript) would otherwise sit at
+  // 'working' forever; flip it to 'ended' on pty exit. Also drop any adopting override for that id, so a
+  // resume that died reverts to the real (Ended/Observed) row instead of lying Managed.
   useEffect(() => {
     return window.api.terminal.onExit((id) => {
       setDrafts((ds) => ds.map((d) => (d.id === id ? { ...d, state: 'ended' } : d)))
+      setAdopting((prev) => {
+        if (!prev.has(id)) return prev
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
     })
   }, [])
 
@@ -109,11 +129,29 @@ export function App() {
     }
   }
 
-  const all = mergeManaged(sessions, drafts)
+  // Adopt an Ended session: resume it in-app under its own id. Stand the terminal up first (so the first
+  // resume bytes land on a live handle), then optimistically mark it adopting — management flips to
+  // Managed and the workspace swaps to the live terminal — until the next sync confirms it.
+  async function adoptSession(id: string): Promise<void> {
+    terminalStore.create(id)
+    try {
+      const result = await window.api.terminal.adopt({ id, cols: 80, rows: 24 })
+      if (!result.ok) {
+        throw new Error(result.reason === 'alive' ? 'This session is alive again.' : 'Could not resume this session.')
+      }
+      setAdopting((prev) => new Set(prev).add(id))
+      setSelectedId(id)
+    } catch (e) {
+      terminalStore.dispose(id) // adopt refused or failed → nothing will feed this handle; don't leak it
+      throw e
+    }
+  }
+
+  const all = applyAdopting(mergeManaged(sessions, drafts), adopting)
   const selected = selectedId !== null ? (all.find((s) => s.id === selectedId) ?? null) : null
 
   if (selected) {
-    return <Workspace session={selected} account={account} onBack={() => setSelectedId(null)} />
+    return <Workspace session={selected} account={account} onBack={() => setSelectedId(null)} onAdopt={adoptSession} />
   }
 
   return (

@@ -13,8 +13,33 @@ import { TasksPanel } from './panels/TasksPanel'
 import { SubagentTree } from './panels/SubagentTree'
 import { useTasks } from './use-tasks'
 
-export function Workspace({ session: s, account, onBack }: { session: Session; account: Account | null; onBack: () => void }) {
+export function Workspace({
+  session: s,
+  account,
+  onBack,
+  onAdopt,
+}: {
+  session: Session
+  account: Account | null
+  onBack: () => void
+  onAdopt: (id: string) => Promise<void>
+}) {
   const isObserved = s.management === 'observed'
+  const [adoptBusy, setAdoptBusy] = useState(false)
+  const [adoptError, setAdoptError] = useState<string | null>(null)
+  const canAdopt = s.management === 'observed' && s.state === 'ended'
+  async function handleAdopt() {
+    setAdoptBusy(true)
+    setAdoptError(null)
+    try {
+      await onAdopt(s.id)
+      // On success the optimistic override flips s to Managed, so this header re-renders without the
+      // button. No need to reset busy.
+    } catch (e) {
+      setAdoptError(e instanceof Error ? e.message : 'Failed to resume')
+      setAdoptBusy(false)
+    }
+  }
   // Recomputed each render; App's 3s background re-sync re-renders this, so the countdowns tick.
   const now = Date.now()
   return (
@@ -44,6 +69,18 @@ export function Workspace({ session: s, account, onBack }: { session: Session; a
           <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-faint">
             read-only
           </span>
+        )}
+        {canAdopt && (
+          <div className="flex items-center gap-2">
+            {adoptError && <span className="text-[11px] text-danger">{adoptError}</span>}
+            <button
+              onClick={() => void handleAdopt()}
+              disabled={adoptBusy}
+              className="rounded-md bg-primary/20 px-2.5 py-1 text-[12px] text-primary-bright ring-1 ring-primary/30 enabled:hover:bg-primary/30 disabled:opacity-40"
+            >
+              {adoptBusy ? 'Adopting…' : 'Adopt'}
+            </button>
+          </div>
         )}
       </header>
 
