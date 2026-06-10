@@ -1,4 +1,5 @@
 import type { ModelId, SessionState } from '@shared/types'
+import { isKnownModelString } from '@shared/models'
 
 export interface StateMeta {
   label: string
@@ -47,4 +48,18 @@ export function barFill(pct: number, high = 85): string {
 /** Tailwind fill for the context bar: blue when roomy, amber as it fills. */
 export function ctxBar(pct: number): string {
   return barFill(pct, 85)
+}
+
+/** The display label for a Session's model. A recognized model (its statusLine model.id matches a known
+ *  family) shows the app's clean label from `table`; a model absent from the table shows the capture's
+ *  real display_name, so it never masquerades as the Opus fallback. With no capture, the clean label
+ *  stands; pricing and window keep riding the normalized `model` regardless. */
+export function honestModelLabel(
+  model: ModelId,
+  captureModelId: string | undefined,
+  captureDisplayName: string | undefined,
+  table: Record<ModelId, string>,
+): string {
+  if (captureModelId && captureDisplayName && !isKnownModelString(captureModelId)) return captureDisplayName
+  return table[model]
 }
