@@ -73,6 +73,7 @@ function harness() {
 }
 
 const REQ = { id: 'sess-1', cwd: '/work/app', model: 'claude-sonnet-4-6' as const, cols: 80, rows: 30 }
+const ADOPT_REQ = { id: 'sess-1', cwd: '/work/app', cols: 80, rows: 30 }
 
 describe('createTerminalManager', () => {
   it('spawns a pty, registers the id as Managed, and passes cwd/env/size through', () => {
@@ -158,5 +159,22 @@ describe('createTerminalManager', () => {
     h.manager.spawn({ ...REQ, id: 'sess-2' })
     h.manager.disposeAll()
     expect(h.closed.sort()).toEqual(['sess-1', 'sess-2'])
+  })
+
+  it('adopt: resumes under the same id with no --model, and registers it Managed', () => {
+    const h = harness()
+    h.manager.adopt(ADOPT_REQ)
+    expect(h.spawned).toEqual(['sess-1'])
+    expect(h.ptys).toHaveLength(1)
+    expect(h.ptys[0].state.spawnedWith!.args).toEqual(['--resume', 'sess-1'])
+    expect(h.ptys[0].state.spawnedWith).toMatchObject({ cwd: '/work/app', cols: 80, rows: 30 })
+  })
+
+  it('adopt is idempotent: a second adopt of the same id does nothing', () => {
+    const h = harness()
+    h.manager.adopt(ADOPT_REQ)
+    h.manager.adopt(ADOPT_REQ)
+    expect(h.ptys).toHaveLength(1)
+    expect(h.spawned).toEqual(['sess-1'])
   })
 })

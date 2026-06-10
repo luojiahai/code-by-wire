@@ -1,6 +1,6 @@
 import type { ModelId } from '@shared/models'
 import { FLOW } from '@shared/terminal'
-import { buildClaudeCommand } from './command'
+import { buildClaudeCommand, buildResumeCommand, type ClaudeCommand } from './command'
 import { createDataBufferer, type DataBufferer } from './data-bufferer'
 // Type-only: importing pty-process for VALUES would pull node-pty (a native addon) into the test
 // graph and break `pnpm test`. The real factory is injected at the composition root (the IPC layer).
@@ -18,6 +18,13 @@ export interface SpawnRequest {
   id: string
   cwd: string
   model: ModelId
+  cols: number
+  rows: number
+}
+
+export interface AdoptSpawn {
+  id: string
+  cwd: string
   cols: number
   rows: number
 }
@@ -44,6 +51,8 @@ export interface TerminalManagerDeps {
 
 export interface TerminalManager {
   spawn(req: SpawnRequest): void
+  /** Resume an Ended session under its own id with `claude --resume <id>` — same pty machinery as spawn. */
+  adopt(req: AdoptSpawn): void
   write(id: string, data: string): void
   resize(id: string, cols: number, rows: number): void
   /** Credit `charCount` of consumed output back; resumes node-pty if the backlog drains enough. */
@@ -66,13 +75,14 @@ export function createTerminalManager(deps: TerminalManagerDeps): TerminalManage
   const env = deps.env ?? process.env
   const terms = new Map<string, Term>()
 
-  function spawn(req: SpawnRequest): void {
-    if (terms.has(req.id)) return // idempotent — a double spawn of one id is a no-op
-    const { file, args } = buildClaudeCommand({ id: req.id, model: req.model })
-    const pty = createPty({ file, args, cwd: req.cwd, env, cols: req.cols, rows: req.rows })
-    const bufferer = createBufferer((data) => deps.send(req.id, data))
+  // Stand up one pty for `id` running `command` in `cwd`. The body is identical for a fresh spawn and an
+  // Adopt; only the argv differs, so both funnel here.
+  function start(id: string, command: ClaudeCommand, cwd: string, cols: number, rows: number): void {
+    if (terms.has(id)) return // idempotent — a double start of one id is a no-op
+    const pty = createPty({ file: command.file, args: command.args, cwd, env, cols, rows })
+    const bufferer = createBufferer((data) => deps.send(id, data))
     const term: Term = { pty, bufferer, unacked: 0, paused: false }
-    terms.set(req.id, term)
+    terms.set(id, term)
 
     pty.onData((data) => {
       term.unacked += data.length
@@ -84,15 +94,25 @@ export function createTerminalManager(deps: TerminalManagerDeps): TerminalManage
     })
 
     pty.onExit(({ exitCode }) => {
-      if (!terms.has(req.id)) return // torn down by disposeAll, not a natural exit
+      if (!terms.has(id)) return // torn down by disposeAll, not a natural exit
       bufferer.flush() // drain the tail of output instead of stranding it behind the 5ms timer
       bufferer.dispose()
-      terms.delete(req.id)
-      deps.onClosed(req.id) // pty is gone → drop the Managed label so it re-derives as Observed
-      deps.notifyExit(req.id, exitCode)
+      terms.delete(id)
+      deps.onClosed(id) // pty is gone → drop the Managed label so it re-derives as Observed
+      deps.notifyExit(id, exitCode)
     })
 
-    deps.onSpawned(req.id)
+    deps.onSpawned(id)
+  }
+
+  function spawn(req: SpawnRequest): void {
+    start(req.id, buildClaudeCommand({ id: req.id, model: req.model }), req.cwd, req.cols, req.rows)
+  }
+
+  // Adopt: resume an Ended session under its OWN id. The resume argv carries no --model (the CLI restores
+  // the session's model), so there is no `model` in the request.
+  function adopt(req: AdoptSpawn): void {
+    start(req.id, buildResumeCommand({ id: req.id }), req.cwd, req.cols, req.rows)
   }
 
   function ack(id: string, charCount: number): void {
@@ -107,6 +127,7 @@ export function createTerminalManager(deps: TerminalManagerDeps): TerminalManage
 
   return {
     spawn,
+    adopt,
     write: (id, data) => terms.get(id)?.pty.write(data),
     resize: (id, cols, rows) => terms.get(id)?.pty.resize(cols, rows),
     ack,
