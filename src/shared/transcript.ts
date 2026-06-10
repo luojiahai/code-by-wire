@@ -13,6 +13,15 @@ export interface DiffHunk {
   added: string[]
 }
 
+/** The current context's cache-state split: the latest assistant turn's prompt, broken into the part
+ *  read from cache (the stable bulk), the part newly cached this turn, and the fresh uncached input.
+ *  Summed, these are the session's current context size. */
+export interface ContextBreakdown {
+  input: number
+  cacheRead: number
+  cacheCreation: number
+}
+
 /** One rendered item in the conversation, in file order. */
 export type TranscriptEvent =
   | { kind: 'user'; text: string }
