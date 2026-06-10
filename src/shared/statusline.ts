@@ -89,13 +89,21 @@ export function deriveAccount(samples: Iterable<StatusLineSample>, now: number, 
     if (s.rateLimits && (!withLimits || s.capturedMtimeMs > withLimits.capturedMtimeMs)) withLimits = s
   }
   if (withLimits?.rateLimits) {
-    return {
+    const acc: Account = {
       billingMode: 'subscription',
       fiveHour: liveWindow(withLimits.rateLimits.fiveHour, now),
       sevenDay: liveWindow(withLimits.rateLimits.sevenDay, now),
+      sevenDaySonnet: liveWindow(withLimits.rateLimits.sevenDaySonnet, now),
+      sevenDayOpus: liveWindow(withLimits.rateLimits.sevenDayOpus, now),
     }
+    if (freshest?.version) acc.version = freshest.version
+    return acc
   }
-  if (freshest) return { billingMode: 'unknown' }
+  if (freshest) {
+    const acc: Account = { billingMode: 'unknown' }
+    if (freshest.version) acc.version = freshest.version
+    return acc
+  }
   return null
 }
 

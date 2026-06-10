@@ -124,6 +124,13 @@ export interface Account {
   /** Present only for a subscription; otherwise no account rate limits. */
   fiveHour?: RateLimit
   sevenDay?: RateLimit
+  /** Weekly per-model sub-buckets, present only when the capture's rate_limits carried them. */
+  sevenDaySonnet?: RateLimit
+  sevenDayOpus?: RateLimit
+  /** Claude Code CLI version from the freshest live capture. Absent when no capture reported it. */
+  version?: string
+  /** Logged-in account email, read from ~/.claude.json by the ipc layer (not derived from samples). */
+  email?: string
 }
 
 /** What a Provider can do. Drives graceful degradation in the UI. */
