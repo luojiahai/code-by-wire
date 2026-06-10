@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import type { Session, Account } from '@shared/types'
 import { ManagementChip, StateBadge } from '../ui/atoms'
 import { MODEL_LABEL } from '../ui/meta'
 import { RateLimits } from '../ui/RateLimits'
 import { TranscriptView } from './TranscriptView'
 import { TerminalView } from '../terminal/TerminalView'
-import { useTranscript } from './use-transcript'
+import { useTranscript, type DocState } from './use-transcript'
 import { ContextPanel } from './panels/ContextPanel'
 import { CostPanel } from './panels/CostPanel'
 import { Timeline } from './panels/Timeline'
@@ -44,31 +45,27 @@ export function Workspace({ session: s, account, onBack }: { session: Session; a
       </header>
 
       <div className="min-h-0 flex-1">
-        {isObserved ? (
-          <ObservedBody session={s} account={account} now={now} />
-        ) : (
-          <div className="h-full p-2">
-            <TerminalView sessionId={s.id} />
-          </div>
-        )}
+        <WorkspaceBody session={s} account={account} now={now} />
       </div>
     </div>
   )
 }
 
 /**
- * The Observed workspace body: a center column (the rendered transcript, scrolling, with the turn
- * timeline as a lower panel) and a right rail of read-only panels (context breakdown + cost). One
- * transcript poll (useTranscript) feeds the transcript view, the context panel, and the timeline; the
- * cost panel reads the Session directly. The rail hides below the `lg` breakpoint, like the Overview's.
+ * The workspace body, shared by both management kinds: a center column (the live view, with the turn
+ * timeline as a lower panel) and a right rail of panels (context breakdown + cost). One transcript poll
+ * (useTranscript) feeds the center, the context panel, and the timeline — Managed sessions are spawned
+ * with `--session-id <our id>`, so the CLI writes the same transcript Observed sessions are read from,
+ * and the panels track it live as you drive the terminal. The cost panel reads the Session directly. The
+ * rail hides below the `lg` breakpoint, like the Overview's.
  */
-function ObservedBody({ session: s, account, now }: { session: Session; account: Account | null; now: number }) {
+function WorkspaceBody({ session: s, account, now }: { session: Session; account: Account | null; now: number }) {
   const doc = useTranscript(s.id)
   return (
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-auto">
-          <TranscriptView doc={doc} project={s.project} state={s.state} />
+        <div className="min-h-0 flex-1">
+          <CenterView session={s} doc={doc} />
         </div>
         <Timeline turns={doc?.turns ?? []} now={now} />
       </div>
@@ -76,6 +73,62 @@ function ObservedBody({ session: s, account, now }: { session: Session; account:
         <ContextPanel context={doc?.context ?? null} contextWindow={s.contextWindow} />
         <CostPanel usage={s.usage} model={s.model} liveCostUsd={s.liveCostUsd} billingMode={account?.billingMode} />
       </aside>
+    </div>
+  )
+}
+
+type CenterTab = 'terminal' | 'transcript'
+
+/**
+ * The center column's live view. An Observed session is read-only with no process, so it's the rendered
+ * transcript, full stop. A Managed session has both a live terminal (the interactive surface) and the
+ * transcript the CLI is writing, so it gets a toggle between them — default Terminal. Toggling away
+ * unmounts TerminalView, which only detaches its xterm (the store keeps the instance and its pty keeps
+ * buffering off-DOM), so toggling back restores full scrollback. Same trick as switching session tabs.
+ */
+function CenterView({ session: s, doc }: { session: Session; doc: DocState }) {
+  const [tab, setTab] = useState<CenterTab>('terminal')
+  if (s.management === 'observed') {
+    return (
+      <div className="h-full overflow-auto">
+        <TranscriptView doc={doc} project={s.project} state={s.state} />
+      </div>
+    )
+  }
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <ViewTabs tab={tab} onChange={setTab} />
+      <div className="min-h-0 flex-1">
+        {tab === 'terminal' ? (
+          <div className="h-full p-2">
+            <TerminalView sessionId={s.id} />
+          </div>
+        ) : (
+          <div className="h-full overflow-auto">
+            <TranscriptView doc={doc} project={s.project} state={s.state} />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const CENTER_TABS: CenterTab[] = ['terminal', 'transcript']
+
+function ViewTabs({ tab, onChange }: { tab: CenterTab; onChange: (t: CenterTab) => void }) {
+  return (
+    <div className="flex shrink-0 items-center gap-1 border-b border-ink-800 bg-ink-925 px-2 py-1.5">
+      {CENTER_TABS.map((t) => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          className={`rounded px-2 py-0.5 text-xs capitalize transition-colors ${
+            tab === t ? 'bg-ink-800 text-fg' : 'text-fg-muted hover:text-fg'
+          }`}
+        >
+          {t}
+        </button>
+      ))}
     </div>
   )
 }
