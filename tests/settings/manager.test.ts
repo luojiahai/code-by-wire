@@ -336,3 +336,68 @@ describe.skipIf(process.platform === 'win32')('trust-safety — file permissions
     expect(statSync(settingsPath(home)).mode & mask).toBe(0o600) // nor the restored file
   })
 })
+
+describe('install — materializes the wrapper script (issue #11)', () => {
+  const wrapperPath = (home: string) => join(home, '.code-by-wire', 'statusline-wrapper.sh')
+
+  it('writes an executable wrapper that calls through to the wrapped command', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), JSON.stringify({ statusLine: { type: 'command', command: 'my-prompt' } }, null, 2))
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    mgr.install()
+
+    expect(existsSync(wrapperPath(home))).toBe(true)
+    const src = readFileSync(wrapperPath(home), 'utf8')
+    expect(src).toContain('| my-prompt')
+    if (process.platform !== 'win32') {
+      expect(statSync(wrapperPath(home)).mode & 0o777).toBe(0o755) // directly executable
+    }
+  })
+
+  it('writes a capture-only wrapper (no call-through) on a clean install with no original', () => {
+    const home = makeHome()
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    mgr.install()
+
+    const src = readFileSync(wrapperPath(home), 'utf8')
+    expect(src).toContain('/statusline') // still writes captures into our dir
+    expect(src).not.toMatch(/\| \S/) // no call-through pipe to any command
+  })
+
+  it('re-install self-heals a deleted wrapper without minting a second backup', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), JSON.stringify({ statusLine: { type: 'command', command: 'mine' } }, null, 2))
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+    mgr.install()
+    rmSync(wrapperPath(home)) // the wrapper vanishes while still wrapped
+
+    mgr.install() // already-wrapped path must rewrite it
+
+    expect(existsSync(wrapperPath(home))).toBe(true)
+    expect(readdirSync(home).filter((f) => f.endsWith('.bak'))).toHaveLength(1)
+  })
+
+  it('uninstall removes the wrapper and the capture dir', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), JSON.stringify({ statusLine: { type: 'command', command: 'mine' } }, null, 2))
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+    mgr.install()
+    expect(existsSync(wrapperPath(home))).toBe(true)
+
+    mgr.uninstall()
+
+    expect(existsSync(wrapperPath(home))).toBe(false)
+    expect(existsSync(join(home, '.code-by-wire', 'statusline'))).toBe(false)
+  })
+
+  it('writes no wrapper when it refuses a malformed settings.json', () => {
+    const home = makeHome()
+    writeFileSync(settingsPath(home), '{ not valid json')
+    const mgr = createSettingsManager({ claudeDir: home, now: () => NOW })
+
+    expect(() => mgr.install()).toThrow()
+    expect(existsSync(wrapperPath(home))).toBe(false) // bailed before ensureAppDir/writeWrapper
+  })
+})

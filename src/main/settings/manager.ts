@@ -11,6 +11,7 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { readTextOrNull, resolveClaudeDir } from '../claude-config'
+import { wrapperScript } from './wrapper'
 
 /** The Claude Code statusLine block. `additionalProperties: false` upstream means we must not stash our
  *  own fields inside it — bookkeeping lives in our own state file instead. While installed we replace this
@@ -163,6 +164,13 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
     renameSync(tmp, path)
   }
 
+  /** Materialize the executable wrapper the installed statusLine points at (issue #11). Idempotent:
+   *  rewritten on every install so a deleted or stale wrapper self-heals. 0755 so the bare `"<path>"`
+   *  command in settings.json is directly executable. */
+  function writeWrapper(wrappedCommand: string | null): void {
+    writeFileAtomic(wrapperPath, wrapperScript({ appDir, wrappedCommand }), 0o755)
+  }
+
   function isInstalled(): boolean {
     let parsed: ClaudeSettings | null
     try {
@@ -186,6 +194,7 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
             'Remove the statusLine from settings.json by hand, or restore .code-by-wire/state.json.',
         )
       }
+      writeWrapper(state.wrappedCommand) // rewrite in case the wrapper file was deleted or is stale
       return { wrappedExisting: state.wrappedExisting, backupPath: state.backupPath }
     }
 
@@ -197,6 +206,7 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
 
     const iso = new Date(now()).toISOString()
     ensureAppDir()
+    writeWrapper(wrappedCommand) // the side-channel script the new statusLine will run
 
     let backupPath: string | null = null
     let mode: number | undefined
@@ -240,6 +250,10 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
       chmodSync(settingsPath, statSync(state.backupPath).mode & 0o777) // ...and its original permissions
     }
 
+    // Our own artifacts go too — the wrapper script and any captured side-channel files. Best-effort:
+    // a failure here must not block restoring the user's settings, which already succeeded above.
+    rmSync(wrapperPath, { force: true })
+    rmSync(join(appDir, 'statusline'), { recursive: true, force: true })
     rmSync(statePath, { force: true })
   }
 
