@@ -1,21 +1,16 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { Session, Account } from '@shared/types'
-import type { Stats } from '@shared/stats'
 import { sortSessions, filterSessions, stateCounts, ORDERED_STATES, type SortKey, type Filter } from '@shared/overview'
-import { formatUsd, formatRelativeTime, costDisplay } from '@shared/format'
-import { STATE_META, MODEL_LABEL, ctxTone, ctxBar } from './ui/meta'
+import { formatRelativeTime, costDisplay } from '@shared/format'
+import { STATE_META, ctxTone, ctxBar } from './ui/meta'
 import { cx, Dot, ManagementChip, ModelChip, Bar } from './ui/atoms'
 import { RateLimits } from './ui/RateLimits'
-
-/** Projects shown in the rail rollup before collapsing the rest into a "+N more" row. */
-const TOP_PROJECTS = 8
 
 /** Filter chips, in display order: 'all', then the states loudest-first (from ORDERED_STATES). */
 const FILTERS: Filter[] = ['all', ...ORDERED_STATES]
 
 interface Props {
   sessions: Session[]
-  stats: Stats | null
   account: Account | null
   loading: boolean
   onRefresh: () => void
@@ -23,7 +18,7 @@ interface Props {
   onNew: () => void
 }
 
-export function Overview({ sessions, stats, account, loading, onRefresh, onOpen, onNew }: Props) {
+export function Overview({ sessions, account, loading, onRefresh, onOpen, onNew }: Props) {
   const [filter, setFilter] = useState<Filter>('all')
   const [sort, setSort] = useState<SortKey>('default')
   // One timestamp per render for every relative-time label; the 3s background re-sync re-renders and
@@ -46,6 +41,7 @@ export function Overview({ sessions, stats, account, loading, onRefresh, onOpen,
           {sessions.length} session{sessions.length === 1 ? '' : 's'}
         </span>
         <div className="ml-auto flex items-center gap-2">
+          <RateLimits account={account} now={now} variant="compact" />
           <button
             onClick={onNew}
             className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-ink-950 transition-colors hover:bg-primary-bright"
@@ -63,8 +59,6 @@ export function Overview({ sessions, stats, account, loading, onRefresh, onOpen,
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <Rail stats={stats} account={account} now={now} />
-
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 px-5 py-3">
             {FILTERS.map((f) => (
@@ -224,98 +218,3 @@ function Th({
   )
 }
 
-/** Left ops rail: the account rate-limit bars (subscription only), then the usage stats (This week,
- *  Model mix, By project). Bars are absent for an API account or when no statusLine data has arrived.
- *  ADR-0001's graceful degradation. Hidden below the `lg` breakpoint. */
-function Rail({
-  stats,
-  account,
-  now,
-}: {
-  stats: Stats | null
-  account: Account | null
-  now: number
-}) {
-  const weekTotal = stats ? stats.weeklyActivity.reduce((sum, d) => sum + d.equivApiValueUsd, 0) : 0
-  const maxValue = stats ? Math.max(0, ...stats.weeklyActivity.map((d) => d.equivApiValueUsd)) : 0
-
-  return (
-    <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto border-r border-ink-800 bg-ink-925 p-4 lg:flex">
-      {/* Account rate limits (subscription only; renders nothing otherwise) — its own bottom divider. */}
-      <RateLimits account={account} now={now} variant="rail" />
-      {stats && (
-        <>
-          <div>
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">This week</div>
-            <div className="font-mono text-xl text-fg">~{formatUsd(weekTotal)}</div>
-            <div
-              role="img"
-              aria-label={`Activity over the last 7 days, ~${formatUsd(weekTotal)} equivalent API value`}
-              className="mt-2 flex h-9 items-end gap-1"
-            >
-              {stats.weeklyActivity.map((d) => (
-                <div
-                  key={d.dayStartMs}
-                  title={`${weekdayUtc(d.dayStartMs)}: ${d.sessions} session${d.sessions === 1 ? '' : 's'} · ~${formatUsd(d.equivApiValueUsd)}`}
-                  className="flex flex-1 flex-col items-center gap-1"
-                >
-                  <div className="flex w-full flex-1 items-end">
-                    <div
-                      className="w-full rounded-sm bg-primary"
-                      style={{
-                        height: `${maxValue > 0 ? (d.equivApiValueUsd / maxValue) * 100 : 0}%`,
-                        minHeight: d.sessions > 0 ? 2 : 0,
-                      }}
-                    />
-                  </div>
-                  <span className="text-[9px] text-fg-faint">{weekdayUtc(d.dayStartMs)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-t border-ink-800 pt-3">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Model mix</div>
-            {stats.modelMix.length === 0 ? (
-              <span className="text-[11px] text-fg-faint">No usage yet.</span>
-            ) : (
-              <div className="space-y-1">
-                {stats.modelMix.map((m) => (
-                  <div key={m.model} className="flex items-center justify-between">
-                    <span className="text-[12px] text-fg">{MODEL_LABEL[m.model]}</span>
-                    <span className="ml-2 shrink-0 font-mono text-[10px] tabular-nums text-fg-muted">{m.sessions} · ~{formatUsd(m.equivApiValueUsd)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-ink-800 pt-3">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">By project</div>
-            {stats.projectRollup.length === 0 ? (
-              <span className="text-[11px] text-fg-faint">No usage yet.</span>
-            ) : (
-              <div className="space-y-1">
-                {stats.projectRollup.slice(0, TOP_PROJECTS).map((p) => (
-                  <div key={p.project} className="flex items-center justify-between">
-                    <span className="truncate font-mono text-[11px] text-fg">{p.project}</span>
-                    <span className="ml-2 shrink-0 font-mono text-[10px] tabular-nums text-fg-faint">{p.sessions} · ~{formatUsd(p.equivApiValueUsd)}</span>
-                  </div>
-                ))}
-                {stats.projectRollup.length > TOP_PROJECTS && (
-                  <div className="text-[10px] text-fg-faint">+{stats.projectRollup.length - TOP_PROJECTS} more</div>
-                )}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-    </aside>
-  )
-}
-
-/** Short UTC weekday label for a day bucket — UTC to match the UTC-day bucketing in computeStats. */
-function weekdayUtc(dayStartMs: number): string {
-  return new Date(dayStartMs).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
-}

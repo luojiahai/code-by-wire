@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import type { Session, ModelId, Account } from '@shared/types'
-import type { Stats } from '@shared/stats'
 import type { OverviewData } from '@shared/ipc'
 import { mergeManaged, applyAdopting } from '@shared/managed'
 import { newSessionId } from '@shared/terminal'
@@ -22,17 +21,15 @@ export function App() {
   // Ids adopted this run that discovery has not yet relabeled Managed. Overlaid by applyAdopting so the
   // adopted row reads Managed/Working immediately, until the next sync confirms it (or its pty exits).
   const [adopting, setAdopting] = useState<Set<string>>(new Set())
-  const [stats, setStats] = useState<Stats | null>(null)
   const [account, setAccount] = useState<Account | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
-  // Sessions and stats come from one index read (getOverview), so apply them together — a stale or
-  // failed half can't leave the list and the stats disagreeing.
+  // Sessions and account come from one overview read, so apply them together — a stale or failed
+  // half can't leave the list and the account disagreeing.
   function applyOverview(o: OverviewData): void {
     setSessions(o.sessions)
-    setStats(o.stats)
     setAccount(o.account)
   }
 
@@ -158,7 +155,6 @@ export function App() {
     <>
       <Overview
         sessions={all}
-        stats={stats}
         account={account}
         loading={loading}
         onRefresh={() => void refresh()}
