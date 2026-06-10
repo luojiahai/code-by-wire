@@ -19,3 +19,16 @@ export function buildClaudeCommand(opts: { id: string; model: ModelId; bin?: str
     args: ['--session-id', opts.id, '--model', familyFor(opts.model)],
   }
 }
+
+/**
+ * Argv to Adopt an Ended session: `claude --resume <id>` under the session's OWN id, so the CLI keeps
+ * writing the same Transcript at `projects/<cwd-slug>/<id>.jsonl`. No `--model`: `--resume` restores the
+ * session's model ("model settings still apply"), which is the "inherit" in one-click Adopt. Same bin
+ * resolution as buildClaudeCommand.
+ */
+export function buildResumeCommand(opts: { id: string; bin?: string }): ClaudeCommand {
+  return {
+    file: opts.bin ?? process.env.CBW_CLAUDE_BIN ?? 'claude',
+    args: ['--resume', opts.id],
+  }
+}

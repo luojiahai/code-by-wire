@@ -11,3 +11,16 @@ export function mergeManaged(sessions: Session[], drafts: Session[]): Session[] 
   const real = new Set(sessions.map((s) => s.id))
   return [...sessions, ...drafts.filter((d) => !real.has(d.id))]
 }
+
+/**
+ * Apply the optimistic Adopt override. An id the user adopted this run, before the next sync relabels it,
+ * is forced to Managed (and Ended → Working) so the workspace flips from the read-only Transcript to the
+ * live terminal in the same beat. Unlike a draft, the row already exists, so this overrides in place. App
+ * clears the id once discovery reports it Managed, or when its pty exits.
+ */
+export function applyAdopting(sessions: Session[], adopting: Set<string>): Session[] {
+  if (adopting.size === 0) return sessions
+  return sessions.map((s) =>
+    adopting.has(s.id) ? { ...s, management: 'managed', state: s.state === 'ended' ? 'working' : s.state } : s,
+  )
+}

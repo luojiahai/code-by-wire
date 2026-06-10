@@ -9,6 +9,7 @@ export const TERMINAL = {
   resize: 'terminal:resize',
   ack: 'terminal:ack',
   kill: 'terminal:kill',
+  adopt: 'terminal:adopt',
   pickDirectory: 'terminal:pick-directory',
   data: 'terminal:data',
   exit: 'terminal:exit',
@@ -52,11 +53,30 @@ export interface SpawnRequest {
 }
 
 /**
+ * Adopt an Ended session: resume it under its own id in a Managed pty. The working directory is resolved
+ * in main from the session's registry/Transcript, so the renderer sends only the id and its initial
+ * terminal size (the view's first fit corrects the size).
+ */
+export interface AdoptRequest {
+  id: string
+  cols: number
+  rows: number
+}
+
+/**
+ * Result of an Adopt attempt. Refused when the session is actually alive (the liveness re-check that
+ * guards the one-process-per-Transcript invariant) or when no working directory can be resolved.
+ */
+export type AdoptResult = { ok: true } | { ok: false; reason: 'alive' | 'unresolvable' }
+
+/**
  * The Managed-terminal control + push surface, exposed on `window.api.terminal`. Spawning returns an
  * optimistic Managed draft Session the renderer shows until discovery indexes the real process.
  */
 export interface TerminalApi {
   spawn(req: SpawnRequest): Promise<Session>
+  /** Adopt an Ended session by resuming it under its own id. Refused if it is actually alive. */
+  adopt(req: AdoptRequest): Promise<AdoptResult>
   write(id: string, data: string): void
   resize(id: string, cols: number, rows: number): void
   ack(id: string, charCount: number): void

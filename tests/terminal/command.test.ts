@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildClaudeCommand } from '../../src/main/terminal/command'
+import { buildClaudeCommand, buildResumeCommand } from '../../src/main/terminal/command'
 import { newSessionId } from '../../src/shared/terminal'
 
 describe('buildClaudeCommand', () => {
@@ -21,6 +21,18 @@ describe('buildClaudeCommand', () => {
     const cmd = buildClaudeCommand({ id: 'x', model: 'claude-opus-4-8', bin: '/opt/bin/claude' })
     expect(cmd.file).toBe('/opt/bin/claude')
     expect(cmd.args[0]).toBe('--session-id')
+  })
+})
+
+describe('buildResumeCommand', () => {
+  it('resumes the session under its own id, with no --model (resume restores the model)', () => {
+    expect(buildResumeCommand({ id: 'sid-9' })).toEqual({ file: 'claude', args: ['--resume', 'sid-9'] })
+  })
+
+  it('honors an explicit bin override (the executable, not the args)', () => {
+    const cmd = buildResumeCommand({ id: 'x', bin: '/opt/bin/claude' })
+    expect(cmd.file).toBe('/opt/bin/claude')
+    expect(cmd.args).toEqual(['--resume', 'x'])
   })
 })
 

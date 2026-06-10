@@ -13,8 +13,35 @@ import { TasksPanel } from './panels/TasksPanel'
 import { SubagentTree } from './panels/SubagentTree'
 import { useTasks } from './use-tasks'
 
-export function Workspace({ session: s, account, onBack }: { session: Session; account: Account | null; onBack: () => void }) {
+export function Workspace({
+  session: s,
+  account,
+  onBack,
+  onAdopt,
+}: {
+  session: Session
+  account: Account | null
+  onBack: () => void
+  onAdopt: (id: string) => Promise<void>
+}) {
   const isObserved = s.management === 'observed'
+  const [adoptBusy, setAdoptBusy] = useState(false)
+  const [adoptError, setAdoptError] = useState<string | null>(null)
+  const canAdopt = s.management === 'observed' && s.state === 'ended'
+  async function handleAdopt() {
+    setAdoptBusy(true)
+    setAdoptError(null)
+    try {
+      await onAdopt(s.id)
+    } catch (e) {
+      setAdoptError(e instanceof Error ? e.message : 'Failed to resume')
+    } finally {
+      // Always clear busy. The button is hidden right after a successful adopt (the override flips the
+      // row to Managed), but if that adopted session later Ends it reverts to Observed/Ended and the
+      // button returns; a stuck busy flag would wedge it on "Adopting…".
+      setAdoptBusy(false)
+    }
+  }
   // Recomputed each render; App's 3s background re-sync re-renders this, so the countdowns tick.
   const now = Date.now()
   return (
@@ -44,6 +71,18 @@ export function Workspace({ session: s, account, onBack }: { session: Session; a
           <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-faint">
             read-only
           </span>
+        )}
+        {canAdopt && (
+          <div className="flex items-center gap-2">
+            {adoptError && <span className="text-[11px] text-danger">{adoptError}</span>}
+            <button
+              onClick={() => void handleAdopt()}
+              disabled={adoptBusy}
+              className="rounded-md bg-primary/20 px-2.5 py-1 text-[12px] text-primary-bright ring-1 ring-primary/30 enabled:hover:bg-primary/30 disabled:opacity-40"
+            >
+              {adoptBusy ? 'Adopting…' : 'Adopt'}
+            </button>
+          </div>
         )}
       </header>
 

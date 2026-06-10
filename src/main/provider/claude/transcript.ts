@@ -29,6 +29,26 @@ export function deriveTitle(userPrompts: string[], cwd: string): string {
   return basename(cwd) || 'session'
 }
 
+/**
+ * The session's cwd without a full parse. Claude records `cwd` on every transcript row, so the first
+ * parseable row that carries one wins — Adopt only needs where to relaunch, and a full parseTranscript
+ * (token counting, tool_use tracking, prompt extraction over every line) on a possibly-large file is
+ * waste when one field on row 1 answers it. '' when no row resolves a cwd.
+ */
+export function firstTranscriptCwd(jsonl: string): string {
+  for (const line of jsonl.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    try {
+      const row = JSON.parse(trimmed)
+      if (typeof row.cwd === 'string' && row.cwd) return row.cwd
+    } catch {
+      // skip a half-written or malformed line, same as parseTranscript
+    }
+  }
+  return ''
+}
+
 /** Claude Code injects '<synthetic>' assistant turns (cancelled or over-limit placeholders) that
  *  carry a zero usage block. They're not a real model and don't represent the session's context. */
 const SYNTHETIC_MODEL = '<synthetic>'

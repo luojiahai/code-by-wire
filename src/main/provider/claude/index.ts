@@ -7,6 +7,7 @@ import { parseTranscriptEventsFromRows } from './transcript-events'
 import { parseJsonlRows } from './transcript-row'
 import { buildSubagentForest, readSubagentSources, subagentsDirFor, subagentsNewestMtime } from './subagents'
 import { readTasksForSession, tasksNewestMtime } from './tasks'
+import { resolveAdoptTarget } from './adopt-target'
 
 export interface ClaudeProviderDeps {
   claudeDir?: string
@@ -56,6 +57,7 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
     listCandidates: () => listCandidates({ claudeDir, isPidAlive, now: now(), recentWindowMs }),
     summarize: (c) => ({ ...summarize(c), management: management(c.id) }),
     restate: (c, prev) => ({ ...restate(c, prev), management: management(c.id) }),
+    resolveAdoptTarget: (id) => resolveAdoptTarget({ claudeDir, isPidAlive, id }),
     readTranscript: (id, sinceMtimeMs) => {
       try {
         // Fast path: stat the last-known file for this id, avoiding a projects/ sweep per poll.

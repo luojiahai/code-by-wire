@@ -10,6 +10,7 @@ const api: AppApi = {
   readTasks: (id, sinceMtimeMs) => ipcRenderer.invoke(IPC.readTasks, id, sinceMtimeMs),
   terminal: {
     spawn: (req) => ipcRenderer.invoke(TERMINAL.spawn, req),
+    adopt: (req) => ipcRenderer.invoke(TERMINAL.adopt, req),
     write: (id, data) => ipcRenderer.send(TERMINAL.write, id, data),
     resize: (id, cols, rows) => ipcRenderer.send(TERMINAL.resize, id, cols, rows),
     ack: (id, charCount) => ipcRenderer.send(TERMINAL.ack, id, charCount),

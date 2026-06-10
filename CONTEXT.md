@@ -20,7 +20,7 @@ A session the app did not spawn. The app can read its state but can never send i
 _Avoid_: external, attached, watched
 
 **Adopt**:
-To turn an Observed session into a Managed one by resuming it inside the app. Safe only once the original process is idle or gone, otherwise two processes write the same transcript.
+To turn an Observed session into a Managed one by resuming it inside the app. Safe only once the original process is gone (the session has Ended), otherwise two processes write the same transcript.
 _Avoid_: take over, claim, capture
 
 **Billing mode**:

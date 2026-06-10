@@ -1,7 +1,7 @@
 import { app, dialog, ipcMain, type BrowserWindow, type IpcMainEvent } from 'electron'
 import type { Session } from '@shared/types'
 import type { ModelId } from '@shared/models'
-import { TERMINAL, type SpawnRequest } from '@shared/terminal'
+import { TERMINAL, type SpawnRequest, type AdoptRequest, type AdoptResult } from '@shared/terminal'
 import { hydrate } from '../db/store'
 import { projectFromCwd } from '../project-name'
 import type { ManagedRegistry } from '../managed-registry'
@@ -36,7 +36,15 @@ function draftSession(id: string, cwd: string, model: ModelId): Session {
  * that window's renderer; the registry learns each spawned id so the provider labels it Managed. Ptys
  * die with the window (Managed sessions don't outlive the app — see the plan's scope boundary).
  */
-export function registerTerminalIpc({ window, managed }: { window: BrowserWindow; managed: ManagedRegistry }): void {
+export function registerTerminalIpc({
+  window,
+  managed,
+  resolveAdoptTarget,
+}: {
+  window: BrowserWindow
+  managed: ManagedRegistry
+  resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null
+}): void {
   const manager = createTerminalManager({
     send: (id, data) => {
       if (!window.isDestroyed()) window.webContents.send(TERMINAL.data, id, data)
@@ -57,6 +65,16 @@ export function registerTerminalIpc({ window, managed }: { window: BrowserWindow
   ipcMain.handle(TERMINAL.spawn, (_e, req: SpawnRequest): Session => {
     manager.spawn({ id: req.id, cwd: req.cwd, model: req.model, cols: req.cols, rows: req.rows })
     return draftSession(req.id, req.cwd, req.model)
+  })
+  // Adopt an Ended session: resume it under its own id. The liveness re-check here is the guarantee
+  // behind the Ended-only state gate — a session that came back to life since the last sync is refused,
+  // so two processes never share one Transcript. cwd is resolved in main, not trusted from the renderer.
+  ipcMain.handle(TERMINAL.adopt, (_e, req: AdoptRequest): AdoptResult => {
+    const target = resolveAdoptTarget(req.id)
+    if (!target) return { ok: false, reason: 'unresolvable' }
+    if (target.alive) return { ok: false, reason: 'alive' }
+    manager.adopt({ id: req.id, cwd: target.cwd, cols: req.cols, rows: req.rows })
+    return { ok: true }
   })
   const onWrite = (_e: IpcMainEvent, id: string, data: string) => manager.write(id, data)
   const onResize = (_e: IpcMainEvent, id: string, cols: number, rows: number) => manager.resize(id, cols, rows)
@@ -80,6 +98,7 @@ export function registerTerminalIpc({ window, managed }: { window: BrowserWindow
     manager.disposeAll()
     app.removeListener('before-quit', onBeforeQuit)
     ipcMain.removeHandler(TERMINAL.spawn)
+    ipcMain.removeHandler(TERMINAL.adopt)
     ipcMain.removeHandler(TERMINAL.pickDirectory)
     ipcMain.removeListener(TERMINAL.write, onWrite)
     ipcMain.removeListener(TERMINAL.resize, onResize)

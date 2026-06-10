@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { parseTranscript, deriveTitle } from '../../src/main/provider/claude/transcript'
+import { parseTranscript, deriveTitle, firstTranscriptCwd } from '../../src/main/provider/claude/transcript'
 
 const fx = (p: string) => readFileSync(resolve('tests/fixtures/claude-home', p), 'utf8')
 
@@ -256,6 +256,33 @@ describe('parseTranscript', () => {
     const s = parseTranscript(jsonl)
     expect(s.contextTokens).toBe(66000) // msg_1: 4000 + 60000 + 2000, not zeroed by the synthetic turn
     expect(s.usage).toEqual({ inputTokens: 4000, outputTokens: 100, cacheReadTokens: 60000, cacheCreationTokens: 2000 })
+  })
+})
+
+describe('firstTranscriptCwd', () => {
+  it('returns the cwd from the first row that carries one', () => {
+    const jsonl = [
+      { type: 'user', isMeta: false, cwd: '/work/app', message: { role: 'user', content: 'go' } },
+      { type: 'assistant', cwd: '/work/app', message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] } },
+    ]
+      .map((r) => JSON.stringify(r))
+      .join('\n')
+    expect(firstTranscriptCwd(jsonl)).toBe('/work/app')
+  })
+
+  it('skips blank and malformed leading lines, then a row with no cwd', () => {
+    const jsonl = [
+      '',
+      '{ not json',
+      JSON.stringify({ type: 'summary', message: { content: 'no cwd here' } }),
+      JSON.stringify({ type: 'user', cwd: '/w/recovered', message: { content: 'hi' } }),
+    ].join('\n')
+    expect(firstTranscriptCwd(jsonl)).toBe('/w/recovered')
+  })
+
+  it('returns empty string when no row resolves a cwd', () => {
+    expect(firstTranscriptCwd('{"type":"user","message":{"content":"hi"}}')).toBe('')
+    expect(firstTranscriptCwd('')).toBe('')
   })
 })
 

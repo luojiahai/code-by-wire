@@ -19,4 +19,7 @@ export interface Provider {
    *  panel. `sinceMtimeMs` is the change token from the caller's last read; an unchanged store skips
    *  the read. */
   readTasks(id: string, sinceMtimeMs?: number): TaskRead
+  /** Resolve whether a session is still owned by a live process (the liveness re-check behind Adopt's
+   *  Ended-only state gate) and the working directory to resume it in. Null when nothing resolves a cwd. */
+  resolveAdoptTarget(id: string): { alive: boolean; cwd: string } | null
 }

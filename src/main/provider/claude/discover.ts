@@ -103,7 +103,7 @@ export function indexTranscripts(claudeDir: string): Map<string, { path: string;
 }
 
 /** Freshest registry file per session id (max updatedAt), so a stale re-registered file can't win. */
-function registryById(claudeDir: string): Map<string, RawSessionFile> {
+export function registryById(claudeDir: string): Map<string, RawSessionFile> {
   const byId = new Map<string, RawSessionFile>()
   for (const s of readSessionFiles(claudeDir)) {
     const prev = byId.get(s.sessionId)

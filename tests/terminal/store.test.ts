@@ -30,6 +30,7 @@ function harness() {
   let exitRouter: (id: string, c: number) => void = () => {}
   const api = {
     spawn: vi.fn(),
+    adopt: vi.fn(),
     write: vi.fn(),
     resize: vi.fn(),
     ack: vi.fn(),
