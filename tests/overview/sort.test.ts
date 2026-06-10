@@ -16,8 +16,6 @@ function s(id: string, over: Partial<Session> = {}): Session {
     usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
     equivApiValueUsd: 0,
     lastActivityMs: 0,
-    tasks: [],
-    subagents: [],
     ...over,
   }
 }

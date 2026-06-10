@@ -50,8 +50,6 @@ export interface Session {
   lastActivityMs: number
   currentTask?: string
   waitingReason?: string
-  tasks: Task[]
-  subagents: Subagent[]
 }
 
 /**
