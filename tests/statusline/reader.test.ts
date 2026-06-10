@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { mkdirSync, writeFileSync, utimesSync } from 'node:fs'
+import { mkdirSync, writeFileSync, utimesSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { createStatusLineReader } from '../../src/main/statusline/reader'
 import { tempHomes } from '../helpers/temp-home'
 
 const makeHome = tempHomes('cbw-statusline-')
+
+// A fixed clock just after the default capture mtime, so default captures read as fresh (not pruned).
+const NOW_MS = 1_781_000_000 + 1000
+const open = (home: string) => createStatusLineReader({ claudeDir: home, now: () => NOW_MS })
 
 /** Write a capture file into <home>/.code-by-wire/statusline/<sid>.json and stamp its mtime. */
 function writeCapture(home: string, sid: string, json: unknown, mtimeSec = 1_781_000): void {
@@ -18,7 +22,7 @@ function writeCapture(home: string, sid: string, json: unknown, mtimeSec = 1_781
 describe('createStatusLineReader', () => {
   it('returns an empty list when nothing has been captured yet (absent dir)', () => {
     const home = makeHome()
-    expect(createStatusLineReader({ claudeDir: home }).read()).toEqual([])
+    expect(open(home).read()).toEqual([])
   })
 
   it('normalizes a subscription capture, converting resets_at seconds to ms', () => {
@@ -33,7 +37,7 @@ describe('createStatusLineReader', () => {
       },
     })
 
-    const [s] = createStatusLineReader({ claudeDir: home }).read()
+    const [s] = open(home).read()
     expect(s.sessionId).toBe('sess-a')
     expect(s.costUsd).toBe(0.42)
     expect(s.linesAdded).toBe(156)
@@ -54,7 +58,7 @@ describe('createStatusLineReader', () => {
       context_window: { used_percentage: 4, context_window_size: 200_000 },
     })
 
-    const [s] = createStatusLineReader({ claudeDir: home }).read()
+    const [s] = open(home).read()
     expect(s.rateLimits).toBeNull()
     expect(s.costUsd).toBe(0.01)
     expect(s.contextPct).toBe(4)
@@ -63,7 +67,7 @@ describe('createStatusLineReader', () => {
   it('degrades missing/mistyped fields to null, never throws', () => {
     const home = makeHome()
     writeCapture(home, 'sess-c', { session_id: 'sess-c', cost: { total_cost_usd: 'oops' } })
-    const [s] = createStatusLineReader({ claudeDir: home }).read()
+    const [s] = open(home).read()
     expect(s.costUsd).toBeNull()
     expect(s.contextPct).toBeNull()
     expect(s.contextWindow).toBeNull()
@@ -77,14 +81,14 @@ describe('createStatusLineReader', () => {
     writeFileSync(join(dir, 'no-id.json'), JSON.stringify({ cost: { total_cost_usd: 1 } }))
     writeCapture(home, 'good', { session_id: 'good', cost: { total_cost_usd: 2 } })
 
-    const out = createStatusLineReader({ claudeDir: home }).read()
+    const out = open(home).read()
     expect(out.map((s) => s.sessionId)).toEqual(['good'])
   })
 
   it('stamps each sample with its file mtime in ms', () => {
     const home = makeHome()
     writeCapture(home, 'sess-d', { session_id: 'sess-d' }, 1_781_000)
-    expect(createStatusLineReader({ claudeDir: home }).read()[0].capturedMtimeMs).toBe(1_781_000_000)
+    expect(open(home).read()[0].capturedMtimeMs).toBe(1_781_000_000)
   })
 
   it('skips files whose top-level JSON is not an object (array or primitive)', () => {
@@ -96,7 +100,7 @@ describe('createStatusLineReader', () => {
     writeFileSync(join(dir, 'str.json'), JSON.stringify('hello'))
     writeCapture(home, 'good', { session_id: 'good', cost: { total_cost_usd: 1 } })
 
-    expect(createStatusLineReader({ claudeDir: home }).read().map((s) => s.sessionId)).toEqual(['good'])
+    expect(open(home).read().map((s) => s.sessionId)).toEqual(['good'])
   })
 
   it('treats rate_limits with malformed windows as a subscription with no usable windows', () => {
@@ -105,8 +109,20 @@ describe('createStatusLineReader', () => {
       session_id: 'sess-e',
       rate_limits: { five_hour: 'bad', seven_day: { used_percentage: 'x' } },
     })
-    const [s] = createStatusLineReader({ claudeDir: home }).read()
+    const [s] = open(home).read()
     expect(s.rateLimits).not.toBeNull() // rate_limits present ⇒ still the subscription path, not API
     expect(s.rateLimits).toEqual({ fiveHour: undefined, sevenDay: undefined })
+  })
+
+  it('prunes a capture older than the staleness window and stops returning it', () => {
+    const home = makeHome()
+    writeCapture(home, 'stale', { session_id: 'stale', cost: { total_cost_usd: 9 } }, 1_000_000) // ~9d before NOW_MS
+    writeCapture(home, 'fresh', { session_id: 'fresh', cost: { total_cost_usd: 1 } }) // default mtime, fresh
+
+    const out = open(home).read()
+
+    expect(out.map((s) => s.sessionId)).toEqual(['fresh']) // the dead session's capture is gone
+    expect(existsSync(join(home, '.code-by-wire', 'statusline', 'stale.json'))).toBe(false) // deleted on read
+    expect(existsSync(join(home, '.code-by-wire', 'statusline', 'fresh.json'))).toBe(true) // live one untouched
   })
 })

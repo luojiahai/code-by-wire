@@ -3,7 +3,7 @@ import { IPC, type OverviewData } from '@shared/ipc'
 import type { Provider } from './provider/types'
 import type { SqliteDb } from './db/driver'
 import type { StatusLineReader } from '@shared/statusline'
-import { deriveAccount, overlaySessions, freshestBySession } from '@shared/statusline'
+import { deriveAccount, overlaySessions, freshestBySession, CAPTURE_STALE_MS } from '@shared/statusline'
 import { getOverview } from './db/store'
 import { syncSessions } from './sync'
 
@@ -14,9 +14,6 @@ export interface IpcDeps {
   statusLine?: StatusLineReader
 }
 
-/** A capture older than the 7-day window can't describe it, so it can't define the account either. */
-const STALE_MS = 7 * 24 * 60 * 60 * 1000
-
 export function registerIpc({ db, provider, statusLine }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] }
 
@@ -25,15 +22,16 @@ export function registerIpc({ db, provider, statusLine }: IpcDeps): { sync: () =
   }
 
   /** The index snapshot enriched with the live statusLine overlay: per-session cost/context/lines, plus
-   *  the app-wide account. Both handlers go through here so the list and the account share one read. */
+   *  the app-wide account. Both handlers go through here so the list and the account share one read. The
+   *  freshest-per-session map feeds both the overlay and the account, so the captures are walked once. */
   const overviewNow = (): OverviewData => {
     const now = Date.now()
     const base = getOverview(db, now)
-    const samples = reader.read()
+    const byId = freshestBySession(reader.read())
     return {
-      ...base,
-      sessions: overlaySessions(base.sessions, freshestBySession(samples)),
-      account: deriveAccount(samples, now, STALE_MS),
+      sessions: overlaySessions(base.sessions, byId),
+      stats: base.stats,
+      account: deriveAccount(byId.values(), now, CAPTURE_STALE_MS),
     }
   }
 

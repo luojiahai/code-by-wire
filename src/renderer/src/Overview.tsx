@@ -150,7 +150,7 @@ export function Overview({ sessions, caps, stats, account, loading, onRefresh, o
                         </td>
                         <td
                           className="py-2.5 pr-3 text-right font-mono text-[11px] tabular-nums text-fg-muted"
-                          title={cost.equivalent ? 'Equivalent API value (subscription)' : 'Spend (API account)'}
+                          title={cost.equivalent ? 'Equivalent API value (estimate)' : 'Actual API spend'}
                         >
                           {cost.text}
                         </td>

@@ -37,16 +37,18 @@ export function formatResetCountdown(resetsAt: number, now: number): string {
 
 /**
  * The per-row cost figure plus whether it's an equivalent value (gets a leading ~ and "Equivalent API
- * value" framing) or real spend. Live statusLine cost wins; otherwise the transcript-computed
- * Equivalent API value. With no account (billingMode undefined), the computed figure is by definition
- * an estimate, so it's framed as equivalent.
+ * value" framing) or real spend. Real spend (no ~) is shown only when we have Claude's own live figure
+ * AND the account bills per API call; everything else is an estimate — the transcript-computed Equivalent
+ * API value, a subscription's equivalent cost, or any figure before the account has resolved — so it gets
+ * the ~. A computed fallback on an API account is therefore framed as equivalent, not as exact spend.
  */
 export function costDisplay(opts: {
   liveCostUsd?: number
   equivApiValueUsd: number
   billingMode?: 'subscription' | 'api'
 }): { text: string; equivalent: boolean } {
-  const value = opts.liveCostUsd ?? opts.equivApiValueUsd
-  const equivalent = opts.billingMode !== 'api'
+  const live = opts.liveCostUsd != null
+  const value = live ? opts.liveCostUsd! : opts.equivApiValueUsd
+  const equivalent = !(live && opts.billingMode === 'api')
   return { text: (equivalent ? '~' : '') + formatUsd(value), equivalent }
 }

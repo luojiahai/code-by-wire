@@ -1,6 +1,4 @@
 export interface WrapperSpec {
-  /** Our app dir (`<claudeDir>/.code-by-wire`); captures go in its `statusline/` subdir. Absolute. */
-  appDir: string
   /** The user's original statusLine command to call through to, or null when there was none. */
   wrappedCommand: string | null
 }
@@ -12,35 +10,39 @@ export interface WrapperSpec {
  * every capture step is best-effort (`2>/dev/null`) and `exit 0` swallows a faulty wrapped command's
  * status (ADR-0001 — a blank statusLine is the worst case, never a stalled session).
  *
- * session_id is pulled with sed reading a temp file rather than a JSON parser, so the wrapper needs
- * nothing on PATH but sh + sed — present on every POSIX host Claude Code runs on. A capture that can't
- * find an id skips silently. The capture is written via tmp-then-rename so a reader never sees a
+ * The capture dir is located relative to the script itself (`${0%/*}/statusline`) rather than baked in,
+ * so a Claude dir containing a `$`, backtick, quote, or backslash can't corrupt the script. stdin is
+ * written to a file once and replayed to the wrapped command from that file (`cat "$src" | …`), so the
+ * command receives Claude's bytes verbatim — a trailing newline is preserved, unlike `$(cat)`.
+ *
+ * session_id is pulled with sed rather than a JSON parser, so the wrapper needs nothing on PATH but
+ * sh + sed — present on every POSIX host Claude Code runs on. An id containing a path separator is
+ * rejected (no `../` traversal out of the capture dir); a capture with no usable id is fed through and
+ * cleaned up, never persisted. The capture is published via tmp-then-rename so a reader never sees a
  * half-written file.
  *
  * The wrapped command is the user's own, already trusted and run the same way by Claude Code, so baking
- * it into the script introduces no new trust boundary. (An appDir containing a double-quote, `$`,
- * backtick, or backslash is unsupported — it's baked into a double-quoted sh string, the same
- * path-quoting assumption issue #6 makes for the wrapper path it writes into settings.json.)
+ * it into the script introduces no new trust boundary.
  */
-export function wrapperScript({ appDir, wrappedCommand }: WrapperSpec): string {
+export function wrapperScript({ wrappedCommand }: WrapperSpec): string {
   const callThrough =
-    wrappedCommand && wrappedCommand.trim() !== ''
-      ? `printf '%s' "$input" | ${wrappedCommand}\n`
-      : ''
+    wrappedCommand && wrappedCommand.trim() !== '' ? `cat "$src" | ${wrappedCommand}\n` : ''
   return `#!/bin/sh
 # code-by-wire statusLine wrapper — AUTO-GENERATED, do not edit (regenerated on every install).
 # Captures Claude Code's statusLine JSON to a per-Session file, then renders the user's own statusLine.
-input=$(cat)
-dir="${appDir}/statusline"
+dir="\${0%/*}/statusline"
 mkdir -p "$dir" 2>/dev/null
-tmp="$dir/$$.json.tmp"
-printf '%s' "$input" > "$tmp" 2>/dev/null
-sid=$(sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' "$tmp" 2>/dev/null)
+raw="$dir/$$.json.tmp"
+cat > "$raw" 2>/dev/null
+sid=$(sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' "$raw" 2>/dev/null)
+case "$sid" in */*) sid= ;; esac
 if [ -n "$sid" ]; then
-  mv -f "$tmp" "$dir/$sid.json" 2>/dev/null
+  mv -f "$raw" "$dir/$sid.json" 2>/dev/null
+  src="$dir/$sid.json"
 else
-  rm -f "$tmp" 2>/dev/null
+  src="$raw"
 fi
-${callThrough}exit 0
+${callThrough}rm -f "$raw" 2>/dev/null
+exit 0
 `
 }

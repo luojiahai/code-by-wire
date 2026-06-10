@@ -24,6 +24,10 @@ export interface StatusLineReader {
   read(): StatusLineSample[]
 }
 
+/** A capture older than this can't describe a current 5-hour or 7-day window, and its session is long
+ *  gone from the index — so it's both ignored when deriving the account and pruned from disk on read. */
+export const CAPTURE_STALE_MS = 7 * 24 * 60 * 60 * 1000
+
 /** Freshest sample per Session id — a session that wrote several captures keeps only its newest. */
 export function freshestBySession(samples: StatusLineSample[]): Map<string, StatusLineSample> {
   const byId = new Map<string, StatusLineSample>()
@@ -34,26 +38,38 @@ export function freshestBySession(samples: StatusLineSample[]): Map<string, Stat
   return byId
 }
 
+/** A rate-limit window only if its reset is still ahead. A window that has already reset can't be
+ *  described by a past capture, so it's dropped rather than shown with a stale "% used · resets now". */
+function liveWindow(w: RateLimit | undefined, now: number): RateLimit | undefined {
+  return w && w.resetsAt > now ? w : undefined
+}
+
 /**
- * The app-wide Account from the freshest sample captured within `staleMs` of `now`. Billing mode is
+ * The app-wide Account from the live statusLine captures within `staleMs` of `now`. Billing mode is
  * detected from rate-limit presence (ADR-0001): a capture carrying rate_limits is a subscription, one
- * without is an API account. Returns null when there's no recent statusLine data at all, which the UI
- * reads as "no rate-limit bars" — graceful degradation. A capture older than the window is ignored: it
- * can't faithfully describe a 5-hour or 7-day window that has long since reset.
+ * without is an API account. To avoid flapping — a subscription session that hasn't had its first API
+ * response yet (or an API-key session running alongside) carries no rate_limits — the account takes its
+ * windows from the freshest capture that HAS them, and only reports 'api' when no fresh capture carries
+ * any. Returns null when there's no recent statusLine data at all (the UI reads null as "no bars"). Each
+ * window is dropped once its reset has passed, so a stale capture can't show an expired limit as current.
  */
-export function deriveAccount(samples: StatusLineSample[], now: number, staleMs: number): Account | null {
+export function deriveAccount(samples: Iterable<StatusLineSample>, now: number, staleMs: number): Account | null {
   let freshest: StatusLineSample | null = null
+  let withLimits: StatusLineSample | null = null
   for (const s of samples) {
     if (now - s.capturedMtimeMs > staleMs) continue
     if (!freshest || s.capturedMtimeMs > freshest.capturedMtimeMs) freshest = s
+    if (s.rateLimits && (!withLimits || s.capturedMtimeMs > withLimits.capturedMtimeMs)) withLimits = s
   }
-  if (!freshest) return null
-  if (!freshest.rateLimits) return { billingMode: 'api' }
-  return {
-    billingMode: 'subscription',
-    fiveHour: freshest.rateLimits.fiveHour,
-    sevenDay: freshest.rateLimits.sevenDay,
+  if (withLimits?.rateLimits) {
+    return {
+      billingMode: 'subscription',
+      fiveHour: liveWindow(withLimits.rateLimits.fiveHour, now),
+      sevenDay: liveWindow(withLimits.rateLimits.sevenDay, now),
+    }
   }
+  if (freshest) return { billingMode: 'api' }
+  return null
 }
 
 /**
@@ -63,7 +79,6 @@ export function deriveAccount(samples: StatusLineSample[], now: number, staleMs:
  * that omitted a field falls back to the Session's computed value for that field.
  */
 export function overlaySessions(sessions: Session[], byId: Map<string, StatusLineSample>): Session[] {
-  if (byId.size === 0) return sessions.slice()
   return sessions.map((s) => {
     const sample = byId.get(s.id)
     if (!sample) return s

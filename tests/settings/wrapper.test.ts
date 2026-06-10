@@ -11,16 +11,18 @@ const makeHome = tempHomes('cbw-wrapper-')
 
 describe('wrapperScript (pure source)', () => {
   it('captures session_id and calls through to the wrapped command', () => {
-    const src = wrapperScript({ appDir: '/home/.code-by-wire', wrappedCommand: 'my-prompt --color' })
+    const src = wrapperScript({ wrappedCommand: 'my-prompt --color' })
     expect(src.startsWith('#!/bin/sh')).toBe(true)
     expect(src).toContain('"session_id"') // extracts the id
-    expect(src).toContain('/home/.code-by-wire/statusline') // writes into our dir
-    expect(src).toContain("printf '%s' \"$input\" | my-prompt --color") // call-through
+    expect(src).toContain('${0%/*}/statusline') // self-locates the capture dir (no baked path)
+    expect(src).toContain('case "$sid" in */*) sid= ;; esac') // rejects a traversal id
+    expect(src).toContain('cat "$src" | my-prompt --color') // byte-faithful call-through (no $(cat) strip)
   })
 
   it('omits the call-through when there was no original statusLine (renders blank, ADR-0001)', () => {
-    const src = wrapperScript({ appDir: '/home/.code-by-wire', wrappedCommand: null })
-    expect(src).not.toContain('printf \'%s\' "$input" |')
+    const src = wrapperScript({ wrappedCommand: null })
+    expect(src).not.toContain('| my-prompt')
+    expect(src).not.toContain('cat "$src" |')
     expect(src).toContain('exit 0')
   })
 })
@@ -56,5 +58,31 @@ describe.skipIf(process.platform === 'win32')('wrapper end-to-end (runs the gene
 
     expect(stdout).toBe('') // blank prompt, safe
     expect(existsSync(join(home, '.code-by-wire', 'statusline', 'abc-123.json'))).toBe(true)
+  })
+
+  it('feeds the wrapped command Claude’s stdin byte-for-byte, trailing newline preserved', () => {
+    const home = makeHome()
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'cat' } }))
+    createSettingsManager({ claudeDir: home, now: () => NOW }).install()
+
+    const wrapperPath = join(home, '.code-by-wire', 'statusline-wrapper.sh')
+    const withNewline = SAMPLE + '\n'
+    const stdout = execFileSync('sh', [wrapperPath], { input: withNewline, encoding: 'utf8' })
+
+    expect(stdout).toBe(withNewline) // the wrapped `cat` saw the trailing newline (no $(cat) strip)
+    expect(readFileSync(join(home, '.code-by-wire', 'statusline', 'abc-123.json'), 'utf8')).toBe(withNewline)
+  })
+
+  it('rejects a session_id containing a path separator — nothing escapes the capture dir', () => {
+    const home = makeHome()
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'cat' } }))
+    createSettingsManager({ claudeDir: home, now: () => NOW }).install()
+
+    const wrapperPath = join(home, '.code-by-wire', 'statusline-wrapper.sh')
+    const stdout = execFileSync('sh', [wrapperPath], { input: '{"session_id":"../../escape"}', encoding: 'utf8' })
+
+    expect(stdout).toBe('{"session_id":"../../escape"}') // still rendered through
+    expect(existsSync(join(home, 'escape.json'))).toBe(false) // did not write outside statusline/
+    expect(existsSync(join(home, '.code-by-wire', 'escape.json'))).toBe(false)
   })
 })

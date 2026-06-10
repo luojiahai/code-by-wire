@@ -68,4 +68,10 @@ describe('costDisplay', () => {
   it('falls back to the computed equivalent value, framed as equivalent, when there is no account', () => {
     expect(costDisplay({ equivApiValueUsd: 6.42 })).toEqual({ text: '~$6.42', equivalent: true })
   })
+
+  it('frames the computed fallback as an estimate even on an API account (no live sample to call spend)', () => {
+    // Without Claude's own live figure, the computed equivApiValueUsd is an estimate — it must not be
+    // labeled exact API spend just because the account bills per call.
+    expect(costDisplay({ equivApiValueUsd: 6.42, billingMode: 'api' })).toEqual({ text: '~$6.42', equivalent: true })
+  })
 })

@@ -10,11 +10,16 @@ export const IPC = {
   readTranscript: 'transcript:read',
 } as const
 
-/** Sessions plus the usage aggregates, read from the index in one pass so the list and the stats
- *  beside it never reflect different snapshots. */
-export interface OverviewData {
+/** The index-only slice: sessions + usage aggregates from one SQLite read, so the list and the stats
+ *  beside it never reflect different snapshots. The SQLite index holds no live statusLine data (ADR-0002),
+ *  so the account is added later — this is what the store returns, before the overlay. */
+export interface IndexOverview {
   sessions: Session[]
   stats: Stats
+}
+
+/** What the renderer receives: the index slice plus the live statusLine overlay (ipc.ts assembles it). */
+export interface OverviewData extends IndexOverview {
   /** App-wide account: billing mode + rate limits from the live statusLine. null when there is no
    *  statusLine data (no captures, or all stale) — the UI reads null as "no rate-limit bars". */
   account: Account | null

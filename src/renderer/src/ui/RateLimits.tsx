@@ -1,22 +1,18 @@
 import type { Account, RateLimit } from '@shared/types'
 import { formatResetCountdown } from '@shared/format'
+import { barFill } from './meta'
 import { Bar } from './atoms'
 
-/** Bar fill tone for a rate-limit window: calm until it fills, amber-then-bright as it approaches the cap. */
-function limitFill(pct: number): string {
-  if (pct >= 90) return 'bg-accent'
-  if (pct >= 70) return 'bg-accent/80'
-  return 'bg-primary/70'
-}
-
 function Window({ label, limit, now, compact }: { label: string; limit: RateLimit; now: number; compact: boolean }) {
-  const pct = Math.round(limit.usedPct)
+  // Clamp the label too, not just the bar: the statusLine can over-report past a limit, and a "150%"
+  // next to a full bar reads as a glitch (the rate-limit bars use a brighter 90 threshold than context).
+  const pct = Math.min(100, Math.max(0, Math.round(limit.usedPct)))
   const countdown = formatResetCountdown(limit.resetsAt, now)
   if (compact) {
     return (
       <span className="inline-flex items-center gap-1.5" title={`${label} limit · ${pct}% used · resets ${countdown}`}>
         <span className="text-[10px] uppercase tracking-wider text-fg-faint">{label}</span>
-        <Bar pct={pct} fill={limitFill(pct)} className="w-10" />
+        <Bar pct={pct} fill={barFill(pct, 90)} className="w-10" />
         <span className="font-mono text-[10px] tabular-nums text-fg-muted">{pct}%</span>
       </span>
     )
@@ -27,7 +23,7 @@ function Window({ label, limit, now, compact }: { label: string; limit: RateLimi
         <span className="text-[11px] text-fg">{label}</span>
         <span className="font-mono text-[10px] tabular-nums text-fg-muted">{pct}% · resets {countdown}</span>
       </div>
-      <Bar pct={pct} fill={limitFill(pct)} className="w-full" />
+      <Bar pct={pct} fill={barFill(pct, 90)} className="w-full" />
     </div>
   )
 }

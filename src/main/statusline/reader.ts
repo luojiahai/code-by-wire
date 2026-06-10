@@ -1,12 +1,15 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { RateLimit } from '@shared/types'
 import type { StatusLineReader, StatusLineSample } from '@shared/statusline'
+import { CAPTURE_STALE_MS } from '@shared/statusline'
 import { resolveClaudeDir } from '../claude-config'
 
 export interface StatusLineReaderDeps {
   /** Claude config dir; defaults via resolveClaudeDir. Tests inject a temp dir. */
   claudeDir?: string
+  /** Wall clock (ms) the prune cutoff is measured against; injected so tests are deterministic. */
+  now?: () => number
 }
 
 /** Where the wrapper writes one JSON capture per Session (`<sessionId>.json`). */
@@ -71,23 +74,36 @@ function parseSample(raw: string, capturedMtimeMs: number): StatusLineSample | n
  * plus small JSON reads per Overview pass, mirroring how the Observed view polls. No fs.watch, no
  * daemon: the app is windowed-only and the 3s Overview refresh is the merge cadence. An absent dir
  * (nothing installed yet, or no captures) reads as "no live data": an empty list, never an error.
+ * A capture older than CAPTURE_STALE_MS belongs to a session long gone from the index; it's pruned on
+ * sight so the dir can't grow without bound and the hot read path never re-parses dead data.
  */
 export function createStatusLineReader(deps: StatusLineReaderDeps = {}): StatusLineReader {
   const dir = statusLineDir(resolveClaudeDir(deps.claudeDir))
+  const now = deps.now ?? ((): number => Date.now())
   return {
     read(): StatusLineSample[] {
       let names: string[]
       try {
         names = readdirSync(dir)
-      } catch {
+      } catch (err) {
+        // An absent dir (nothing installed / no captures yet) is the normal "no live data" case. A real
+        // read failure (EACCES/EIO) isn't that, and shouldn't masquerade as it silently — surface it.
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          console.error(`statusLine reader: cannot read ${dir}`, err)
+        }
         return []
       }
       const out: StatusLineSample[] = []
+      const cutoff = now() - CAPTURE_STALE_MS
       for (const name of names) {
         if (!name.endsWith('.json')) continue
         const path = join(dir, name)
         try {
           const mtimeMs = statSync(path).mtimeMs
+          if (mtimeMs < cutoff) {
+            rmSync(path, { force: true }) // stale: drop it instead of re-reading and re-parsing it
+            continue
+          }
           const sample = parseSample(readFileSync(path, 'utf8'), mtimeMs)
           if (sample) out.push(sample)
         } catch {

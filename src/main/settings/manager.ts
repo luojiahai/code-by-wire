@@ -168,7 +168,7 @@ export function createSettingsManager(deps: SettingsManagerDeps = {}): SettingsM
    *  rewritten on every install so a deleted or stale wrapper self-heals. 0755 so the bare `"<path>"`
    *  command in settings.json is directly executable. */
   function writeWrapper(wrappedCommand: string | null): void {
-    writeFileAtomic(wrapperPath, wrapperScript({ appDir, wrappedCommand }), 0o755)
+    writeFileAtomic(wrapperPath, wrapperScript({ wrappedCommand }), 0o755)
   }
 
   function isInstalled(): boolean {

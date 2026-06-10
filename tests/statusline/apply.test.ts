@@ -69,6 +69,29 @@ describe('deriveAccount', () => {
     const fresh = sample({ sessionId: 'b', capturedMtimeMs: NOW, rateLimits: { fiveHour: { usedPct: 50, resetsAt: NOW + 1000 } } })
     expect(deriveAccount([stale, fresh], NOW, STALE_MS)?.billingMode).toBe('subscription')
   })
+
+  it('prefers the freshest capture carrying rate_limits, so a newer no-limits capture does not flip to api', () => {
+    // A subscription session that hasn't had its first API response yet (no rate_limits) writes the
+    // newest capture, while an older session still carries the windows. The account must stay subscription.
+    const older = sample({ sessionId: 'a', capturedMtimeMs: NOW - 1000, rateLimits: { fiveHour: { usedPct: 30, resetsAt: NOW + 3_600_000 } } })
+    const newer = sample({ sessionId: 'b', capturedMtimeMs: NOW, rateLimits: null })
+    expect(deriveAccount([newer, older], NOW, STALE_MS)).toEqual({
+      billingMode: 'subscription',
+      fiveHour: { usedPct: 30, resetsAt: NOW + 3_600_000 },
+      sevenDay: undefined,
+    })
+  })
+
+  it('drops a rate-limit window whose reset has already passed (no stale "% used · resets now")', () => {
+    const s = sample({
+      rateLimits: { fiveHour: { usedPct: 80, resetsAt: NOW - 1 }, sevenDay: { usedPct: 40, resetsAt: NOW + 86_400_000 } },
+    })
+    expect(deriveAccount([s], NOW, STALE_MS)).toEqual({
+      billingMode: 'subscription',
+      fiveHour: undefined, // already reset → not shown stale
+      sevenDay: { usedPct: 40, resetsAt: NOW + 86_400_000 },
+    })
+  })
 })
 
 describe('overlaySessions', () => {
