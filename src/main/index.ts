@@ -9,6 +9,8 @@ import { registerIpc } from './ipc'
 import { createSettingsManager } from './settings/manager'
 import { createStatusLineReader } from './statusline/reader'
 import { registerTerminalIpc } from './terminal/ipc'
+import { readAccountEmail } from './settings/account-email'
+import { resolveClaudeDir } from './claude-config'
 
 function createWindow(
   managed: ManagedRegistry,
@@ -51,7 +53,13 @@ app.whenReady()
     }
     const statusLine = createStatusLineReader()
     const provider = createClaudeProvider({ managed })
-    const { sync } = registerIpc({ db, provider, statusLine })
+    const claudeDir = resolveClaudeDir()
+    let emailCache: string | null | undefined
+    const accountEmail = (): string | null => {
+      if (emailCache === undefined) emailCache = readAccountEmail(claudeDir)
+      return emailCache
+    }
+    const { sync } = registerIpc({ db, provider, statusLine, accountEmail })
 
     try {
       sync() // incremental parse of ~/.claude → SQLite once, before the window asks for rows

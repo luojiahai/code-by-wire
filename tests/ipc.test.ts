@@ -157,3 +157,46 @@ describe('registerIpc overview — statusLine overlay', () => {
     expect(o.account).toBeNull()
   })
 })
+
+describe('registerIpc overview — account email', () => {
+  it('attaches the email to the account when accountEmail dep is provided', () => {
+    const db = openTestDb()
+    migrate(db)
+    upsertSessions(db, [seed])
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      statusLine: reader([
+        lineSample({
+          sessionId: 'seed',
+          rateLimits: { fiveHour: { usedPct: 20, resetsAt: Date.now() + 3_600_000 } },
+        }),
+      ]),
+      accountEmail: () => 'me@example.com',
+    })
+
+    const o = handlers.get(IPC.overview)!() as OverviewData
+    expect(o.account?.email).toBe('me@example.com')
+  })
+
+  it('leaves account.email undefined when no accountEmail dep is provided', () => {
+    const db = openTestDb()
+    migrate(db)
+    upsertSessions(db, [seed])
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      statusLine: reader([
+        lineSample({
+          sessionId: 'seed',
+          rateLimits: { fiveHour: { usedPct: 20, resetsAt: Date.now() + 3_600_000 } },
+        }),
+      ]),
+      // no accountEmail dep
+    })
+
+    const o = handlers.get(IPC.overview)!() as OverviewData
+    expect(o.account).not.toBeNull() // subscription account exists
+    expect(o.account?.email).toBeUndefined()
+  })
+})

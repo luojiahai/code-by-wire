@@ -12,10 +12,13 @@ export interface IpcDeps {
   provider: Provider
   /** Live statusLine captures. Defaults to "no captures" so the index still serves without them. */
   statusLine?: StatusLineReader
+  /** Reads the logged-in account email (cached by the caller). Defaults to no email. */
+  accountEmail?: () => string | null
 }
 
-export function registerIpc({ db, provider, statusLine }: IpcDeps): { sync: () => void } {
+export function registerIpc({ db, provider, statusLine, accountEmail }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] }
+  const readEmail = accountEmail ?? ((): string | null => null)
 
   const sync = (): void => {
     syncSessions(db, provider)
@@ -28,9 +31,14 @@ export function registerIpc({ db, provider, statusLine }: IpcDeps): { sync: () =
     const now = Date.now()
     const base = getOverview(db)
     const byId = freshestBySession(reader.read())
+    const account = deriveAccount(byId.values(), now, CAPTURE_STALE_MS)
+    if (account) {
+      const email = readEmail()
+      if (email) account.email = email
+    }
     return {
       sessions: overlaySessions(base.sessions, byId),
-      account: deriveAccount(byId.values(), now, CAPTURE_STALE_MS),
+      account,
     }
   }
 
