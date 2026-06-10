@@ -9,11 +9,11 @@ export interface StateMeta {
   text: string
 }
 
-/** Per-state display metadata the Overview draws from. */
+/** Per-state display metadata. Working = teal, Waiting = amber, Idle = slate, Ended = faint. */
 export const STATE_META: Record<SessionState, StateMeta> = {
-  working: { label: 'Working', dot: 'bg-primary', text: 'text-primary-bright' },
+  working: { label: 'Working', dot: 'bg-working', text: 'text-working-bright' },
   waiting: { label: 'Waiting', dot: 'bg-accent', text: 'text-accent-bright' },
-  idle: { label: 'Idle', dot: 'bg-fg-faint', text: 'text-fg-muted' },
+  idle: { label: 'Idle', dot: 'bg-idle', text: 'text-fg-muted' },
   ended: { label: 'Ended', dot: 'bg-ink-600', text: 'text-fg-faint' },
 }
 
@@ -37,15 +37,15 @@ export function ctxTone(pct: number): string {
   return 'text-fg-muted'
 }
 
-/** Tailwind fill for a progress bar: blue when roomy, amber as it fills, bright at/over `high`. Shared by
- *  the context bars (high 85) and the rate-limit bars (high 90) so the two never drift apart on retone. */
+/** Tailwind fill for a progress bar: sky (wire) when roomy, amber as it fills, bright at/over `high`.
+ *  Shared by the context bars (high 85) and the rate-limit bars (high 90) so the two never drift. */
 export function barFill(pct: number, high = 85): string {
   if (pct >= high) return 'bg-accent'
   if (pct >= 70) return 'bg-accent/80'
   return 'bg-primary/70'
 }
 
-/** Tailwind fill for the context bar: blue when roomy, amber as it fills. */
+/** Tailwind fill for the context bar: sky when roomy, amber as it fills. */
 export function ctxBar(pct: number): string {
   return barFill(pct, 85)
 }
