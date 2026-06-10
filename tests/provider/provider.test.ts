@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { resolve } from 'node:path'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { createClaudeProvider } from '../../src/main/provider/claude'
+import { tempHomes } from '../helpers/temp-home'
 
 describe('ClaudeProvider', () => {
   it('exposes capability flags and the incremental sync primitives', () => {
@@ -85,5 +87,21 @@ describe('ClaudeProvider managed labelling', () => {
     const live = provider.listCandidates().find((c) => c.id === liveId)!
     const wasManaged = { ...provider.summarize(live), management: 'managed' as const }
     expect(provider.restate(live, wasManaged).management).toBe('observed')
+  })
+})
+
+describe('ClaudeProvider.resolveAdoptTarget', () => {
+  const makeHome = tempHomes('cbw-prov-adopt-')
+
+  it('delegates to the adopt-target resolver: a live registry entry resolves alive + cwd', () => {
+    const home = makeHome()
+    mkdirSync(join(home, 'sessions'), { recursive: true })
+    writeFileSync(
+      join(home, 'sessions', '100.json'),
+      JSON.stringify({ pid: 100, sessionId: 'sx', cwd: '/w/sx', status: 'busy', updatedAt: 1 }),
+    )
+    const provider = createClaudeProvider({ claudeDir: home, isPidAlive: (pid) => pid === 100 })
+    expect(provider.resolveAdoptTarget('sx')).toEqual({ alive: true, cwd: '/w/sx' })
+    expect(provider.resolveAdoptTarget('nope')).toBeNull()
   })
 })

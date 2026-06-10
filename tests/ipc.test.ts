@@ -37,6 +37,7 @@ const provider = (listCandidates: Provider['listCandidates']): Provider => ({
   restate: (_c, prev) => prev,
   readTranscript: () => ({ status: 'absent' }),
   readTasks: () => ({ status: 'absent' }),
+  resolveAdoptTarget: () => null,
 })
 
 describe('registerIpc refresh', () => {
