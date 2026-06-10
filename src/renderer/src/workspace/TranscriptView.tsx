@@ -52,7 +52,7 @@ export function TranscriptView({
       {doc?.events.map((e, i) => <EventItem key={i} event={e} />)}
 
       {state === 'waiting' && (
-        <div className="rounded-lg border border-accent/50 bg-accent/[0.08] p-3">
+        <div className="rounded-lg border border-accent/40 bg-accent/[0.08] p-3">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-accent-bright">Waiting for you</div>
           <p className="mt-1 whitespace-pre-wrap font-mono text-[12px] text-accent-bright">
             {doc?.waitingReason ?? 'Waiting for your input'}
