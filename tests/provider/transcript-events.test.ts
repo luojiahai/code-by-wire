@@ -285,6 +285,21 @@ describe('parseTranscriptEvents — timeline', () => {
     )
     expect(turns[0].toolCount).toBe(1)
   })
+
+  it('adopts the first real timestamp as start when the opening prompt has none', () => {
+    // A prompt row with no timestamp must not leave startMs at epoch 0 while a later timestamped row
+    // pushes endMs to a real epoch — that would render a ~50000-year duration and "ago".
+    const { turns } = parseTranscriptEvents(
+      jsonl(
+        { type: 'user', isMeta: false, message: { role: 'user', content: 'go' } },
+        { type: 'assistant', timestamp: '2026-06-08T00:00:05.000Z', message: { id: 'm1', role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }] } },
+        { type: 'assistant', timestamp: '2026-06-08T00:00:08.000Z', message: { id: 'm1', role: 'assistant', content: [{ type: 'text', text: 'done' }] } },
+      ),
+    )
+    expect(turns[0].startMs).toBe(ts('05'))
+    expect(turns[0].endMs).toBe(ts('08'))
+    expect(turns[0].durationMs).toBe(3000)
+  })
 })
 
 describe('parseTranscriptEvents — current context', () => {

@@ -1,5 +1,6 @@
 import type { ContextBreakdown, DiffHunk, TranscriptDoc, TranscriptEvent, TurnSummary } from '@shared/transcript'
-import { extractCommandName, stripCommandEnvelope } from './command-envelope'
+import { extractCommandName, promptLabel, stripCommandEnvelope } from './command-envelope'
+import { userText, usageBreakdown } from './transcript-row'
 
 /** Tools whose edit we render as a diff rather than a generic tool call. */
 const DIFF_TOOLS = new Set(['Edit', 'Write', 'MultiEdit'])
@@ -9,32 +10,6 @@ const SUBAGENT_TOOLS = new Set(['Task', 'Agent'])
 /** Split a possibly-multiline string into lines; a non-string or '' → [] so that side renders nothing. */
 function lines(s: unknown): string[] {
   return typeof s === 'string' && s.length ? s.split('\n') : []
-}
-
-/** A user turn's text whether stored as a plain string or content blocks (text blocks only). Mirrors
- *  the helper in transcript.ts; kept local so the two parsers stay independent. */
-function userText(content: unknown): string {
-  if (typeof content === 'string') return content
-  if (Array.isArray(content)) {
-    return content
-      .filter((b) => b?.type === 'text' && typeof b?.text === 'string')
-      .map((b) => b.text)
-      .join('\n')
-  }
-  return ''
-}
-
-/** A finite number or 0 — usage fields can be absent or malformed in a half-written transcript line. */
-function num(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : 0
-}
-
-/** A short, single-line label for a turn from its user prompt: the slash-command name, else the prompt
- *  with whitespace collapsed and truncated. Mirrors deriveTitle in transcript.ts. */
-function turnLabel(raw: string): string {
-  const command = extractCommandName(raw)
-  const cleaned = command || stripCommandEnvelope(raw).replace(/\s+/g, ' ').trim()
-  return cleaned.length > 80 ? cleaned.slice(0, 79) + '…' : cleaned
 }
 
 /** A short, human label for a tool call's input: the most telling field, else compact JSON. */
@@ -106,6 +81,8 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
   const turns: TurnSummary[] = []
   let open: TurnSummary | null = null
   let lastTs = 0 // most recent valid timestamp; a fallback for a row that lacks one
+  let sawTs = false // has any row carried a parseable timestamp yet?
+  let openStartPending = false // the open turn began before any timestamp existed; adopt the first one
   let context: ContextBreakdown | null = null
 
   const finalizeOpen = (): void => {
@@ -113,6 +90,18 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
     open.durationMs = Math.max(0, open.endMs - open.startMs)
     turns.push(open)
     open = null
+  }
+
+  // Extend the open turn's clock to a row's timestamp. A turn that opened before any timestamp existed
+  // adopts the first one as its start — so a missing leading timestamp can't leave startMs at epoch 0
+  // while a later real timestamp inflates the duration (and the "ago" readout) to ~50000 years.
+  const extendClock = (ts: number): void => {
+    if (!open) return
+    if (openStartPending) {
+      open.startMs = ts
+      openStartPending = false
+    }
+    open.endMs = Math.max(open.endMs, ts)
   }
 
   for (const line of jsonl.split('\n')) {
@@ -128,7 +117,10 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
 
     const tsParsed = typeof row.timestamp === 'string' ? Date.parse(row.timestamp) : NaN
     const hasTs = !Number.isNaN(tsParsed)
-    if (hasTs) lastTs = tsParsed
+    if (hasTs) {
+      lastTs = tsParsed
+      sawTs = true
+    }
 
     const content = row.message?.content
 
@@ -139,7 +131,7 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
         }
       }
       if (row.isMeta) {
-        if (open && hasTs) open.endMs = Math.max(open.endMs, tsParsed)
+        if (hasTs) extendClock(tsParsed)
         continue
       }
       const raw = userText(content)
@@ -147,13 +139,14 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
         // A real user prompt closes the previous turn and opens a new one.
         finalizeOpen()
         const start = hasTs ? tsParsed : lastTs
-        open = { index: turns.length + 1, prompt: turnLabel(raw), startMs: start, endMs: start, durationMs: 0, toolCount: 0 }
+        open = { index: turns.length + 1, prompt: promptLabel(raw), startMs: start, endMs: start, durationMs: 0, toolCount: 0 }
+        openStartPending = !hasTs && !sawTs
         const command = extractCommandName(raw)
         events.push({ kind: 'user', text: command || stripCommandEnvelope(raw).trim() })
         continue
       }
       // A tool_result-only (or empty) user turn belongs to the current turn — extend its clock.
-      if (open && hasTs) open.endMs = Math.max(open.endMs, tsParsed)
+      if (hasTs) extendClock(tsParsed)
       continue
     }
 
@@ -165,17 +158,12 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
         pending = new Map()
         turn = id
       }
-      if (open && hasTs) open.endMs = Math.max(open.endMs, tsParsed)
+      if (hasTs) extendClock(tsParsed)
 
       // Current context = the latest assistant turn's prompt, split by cache state. A zero-sum usage
-      // block (e.g. a '<synthetic>' placeholder) leaves the last real split intact.
-      const usage = row.message?.usage
-      if (usage && typeof usage === 'object') {
-        const input = num(usage.input_tokens)
-        const cacheRead = num(usage.cache_read_input_tokens)
-        const cacheCreation = num(usage.cache_creation_input_tokens)
-        if (input + cacheRead + cacheCreation > 0) context = { input, cacheRead, cacheCreation }
-      }
+      // block (e.g. a '<synthetic>' placeholder) yields null and leaves the last real split intact.
+      const bd = usageBreakdown(row.message?.usage)
+      if (bd) context = bd
 
       if (!Array.isArray(content)) continue
       for (const b of content) {

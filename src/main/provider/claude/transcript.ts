@@ -1,7 +1,9 @@
 import { basename } from 'node:path'
 import { normalizeModelId, type ModelId } from '@shared/models'
 import type { Usage } from '@shared/types'
-import { extractCommandName, stripCommandEnvelope } from './command-envelope'
+import { contextTotal } from '@shared/context'
+import { promptLabel } from './command-envelope'
+import { num, userText, usageBreakdown } from './transcript-row'
 
 export interface TranscriptSummary {
   title: string
@@ -21,28 +23,10 @@ export interface TranscriptSummary {
 /** First non-empty user prompt (slash commands shown by name), else the project basename. */
 export function deriveTitle(userPrompts: string[], cwd: string): string {
   for (const raw of userPrompts) {
-    const command = extractCommandName(raw)
-    const cleaned = command || stripCommandEnvelope(raw).replace(/\s+/g, ' ').trim()
-    if (cleaned) return cleaned.length > 80 ? cleaned.slice(0, 79) + '…' : cleaned
+    const label = promptLabel(raw)
+    if (label) return label
   }
   return basename(cwd) || 'session'
-}
-
-/** A user turn's text, whether stored as a plain string or an array of content blocks. */
-function userPromptText(content: unknown): string {
-  if (typeof content === 'string') return content
-  if (Array.isArray(content)) {
-    return content
-      .filter((b) => b?.type === 'text' && typeof b?.text === 'string')
-      .map((b) => b.text)
-      .join('\n')
-  }
-  return ''
-}
-
-/** A finite number or 0 — usage fields can be absent or malformed in a half-written transcript line. */
-function num(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : 0
 }
 
 /** Claude Code injects '<synthetic>' assistant turns (cancelled or over-limit placeholders) that
@@ -111,19 +95,18 @@ export function parseTranscript(jsonl: string, fallbackCwd = ''): TranscriptSumm
       const usage = row.message?.usage
       if (usage && typeof usage === 'object') {
         const id = typeof row.message?.id === 'string' ? row.message.id : undefined
-        const inp = num(usage.input_tokens)
-        const cacheRead = num(usage.cache_read_input_tokens)
-        const cacheCreation = num(usage.cache_creation_input_tokens)
         if (!id || !countedTurns.has(id)) {
           if (id) countedTurns.add(id)
-          inputTokens += inp
+          inputTokens += num(usage.input_tokens)
           outputTokens += num(usage.output_tokens)
-          cacheReadTokens += cacheRead
-          cacheCreationTokens += cacheCreation
+          cacheReadTokens += num(usage.cache_read_input_tokens)
+          cacheCreationTokens += num(usage.cache_creation_input_tokens)
         }
-        const prompt = inp + cacheRead + cacheCreation
-        if (prompt > 0) contextTokens = prompt
       }
+      // The current context is the latest non-synthetic turn's full prompt — one shared derivation
+      // (usageBreakdown) so this and the render parser's `context` can't disagree.
+      const bd = usageBreakdown(usage)
+      if (bd) contextTokens = contextTotal(bd)
 
       // A new assistant turn supersedes the last, so only its own tool_use blocks can still be
       // blocking the user. Reset first: a tool_use the user walked past (interrupted, then typed
@@ -151,7 +134,7 @@ export function parseTranscript(jsonl: string, fallbackCwd = ''): TranscriptSumm
       }
       // Only real (non-meta) user turns are prompts that can title the session.
       if (!row.isMeta) {
-        const text = userPromptText(content)
+        const text = userText(content)
         if (text) userPrompts.push(text)
       }
     }

@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import type { ContextBreakdown } from '@shared/transcript'
 import { contextTotal, contextSegments, tokensUntilAutoCompact } from '@shared/context'
 import { formatTokens } from '@shared/format'
 import { cx, Bar } from '../../ui/atoms'
 import { ctxBar, ctxTone } from '../../ui/meta'
+import { PanelSection, PanelHeading } from './chrome'
 
 /**
  * The current context window fill, split by cache state — the stable cached bulk, the part newly cached
@@ -11,22 +13,28 @@ import { ctxBar, ctxTone } from '../../ui/meta'
  * (statusLine-overlaid when live). null context ⇒ no turn has reported usage yet.
  */
 export function ContextPanel({ context, contextWindow }: { context: ContextBreakdown | null; contextWindow: number }) {
-  if (!context) {
+  // Derive once per (context, window) so a bare `now` re-render doesn't re-walk the split. null context
+  // ⇒ null derived ⇒ the empty state.
+  const derived = useMemo(() => {
+    if (!context) return null
+    const total = contextTotal(context)
+    const pct = contextWindow > 0 ? Math.min(100, Math.round((total / contextWindow) * 100)) : 0
+    return { total, pct, segments: contextSegments(context), untilCompact: tokensUntilAutoCompact(total, contextWindow) }
+  }, [context, contextWindow])
+
+  if (!derived) {
     return (
-      <section className="space-y-2 border-b border-ink-800 pb-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Context</h2>
+      <PanelSection>
+        <PanelHeading>Context</PanelHeading>
         <p className="text-[11px] text-fg-faint">No context sampled yet.</p>
-      </section>
+      </PanelSection>
     )
   }
-  const total = contextTotal(context)
-  const pct = contextWindow > 0 ? Math.min(100, Math.round((total / contextWindow) * 100)) : 0
-  const segments = contextSegments(context)
-  const untilCompact = tokensUntilAutoCompact(total, contextWindow)
+  const { total, pct, segments, untilCompact } = derived
   return (
-    <section className="space-y-2 border-b border-ink-800 pb-3">
+    <PanelSection>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Context</h2>
+        <PanelHeading>Context</PanelHeading>
         <span className={cx('font-mono text-[11px] tabular-nums', ctxTone(pct))}>
           {pct}% · {formatTokens(total)} / {formatTokens(contextWindow)}
         </span>
@@ -46,6 +54,6 @@ export function ContextPanel({ context, contextWindow }: { context: ContextBreak
         <span className="text-[11px] text-fg-muted">Auto-compact in</span>
         <span className="font-mono text-[11px] tabular-nums text-fg">~{formatTokens(untilCompact)}</span>
       </div>
-    </section>
+    </PanelSection>
   )
 }

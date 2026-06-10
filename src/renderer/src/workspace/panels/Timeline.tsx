@@ -1,5 +1,6 @@
 import type { TurnSummary } from '@shared/transcript'
 import { formatDuration, formatRelativeTime } from '@shared/format'
+import { PanelHeading } from './chrome'
 
 /**
  * The turn-by-turn timeline: each user prompt and the assistant work it triggered, with the turn's tool
@@ -10,7 +11,7 @@ export function Timeline({ turns, now }: { turns: TurnSummary[]; now: number }) 
   return (
     <div className="flex max-h-48 shrink-0 flex-col border-t border-ink-800 bg-ink-925">
       <div className="flex shrink-0 items-baseline justify-between px-4 py-2">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Timeline</h2>
+        <PanelHeading>Timeline</PanelHeading>
         <span className="font-mono text-[10px] text-fg-faint">
           {turns.length} turn{turns.length === 1 ? '' : 's'}
         </span>

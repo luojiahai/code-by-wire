@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
 import type { ModelId, Usage } from '@shared/types'
 import { costBreakdown } from '@shared/models'
 import { formatUsd, costDisplay } from '@shared/format'
+import { PanelSection, PanelHeading } from './chrome'
 
 /**
  * Cost for the session: a headline figure (Claude's live number when present, else the computed
@@ -19,18 +21,24 @@ export function CostPanel({
   liveCostUsd?: number
   billingMode?: 'subscription' | 'api'
 }) {
-  const b = costBreakdown(usage, model)
-  const headline = costDisplay({ liveCostUsd, equivApiValueUsd: b.total, billingMode })
-  const rows = [
-    { label: 'Input', value: b.input },
-    { label: 'Output', value: b.output },
-    { label: 'Cache read', value: b.cacheRead },
-    { label: 'Cache write', value: b.cacheWrite },
-  ]
+  // Derive once per (usage, model, live, billing) so a bare `now` re-render doesn't re-run the split.
+  const { headline, rows, cacheSavings } = useMemo(() => {
+    const b = costBreakdown(usage, model)
+    return {
+      headline: costDisplay({ liveCostUsd, equivApiValueUsd: b.total, billingMode }),
+      rows: [
+        { label: 'Input', value: b.input },
+        { label: 'Output', value: b.output },
+        { label: 'Cache read', value: b.cacheRead },
+        { label: 'Cache write', value: b.cacheWrite },
+      ],
+      cacheSavings: b.cacheSavings,
+    }
+  }, [usage, model, liveCostUsd, billingMode])
   return (
-    <section className="space-y-2 border-b border-ink-800 pb-3">
+    <PanelSection>
       <div className="flex items-baseline justify-between">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Cost</h2>
+        <PanelHeading>Cost</PanelHeading>
         <span
           className="font-mono text-sm tabular-nums text-fg"
           title={headline.equivalent ? 'Equivalent API value (estimate)' : 'Actual API spend'}
@@ -46,13 +54,13 @@ export function CostPanel({
           </div>
         ))}
       </dl>
-      {b.cacheSavings > 0 && (
+      {cacheSavings > 0 && (
         <div className="flex items-baseline justify-between border-t border-ink-800/70 pt-1.5">
           <span className="text-[11px] text-ok">Cache savings</span>
-          <span className="font-mono text-[11px] tabular-nums text-ok">~{formatUsd(b.cacheSavings)}</span>
+          <span className="font-mono text-[11px] tabular-nums text-ok">~{formatUsd(cacheSavings)}</span>
         </div>
       )}
       <p className="text-[10px] leading-snug text-fg-faint">Split is Equivalent API value by token kind.</p>
-    </section>
+    </PanelSection>
   )
 }
