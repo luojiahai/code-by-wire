@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent }
 import type { ModelId } from '@shared/types'
 import { MODEL_IDS } from '@shared/models'
 import { MODEL_LABEL } from '../ui/meta'
+import { Icon } from '../ui/icons'
 
 /** The create-a-Managed-session form: choose a directory (native picker) and a model, then spawn. */
 export function NewSessionDialog({
@@ -71,40 +72,43 @@ export function NewSessionDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={busy ? undefined : onCancel}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px]"
+      onClick={busy ? undefined : onCancel}
+    >
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-session-title"
         tabIndex={-1}
-        className="w-[28rem] rounded-xl border border-ink-800 bg-ink-925 p-5 text-fg shadow-2xl outline-none"
+        className="w-[28rem] rounded-xl border border-ink-700 bg-ink-900 p-5 text-fg shadow-2xl outline-none"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={trapTab}
       >
-        <div id="new-session-title" className="text-sm font-medium">
+        <div id="new-session-title" className="text-sm font-semibold">
           New Managed session
         </div>
-        <p className="mt-1 text-[12px] text-fg-faint">
+        <p className="mt-1.5 text-[12px] leading-relaxed text-fg-faint">
           Spawns <span className="font-mono">claude</span> in the chosen directory and drives it from a live terminal.
         </p>
 
-        <label className="mt-4 block text-[11px] uppercase tracking-wider text-fg-muted">Directory</label>
-        <div className="mt-1 flex items-center gap-2">
+        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Directory</label>
+        <div className="mt-1.5 flex items-center gap-2">
           <button
             onClick={() => void pick()}
-            className="rounded-md border border-ink-700 bg-ink-800 px-2.5 py-1 text-[12px] hover:bg-ink-700"
+            className="inline-flex items-center gap-1.5 rounded-md border border-ink-700 bg-ink-925 px-2.5 py-1 text-[12px] transition-colors hover:bg-ink-850"
           >
-            Choose…
+            <Icon name="folder-open" size={13} /> Choose…
           </button>
           <span className="truncate font-mono text-[12px] text-fg-faint">{cwd ?? 'No directory chosen'}</span>
         </div>
 
-        <label className="mt-4 block text-[11px] uppercase tracking-wider text-fg-muted">Model</label>
+        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Model</label>
         <select
           value={model}
           onChange={(e) => setModel(e.target.value as ModelId)}
-          className="mt-1 w-full rounded-md border border-ink-700 bg-ink-800 px-2 py-1.5 text-[13px]"
+          className="mt-1.5 w-full rounded-md border border-ink-700 bg-well px-2.5 py-2 text-[13px] text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
         >
           {MODEL_IDS.map((id) => (
             <option key={id} value={id}>
@@ -115,14 +119,15 @@ export function NewSessionDialog({
 
         {error && <p className="mt-3 text-[12px] text-danger">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onCancel} className="rounded-md px-3 py-1.5 text-[13px] text-fg-muted hover:text-fg">
+          <button onClick={onCancel} className="rounded-md px-3 py-1.5 text-[13px] text-fg-muted transition-colors hover:text-fg">
             Cancel
           </button>
           <button
             onClick={create}
             disabled={!cwd || busy}
-            className="rounded-md bg-primary/20 px-3 py-1.5 text-[13px] text-primary-bright ring-1 ring-primary/30 enabled:hover:bg-primary/30 disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[13px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
           >
+            <Icon name="plus" size={13} />
             {busy ? 'Starting…' : 'Create'}
           </button>
         </div>
