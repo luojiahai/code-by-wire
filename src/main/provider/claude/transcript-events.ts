@@ -1,4 +1,4 @@
-import type { DiffHunk, TranscriptDoc, TranscriptEvent } from '@shared/transcript'
+import type { ContextBreakdown, DiffHunk, TranscriptDoc, TranscriptEvent, TurnSummary } from '@shared/transcript'
 import { extractCommandName, stripCommandEnvelope } from './command-envelope'
 
 /** Tools whose edit we render as a diff rather than a generic tool call. */
@@ -22,6 +22,19 @@ function userText(content: unknown): string {
       .join('\n')
   }
   return ''
+}
+
+/** A finite number or 0 — usage fields can be absent or malformed in a half-written transcript line. */
+function num(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0
+}
+
+/** A short, single-line label for a turn from its user prompt: the slash-command name, else the prompt
+ *  with whitespace collapsed and truncated. Mirrors deriveTitle in transcript.ts. */
+function turnLabel(raw: string): string {
+  const command = extractCommandName(raw)
+  const cleaned = command || stripCommandEnvelope(raw).replace(/\s+/g, ' ').trim()
+  return cleaned.length > 80 ? cleaned.slice(0, 79) + '…' : cleaned
 }
 
 /** A short, human label for a tool call's input: the most telling field, else compact JSON. */
@@ -53,9 +66,7 @@ function diffHunk(tool: string, input: Record<string, unknown>): DiffHunk {
   return { removed: lines(input.old_string), added: lines(input.new_string) }
 }
 
-/** A pending tool_use's reason and whether it's a direct question to the user. `question` lets the
- *  waiting-reason pick favour an actual AskUserQuestion over a permission line when a turn fires
- *  several tools at once. */
+/** A pending tool_use's reason and whether it's a direct question to the user. */
 interface PendingReason {
   reason: string
   question: boolean
@@ -74,26 +85,35 @@ function reasonForTool(name: string, input: Record<string, unknown>): PendingRea
 }
 
 /**
- * Project a transcript's JSONL into render-ready events plus a waiting reason. Pure: same input,
- * same output. Parses line by line and skips any unparseable line, so a transcript being appended to
- * right now (a half-written trailing line) is fine. Subagent-internal turns (isSidechain) are dropped
- * — the dispatch is surfaced from the parent's Task tool_use; the full subagent tree is issue #13.
+ * Project a transcript's JSONL into render-ready events, a waiting reason, a turn-by-turn timeline, and
+ * the current context's cache-state split — all in one pass. Pure: same input, same output. Parses line
+ * by line and skips any unparseable line, so a transcript being appended to right now (a half-written
+ * trailing line) is fine. Subagent-internal turns (isSidechain) are dropped — the dispatch is surfaced
+ * from the parent's Task tool_use, and a subagent's own tools/time don't count toward the parent turn.
  */
 export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
   const events: TranscriptEvent[] = []
 
-  // Unanswered tool_use ids from the LATEST assistant turn, each mapped to its reason. Reset when a
-  // NEW turn begins (keyed on message.id, not per row) and cleared by a tool_result. Claude Code
-  // writes one assistant turn across several JSONL lines — one per content block — so a turn's
-  // parallel tool_use blocks arrive on separate lines under the same id; resetting per row would
-  // drop all but the last. An interrupted tool the user walked past lives under an earlier id and is
-  // superseded by the next turn, so it never latches. A non-empty map at EOF means the tail is
-  // blocked on the user. This mirrors the intent of parseTranscript's latch logic, with one
-  // deliberate divergence: that one has no isSidechain guard, so a subagent's own turn clears the
-  // parent's pending tool there; here the sidechain skip (below) leaves it intact, which is the more
-  // correct read of "waiting on you".
+  // Unanswered tool_use ids from the LATEST assistant turn, each mapped to its reason. Reset when a NEW
+  // turn begins (keyed on message.id) and cleared by a tool_result. A non-empty map at EOF means the
+  // tail is blocked on the user. (See the longer rationale that previously lived here — unchanged.)
   let pending = new Map<string, PendingReason>()
   let turn: string | undefined // message.id of the turn `pending` belongs to
+
+  // Timeline + current-context accumulators. `open` is the turn being built (a user prompt and the
+  // assistant work up to the next prompt); finalized into `turns` on the next prompt and at EOF.
+  // `context` holds the latest assistant turn's usage split — the current context size by cache state.
+  const turns: TurnSummary[] = []
+  let open: TurnSummary | null = null
+  let lastTs = 0 // most recent valid timestamp; a fallback for a row that lacks one
+  let context: ContextBreakdown | null = null
+
+  const finalizeOpen = (): void => {
+    if (!open) return
+    open.durationMs = Math.max(0, open.endMs - open.startMs)
+    turns.push(open)
+    open = null
+  }
 
   for (const line of jsonl.split('\n')) {
     const trimmed = line.trim()
@@ -104,7 +124,11 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
     } catch {
       continue
     }
-    if (row.isSidechain) continue // subagent-internal turn; not part of the main conversation
+    if (row.isSidechain) continue // subagent-internal turn; not part of the conversation or its timeline
+
+    const tsParsed = typeof row.timestamp === 'string' ? Date.parse(row.timestamp) : NaN
+    const hasTs = !Number.isNaN(tsParsed)
+    if (hasTs) lastTs = tsParsed
 
     const content = row.message?.content
 
@@ -114,23 +138,45 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
           if (b?.type === 'tool_result' && typeof b.tool_use_id === 'string') pending.delete(b.tool_use_id)
         }
       }
-      if (row.isMeta) continue
+      if (row.isMeta) {
+        if (open && hasTs) open.endMs = Math.max(open.endMs, tsParsed)
+        continue
+      }
       const raw = userText(content)
       if (raw) {
+        // A real user prompt closes the previous turn and opens a new one.
+        finalizeOpen()
+        const start = hasTs ? tsParsed : lastTs
+        open = { index: turns.length + 1, prompt: turnLabel(raw), startMs: start, endMs: start, durationMs: 0, toolCount: 0 }
         const command = extractCommandName(raw)
         events.push({ kind: 'user', text: command || stripCommandEnvelope(raw).trim() })
+        continue
       }
+      // A tool_result-only (or empty) user turn belongs to the current turn — extend its clock.
+      if (open && hasTs) open.endMs = Math.max(open.endMs, tsParsed)
       continue
     }
 
     if (row.type === 'assistant') {
-      // A new turn (new message.id) supersedes the last; only its own tools can still block. Lines
-      // of the same turn keep accumulating into `pending`. An id-less row is treated as its own turn.
+      // A new turn (new message.id) supersedes the last; only its own tools can still block. Lines of
+      // the same turn keep accumulating into `pending`. An id-less row is treated as its own turn.
       const id = typeof row.message?.id === 'string' ? row.message.id : undefined
       if (id === undefined || id !== turn) {
         pending = new Map()
         turn = id
       }
+      if (open && hasTs) open.endMs = Math.max(open.endMs, tsParsed)
+
+      // Current context = the latest assistant turn's prompt, split by cache state. A zero-sum usage
+      // block (e.g. a '<synthetic>' placeholder) leaves the last real split intact.
+      const usage = row.message?.usage
+      if (usage && typeof usage === 'object') {
+        const input = num(usage.input_tokens)
+        const cacheRead = num(usage.cache_read_input_tokens)
+        const cacheCreation = num(usage.cache_creation_input_tokens)
+        if (input + cacheRead + cacheCreation > 0) context = { input, cacheRead, cacheCreation }
+      }
+
       if (!Array.isArray(content)) continue
       for (const b of content) {
         if (b?.type === 'text' && typeof b.text === 'string' && b.text.trim()) {
@@ -138,6 +184,7 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
         } else if (b?.type === 'thinking' && typeof b.thinking === 'string' && b.thinking.trim()) {
           events.push({ kind: 'thinking', text: b.thinking })
         } else if (b?.type === 'tool_use' && typeof b.name === 'string') {
+          if (open) open.toolCount++
           const input = (b.input && typeof b.input === 'object' ? b.input : {}) as Record<string, unknown>
           if (SUBAGENT_TOOLS.has(b.name)) {
             events.push({
@@ -156,8 +203,10 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
     }
   }
 
-  // Surface the actual question when a turn blocks on several tools at once; else the first pending
-  // tool in turn order. `.find` short-circuits, so no array is materialized in the common case.
+  finalizeOpen()
+
+  // Surface the actual question when a turn blocks on several tools at once; else the first pending tool
+  // in turn order. `.find`-style short-circuit, so no array is materialized in the common case.
   const reasons = pending.values()
   let pick: PendingReason | undefined
   for (const r of reasons) {
@@ -167,5 +216,5 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
       break
     }
   }
-  return { events, waitingReason: pick?.reason ?? null }
+  return { events, waitingReason: pick?.reason ?? null, turns, context }
 }

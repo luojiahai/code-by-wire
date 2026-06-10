@@ -22,6 +22,20 @@ export interface ContextBreakdown {
   cacheCreation: number
 }
 
+/** One turn in the timeline: a user prompt and the assistant work it triggered, up to the next prompt.
+ *  Times are epoch ms from the transcript; durationMs is endMs − startMs (0 while a turn is single-line
+ *  or still in flight). toolCount excludes subagent-internal tools — those live in their own transcript. */
+export interface TurnSummary {
+  /** 1-based turn number in file order. */
+  index: number
+  /** Short, single-line label from the user prompt (slash commands by name). */
+  prompt: string
+  startMs: number
+  endMs: number
+  durationMs: number
+  toolCount: number
+}
+
 /** One rendered item in the conversation, in file order. */
 export type TranscriptEvent =
   | { kind: 'user'; text: string }
@@ -37,6 +51,10 @@ export interface TranscriptDoc {
   /** Non-null when the transcript's tail left a prompt unanswered: a human-readable reason (a
    *  question, or the pending tool). The workspace shows it prominently for a Waiting session. */
   waitingReason: string | null
+  /** Turn-by-turn timeline, oldest first. Empty when the transcript has no real user prompt yet. */
+  turns: TurnSummary[]
+  /** Current context cache-state split, or null when no assistant turn has reported usage. */
+  context: ContextBreakdown | null
 }
 
 /**

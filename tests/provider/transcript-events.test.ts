@@ -238,3 +238,77 @@ describe('parseTranscriptEvents — waiting + sidechain', () => {
     expect(events).toEqual([{ kind: 'user', text: 'parent prompt' }])
   })
 })
+
+describe('parseTranscriptEvents — timeline', () => {
+  const ts = (s: string) => Date.parse(`2026-06-08T00:00:${s}.000Z`)
+
+  it('groups rows into turns with duration and tool count', () => {
+    const { turns } = parseTranscriptEvents(
+      jsonl(
+        { type: 'user', isMeta: false, timestamp: '2026-06-08T00:00:00.000Z', message: { role: 'user', content: 'first' } },
+        { type: 'assistant', timestamp: '2026-06-08T00:00:05.000Z', message: { id: 'm1', role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }] } },
+        { type: 'user', isMeta: false, timestamp: '2026-06-08T00:00:05.000Z', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }] } },
+        { type: 'assistant', timestamp: '2026-06-08T00:00:08.000Z', message: { id: 'm1', role: 'assistant', content: [{ type: 'text', text: 'done' }] } },
+        { type: 'user', isMeta: false, timestamp: '2026-06-08T00:00:20.000Z', message: { role: 'user', content: 'second' } },
+        { type: 'assistant', timestamp: '2026-06-08T00:00:23.000Z', message: { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'ok' }] } },
+      ),
+    )
+    expect(turns.map((t) => ({ index: t.index, prompt: t.prompt, durationMs: t.durationMs, toolCount: t.toolCount }))).toEqual([
+      { index: 1, prompt: 'first', durationMs: 8000, toolCount: 1 },
+      { index: 2, prompt: 'second', durationMs: 3000, toolCount: 0 },
+    ])
+    expect(turns[0].startMs).toBe(ts('00'))
+    expect(turns[0].endMs).toBe(ts('08'))
+  })
+
+  it('finalizes the last in-flight turn at end of file', () => {
+    const { turns } = parseTranscriptEvents(
+      jsonl({ type: 'user', isMeta: false, timestamp: '2026-06-08T00:00:00.000Z', message: { role: 'user', content: 'only prompt' } }),
+    )
+    expect(turns).toEqual([{ index: 1, prompt: 'only prompt', startMs: ts('00'), endMs: ts('00'), durationMs: 0, toolCount: 0 }])
+  })
+
+  it('labels a slash-command turn by its command name', () => {
+    const { turns } = parseTranscriptEvents(
+      jsonl({ type: 'user', isMeta: false, message: { role: 'user', content: '<command-name>/deploy</command-name><command-message>deploy</command-message>' } }),
+    )
+    expect(turns[0].prompt).toBe('/deploy')
+  })
+
+  it('counts a subagent dispatch as one tool and ignores sidechain rows', () => {
+    const { turns } = parseTranscriptEvents(
+      jsonl(
+        { type: 'user', isMeta: false, message: { role: 'user', content: 'go' } },
+        { type: 'assistant', message: { id: 'm1', role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'Task', input: { subagent_type: 'Explore', description: 'find' } }] } },
+        { type: 'assistant', isSidechain: true, message: { id: 's1', role: 'assistant', content: [{ type: 'tool_use', id: 's-t', name: 'Read', input: {} }] } },
+      ),
+    )
+    expect(turns[0].toolCount).toBe(1)
+  })
+})
+
+describe('parseTranscriptEvents — current context', () => {
+  it("reports the latest assistant turn's cache-state split", () => {
+    const { context } = parseTranscriptEvents(
+      jsonl({ type: 'assistant', message: { id: 'm1', role: 'assistant', content: [{ type: 'text', text: 'hi' }], usage: { input_tokens: 2, cache_read_input_tokens: 78_533, cache_creation_input_tokens: 2175 } } }),
+    )
+    expect(context).toEqual({ input: 2, cacheRead: 78_533, cacheCreation: 2175 })
+  })
+
+  it('a later zero-usage (synthetic) turn does not clobber the last real split', () => {
+    const { context } = parseTranscriptEvents(
+      jsonl(
+        { type: 'assistant', message: { id: 'm1', role: 'assistant', content: [{ type: 'text', text: 'a' }], usage: { input_tokens: 1, cache_read_input_tokens: 100, cache_creation_input_tokens: 0 } } },
+        { type: 'assistant', message: { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'b' }], usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } },
+      ),
+    )
+    expect(context).toEqual({ input: 1, cacheRead: 100, cacheCreation: 0 })
+  })
+
+  it('is null when no assistant turn reported usage', () => {
+    const { context } = parseTranscriptEvents(
+      jsonl({ type: 'user', isMeta: false, message: { role: 'user', content: 'hello' } }),
+    )
+    expect(context).toBeNull()
+  })
+})
