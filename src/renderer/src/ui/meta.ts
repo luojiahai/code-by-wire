@@ -8,8 +8,7 @@ export interface StateMeta {
   text: string
 }
 
-/** Per-state display metadata. Ported from the prototype (slated for deletion in #10); the real
- *  Overview will draw from here too. */
+/** Per-state display metadata the Overview draws from. */
 export const STATE_META: Record<SessionState, StateMeta> = {
   working: { label: 'Working', dot: 'bg-primary', text: 'text-primary-bright' },
   waiting: { label: 'Waiting', dot: 'bg-accent', text: 'text-accent-bright' },
