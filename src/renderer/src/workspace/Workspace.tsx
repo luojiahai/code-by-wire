@@ -33,10 +33,12 @@ export function Workspace({
     setAdoptError(null)
     try {
       await onAdopt(s.id)
-      // On success the optimistic override flips s to Managed, so this header re-renders without the
-      // button. No need to reset busy.
     } catch (e) {
       setAdoptError(e instanceof Error ? e.message : 'Failed to resume')
+    } finally {
+      // Always clear busy. The button is hidden right after a successful adopt (the override flips the
+      // row to Managed), but if that adopted session later Ends it reverts to Observed/Ended and the
+      // button returns; a stuck busy flag would wedge it on "Adopting…".
       setAdoptBusy(false)
     }
   }

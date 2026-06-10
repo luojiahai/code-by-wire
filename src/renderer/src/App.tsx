@@ -133,6 +133,9 @@ export function App() {
   // resume bytes land on a live handle), then optimistically mark it adopting — management flips to
   // Managed and the workspace swaps to the live terminal — until the next sync confirms it.
   async function adoptSession(id: string): Promise<void> {
+    // Dispose any stale handle from a prior adopt of this id that has since ended (its buffer still holds
+    // the old "[process exited]" scrollback), so a re-adopt starts on a fresh terminal.
+    terminalStore.dispose(id)
     terminalStore.create(id)
     try {
       const result = await window.api.terminal.adopt({ id, cols: 80, rows: 24 })
