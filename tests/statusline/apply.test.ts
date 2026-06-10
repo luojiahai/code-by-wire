@@ -126,6 +126,23 @@ describe('overlaySessions', () => {
     const byId = freshestBySession([sample({ sessionId: 's1', costUsd: 0 })])
     expect(overlaySessions([session()], byId)[0].liveCostUsd).toBe(0)
   })
+
+  it('overlays the live context split and model identity onto a Session with a sample', () => {
+    const byId = freshestBySession([
+      sample({ sessionId: 's1', liveContext: { input: 2, cacheRead: 203_420, cacheCreation: 2770 }, modelId: 'claude-opus-4-8[1m]', modelDisplayName: 'Opus 4.8 (1M context)' }),
+    ])
+    const [out] = overlaySessions([session()], byId)
+    expect(out.liveContext).toEqual({ input: 2, cacheRead: 203_420, cacheCreation: 2770 })
+    expect(out.modelId).toBe('claude-opus-4-8[1m]')
+    expect(out.modelDisplayName).toBe('Opus 4.8 (1M context)')
+  })
+
+  it('leaves the live fields undefined for a Session without a sample', () => {
+    const out = overlaySessions([session({ id: 'no-sample' })], freshestBySession([sample({ sessionId: 'other' })]))
+    expect(out[0].liveContext).toBeUndefined()
+    expect(out[0].modelId).toBeUndefined()
+    expect(out[0].modelDisplayName).toBeUndefined()
+  })
 })
 
 describe('freshestBySession', () => {

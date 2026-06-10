@@ -1,4 +1,5 @@
 import type { ModelId } from './models'
+import type { ContextBreakdown } from './transcript'
 
 export type { ModelId }
 
@@ -40,6 +41,13 @@ export interface Session {
   model: ModelId
   contextPct: number
   contextWindow: number
+  /** The live context split from the statusLine capture (current_usage), or null/undefined when no
+   *  capture reported it. Preferred over the transcript-derived split in the Context panel. */
+  liveContext?: ContextBreakdown | null
+  /** The capture's raw model id and Claude's own label, used only for the honest model label (pricing
+   *  and window still ride the normalized `model`). Absent when there's no capture. */
+  modelId?: string
+  modelDisplayName?: string
   usage: Usage
   equivApiValueUsd: number
   /** Live USD cost from the statusLine when a capture exists (Claude's own figure): real spend on an
