@@ -39,5 +39,5 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
     }
   }, [sessionId])
 
-  return <div ref={containerRef} className="h-full w-full" />
+  return <div ref={containerRef} className="h-full w-full overflow-hidden rounded-md border border-ink-800 bg-well" />
 }

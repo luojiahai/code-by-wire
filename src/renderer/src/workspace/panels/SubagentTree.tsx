@@ -8,7 +8,7 @@ const GLYPH: Record<Subagent['status'], string> = { working: '◐', done: '✓',
 const GLYPH_TONE: Record<Subagent['status'], string> = {
   working: 'text-primary-bright',
   done: 'text-fg-muted',
-  failed: 'text-accent-bright',
+  failed: 'text-danger',
 }
 
 /** Count a forest's nodes, children included — the panel's header tally. */

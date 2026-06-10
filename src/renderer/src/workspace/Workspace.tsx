@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Session, Account } from '@shared/types'
 import { cx, ManagementChip, StateBadge } from '../ui/atoms'
-import { RateLimits } from '../ui/RateLimits'
+import { Icon } from '../ui/icons'
 import { TranscriptView } from './TranscriptView'
 import { TerminalView } from '../terminal/TerminalView'
 import { useTranscript, type DocState } from './use-transcript'
@@ -16,12 +16,10 @@ import { useTasks } from './use-tasks'
 export function Workspace({
   session: s,
   account,
-  onBack,
   onAdopt,
 }: {
   session: Session
   account: Account | null
-  onBack: () => void
   onAdopt: (id: string) => Promise<void>
 }) {
   const isObserved = s.management === 'observed'
@@ -36,27 +34,19 @@ export function Workspace({
     } catch (e) {
       setAdoptError(e instanceof Error ? e.message : 'Failed to resume')
     } finally {
-      // Always clear busy. The button is hidden right after a successful adopt (the override flips the
-      // row to Managed), but if that adopted session later Ends it reverts to Observed/Ended and the
-      // button returns; a stuck busy flag would wedge it on "Adopting…".
+      // Always clear busy: the button is hidden after a successful adopt, but a session that later Ends
+      // reverts to Observed/Ended and the button returns — a stuck flag would wedge it on "Adopting…".
       setAdoptBusy(false)
     }
   }
   // Recomputed each render; App's 3s background re-sync re-renders this, so the countdowns tick.
   const now = Date.now()
   return (
-    <div className="flex h-screen flex-col bg-ink-950 text-fg">
-      <header className="flex items-center gap-3 border-b border-ink-800 bg-ink-925 px-4 py-2.5">
-        <button
-          onClick={onBack}
-          className="rounded-md px-2 py-1 text-sm text-fg-muted transition-colors hover:bg-ink-800 hover:text-fg"
-        >
-          ← Overview
-        </button>
-        <div className="h-5 w-px bg-ink-800" />
+    <div className="flex h-full min-w-0 flex-1 flex-col bg-ink-950 text-fg">
+      <header className="flex shrink-0 items-center gap-3 border-b border-ink-800 bg-ink-925 px-4 py-2.5">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium text-fg">{s.title}</span>
+          <div className="flex items-center gap-2.5">
+            <span className="truncate text-sm font-semibold text-fg">{s.title}</span>
             <StateBadge state={s.state} />
           </div>
           <div className="truncate font-mono text-[11px] text-fg-faint">
@@ -64,10 +54,9 @@ export function Workspace({
             {s.branch && ` · ${s.branch}`}
           </div>
         </div>
-        <RateLimits account={account} now={now} />
         <ManagementChip kind={s.management} />
         {isObserved && (
-          <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-faint">
+          <span className="rounded bg-ink-900 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-faint ring-1 ring-ink-800">
             read-only
           </span>
         )}
@@ -77,8 +66,9 @@ export function Workspace({
             <button
               onClick={() => void handleAdopt()}
               disabled={adoptBusy}
-              className="rounded-md bg-primary/20 px-2.5 py-1 text-[12px] text-primary-bright ring-1 ring-primary/30 enabled:hover:bg-primary/30 disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[12px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
             >
+              <Icon name="git-pull-request-arrow" size={13} />
               {adoptBusy ? 'Adopting…' : 'Adopt'}
             </button>
           </div>
@@ -93,12 +83,9 @@ export function Workspace({
 }
 
 /**
- * The workspace body, shared by both management kinds: a center column (the live view, with the turn
- * timeline as a lower panel) and a right rail of panels (context breakdown + cost). One transcript poll
- * (useTranscript) feeds the center, the context panel, and the timeline — Managed sessions are spawned
- * with `--session-id <our id>`, so the CLI writes the same transcript Observed sessions are read from,
- * and the panels track it live as you drive the terminal. The cost panel reads the Session directly. The
- * rail hides below the `lg` breakpoint, like the Overview's.
+ * The workspace body: a center column (the live view with the turn timeline below it) and a right rail
+ * of telemetry panels. One transcript poll (useTranscript) feeds the center, the context panel, and the
+ * timeline; the cost panel reads the Session directly. The rail hides below `lg`.
  */
 function WorkspaceBody({ session: s, account, now }: { session: Session; account: Account | null; now: number }) {
   const doc = useTranscript(s.id)
@@ -124,21 +111,16 @@ function WorkspaceBody({ session: s, account, now }: { session: Session; account
 
 type CenterTab = 'terminal' | 'transcript'
 
-/**
- * The center column's live view, dispatched by management kind. An Observed session is read-only with no
- * process, so it's the rendered transcript, full stop. A Managed session gets ManagedCenter's toggle.
- */
+/** The center column's live view, dispatched by management kind. Observed = read-only transcript;
+ *  Managed gets the Terminal ⇄ Transcript toggle. */
 function CenterView({ session: s, doc }: { session: Session; doc: DocState }) {
   if (s.management === 'observed') return <RenderedTranscript session={s} doc={doc} />
   return <ManagedCenter session={s} doc={doc} />
 }
 
-/**
- * A Managed session has both a live terminal (the interactive surface) and the transcript the CLI is
- * writing, so it gets a toggle between them — default Terminal. Toggling away unmounts TerminalView, which
- * only detaches its xterm (the store keeps the instance and its pty keeps buffering off-DOM), so toggling
- * back restores full scrollback. Same trick as switching session tabs.
- */
+/** A Managed session has both a live terminal and the transcript the CLI is writing, so it toggles
+ *  between them — default Terminal. Toggling away only detaches xterm (the pty keeps buffering), so
+ *  toggling back restores full scrollback. */
 function ManagedCenter({ session: s, doc }: { session: Session; doc: DocState }) {
   const [tab, setTab] = useState<CenterTab>('terminal')
   return (
@@ -146,7 +128,7 @@ function ManagedCenter({ session: s, doc }: { session: Session; doc: DocState })
       <ViewTabs tab={tab} onChange={setTab} />
       <div className="min-h-0 flex-1">
         {tab === 'terminal' ? (
-          <div className="h-full p-2">
+          <div className="h-full p-2.5">
             <TerminalView sessionId={s.id} />
           </div>
         ) : (
@@ -157,8 +139,7 @@ function ManagedCenter({ session: s, doc }: { session: Session; doc: DocState })
   )
 }
 
-/** The scrolling transcript, shared by the Observed center and the Managed Transcript tab. The read-only
- *  banner only shows for Observed (a Managed session is driven through its terminal). */
+/** The scrolling transcript, shared by the Observed center and the Managed Transcript tab. */
 function RenderedTranscript({ session: s, doc }: { session: Session; doc: DocState }) {
   return (
     <div className="h-full overflow-auto">
@@ -167,24 +148,31 @@ function RenderedTranscript({ session: s, doc }: { session: Session; doc: DocSta
   )
 }
 
-const CENTER_TABS: CenterTab[] = ['terminal', 'transcript']
+const CENTER_TABS: { id: CenterTab; label: string; icon: 'square-terminal' | 'messages-square' }[] = [
+  { id: 'terminal', label: 'Terminal', icon: 'square-terminal' },
+  { id: 'transcript', label: 'Transcript', icon: 'messages-square' },
+]
 
+/** The segmented Terminal/Transcript control: a well-track pill with the active tab raised. */
 function ViewTabs({ tab, onChange }: { tab: CenterTab; onChange: (t: CenterTab) => void }) {
   return (
-    <div className="flex shrink-0 items-center gap-1 border-b border-ink-800 bg-ink-925 px-2 py-1.5">
-      {CENTER_TABS.map((t) => (
-        <button
-          key={t}
-          onClick={() => onChange(t)}
-          aria-pressed={tab === t}
-          className={cx(
-            'rounded px-2 py-0.5 text-xs capitalize transition-colors',
-            tab === t ? 'bg-ink-800 text-fg' : 'text-fg-muted hover:text-fg',
-          )}
-        >
-          {t}
-        </button>
-      ))}
+    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-3 py-2">
+      <div className="inline-flex items-center gap-0.5 rounded-md border border-ink-800 bg-well p-0.5">
+        {CENTER_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            aria-pressed={tab === t.id}
+            className={cx(
+              'inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-[12px] transition-colors',
+              tab === t.id ? 'bg-ink-900 font-semibold text-fg' : 'text-fg-muted hover:text-fg',
+            )}
+          >
+            <Icon name={t.icon} size={13} />
+            {t.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

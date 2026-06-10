@@ -14,9 +14,13 @@
     "rebuild:native": "electron-rebuild -f -w better-sqlite3,node-pty"
   },
   "dependencies": {
+    "@fontsource-variable/hanken-grotesk": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/space-grotesk": "^5.2.10",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "better-sqlite3": "^11.8.0",
+    "lucide-react": "^1.17.0",
     "node-pty": "^1.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

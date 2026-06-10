@@ -21,7 +21,7 @@ export function Timeline({ turns, now }: { turns: TurnSummary[]; now: number }) 
       ) : (
         <ol className="min-h-0 flex-1 overflow-y-auto px-4 pb-2">
           {turns.map((t) => (
-            <li key={t.index} className="flex items-baseline gap-3 border-b border-ink-800/60 py-1.5 last:border-0">
+            <li key={t.index} className="flex items-baseline gap-3 border-b border-ink-850 py-1.5 last:border-0">
               <span className="w-6 shrink-0 font-mono text-[10px] tabular-nums text-fg-faint">{t.index}</span>
               <span className="min-w-0 flex-1 truncate text-[12px] text-fg" title={t.prompt}>
                 {t.prompt}

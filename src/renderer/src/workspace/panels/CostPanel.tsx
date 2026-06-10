@@ -55,7 +55,7 @@ export function CostPanel({
         ))}
       </dl>
       {cacheSavings > 0 && (
-        <div className="flex items-baseline justify-between border-t border-ink-800/70 pt-1.5">
+        <div className="flex items-baseline justify-between border-t border-ink-850 pt-1.5">
           <span className="text-[11px] text-ok">Cache savings</span>
           <span className="font-mono text-[11px] tabular-nums text-ok">~{formatUsd(cacheSavings)}</span>
         </div>
