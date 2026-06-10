@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import type { Session, ProviderCapabilities, Account } from '@shared/types'
 import type { Stats } from '@shared/stats'
 import { sortSessions, filterSessions, stateCounts, ORDERED_STATES, type SortKey, type Filter } from '@shared/overview'
-import { formatUsd, formatRelativeTime } from '@shared/format'
+import { formatUsd, formatRelativeTime, costDisplay } from '@shared/format'
 import { STATE_META, MODEL_LABEL, ctxTone, ctxBar } from './ui/meta'
 import { cx, Dot, ManagementChip, ModelChip, Bar } from './ui/atoms'
 import { RateLimits } from './ui/RateLimits'
@@ -101,7 +101,7 @@ export function Overview({ sessions, caps, stats, account, loading, onRefresh, o
                     <Th sortable sortKey="ctx" active={sort === 'ctx'} onSort={setSort}>Context</Th>
                     <Th sortable sortKey="value" active={sort === 'value'} onSort={setSort} right>~Value</Th>
                     <Th sortable sortKey="last" active={sort === 'last'} onSort={setSort} right>Last</Th>
-                    <Th right title="Lines changed — available once the statusLine side-channel lands (#11)">Lines</Th>
+                    <Th right title="Lines added / removed this session (from the statusLine)">Lines</Th>
                     <Th>Activity</Th>
                   </tr>
                 </thead>
@@ -110,6 +110,7 @@ export function Overview({ sessions, caps, stats, account, loading, onRefresh, o
                     const isWaiting = s.state === 'waiting'
                     const projectLine = s.branch ? `${s.project} · ${s.branch}` : s.project
                     const activity = isWaiting ? `⚠ ${s.waitingReason ?? 'Waiting on you'}` : (s.currentTask ?? '')
+                    const cost = costDisplay({ liveCostUsd: s.liveCostUsd, equivApiValueUsd: s.equivApiValueUsd, billingMode: account?.billingMode })
                     return (
                       <tr
                         key={s.id}
@@ -147,10 +148,23 @@ export function Overview({ sessions, caps, stats, account, loading, onRefresh, o
                             <span className={cx('font-mono text-[11px] tabular-nums', ctxTone(s.contextPct))}>{s.contextPct}%</span>
                           </div>
                         </td>
-                        <td className="py-2.5 pr-3 text-right font-mono text-[11px] tabular-nums text-fg-muted">~{formatUsd(s.equivApiValueUsd)}</td>
+                        <td
+                          className="py-2.5 pr-3 text-right font-mono text-[11px] tabular-nums text-fg-muted"
+                          title={cost.equivalent ? 'Equivalent API value (subscription)' : 'Spend (API account)'}
+                        >
+                          {cost.text}
+                        </td>
                         <td className="py-2.5 pr-3 text-right font-mono text-[11px] tabular-nums text-fg-faint">{formatRelativeTime(s.lastActivityMs, now)}</td>
-                        {/* Lines changed: no data source until the statusLine side-channel (#11); placeholder for now. */}
-                        <td className="py-2.5 pr-3 text-right font-mono text-[11px] tabular-nums text-fg-faint">—</td>
+                        <td className="py-2.5 pr-3 text-right font-mono text-[11px] tabular-nums text-fg-faint">
+                          {s.linesAdded != null || s.linesRemoved != null ? (
+                            <span title={`+${s.linesAdded ?? 0} / −${s.linesRemoved ?? 0} lines`}>
+                              <span className="text-primary-bright">+{s.linesAdded ?? 0}</span>{' '}
+                              <span className="text-accent-bright">−{s.linesRemoved ?? 0}</span>
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
                         <td className="py-2.5 pr-5">
                           <span
                             className={cx('block max-w-[260px] truncate text-[11px]', isWaiting ? 'text-accent-bright' : 'text-fg-muted')}

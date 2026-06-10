@@ -74,3 +74,13 @@ describe('sortSessions', () => {
     expect(out.map((x) => x.id)).toEqual(['d', 'b', 'a', 'c'])
   })
 })
+
+describe('sortSessions value — uses the displayed figure (live cost over computed)', () => {
+  it('orders by liveCostUsd when present, falling back to equivApiValueUsd', () => {
+    // A has a small computed value but a large LIVE cost; B the reverse. The displayed (live-preferred)
+    // figure should drive the order, so A sorts above B.
+    const a = s('a', { equivApiValueUsd: 1, liveCostUsd: 99 })
+    const b = s('b', { equivApiValueUsd: 50, liveCostUsd: undefined })
+    expect(sortSessions([b, a], 'value').map((x) => x.id)).toEqual(['a', 'b'])
+  })
+})

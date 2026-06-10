@@ -30,7 +30,9 @@ export function pinWaiting(sessions: Session[]): Session[] {
 const COMPARATORS: Record<SortKey, (a: Session, b: Session) => number> = {
   default: (a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || b.lastActivityMs - a.lastActivityMs,
   ctx: (a, b) => b.contextPct - a.contextPct,
-  value: (a, b) => b.equivApiValueUsd - a.equivApiValueUsd,
+  // The displayed figure is live cost when present, else the computed Equivalent API value — sort on
+  // the same number the row shows, so "sort by Value" never disagrees with the eye.
+  value: (a, b) => (b.liveCostUsd ?? b.equivApiValueUsd) - (a.liveCostUsd ?? a.equivApiValueUsd),
   last: (a, b) => b.lastActivityMs - a.lastActivityMs,
 }
 
