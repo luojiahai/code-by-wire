@@ -77,16 +77,16 @@ describe('store', () => {
         contextTokens: 100_000,
       }),
     )
-    expect(s.contextWindow).toBe(1_000_000) // Opus runs the 1M window
-    expect(s.contextPct).toBe(10) // 100000 / 1_000_000
+    expect(s.contextWindow).toBe(200_000) // every family defaults to the standard 200K
+    expect(s.contextPct).toBe(50) // 100000 / 200000
     expect(s.equivApiValueUsd).toBeCloseTo(1.2625) // opus rates
     expect(s.usage.cacheReadTokens).toBe(400_000) // raw usage carries through untouched
   })
 
-  it('derives the Opus 1M window for context %', () => {
-    const s = hydrate(snap({ model: 'claude-opus-4-8', contextTokens: 250_000 }))
-    expect(s.contextWindow).toBe(1_000_000)
-    expect(s.contextPct).toBe(25) // 250000 / 1_000_000
+  it('derives the 200K default window for an uncaptured Opus session', () => {
+    const s = hydrate(snap({ model: 'claude-opus-4-8', contextTokens: 50_000 }))
+    expect(s.contextWindow).toBe(200_000)
+    expect(s.contextPct).toBe(25) // 50000 / 200000
   })
 
   it('clamps context % at 100 when context exceeds the window', () => {

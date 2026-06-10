@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Session, ProviderCapabilities, ModelId, Account } from '@shared/types'
+import type { Session, ModelId, Account } from '@shared/types'
 import type { Stats } from '@shared/stats'
 import type { OverviewData } from '@shared/ipc'
 import { mergeManaged, applyAdopting } from '@shared/managed'
@@ -22,7 +22,6 @@ export function App() {
   // Ids adopted this run that discovery has not yet relabeled Managed. Overlaid by applyAdopting so the
   // adopted row reads Managed/Working immediately, until the next sync confirms it (or its pty exits).
   const [adopting, setAdopting] = useState<Set<string>>(new Set())
-  const [caps, setCaps] = useState<ProviderCapabilities | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
   const [account, setAccount] = useState<Account | null>(null)
   const [loading, setLoading] = useState(true)
@@ -40,9 +39,7 @@ export function App() {
   async function load(): Promise<void> {
     setLoading(true)
     try {
-      const [o, c] = await Promise.all([window.api.overview(), window.api.capabilities()])
-      applyOverview(o)
-      setCaps(c)
+      applyOverview(await window.api.overview())
     } finally {
       setLoading(false)
     }
@@ -161,7 +158,6 @@ export function App() {
     <>
       <Overview
         sessions={all}
-        caps={caps}
         stats={stats}
         account={account}
         loading={loading}

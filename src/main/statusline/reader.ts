@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { RateLimit } from '@shared/types'
 import type { StatusLineReader, StatusLineSample } from '@shared/statusline'
 import { CAPTURE_STALE_MS } from '@shared/statusline'
+import { usageBreakdown } from '../provider/claude/transcript-row'
 import { resolveClaudeDir } from '../claude-config'
 
 export interface StatusLineReaderDeps {
@@ -49,6 +50,7 @@ function parseSample(raw: string, capturedMtimeMs: number): StatusLineSample | n
 
   const cost = (j.cost ?? {}) as Record<string, unknown>
   const ctx = (j.context_window ?? {}) as Record<string, unknown>
+  const model = (j.model ?? {}) as Record<string, unknown>
   const rl = j.rate_limits
   let rateLimits: StatusLineSample['rateLimits'] = null
   if (rl !== null && typeof rl === 'object') {
@@ -57,6 +59,7 @@ function parseSample(raw: string, capturedMtimeMs: number): StatusLineSample | n
   }
 
   const pct = num(ctx.used_percentage)
+  const sessionName = typeof j.session_name === 'string' && j.session_name.length > 0 ? j.session_name : null
   return {
     sessionId,
     capturedMtimeMs,
@@ -65,6 +68,10 @@ function parseSample(raw: string, capturedMtimeMs: number): StatusLineSample | n
     linesRemoved: num(cost.total_lines_removed),
     contextPct: pct === null ? null : Math.min(100, Math.max(0, Math.round(pct))),
     contextWindow: num(ctx.context_window_size),
+    liveContext: usageBreakdown(ctx.current_usage),
+    modelId: typeof model.id === 'string' ? model.id : null,
+    modelDisplayName: typeof model.display_name === 'string' ? model.display_name : null,
+    sessionName,
     rateLimits,
   }
 }

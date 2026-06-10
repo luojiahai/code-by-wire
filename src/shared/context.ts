@@ -1,10 +1,5 @@
 import type { ContextBreakdown } from './transcript'
 
-/** Claude Code compacts a session's context automatically as it nears the top of the window. The exact
- *  trigger is in neither the transcript nor the statusLine, so we approximate it at 92% — the single
- *  place to tune the "auto-compact in N tokens" readout. */
-export const AUTO_COMPACT_FRACTION = 0.92
-
 /** One labeled slice of the current context for the breakdown panel. `pct` is share of the context in
  *  use (0–100), not of the whole window. */
 export interface ContextSegment {
@@ -31,9 +26,36 @@ export function contextSegments(b: ContextBreakdown): ContextSegment[] {
   ]
 }
 
-/** Tokens of headroom before auto-compact: window·fraction − current total, floored at 0. A 0 means the
- *  next turn may trigger a compact. An unknown window (≤0) yields 0. */
-export function tokensUntilAutoCompact(total: number, windowTokens: number): number {
-  if (windowTokens <= 0) return 0
-  return Math.max(0, Math.round(windowTokens * AUTO_COMPACT_FRACTION - total))
+/** The context panel's resolved view: the split to show, its token total, and the fill %. */
+export interface ContextView {
+  segments: ContextSegment[]
+  total: number
+  /** Fill %, 0 to 100. The capture's used_percentage when live, else tokens-over-window. */
+  pct: number
+}
+
+/**
+ * Resolve the context panel's view. Prefer the live statusLine capture: the current_usage split, and
+ * the fill % straight from Claude's used_percentage (so it matches the Overview's % for the Session).
+ * With no live split, fall back to the transcript-derived split and a tokens-over-window %. Returns null
+ * only when neither source has any context, which is the panel's empty state.
+ */
+export function contextView(opts: {
+  live: ContextBreakdown | null | undefined
+  fallback: ContextBreakdown | null | undefined
+  capturedPct: number | null | undefined
+  window: number
+}): ContextView | null {
+  const pctOfWindow = (total: number): number =>
+    opts.window > 0 ? Math.min(100, Math.round((total / opts.window) * 100)) : 0
+  if (opts.live) {
+    const total = contextTotal(opts.live)
+    const pct = opts.capturedPct != null ? Math.min(100, Math.max(0, Math.round(opts.capturedPct))) : pctOfWindow(total)
+    return { segments: contextSegments(opts.live), total, pct }
+  }
+  if (opts.fallback) {
+    const total = contextTotal(opts.fallback)
+    return { segments: contextSegments(opts.fallback), total, pct: pctOfWindow(total) }
+  }
+  return null
 }

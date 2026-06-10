@@ -16,28 +16,28 @@ interface ModelSpec {
   id: ModelId
   /** Substring that identifies this family in a raw transcript model string. */
   family: string
-  /** Context window the session runs under — a fixed per-family choice (see the table note). */
+  /** Context window the session runs under — the standard 200K fallback for every family (see the table note). */
   contextWindow: number
   pricing: ModelPricing
 }
 
 const STANDARD_WINDOW = 200_000
-const ONE_MILLION_WINDOW = 1_000_000
 
 // One row per model: family detection, canonical id, window, and API pricing in a single place, so
-// "add a model" is a one-line change. The context window is FIXED per family, not read from the
-// transcript: Claude Code records no window or beta signal (the model string is bare even on the 1M
-// beta), so we map Opus -> 1M and everything else -> the standard 200K, matching what Claude Code
-// surfaces by default. Sonnet also has a 1M beta; treating it as 200K here is a deliberate choice.
+// "add a model" is a one-line change. The context window is the standard 200K for every family, the
+// real Claude default. A session can run a larger window via the `[1m]` launch tag, but the bare model
+// string records no window signal, so the larger window is not derivable here; a live statusLine
+// capture overlays the true context_window_size when present (see overlaySessions). This fallback is
+// only the approximate window for an uncaptured session (Ended, pre-install, or other-machine).
 const MODELS: readonly ModelSpec[] = [
-  { id: 'claude-opus-4-8',   family: 'opus',   contextWindow: ONE_MILLION_WINDOW, pricing: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 } },
-  { id: 'claude-sonnet-4-6', family: 'sonnet', contextWindow: STANDARD_WINDOW,    pricing: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 } },
-  { id: 'claude-haiku-4-5',  family: 'haiku',  contextWindow: STANDARD_WINDOW,    pricing: { input: 1, output: 5,  cacheRead: 0.1, cacheWrite: 1.25 } },
+  { id: 'claude-opus-4-8',   family: 'opus',   contextWindow: STANDARD_WINDOW, pricing: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 } },
+  { id: 'claude-sonnet-4-6', family: 'sonnet', contextWindow: STANDARD_WINDOW, pricing: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 } },
+  { id: 'claude-haiku-4-5',  family: 'haiku',  contextWindow: STANDARD_WINDOW, pricing: { input: 1, output: 5,  cacheRead: 0.1, cacheWrite: 1.25 } },
 ]
 
-/** Fallback for a raw string matching no known family. Opus is safe: priciest (never understates the
- *  Equivalent API value) and largest window, and it preserves the prior default. Adding the new model
- *  to MODELS above is the real fix when one ships. */
+/** Fallback for a raw string matching no known family. Opus is safe: priciest, so it never understates
+ *  the Equivalent API value, and it preserves the prior default. Adding the new model to MODELS above
+ *  is the real fix when one ships. */
 const DEFAULT_SPEC = MODELS[0]
 
 /** The spec for a canonical model id; DEFAULT_SPEC if somehow unmatched. */
@@ -45,25 +45,33 @@ function specById(model: ModelId): ModelSpec {
   return MODELS.find((m) => m.id === model) ?? DEFAULT_SPEC
 }
 
-/** The spec for a raw transcript model string, matched by family substring; DEFAULT_SPEC if unknown. */
-function specForRaw(raw: string | undefined): ModelSpec {
+/** The spec for a raw transcript model string, matched by family substring; null when no family matches. */
+function specForRaw(raw: string | undefined): ModelSpec | null {
   if (raw) {
     for (const spec of MODELS) {
       if (raw.includes(spec.family)) return spec
     }
   }
-  return DEFAULT_SPEC
+  return null
 }
 
-/** Map a raw transcript model string (possibly suffixed, e.g. a date stamp) to a canonical ModelId. */
+/** Map a raw model string (possibly suffixed, e.g. a date stamp or `[1m]`) to a canonical ModelId. An
+ *  unrecognized string falls to DEFAULT_SPEC, the safe Opus default for pricing and window. */
 export function normalizeModelId(raw: string | undefined): ModelId {
-  return specForRaw(raw).id
+  return (specForRaw(raw) ?? DEFAULT_SPEC).id
+}
+
+/** Whether a raw model string matches a known family. False for a model absent from the table, which the
+ *  honest label renders by its statusLine display_name rather than masquerading as the Opus fallback. */
+export function isKnownModelString(raw: string | undefined): boolean {
+  return specForRaw(raw) !== null
 }
 
 /**
- * Context window (tokens) for a canonical model. Fixed per family — Opus runs the 1M window, others
- * the standard 200K. The window is NOT derivable from the transcript (Claude Code records no window
- * or beta signal), so it's a deterministic property of the model here, never parsed or persisted.
+ * Context window (tokens) for a canonical model: the standard 200K for every family, the real default.
+ * The `[1m]` launch tag runs a larger window, but it isn't derivable from the bare model string, so it's
+ * never inferred here; a live statusLine capture overlays the true size when present. This is only the
+ * fallback window for an uncaptured session.
  */
 export function contextWindowFor(model: ModelId): number {
   return specById(model).contextWindow

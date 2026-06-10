@@ -1,5 +1,5 @@
 import type { Management, ModelId, SessionState } from '@shared/types'
-import { MODEL_SHORT, STATE_META } from './meta'
+import { MODEL_SHORT, STATE_META, honestModelLabel } from './meta'
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ')
@@ -52,8 +52,9 @@ export function Bar({ pct, fill, className }: { pct: number; fill: string; class
   )
 }
 
-/** Compact model name, dimmer for the cheaper models. */
-export function ModelChip({ model }: { model: ModelId }) {
+/** Compact model name, dimmer for the cheaper models. Honest: an unrecognized model shows its real
+ *  display_name rather than the Opus fallback. */
+export function ModelChip({ model, modelId, modelDisplayName }: { model: ModelId; modelId?: string; modelDisplayName?: string }) {
   const tone = model === 'claude-opus-4-8' ? 'text-fg' : model === 'claude-sonnet-4-6' ? 'text-fg-muted' : 'text-fg-faint'
-  return <span className={cx('font-mono text-[11px]', tone)}>{MODEL_SHORT[model]}</span>
+  return <span className={cx('font-mono text-[11px]', tone)}>{honestModelLabel(model, modelId, modelDisplayName, MODEL_SHORT)}</span>
 }

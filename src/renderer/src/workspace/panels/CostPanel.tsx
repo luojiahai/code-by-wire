@@ -19,7 +19,7 @@ export function CostPanel({
   usage: Usage
   model: ModelId
   liveCostUsd?: number
-  billingMode?: 'subscription' | 'api'
+  billingMode?: 'subscription' | 'api' | 'unknown'
 }) {
   // Derive once per (usage, model, live, billing) so a bare `now` re-render doesn't re-run the split.
   const { headline, rows, cacheSavings } = useMemo(() => {

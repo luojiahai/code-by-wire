@@ -68,7 +68,7 @@ export function formatDuration(ms: number): string {
 export function costDisplay(opts: {
   liveCostUsd?: number
   equivApiValueUsd: number
-  billingMode?: 'subscription' | 'api'
+  billingMode?: 'subscription' | 'api' | 'unknown'
 }): { text: string; equivalent: boolean } {
   const live = opts.liveCostUsd != null
   const value = live ? opts.liveCostUsd! : opts.equivApiValueUsd

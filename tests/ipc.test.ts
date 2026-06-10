@@ -95,6 +95,10 @@ const lineSample = (over: Partial<StatusLineSample> = {}): StatusLineSample => (
   linesRemoved: null,
   contextPct: null,
   contextWindow: null,
+  liveContext: null,
+  modelId: null,
+  modelDisplayName: null,
+  sessionName: null,
   rateLimits: null,
   ...over,
 })

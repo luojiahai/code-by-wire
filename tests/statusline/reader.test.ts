@@ -125,4 +125,38 @@ describe('createStatusLineReader', () => {
     expect(existsSync(join(home, '.code-by-wire', 'statusline', 'stale.json'))).toBe(false) // deleted on read
     expect(existsSync(join(home, '.code-by-wire', 'statusline', 'fresh.json'))).toBe(true) // live one untouched
   })
+
+  it('captures current_usage, model id/display_name, and session_name', () => {
+    const home = makeHome()
+    writeCapture(home, 'sess-rich', {
+      session_id: 'sess-rich',
+      session_name: 'Code review approval',
+      model: { id: 'claude-opus-4-8[1m]', display_name: 'Opus 4.8 (1M context)' },
+      context_window: {
+        context_window_size: 1_000_000,
+        used_percentage: 21,
+        current_usage: { input_tokens: 2, output_tokens: 588, cache_creation_input_tokens: 2770, cache_read_input_tokens: 203_420 },
+      },
+    })
+    const [s] = open(home).read()
+    // Context = input + cache_read + cache_creation; output_tokens is not part of the prompt.
+    expect(s.liveContext).toEqual({ input: 2, cacheRead: 203_420, cacheCreation: 2770 })
+    expect(s.modelId).toBe('claude-opus-4-8[1m]')
+    expect(s.modelDisplayName).toBe('Opus 4.8 (1M context)')
+    expect(s.sessionName).toBe('Code review approval')
+  })
+
+  it('degrades the new fields to null when absent, malformed, or zero-sum', () => {
+    const home = makeHome()
+    writeCapture(home, 'sess-bare', {
+      session_id: 'sess-bare',
+      session_name: '',
+      context_window: { current_usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } },
+    })
+    const [s] = open(home).read()
+    expect(s.liveContext).toBeNull() // zero-sum usage → no context
+    expect(s.modelId).toBeNull()
+    expect(s.modelDisplayName).toBeNull()
+    expect(s.sessionName).toBeNull() // empty string is "not named"
+  })
 })

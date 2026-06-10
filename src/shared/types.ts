@@ -1,4 +1,5 @@
 import type { ModelId } from './models'
+import type { ContextBreakdown } from './transcript'
 
 export type { ModelId }
 
@@ -40,6 +41,13 @@ export interface Session {
   model: ModelId
   contextPct: number
   contextWindow: number
+  /** The live context split from the statusLine capture (current_usage), or null/undefined when no
+   *  capture reported it. Preferred over the transcript-derived split in the Context panel. */
+  liveContext?: ContextBreakdown | null
+  /** The capture's raw model id and Claude's own label, used only for the honest model label (pricing
+   *  and window still ride the normalized `model`). Absent when there's no capture. */
+  modelId?: string
+  modelDisplayName?: string
   usage: Usage
   equivApiValueUsd: number
   /** Live USD cost from the statusLine when a capture exists (Claude's own figure): real spend on an
@@ -108,10 +116,12 @@ export interface RateLimit {
 }
 
 /** The app-wide account, derived from the freshest statusLine capture. Billing mode is detected from
- *  rate-limit presence (ADR-0001). The statusLine JSON carries no plan/tier, so none is modeled. */
+ *  rate-limit presence (ADR-0001): a capture carrying rate_limits is a subscription; one without is
+ *  `unknown` (absence is not proof of API billing). `api` stays in the union, since the domain defines it
+ *  and costDisplay's real-spend branch keys on it, but the live inference never asserts it. */
 export interface Account {
-  billingMode: 'subscription' | 'api'
-  /** Present only for a subscription; an API account reports no account rate limits. */
+  billingMode: 'subscription' | 'api' | 'unknown'
+  /** Present only for a subscription; otherwise no account rate limits. */
   fiveHour?: RateLimit
   sevenDay?: RateLimit
 }

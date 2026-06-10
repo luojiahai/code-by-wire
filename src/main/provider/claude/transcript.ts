@@ -3,7 +3,8 @@ import { normalizeModelId, type ModelId } from '@shared/models'
 import type { Usage } from '@shared/types'
 import { contextTotal } from '@shared/context'
 import { promptLabel } from './command-envelope'
-import { num, userText, usageBreakdown } from './transcript-row'
+import { num, userText } from './transcript-row'
+import { createTailTracker } from './transcript-tail'
 
 export interface TranscriptSummary {
   title: string
@@ -64,23 +65,17 @@ export function parseTranscript(jsonl: string, fallbackCwd = ''): TranscriptSumm
   let lastModelRaw: string | undefined
   let lastActivityMs = 0
   const userPrompts: string[] = []
-  // tool_use ids from the latest assistant turn that no tool_result has answered yet. A non-empty
-  // set at end of file means the last turn is blocked on the user (a permission prompt or an
-  // AskUserQuestion) — which, once the session has gone quiet, is the Waiting signal. Scoped to
-  // the latest turn (reset below) so an interrupted tool_use the user walked past doesn't latch.
-  const unansweredToolUse = new Set<string>()
 
-  // Token usage summed over every assistant turn (cost is billed per turn). contextTokens tracks
-  // the LATEST turn's input + cache-read — the prompt size at that point, i.e. the current context.
+  // Token usage summed over every assistant turn (cost is billed per turn).
   let inputTokens = 0
   let outputTokens = 0
   let cacheReadTokens = 0
   let cacheCreationTokens = 0
-  let contextTokens = 0
   // Message ids whose usage we've already counted. Claude Code writes one assistant turn across
   // several JSONL lines (one per content block), each repeating the same id and usage; counting
   // per line would multiply the turn's tokens (2x-7x on real transcripts).
   const countedTurns = new Set<string>()
+  const tail = createTailTracker()
 
   for (const line of jsonl.split('\n')) {
     const trimmed = line.trim()
@@ -123,32 +118,33 @@ export function parseTranscript(jsonl: string, fallbackCwd = ''): TranscriptSumm
           cacheCreationTokens += num(usage.cache_creation_input_tokens)
         }
       }
-      // The current context is the latest non-synthetic turn's full prompt — one shared derivation
-      // (usageBreakdown) so this and the render parser's `context` can't disagree.
-      const bd = usageBreakdown(usage)
-      if (bd) contextTokens = contextTotal(bd)
-
-      // A new assistant turn supersedes the last, so only its own tool_use blocks can still be
-      // blocking the user. Reset first: a tool_use the user walked past (interrupted, then typed
-      // something else) lingers earlier in the file, and accumulating it would latch awaitingUser
-      // true for the rest of the session. Only the latest turn's unanswered tools count.
-      unansweredToolUse.clear()
-      if (Array.isArray(content)) {
-        for (const block of content) {
-          if (block?.type === 'tool_use' && typeof block.id === 'string') {
-            unansweredToolUse.add(block.id)
+      // The waiting signal and current-context split come from the shared tail tracker, one derivation
+      // the render parser also drives, so they can't disagree. Feed it only the parent conversation's
+      // rows (the render parser skips isSidechain too): a subagent's own pending tool or context split
+      // is internal and must not latch the parent's awaitingUser or override its current context. Token
+      // counting above stays unconditional — a subagent's usage is still real, billed cost.
+      if (!row.isSidechain) {
+        const turnId = typeof row.message?.id === 'string' ? row.message.id : undefined
+        tail.beginAssistantTurn(turnId)
+        tail.noteUsage(usage)
+        if (Array.isArray(content)) {
+          for (const block of content) {
+            if (block?.type === 'tool_use' && typeof block.id === 'string') {
+              const input = (block.input && typeof block.input === 'object' ? block.input : {}) as Record<string, unknown>
+              tail.noteToolUse(block.id, typeof block.name === 'string' ? block.name : '', input)
+            }
           }
         }
       }
     }
 
     if (row.type === 'user') {
-      // A tool_result answers a pending tool_use from the current turn. Clear it regardless of
-      // isMeta so the set never leaks a stale id into a false awaitingUser.
-      if (Array.isArray(content)) {
+      // A tool_result answers a pending tool_use from the current turn (regardless of isMeta). Sidechain
+      // results resolve sidechain tools, which the tracker never saw — skip them to stay in lockstep.
+      if (!row.isSidechain && Array.isArray(content)) {
         for (const block of content) {
           if (block?.type === 'tool_result' && typeof block.tool_use_id === 'string') {
-            unansweredToolUse.delete(block.tool_use_id)
+            tail.resolveToolResult(block.tool_use_id)
           }
         }
       }
@@ -167,8 +163,8 @@ export function parseTranscript(jsonl: string, fallbackCwd = ''): TranscriptSumm
     branch,
     model: normalizeModelId(lastModelRaw),
     lastActivityMs,
-    awaitingUser: unansweredToolUse.size > 0,
+    awaitingUser: tail.awaitingUser,
     usage: { inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens },
-    contextTokens,
+    contextTokens: tail.context ? contextTotal(tail.context) : 0,
   }
 }

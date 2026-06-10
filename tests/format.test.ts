@@ -74,6 +74,10 @@ describe('costDisplay', () => {
     // labeled exact API spend just because the account bills per call.
     expect(costDisplay({ equivApiValueUsd: 6.42, billingMode: 'api' })).toEqual({ text: '~$6.42', equivalent: true })
   })
+
+  it('frames an unknown account as equivalent (~), like a subscription', () => {
+    expect(costDisplay({ liveCostUsd: 0.5, equivApiValueUsd: 9, billingMode: 'unknown' })).toEqual({ text: '~$0.50', equivalent: true })
+  })
 })
 
 describe('formatTokens', () => {

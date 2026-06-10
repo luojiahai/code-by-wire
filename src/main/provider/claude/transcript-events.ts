@@ -1,6 +1,7 @@
-import type { ContextBreakdown, DiffHunk, TranscriptDoc, TranscriptEvent, TurnSummary } from '@shared/transcript'
+import type { DiffHunk, TranscriptDoc, TranscriptEvent, TurnSummary } from '@shared/transcript'
 import { extractCommandName, promptLabel, stripCommandEnvelope } from './command-envelope'
-import { parseJsonlRows, userText, usageBreakdown } from './transcript-row'
+import { parseJsonlRows, userText } from './transcript-row'
+import { createTailTracker } from './transcript-tail'
 
 /** Tools whose edit we render as a diff rather than a generic tool call. */
 const DIFF_TOOLS = new Set(['Edit', 'Write', 'MultiEdit'])
@@ -41,24 +42,6 @@ function diffHunk(tool: string, input: Record<string, unknown>): DiffHunk {
   return { removed: lines(input.old_string), added: lines(input.new_string) }
 }
 
-/** A pending tool_use's reason and whether it's a direct question to the user. */
-interface PendingReason {
-  reason: string
-  question: boolean
-}
-
-/** A waiting reason for one unanswered tool_use: the question(s) for AskUserQuestion, else a
- *  permission line naming the pending tool. */
-function reasonForTool(name: string, input: Record<string, unknown>): PendingReason {
-  if (name === 'AskUserQuestion') {
-    const qs = Array.isArray(input.questions)
-      ? input.questions.map((q) => (typeof q?.question === 'string' ? q.question : '')).filter(Boolean)
-      : []
-    return { reason: qs.length ? qs.join(' · ') : 'Waiting on a question', question: true }
-  }
-  return { reason: `Permission: ${name}`, question: false }
-}
-
 /**
  * Project parsed transcript rows into render-ready events, a waiting reason, a turn-by-turn timeline, and
  * the current context's cache-state split — all in one pass. Pure: same input, same output. Subagent-
@@ -68,22 +51,15 @@ function reasonForTool(name: string, input: Record<string, unknown>): PendingRea
  */
 export function parseTranscriptEventsFromRows(rows: any[]): Omit<TranscriptDoc, 'subagents'> {
   const events: TranscriptEvent[] = []
+  const tail = createTailTracker()
 
-  // Unanswered tool_use ids from the LATEST assistant turn, each mapped to its reason. Reset when a NEW
-  // turn begins (keyed on message.id) and cleared by a tool_result. A non-empty map at EOF means the
-  // tail is blocked on the user. (See the longer rationale that previously lived here — unchanged.)
-  let pending = new Map<string, PendingReason>()
-  let turn: string | undefined // message.id of the turn `pending` belongs to
-
-  // Timeline + current-context accumulators. `open` is the turn being built (a user prompt and the
-  // assistant work up to the next prompt); finalized into `turns` on the next prompt and at EOF.
-  // `context` holds the latest assistant turn's usage split — the current context size by cache state.
+  // Timeline accumulators. `open` is the turn being built (a user prompt and the assistant work up to
+  // the next prompt); finalized into `turns` on the next prompt and at EOF.
   const turns: TurnSummary[] = []
   let open: TurnSummary | null = null
   let lastTs = 0 // most recent valid timestamp; a fallback for a row that lacks one
   let sawTs = false // has any row carried a parseable timestamp yet?
   let openStartPending = false // the open turn began before any timestamp existed; adopt the first one
-  let context: ContextBreakdown | null = null
 
   const finalizeOpen = (): void => {
     if (!open) return
@@ -120,7 +96,7 @@ export function parseTranscriptEventsFromRows(rows: any[]): Omit<TranscriptDoc, 
     if (row.type === 'user') {
       if (Array.isArray(content)) {
         for (const b of content) {
-          if (b?.type === 'tool_result' && typeof b.tool_use_id === 'string') pending.delete(b.tool_use_id)
+          if (b?.type === 'tool_result' && typeof b.tool_use_id === 'string') tail.resolveToolResult(b.tool_use_id)
         }
       }
       if (row.isMeta) {
@@ -144,19 +120,14 @@ export function parseTranscriptEventsFromRows(rows: any[]): Omit<TranscriptDoc, 
     }
 
     if (row.type === 'assistant') {
-      // A new turn (new message.id) supersedes the last; only its own tools can still block. Lines of
-      // the same turn keep accumulating into `pending`. An id-less row is treated as its own turn.
+      // A new turn (new message.id) supersedes the last; only its own tools can still block. An id-less
+      // row is treated as its own turn.
       const id = typeof row.message?.id === 'string' ? row.message.id : undefined
-      if (id === undefined || id !== turn) {
-        pending = new Map()
-        turn = id
-      }
+      tail.beginAssistantTurn(id)
       if (hasTs) extendClock(tsParsed)
 
-      // Current context = the latest assistant turn's prompt, split by cache state. A zero-sum usage
-      // block (e.g. a '<synthetic>' placeholder) yields null and leaves the last real split intact.
-      const bd = usageBreakdown(row.message?.usage)
-      if (bd) context = bd
+      // Current context = the latest assistant turn's prompt, split by cache state.
+      tail.noteUsage(row.message?.usage)
 
       if (!Array.isArray(content)) continue
       for (const b of content) {
@@ -178,7 +149,7 @@ export function parseTranscriptEventsFromRows(rows: any[]): Omit<TranscriptDoc, 
           } else {
             events.push({ kind: 'tool', name: b.name, input: summarizeInput(input) })
           }
-          if (typeof b.id === 'string') pending.set(b.id, reasonForTool(b.name, input))
+          if (typeof b.id === 'string') tail.noteToolUse(b.id, b.name, input)
         }
       }
     }
@@ -186,18 +157,7 @@ export function parseTranscriptEventsFromRows(rows: any[]): Omit<TranscriptDoc, 
 
   finalizeOpen()
 
-  // Surface the actual question when a turn blocks on several tools at once; else the first pending tool
-  // in turn order. `.find`-style short-circuit, so no array is materialized in the common case.
-  const reasons = pending.values()
-  let pick: PendingReason | undefined
-  for (const r of reasons) {
-    if (!pick) pick = r
-    if (r.question) {
-      pick = r
-      break
-    }
-  }
-  return { events, waitingReason: pick?.reason ?? null, turns, context }
+  return { events, waitingReason: tail.waitingReason(), turns, context: tail.context }
 }
 
 /** Parse a transcript's JSONL and project it (see parseTranscriptEventsFromRows). Skips blank and

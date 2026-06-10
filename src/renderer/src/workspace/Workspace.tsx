@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import type { Session, Account } from '@shared/types'
 import { cx, ManagementChip, StateBadge } from '../ui/atoms'
-import { MODEL_LABEL } from '../ui/meta'
 import { RateLimits } from '../ui/RateLimits'
 import { TranscriptView } from './TranscriptView'
 import { TerminalView } from '../terminal/TerminalView'
 import { useTranscript, type DocState } from './use-transcript'
 import { ContextPanel } from './panels/ContextPanel'
+import { SessionPanel } from './panels/SessionPanel'
 import { CostPanel } from './panels/CostPanel'
 import { Timeline } from './panels/Timeline'
 import { TasksPanel } from './panels/TasksPanel'
@@ -66,7 +66,6 @@ export function Workspace({
         </div>
         <RateLimits account={account} now={now} variant="compact" />
         <ManagementChip kind={s.management} />
-        <span className="font-mono text-[11px] text-fg-muted">{MODEL_LABEL[s.model]}</span>
         {isObserved && (
           <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-faint">
             read-only
@@ -113,7 +112,8 @@ function WorkspaceBody({ session: s, account, now }: { session: Session; account
         <Timeline turns={doc?.turns ?? []} now={now} />
       </div>
       <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-ink-800 bg-ink-925 p-4 lg:flex">
-        <ContextPanel context={doc?.context ?? null} contextWindow={s.contextWindow} />
+        <SessionPanel session={s} />
+        <ContextPanel live={s.liveContext ?? null} context={doc?.context ?? null} contextPct={s.contextPct} contextWindow={s.contextWindow} />
         <CostPanel usage={s.usage} model={s.model} liveCostUsd={s.liveCostUsd} billingMode={account?.billingMode} />
         <TasksPanel tasks={tasks ?? []} />
         <SubagentTree subagents={doc?.subagents ?? []} />

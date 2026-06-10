@@ -18,6 +18,10 @@ const sample = (over: Partial<StatusLineSample> = {}): StatusLineSample => ({
   linesRemoved: null,
   contextPct: null,
   contextWindow: null,
+  liveContext: null,
+  modelId: null,
+  modelDisplayName: null,
+  sessionName: null,
   rateLimits: null,
   ...over,
 })
@@ -49,8 +53,8 @@ describe('deriveAccount', () => {
     })
   })
 
-  it('reads an API account from a sample with no rate_limits (no bars)', () => {
-    expect(deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS)).toEqual({ billingMode: 'api' })
+  it('returns unknown (never api) from a sample with no rate_limits — absence is not proof of API billing', () => {
+    expect(deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS)).toEqual({ billingMode: 'unknown' })
   })
 
   it('returns null when there is no statusLine data at all', () => {
@@ -113,14 +117,50 @@ describe('overlaySessions', () => {
     expect(out[0].linesAdded).toBeUndefined()
   })
 
-  it('falls back to the computed context % when the sample omitted used_percentage', () => {
+  it('falls back to the computed context % when the sample omitted used_percentage and carried no live split', () => {
     const byId = freshestBySession([sample({ sessionId: 's1', contextPct: null, costUsd: 1 })])
     expect(overlaySessions([session({ contextPct: 12 })], byId)[0].contextPct).toBe(12)
+  })
+
+  it('derives the context % from the live split over the window when the capture omitted used_percentage', () => {
+    // A capture with current_usage but no used_percentage: fill from the exact live tokens, never the
+    // stale transcript % — the Context panel shows the live total/window beside this number.
+    const byId = freshestBySession([
+      sample({ sessionId: 's1', contextPct: null, contextWindow: 200_000, liveContext: { input: 0, cacheRead: 100_000, cacheCreation: 0 } }),
+    ])
+    expect(overlaySessions([session({ contextPct: 12 })], byId)[0].contextPct).toBe(50) // 100000 / 200000
   })
 
   it('keeps a zero live cost (0 is a real value, not "missing")', () => {
     const byId = freshestBySession([sample({ sessionId: 's1', costUsd: 0 })])
     expect(overlaySessions([session()], byId)[0].liveCostUsd).toBe(0)
+  })
+
+  it('overlays the live context split and model identity onto a Session with a sample', () => {
+    const byId = freshestBySession([
+      sample({ sessionId: 's1', liveContext: { input: 2, cacheRead: 203_420, cacheCreation: 2770 }, modelId: 'claude-opus-4-8[1m]', modelDisplayName: 'Opus 4.8 (1M context)' }),
+    ])
+    const [out] = overlaySessions([session()], byId)
+    expect(out.liveContext).toEqual({ input: 2, cacheRead: 203_420, cacheCreation: 2770 })
+    expect(out.modelId).toBe('claude-opus-4-8[1m]')
+    expect(out.modelDisplayName).toBe('Opus 4.8 (1M context)')
+  })
+
+  it('leaves the live fields undefined for a Session without a sample', () => {
+    const out = overlaySessions([session({ id: 'no-sample' })], freshestBySession([sample({ sessionId: 'other' })]))
+    expect(out[0].liveContext).toBeUndefined()
+    expect(out[0].modelId).toBeUndefined()
+    expect(out[0].modelDisplayName).toBeUndefined()
+  })
+
+  it('prefers the capture session_name as the title', () => {
+    const byId = freshestBySession([sample({ sessionId: 's1', sessionName: 'Code review approval' })])
+    expect(overlaySessions([session({ title: 'first prompt title' })], byId)[0].title).toBe('Code review approval')
+  })
+
+  it('keeps the computed title when the capture has no session_name', () => {
+    const byId = freshestBySession([sample({ sessionId: 's1', sessionName: null })])
+    expect(overlaySessions([session({ title: 'first prompt title' })], byId)[0].title).toBe('first prompt title')
   })
 })
 

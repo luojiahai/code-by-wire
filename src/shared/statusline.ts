@@ -1,4 +1,6 @@
 import type { Account, RateLimit, Session } from './types'
+import type { ContextBreakdown } from './transcript'
+import { contextTotal } from './context'
 
 /** One normalized statusLine capture for a Session, parsed from a side-channel file. Plain data so it
  *  crosses IPC cleanly. `null` fields are "the statusLine didn't report this", distinct from 0. */
@@ -13,8 +15,18 @@ export interface StatusLineSample {
   contextPct: number | null
   /** Live context window size (tokens), or null when omitted. */
   contextWindow: number | null
-  /** Account rate limits — present only for a subscription; null for an API account. Each window may
-   *  be independently absent (the statusLine populates them after the first API response). */
+  /** The capture's current-context split (current_usage): input + cache-read + cache-creation, the
+   *  live equivalent of the transcript's per-turn breakdown. null when omitted or zero-sum. */
+  liveContext: ContextBreakdown | null
+  /** The raw model identifier the statusLine reports (e.g. 'claude-opus-4-8[1m]'). null when omitted. */
+  modelId: string | null
+  /** Claude's own model label (model.display_name). null when omitted. */
+  modelDisplayName: string | null
+  /** A deliberately-named session (`--name` / `/rename`), or null when unnamed. */
+  sessionName: string | null
+  /** Account rate limits, present when the capture carries them (a subscription that has had its first
+   *  API response). null when absent: a subscription before that response, or a session whose billing the
+   *  app can't determine. Each window may be independently absent. */
   rateLimits: { fiveHour?: RateLimit; sevenDay?: RateLimit } | null
 }
 
@@ -46,12 +58,13 @@ function liveWindow(w: RateLimit | undefined, now: number): RateLimit | undefine
 
 /**
  * The app-wide Account from the live statusLine captures within `staleMs` of `now`. Billing mode is
- * detected from rate-limit presence (ADR-0001): a capture carrying rate_limits is a subscription, one
- * without is an API account. To avoid flapping — a subscription session that hasn't had its first API
- * response yet (or an API-key session running alongside) carries no rate_limits — the account takes its
- * windows from the freshest capture that HAS them, and only reports 'api' when no fresh capture carries
- * any. Returns null when there's no recent statusLine data at all (the UI reads null as "no bars"). Each
- * window is dropped once its reset has passed, so a stale capture can't show an expired limit as current.
+ * detected from rate-limit presence (ADR-0001): a capture carrying rate_limits is a subscription; to
+ * avoid flapping (a subscription session that hasn't had its first API response yet, or an API-key
+ * session running alongside, carries no rate_limits) the account takes its windows from the freshest
+ * capture that HAS them, and reports `unknown` when no fresh capture carries any (absence is not proof
+ * of API billing). Returns null when there's no recent statusLine data at all (the UI reads null as
+ * "no bars"). Each window is dropped once its reset has passed, so a stale capture can't show an
+ * expired limit as current.
  */
 export function deriveAccount(samples: Iterable<StatusLineSample>, now: number, staleMs: number): Account | null {
   let freshest: StatusLineSample | null = null
@@ -68,24 +81,37 @@ export function deriveAccount(samples: Iterable<StatusLineSample>, now: number, 
       sevenDay: liveWindow(withLimits.rateLimits.sevenDay, now),
     }
   }
-  if (freshest) return { billingMode: 'api' }
+  if (freshest) return { billingMode: 'unknown' }
   return null
 }
 
 /**
- * Overlay live statusLine numbers onto each Session that has a sample. Cost, lines, and context come
- * from the statusLine when present; a Session with no sample passes through untouched, still showing
- * its transcript-computed context % and Equivalent API value (graceful degradation, ADR-0001). A sample
- * that omitted a field falls back to the Session's computed value for that field.
+ * Overlay live statusLine numbers onto each Session that has a sample: cost, lines, context split,
+ * context %/window, model identity, and the title (a deliberately-named session_name wins over the
+ * transcript-derived title). A Session with no sample passes through untouched, still showing its
+ * transcript-computed values (graceful degradation, ADR-0001). A sample that omitted a field falls back
+ * to the Session's computed value for that field.
  */
 export function overlaySessions(sessions: Session[], byId: Map<string, StatusLineSample>): Session[] {
   return sessions.map((s) => {
     const sample = byId.get(s.id)
     if (!sample) return s
+    const window = sample.contextWindow ?? s.contextWindow
+    // When the capture carries a live split but no used_percentage, fill from those exact tokens over
+    // the window rather than the stale transcript %. The Context panel shows the live split's total/window
+    // beside this %, so a transcript number there would visibly contradict the tokens next to it.
+    const liveDerivedPct =
+      sample.contextPct == null && sample.liveContext && window > 0
+        ? Math.min(100, Math.round((contextTotal(sample.liveContext) / window) * 100))
+        : null
     return {
       ...s,
-      contextPct: sample.contextPct ?? s.contextPct,
-      contextWindow: sample.contextWindow ?? s.contextWindow,
+      title: sample.sessionName ?? s.title,
+      contextPct: sample.contextPct ?? liveDerivedPct ?? s.contextPct,
+      contextWindow: window,
+      liveContext: sample.liveContext,
+      modelId: sample.modelId ?? undefined,
+      modelDisplayName: sample.modelDisplayName ?? undefined,
       liveCostUsd: sample.costUsd ?? undefined,
       linesAdded: sample.linesAdded ?? undefined,
       linesRemoved: sample.linesRemoved ?? undefined,

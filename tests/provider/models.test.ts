@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeModelId, contextWindowFor, priceFor, equivApiValue, costBreakdown } from '@shared/models'
+import { normalizeModelId, isKnownModelString, contextWindowFor, priceFor, equivApiValue, costBreakdown } from '@shared/models'
 import type { Usage } from '@shared/types'
 
 describe('normalizeModelId', () => {
@@ -17,9 +17,19 @@ describe('normalizeModelId', () => {
   })
 })
 
+describe('isKnownModelString', () => {
+  it('is true for a string matching a known family (incl. suffixes), false for an unknown family', () => {
+    expect(isKnownModelString('claude-opus-4-8[1m]')).toBe(true)
+    expect(isKnownModelString('claude-sonnet-4-6-20251015')).toBe(true)
+    expect(isKnownModelString('claude-neo-1')).toBe(false) // no known family substring
+    expect(isKnownModelString('gpt-5-codex')).toBe(false)
+    expect(isKnownModelString(undefined)).toBe(false)
+  })
+})
+
 describe('contextWindowFor', () => {
-  it('is a fixed per-family window: Opus 1M, others 200K', () => {
-    expect(contextWindowFor('claude-opus-4-8')).toBe(1_000_000)
+  it('defaults every family to the standard 200K window (the real default; [1m] is a launch override)', () => {
+    expect(contextWindowFor('claude-opus-4-8')).toBe(200_000)
     expect(contextWindowFor('claude-sonnet-4-6')).toBe(200_000)
     expect(contextWindowFor('claude-haiku-4-5')).toBe(200_000)
   })
