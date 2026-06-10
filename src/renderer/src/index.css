@@ -42,10 +42,12 @@
   --color-danger: #e5614f; /* diff remove, failed, destructive */
   --color-ok: #46c57a; /* diff add, cache savings, done */
 
-  /* Type — display for the wordmark/headings/numerals, sans for UI/body, mono for all data */
-  --font-display: "Space Grotesk", "Hanken Grotesk", system-ui, sans-serif;
-  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Type — display for the wordmark/headings/numerals, sans for UI/body, mono for all data. The
+     "* Variable" families are the bundled @fontsource-variable builds (imported in main.tsx); the
+     plain names stay as a fallback for anyone with the static font installed locally. */
+  --font-display: "Space Grotesk Variable", "Space Grotesk", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk Variable", "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 html, body, #root { height: 100%; }
@@ -85,13 +87,4 @@ body {
     radial-gradient(1100px 560px at 78% -12%, rgba(56, 189, 248, 0.06), transparent 58%),
     radial-gradient(820px 480px at -6% 112%, rgba(240, 169, 59, 0.035), transparent 55%),
     var(--color-ink-950);
-}
-
-/* Keyboard focus ring shared by clickable rows. */
-.row-clickable { cursor: pointer; }
-.row-clickable:hover { background: var(--color-ink-900); }
-.row-clickable:focus-visible {
-  background: var(--color-ink-900);
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
 }

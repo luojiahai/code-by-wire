@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Session, ModelId, Account } from '@shared/types'
 import type { OverviewData } from '@shared/ipc'
 import { mergeManaged, applyAdopting } from '@shared/managed'
@@ -148,14 +148,17 @@ export function App() {
     }
   }
 
-  const all = applyAdopting(mergeManaged(sessions, drafts), adopting)
+  const all = useMemo(
+    () => applyAdopting(mergeManaged(sessions, drafts), adopting),
+    [sessions, drafts, adopting],
+  )
   const selected = selectedId !== null ? (all.find((s) => s.id === selectedId) ?? null) : null
 
   // The selection follows the unfiltered list, not the rail's `query` — filtering the rail must never
   // yank the open session away. Re-home only when the list first arrives, the open session vanishes, or
   // the list empties. Keyed on the id list so it can't loop on a fresh `all` each render; setting the
   // same id is a no-op.
-  const ids = all.map((s) => s.id).join(',')
+  const ids = useMemo(() => all.map((s) => s.id).join(','), [all])
   useEffect(() => {
     if (all.length === 0) {
       if (selectedId !== null) setSelectedId(null)

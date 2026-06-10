@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Session, SessionState } from '@shared/types'
 import { groupSessions } from '@shared/overview'
 import { formatRelativeTime } from '@shared/format'
@@ -26,7 +26,7 @@ export function SessionList({
 }) {
   // One timestamp per render for the relative-time labels; the 3s background re-sync re-renders.
   const now = Date.now()
-  const groups = groupSessions(sessions, query)
+  const groups = useMemo(() => groupSessions(sessions, query), [sessions, query])
   // Collapsed groups, by state. Ended is collapsed by default — it's the archive, not the live work.
   // An active filter force-expands every group so a match can't hide inside a collapsed one.
   const [collapsed, setCollapsed] = useState<Set<SessionState>>(() => new Set<SessionState>(['ended']))
@@ -61,9 +61,12 @@ export function SessionList({
               <div key={g.state}>
                 <button
                   type="button"
-                  onClick={() => toggle(g.state)}
+                  // While filtering, every group is force-expanded; let the header toggle no-op rather
+                  // than silently flip the persisted collapsed state with no visible effect.
+                  onClick={filtering ? undefined : () => toggle(g.state)}
+                  disabled={filtering}
                   aria-expanded={!isCollapsed}
-                  className="sticky top-0 z-10 flex w-full items-center gap-2 border-b border-ink-850 bg-ink-900 px-3.5 py-1.5 text-left transition-colors hover:bg-ink-850"
+                  className="sticky top-0 z-10 flex w-full items-center gap-2 border-b border-ink-850 bg-ink-900 px-3.5 py-1.5 text-left transition-colors enabled:hover:bg-ink-850"
                 >
                   <Icon
                     name="chevron-right"

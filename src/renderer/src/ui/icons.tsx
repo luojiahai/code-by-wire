@@ -14,10 +14,10 @@ import {
 } from 'lucide-react'
 
 /**
- * The app's curated icon set, keyed by the design's glyph names (see the readme's ICONOGRAPHY map).
- * One indirection so call sites stay `<Icon name="plus" />` and the lucide imports live in one file.
- * Names follow lucide-react's current exports; if one fails to resolve, check the lucide changelog
- * (e.g. AlertTriangle was renamed TriangleAlert).
+ * The app's curated icon set, keyed by stable kebab-case glyph names. One indirection so call sites
+ * stay `<Icon name="plus" />` and the lucide imports live in one file. Names track lucide-react's
+ * current exports; if one fails to resolve, check the lucide changelog (e.g. AlertTriangle was renamed
+ * TriangleAlert).
  */
 const ICONS = {
   'chevron-right': ChevronRight,

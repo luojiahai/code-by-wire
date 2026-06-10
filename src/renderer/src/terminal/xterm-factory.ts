@@ -7,7 +7,7 @@ import type { FitLike, XtermLike } from './terminal-store'
  *  palette, a monospace stack, and a steady cursor. convertEol stays off — the TUI emits its own. */
 const OPTIONS = {
   scrollback: 5000,
-  fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+  fontFamily: '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
   fontSize: 12,
   cursorBlink: true,
   theme: { background: '#070809', foreground: '#e8ecf3', cursor: '#2dd4bf' },

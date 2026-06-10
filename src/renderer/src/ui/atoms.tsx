@@ -1,5 +1,5 @@
-import type { Management, ModelId, SessionState } from '@shared/types'
-import { MODEL_SHORT, STATE_META, honestModelLabel } from './meta'
+import type { Management, SessionState } from '@shared/types'
+import { STATE_META } from './meta'
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ')
@@ -56,13 +56,6 @@ export function Bar({ pct, fill, className }: { pct: number; fill: string; class
       <div className={cx('h-full rounded-full', fill)} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
     </div>
   )
-}
-
-/** Compact model name, dimmer for the cheaper models. Honest: an unrecognized model shows its real
- *  display_name rather than the Opus fallback. */
-export function ModelChip({ model, modelId, modelDisplayName }: { model: ModelId; modelId?: string; modelDisplayName?: string }) {
-  const tone = model === 'claude-opus-4-8' ? 'text-fg' : model === 'claude-sonnet-4-6' ? 'text-fg-muted' : 'text-fg-faint'
-  return <span className={cx('font-mono text-[11px]', tone)}>{honestModelLabel(model, modelId, modelDisplayName, MODEL_SHORT)}</span>
 }
 
 /** The brand mark: a node–wire–node monogram (teal dot · sky bar · amber dot) plus the wordmark with
