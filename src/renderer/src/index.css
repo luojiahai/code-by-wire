@@ -1,30 +1,51 @@
 @import "tailwindcss";
 
-/* code-by-wire dark theme tokens. Mostly monochrome on slate dark #141413,
-   blue #407fbf for active/primary, amber #bf8040 for attention/waiting. */
+/* code-by-wire — cockpit dark theme.
+   A designed-from-scratch visual language: a cool, near-black charcoal surface stack with a slight
+   blue cast, ONE sky-blue brand signal ("wire"), and a reserved status palette — teal Working,
+   amber Waiting, slate Idle, faint Ended.
+
+   Token NAMES are kept from the prior theme (ink-*, fg*, primary, accent, danger, ok); only their
+   VALUES are remapped, so existing utility classes adopt the new palette without a rename. Three new
+   roles get new names: `working` (teal, the Working state), `idle` (slate), and `well` (the sunken
+   plane under terminals and inputs). Fonts are named here and loaded via <link> in index.html. */
 @theme {
-  --color-ink-950: #141413;
-  --color-ink-925: #181715;
-  --color-ink-900: #1c1b18;
-  --color-ink-850: #22201d;
-  --color-ink-800: #2a2723;
-  --color-ink-750: #332f2a;
-  --color-ink-700: #423d36;
-  --color-ink-600: #585249;
+  /* Surface stack (cool charcoal, slight blue cast), darkest → lightest */
+  --color-well:    #070809; /* sunken: terminal, inputs, code blocks */
+  --color-ink-950: #0a0c10; /* app base */
+  --color-ink-925: #11141a; /* cards, rails, panels */
+  --color-ink-900: #161a22; /* raised: headers, chips, nested panels */
+  --color-ink-850: #1c2029; /* subtle hover / faint divider */
+  --color-ink-800: #232a35; /* default hairline border / dividers */
+  --color-ink-750: #2b333f; /* hover on raised surfaces */
+  --color-ink-700: #303948; /* strong border, focus-adjacent edges */
+  --color-ink-600: #49525f; /* Ended state, dim glyphs */
 
-  --color-fg: #e9e7e2;
-  --color-fg-muted: #968f85;
-  --color-fg-faint: #645e56;
+  /* Text */
+  --color-fg: #e8ecf3;
+  --color-fg-muted: #9aa4b4;
+  --color-fg-faint: #5f6878;
 
-  --color-primary: #407fbf;
-  --color-primary-bright: #5e9bd6;
-  --color-accent: #bf8040;
-  --color-accent-bright: #d99a5b;
-  --color-danger: #c75f54;
-  --color-ok: #5f9e79;
+  /* Wire — the single brand signal (sky blue): primary actions, focus, links, "managed" */
+  --color-primary: #38bdf8;
+  --color-primary-bright: #7dd3fc;
+  --color-primary-deep: #0ea5e9;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  /* Status hues — reserved for session state, never decorative */
+  --color-working: #2dd4bf; /* Working — live, teal, pulses */
+  --color-working-bright: #5ee6d3;
+  --color-accent: #f0a93b; /* Waiting — blocked on you, amber, pulses; also context-fill warnings */
+  --color-accent-bright: #f7c065;
+  --color-idle: #748196; /* Idle — calm slate */
+
+  /* Semantic */
+  --color-danger: #e5614f; /* diff remove, failed, destructive */
+  --color-ok: #46c57a; /* diff add, cache savings, done */
+
+  /* Type — display for the wordmark/headings/numerals, sans for UI/body, mono for all data */
+  --font-display: "Space Grotesk", "Hanken Grotesk", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 html, body, #root { height: 100%; }
@@ -33,35 +54,44 @@ body {
   background: var(--color-ink-950);
   color: var(--color-fg);
   font-family: var(--font-sans);
+  font-size: 13px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-@keyframes pulse-soft { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
-.animate-pulse-soft { animation: pulse-soft 1.8s ease-in-out infinite; }
+::selection { background: rgba(56, 189, 248, 0.3); color: var(--color-fg); }
+
+/* The live heartbeat on Working / Waiting status dots. */
+@keyframes pulse-soft { 0%, 100% { opacity: 1 } 50% { opacity: .28 } }
+.animate-pulse-soft { animation: pulse-soft 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
 
 @keyframes blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
 .cursor-blink { animation: blink 1.1s step-end infinite; }
 
 *::-webkit-scrollbar { width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb { background: #2e2b27; border-radius: 8px; border: 2px solid var(--color-ink-950); }
-*::-webkit-scrollbar-thumb:hover { background: #3a352f; }
+*::-webkit-scrollbar-thumb {
+  background: #262d38;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: #323b48; }
 *::-webkit-scrollbar-track { background: transparent; }
 
-/* subtle grain-free vignette on the app root for depth */
+/* The cockpit plate: flat charcoal with two whisper-faint signal washes — cool top-right, warm
+   lower-left. No banding, no purple gradients. */
 .app-bg {
   background:
-    radial-gradient(1200px 600px at 70% -10%, rgba(64,127,191,0.05), transparent 60%),
-    radial-gradient(900px 500px at 0% 110%, rgba(191,128,64,0.035), transparent 55%),
+    radial-gradient(1100px 560px at 78% -12%, rgba(56, 189, 248, 0.06), transparent 58%),
+    radial-gradient(820px 480px at -6% 112%, rgba(240, 169, 59, 0.035), transparent 55%),
     var(--color-ink-950);
 }
 
-/* Overview rows drill into the workspace. Keyboard-reachable (role=button, tabIndex), so give focus
-   a visible ring alongside the hover tint. */
+/* Keyboard focus ring shared by clickable rows. */
 .row-clickable { cursor: pointer; }
-.row-clickable:hover { background: var(--color-ink-925); }
+.row-clickable:hover { background: var(--color-ink-900); }
 .row-clickable:focus-visible {
-  background: var(--color-ink-925);
+  background: var(--color-ink-900);
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
