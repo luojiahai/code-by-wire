@@ -35,6 +35,29 @@ export function formatResetCountdown(resetsAt: number, now: number): string {
   return '<1m'
 }
 
+/** A token count with thousands separators: 80710 → "80,710". The context and cost panels show exact
+ *  figures (a rail row has room), so no k/M abbreviation. Negative or non-finite coerce to "0". */
+export function formatTokens(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0'
+  return Math.round(n).toLocaleString('en-US')
+}
+
+/** A duration as a short string counting up from zero: under 1s → "0.4s", under a minute → "12s", else
+ *  the largest two units → "3m 20s" / "1h 4m". Mirrors formatResetCountdown's two-unit style. Non-finite
+ *  or ≤0 → "0s". Used for a timeline turn's wall-clock. */
+export function formatDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return '0s'
+  if (ms < 1000) return (ms / 1000).toFixed(1) + 's'
+  const totalSec = Math.round(ms / 1000)
+  if (totalSec < 60) return `${totalSec}s`
+  const totalMin = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  if (totalMin < 60) return s > 0 ? `${totalMin}m ${s}s` : `${totalMin}m`
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
+
 /**
  * The per-row cost figure plus whether it's an equivalent value (gets a leading ~ and "Equivalent API
  * value" framing) or real spend. Real spend (no ~) is shown only when we have Claude's own live figure

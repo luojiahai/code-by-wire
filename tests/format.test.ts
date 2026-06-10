@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatUsd, formatRelativeTime, formatResetCountdown, costDisplay } from '@shared/format'
+import { formatUsd, formatRelativeTime, formatResetCountdown, costDisplay, formatTokens, formatDuration } from '@shared/format'
 
 describe('formatUsd', () => {
   it('uses 2 decimals under $10, 1 under $100, none above', () => {
@@ -73,5 +73,28 @@ describe('costDisplay', () => {
     // Without Claude's own live figure, the computed equivApiValueUsd is an estimate — it must not be
     // labeled exact API spend just because the account bills per call.
     expect(costDisplay({ equivApiValueUsd: 6.42, billingMode: 'api' })).toEqual({ text: '~$6.42', equivalent: true })
+  })
+})
+
+describe('formatTokens', () => {
+  it('groups with thousands separators and floors junk at 0', () => {
+    expect(formatTokens(0)).toBe('0')
+    expect(formatTokens(980)).toBe('980')
+    expect(formatTokens(80_710)).toBe('80,710')
+    expect(formatTokens(1_000_000)).toBe('1,000,000')
+    expect(formatTokens(-5)).toBe('0')
+    expect(formatTokens(NaN)).toBe('0')
+  })
+})
+
+describe('formatDuration', () => {
+  it('counts up from zero, largest two units, sub-second as tenths', () => {
+    expect(formatDuration(0)).toBe('0s')
+    expect(formatDuration(400)).toBe('0.4s')
+    expect(formatDuration(12_000)).toBe('12s')
+    expect(formatDuration(60_000)).toBe('1m')
+    expect(formatDuration(200_000)).toBe('3m 20s')
+    expect(formatDuration(3_600_000)).toBe('1h')
+    expect(formatDuration(3_840_000)).toBe('1h 4m')
   })
 })
