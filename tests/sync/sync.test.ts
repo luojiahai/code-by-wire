@@ -50,6 +50,7 @@ function fakeProvider(candidates: SessionCandidate[]): {
       summarize,
       restate,
       readTranscript: () => ({ status: 'absent' }),
+      readTasks: () => ({ status: 'absent' }),
     },
     summarize,
     restate,

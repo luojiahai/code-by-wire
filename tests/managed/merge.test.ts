@@ -14,8 +14,6 @@ const s = (id: string, management: Session['management'] = 'observed'): Session 
   usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
   equivApiValueUsd: 0,
   lastActivityMs: 0,
-  tasks: [],
-  subagents: [],
 })
 
 describe('mergeManaged', () => {

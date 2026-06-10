@@ -23,7 +23,8 @@ export interface Subagent {
   id: string
   type: string
   status: 'working' | 'done' | 'failed'
-  model: ModelId
+  /** Absent until an assistant turn reports a model (a just-spawned agent has none yet). */
+  model?: ModelId
   tokens: number
   durationMs: number
   children?: Subagent[]
@@ -50,8 +51,6 @@ export interface Session {
   lastActivityMs: number
   currentTask?: string
   waitingReason?: string
-  tasks: Task[]
-  subagents: Subagent[]
 }
 
 /**

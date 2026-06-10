@@ -1,6 +1,6 @@
 import type { ContextBreakdown, DiffHunk, TranscriptDoc, TranscriptEvent, TurnSummary } from '@shared/transcript'
 import { extractCommandName, promptLabel, stripCommandEnvelope } from './command-envelope'
-import { userText, usageBreakdown } from './transcript-row'
+import { parseJsonlRows, userText, usageBreakdown } from './transcript-row'
 
 /** Tools whose edit we render as a diff rather than a generic tool call. */
 const DIFF_TOOLS = new Set(['Edit', 'Write', 'MultiEdit'])
@@ -60,13 +60,13 @@ function reasonForTool(name: string, input: Record<string, unknown>): PendingRea
 }
 
 /**
- * Project a transcript's JSONL into render-ready events, a waiting reason, a turn-by-turn timeline, and
- * the current context's cache-state split — all in one pass. Pure: same input, same output. Parses line
- * by line and skips any unparseable line, so a transcript being appended to right now (a half-written
- * trailing line) is fine. Subagent-internal turns (isSidechain) are dropped — the dispatch is surfaced
- * from the parent's Task tool_use, and a subagent's own tools/time don't count toward the parent turn.
+ * Project parsed transcript rows into render-ready events, a waiting reason, a turn-by-turn timeline, and
+ * the current context's cache-state split — all in one pass. Pure: same input, same output. Subagent-
+ * internal turns (isSidechain) are dropped — the dispatch is surfaced from the parent's Task tool_use,
+ * and a subagent's own tools/time don't count toward the parent turn. The read parses the JSONL once
+ * (see parseTranscriptEvents) and feeds the same rows here and to the subagent reconstruction.
  */
-export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
+export function parseTranscriptEventsFromRows(rows: any[]): Omit<TranscriptDoc, 'subagents'> {
   const events: TranscriptEvent[] = []
 
   // Unanswered tool_use ids from the LATEST assistant turn, each mapped to its reason. Reset when a NEW
@@ -104,15 +104,8 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
     open.endMs = Math.max(open.endMs, ts)
   }
 
-  for (const line of jsonl.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
-    let row: any
-    try {
-      row = JSON.parse(trimmed)
-    } catch {
-      continue
-    }
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue
     if (row.isSidechain) continue // subagent-internal turn; not part of the conversation or its timeline
 
     const tsParsed = typeof row.timestamp === 'string' ? Date.parse(row.timestamp) : NaN
@@ -205,4 +198,10 @@ export function parseTranscriptEvents(jsonl: string): TranscriptDoc {
     }
   }
   return { events, waitingReason: pick?.reason ?? null, turns, context }
+}
+
+/** Parse a transcript's JSONL and project it (see parseTranscriptEventsFromRows). Skips blank and
+ *  unparseable lines, so a half-written trailing line during an append is fine. */
+export function parseTranscriptEvents(jsonl: string): Omit<TranscriptDoc, 'subagents'> {
+  return parseTranscriptEventsFromRows(parseJsonlRows(jsonl))
 }

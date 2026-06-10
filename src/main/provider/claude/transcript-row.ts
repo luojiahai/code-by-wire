@@ -32,3 +32,20 @@ export function usageBreakdown(usage: unknown): ContextBreakdown | null {
   const cacheCreation = num(u.cache_creation_input_tokens)
   return input + cacheRead + cacheCreation > 0 ? { input, cacheRead, cacheCreation } : null
 }
+
+/** Parse a transcript's JSONL into rows, skipping blank and unparseable lines (a half-written trailing
+ *  line during an append is fine). Shared by the subagent reconstruction, which needs raw rows rather
+ *  than the event projection. */
+export function parseJsonlRows(jsonl: string): any[] {
+  const rows: any[] = []
+  for (const line of jsonl.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    try {
+      rows.push(JSON.parse(trimmed))
+    } catch {
+      // skip a malformed / half-written line
+    }
+  }
+  return rows
+}

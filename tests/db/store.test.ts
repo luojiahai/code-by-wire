@@ -65,8 +65,6 @@ describe('store', () => {
     expect(s.contextWindow).toBe(200_000)
     expect(s.usage).toEqual({ inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 })
     expect(s.equivApiValueUsd).toBe(0)
-    expect(s.tasks).toEqual([])
-    expect(s.subagents).toEqual([])
     expect(s.model).toBe('claude-sonnet-4-6')
     expect(s.state).toBe('idle')
   })

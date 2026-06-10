@@ -7,6 +7,7 @@ const api: AppApi = {
   refresh: () => ipcRenderer.invoke(IPC.refresh),
   capabilities: () => ipcRenderer.invoke(IPC.capabilities),
   readTranscript: (id, sinceMtimeMs) => ipcRenderer.invoke(IPC.readTranscript, id, sinceMtimeMs),
+  readTasks: (id, sinceMtimeMs) => ipcRenderer.invoke(IPC.readTasks, id, sinceMtimeMs),
   terminal: {
     spawn: (req) => ipcRenderer.invoke(TERMINAL.spawn, req),
     write: (id, data) => ipcRenderer.send(TERMINAL.write, id, data),

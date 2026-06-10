@@ -6,6 +6,7 @@
  * This is a SECOND projection over the transcript, distinct from TranscriptSummary (token sums,
  * derived state). That one answers "what is this session"; this one answers "what does it look like".
  */
+import type { Subagent } from './types'
 
 /** A minimal diff: the removed and added lines of an edit, already split on newline. */
 export interface DiffHunk {
@@ -55,25 +56,30 @@ export interface TranscriptDoc {
   turns: TurnSummary[]
   /** Current context cache-state split, or null when no assistant turn has reported usage. */
   context: ContextBreakdown | null
+  /** The session's subagent forest, reconstructed from its external subagent transcripts. Roots are
+   *  dispatched from the main transcript; children nest under the agent that dispatched them. Empty
+   *  when the session spawned no subagents. */
+  subagents: Subagent[]
 }
 
 /**
- * The result of an on-demand transcript read. A discriminated union so a poll can answer "nothing
- * changed" without re-shipping (or even re-parsing) the whole doc:
+ * The non-payload outcomes shared by every on-demand read. A poll can answer "nothing changed" without
+ * re-shipping (or even re-parsing) anything:
  *
- *  - `changed`   — a fresh doc, with `mtimeMs` as an opaque change token the caller echoes back as
- *                  `since` on the next read.
- *  - `unchanged` — the source hasn't moved since `since`; the caller keeps its current doc.
- *  - `absent`    — no transcript for this session (registry-only, or the file is gone).
- *  - `error`     — a transient read failure; the caller should keep its last doc and retry, NOT
- *                  fall back to the empty state (an unreadable file isn't a missing one).
+ *  - `unchanged` — the source hasn't moved since `since`; the caller keeps its current value. `mtimeMs`
+ *                  is an opaque change token the caller echoes back as `since` on the next read.
+ *  - `absent`    — no source for this session (registry-only, or the file/dir is gone).
+ *  - `error`     — a transient read failure; the caller should keep its last value and retry, NOT fall
+ *                  back to the empty state (an unreadable file isn't a missing one).
  *
- * `mtimeMs` is a transport-level cache token, deliberately kept out of TranscriptDoc: the domain
- * projection says nothing about how a consumer dedupes polls, and a non-file-backed provider is free
- * to mint its own token.
+ * `mtimeMs` is a transport-level cache token, deliberately kept out of the payload type: the domain
+ * projection says nothing about how a consumer dedupes polls, and a non-file-backed provider is free to
+ * mint its own token. The matching `changed` variant carries the payload plus the same token.
  */
-export type TranscriptRead =
-  | { status: 'changed'; mtimeMs: number; doc: TranscriptDoc }
+export type ReadSettled =
   | { status: 'unchanged'; mtimeMs: number }
   | { status: 'absent' }
   | { status: 'error' }
+
+/** The result of an on-demand transcript read: a fresh doc, or one of the shared settled outcomes. */
+export type TranscriptRead = { status: 'changed'; mtimeMs: number; doc: TranscriptDoc } | ReadSettled

@@ -1,5 +1,6 @@
 import type { ProviderCapabilities, PersistedSession, SessionCandidate } from '@shared/types'
 import type { TranscriptRead } from '@shared/transcript'
+import type { TaskRead } from '@shared/ipc'
 
 export interface Provider {
   readonly id: string
@@ -14,4 +15,8 @@ export interface Provider {
    *  workspace view. `sinceMtimeMs` is the change token from the caller's last read; when it still
    *  matches, the result is `unchanged` and no file is read or parsed. */
   readTranscript(id: string, sinceMtimeMs?: number): TranscriptRead
+  /** Read one session's task list (status + blockedBy deps) — the on-demand read behind the Tasks
+   *  panel. `sinceMtimeMs` is the change token from the caller's last read; an unchanged store skips
+   *  the read. */
+  readTasks(id: string, sinceMtimeMs?: number): TaskRead
 }
