@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { PersistedSession } from '@shared/types'
 import { IPC, type OverviewData } from '@shared/ipc'
 import type { Provider } from '../src/main/provider/types'
+import type { StatusLineReader, StatusLineSample } from '@shared/statusline'
 
 // Capture the handlers registerIpc registers, without a real Electron ipcMain.
 const { handlers } = vi.hoisted(() => ({ handlers: new Map<string, (...a: unknown[]) => unknown>() }))
@@ -81,5 +82,71 @@ describe('registerIpc overview', () => {
     expect(o.stats.weeklyActivity).toHaveLength(7)
     expect(o.stats.modelMix).toEqual([{ model: 'claude-opus-4-8', sessions: 1, equivApiValueUsd: 0 }])
     expect(o.stats.projectRollup).toEqual([{ project: 'p', sessions: 1, equivApiValueUsd: 0 }])
+  })
+})
+
+const lineSample = (over: Partial<StatusLineSample> = {}): StatusLineSample => ({
+  sessionId: 'seed',
+  capturedMtimeMs: Date.now(),
+  costUsd: null,
+  linesAdded: null,
+  linesRemoved: null,
+  contextPct: null,
+  contextWindow: null,
+  rateLimits: null,
+  ...over,
+})
+
+const reader = (samples: StatusLineSample[]): StatusLineReader => ({ read: () => samples })
+
+describe('registerIpc overview — statusLine overlay', () => {
+  it('overlays live cost/context onto the matching session and derives a subscription account', () => {
+    const db = openTestDb()
+    migrate(db)
+    upsertSessions(db, [seed]) // id 'seed', opus, zero computed usage → equivApiValueUsd 0
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      statusLine: reader([
+        lineSample({
+          sessionId: 'seed',
+          costUsd: 1.25,
+          linesAdded: 10,
+          linesRemoved: 2,
+          contextPct: 47,
+          rateLimits: { fiveHour: { usedPct: 20, resetsAt: Date.now() + 3_600_000 } },
+        }),
+      ]),
+    })
+
+    const o = (handlers.get(IPC.overview)!() as OverviewData)
+    expect(o.account).toEqual({ billingMode: 'subscription', fiveHour: { usedPct: 20, resetsAt: expect.any(Number) }, sevenDay: undefined })
+    const s = o.sessions.find((x) => x.id === 'seed')!
+    expect(s.liveCostUsd).toBe(1.25)
+    expect(s.linesAdded).toBe(10)
+    expect(s.contextPct).toBe(47)
+  })
+
+  it('serves account null and untouched computed values when there is no statusLine data (AC #4)', () => {
+    const db = openTestDb()
+    migrate(db)
+    upsertSessions(db, [seed])
+    registerIpc({ db, provider: provider(() => []), statusLine: reader([]) })
+
+    const o = handlers.get(IPC.overview)!() as OverviewData
+    expect(o.account).toBeNull()
+    const s = o.sessions.find((x) => x.id === 'seed')!
+    expect(s.liveCostUsd).toBeUndefined()
+    expect(s.equivApiValueUsd).toBe(0) // computed, still present
+  })
+
+  it('defaults to no live data when no statusLine reader is provided', () => {
+    const db = openTestDb()
+    migrate(db)
+    upsertSessions(db, [seed])
+    registerIpc({ db, provider: provider(() => []) }) // no statusLine dep
+
+    const o = handlers.get(IPC.overview)!() as OverviewData
+    expect(o.account).toBeNull()
   })
 })
