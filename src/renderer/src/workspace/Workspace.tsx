@@ -12,6 +12,8 @@ import { Timeline } from './panels/Timeline'
 import { TasksPanel } from './panels/TasksPanel'
 import { SubagentTree } from './panels/SubagentTree'
 import { useTasks } from './use-tasks'
+import { useMetrics, type MetricsState } from './use-metrics'
+import { SessionHeaderStats } from './SessionHeaderStats'
 
 export function Workspace({
   session: s,
@@ -41,6 +43,7 @@ export function Workspace({
   }
   // Recomputed each render; App's 3s background re-sync re-renders this, so the countdowns tick.
   const now = Date.now()
+  const metrics = useMetrics(s.id)
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col bg-ink-950 text-fg">
       <header className="flex shrink-0 items-center gap-3 border-b border-ink-800 bg-ink-925 px-4 py-2.5">
@@ -54,6 +57,7 @@ export function Workspace({
             {s.branch && ` · ${s.branch}`}
           </div>
         </div>
+        <SessionHeaderStats session={s} metrics={metrics} />
         <ManagementChip kind={s.management} />
         {isObserved && (
           <span className="rounded bg-ink-900 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-faint ring-1 ring-ink-800">
@@ -76,7 +80,7 @@ export function Workspace({
       </header>
 
       <div className="min-h-0 flex-1">
-        <WorkspaceBody session={s} account={account} now={now} />
+        <WorkspaceBody session={s} account={account} now={now} metrics={metrics} />
       </div>
     </div>
   )
@@ -87,7 +91,9 @@ export function Workspace({
  * of telemetry panels. One transcript poll (useTranscript) feeds the center, the context panel, and the
  * timeline; the cost panel reads the Session directly. The rail hides below `lg`.
  */
-function WorkspaceBody({ session: s, account, now }: { session: Session; account: Account | null; now: number }) {
+function WorkspaceBody({ session: s, account, now, metrics }: { session: Session; account: Account | null; now: number; metrics: MetricsState }) {
+  // metrics is threaded here for the rail panels task — not consumed yet.
+  void metrics
   const doc = useTranscript(s.id)
   const tasks = useTasks(s.id)
   return (
