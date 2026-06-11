@@ -1,17 +1,37 @@
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { WebglAddon } from '@xterm/addon-webgl'
 import '@xterm/xterm/css/xterm.css'
 import type { FitLike, XtermLike } from './terminal-store'
 
 /** xterm options tuned for the Claude TUI: generous scrollback, a dark theme matching the app's ink
- *  palette, a monospace stack, and a steady cursor. convertEol stays off — the TUI emits its own. */
+ *  palette, a monospace stack, and a steady cursor. convertEol stays off — the TUI emits its own.
+ *  customGlyphs + rescaleOverlappingGlyphs only take effect under a GPU renderer (see attachWebgl) —
+ *  they let xterm draw block/box/quadrant art as vector shapes instead of leaning on font coverage,
+ *  which is what fixes the Claude Code mascot. */
 const OPTIONS = {
   scrollback: 5000,
   fontFamily: '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
   fontSize: 12,
   cursorBlink: true,
+  customGlyphs: true,             // draw block/box/powerline glyphs in the atlas, font-independent (default true; inert on the DOM renderer)
+  rescaleOverlappingGlyphs: true, // shrink oversized fallback glyphs so they don't bleed into the next cell
   theme: { background: '#080808', foreground: '#e8ecf3', cursor: '#2dd4bf' },
 } as const
+
+/** Load the WebGL renderer onto an opened terminal — the renderer VSCode uses, and the one that makes
+ *  customGlyphs actually fire (the DOM renderer ignores it). On context loss we dispose the addon, which
+ *  reverts xterm to its built-in DOM renderer; if WebGL is unavailable at all (software GL, headless) the
+ *  load throws and we keep the DOM renderer. Either way the terminal stays functional. */
+function attachWebgl(term: Terminal): void {
+  try {
+    const webgl = new WebglAddon()
+    webgl.onContextLoss(() => webgl.dispose())
+    term.loadAddon(webgl)
+  } catch {
+    // No WebGL — keep the DOM renderer. Block/box art degrades to font rendering; nothing breaks.
+  }
+}
 
 /**
  * Build a real xterm Terminal + FitAddon and a detached wrapper div the terminal lives in. The wrapper
@@ -23,6 +43,14 @@ export function createXterm(): { term: XtermLike; fit: FitLike; wrapper: HTMLEle
   const term = new Terminal(OPTIONS)
   const fit = new FitAddon()
   term.loadAddon(fit)
+  // The WebGL addon needs the canvas, which only exists after the view calls term.open(). Wrap open so
+  // the renderer attaches itself right after — keeping all GPU-renderer wiring in this seam, with the
+  // view and store untouched. open() is called once (guarded by handle.opened in the view).
+  const open = term.open.bind(term)
+  term.open = (parent: HTMLElement) => {
+    open(parent)
+    attachWebgl(term)
+  }
   const wrapper = document.createElement('div')
   wrapper.style.height = '100%'
   wrapper.style.width = '100%'
