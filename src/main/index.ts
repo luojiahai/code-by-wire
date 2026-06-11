@@ -13,21 +13,29 @@ import { createStatusLineReader } from './statusline/reader'
 import { registerTerminalIpc } from './terminal/ipc'
 import { readAccountEmail } from './settings/account-email'
 import { resolveClaudeDir } from './claude-config'
+import { HEADER_HEIGHT_PX, MAC_TRAFFIC_LIGHT_POSITION } from '@shared/chrome'
 
 function createWindow(
   managed: ManagedRegistry,
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null,
   registerRename: (rename: (from: string, to: string) => void) => void,
 ): void {
+  // The renderer header is a fixed HEADER_HEIGHT_PX tall and doubles as the title bar. On macOS we hide
+  // the native title bar but KEEP the traffic lights (titleBarStyle 'hidden', never frame:false — the
+  // same choice VS Code makes), float them into the header, and offset native sheets (the directory
+  // picker) below the header so they don't clip under it. Windows/Linux keep their default frame.
+  const isMac = process.platform === 'darwin'
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
     backgroundColor: '#0c0c0d',
+    ...(isMac ? { titleBarStyle: 'hidden' as const, trafficLightPosition: MAC_TRAFFIC_LIGHT_POSITION } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
     },
   })
+  if (isMac) win.setSheetOffset(HEADER_HEIGHT_PX)
 
   // Managed-terminal IPC is per-window: the manager pushes pty output to this window's renderer and
   // kills its ptys when the window closes. Its `rename` (the /clear follow) is handed to the sync

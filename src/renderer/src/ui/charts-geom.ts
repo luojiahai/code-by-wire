@@ -10,7 +10,9 @@ export interface Segment {
   color: string
 }
 
-const clampPct = (n: number): number => Math.min(100, Math.max(0, n))
+/** Clamp a percentage into 0–100. Shared with the rail's account gauges (rail-account) so the 0–100
+ *  clamp lives in one React-free, node-testable place. */
+export const clampPct = (n: number): number => Math.min(100, Math.max(0, n))
 const round2 = (n: number): number => Math.round(n * 100) / 100
 
 /** Each value as its percentage share of the total. Assumes all values ≥ 0. All-zero (or empty) yields

@@ -51,22 +51,38 @@ export function App() {
   }, [])
 
   // Background re-sync so session state stays live. Silent (no loading spinner) and paused while the
-  // window is hidden, so it doesn't flicker the Refresh button or burn a sweep nobody's looking at.
+  // window is hidden, so it doesn't burn a sweep nobody's looking at. On refocus the list could be a few
+  // seconds stale, so we also fire one sync the moment the document becomes visible (replacing the old
+  // manual Refresh button) and restart the timer so that focus sync and the next tick don't double-sweep
+  // ~/.claude back to back. A single in-flight guard keeps overlapping syncs from applying out of order
+  // — the same shape use-polled-read uses for the per-session polls.
   useEffect(() => {
     let alive = true
-    async function tick(): Promise<void> {
-      if (document.hidden) return
+    let inFlight = false
+    async function silentSync(): Promise<void> {
+      if (document.hidden || inFlight) return
+      inFlight = true
       try {
         const o = await window.api.refresh()
         if (alive) applyOverview(o)
       } catch {
         // Keep the last-known list; the next tick retries.
+      } finally {
+        inFlight = false
       }
     }
-    const h = setInterval(() => void tick(), SYNC_MS)
+    let timer = setInterval(() => void silentSync(), SYNC_MS)
+    function onVisible(): void {
+      if (document.hidden) return
+      clearInterval(timer)
+      void silentSync()
+      timer = setInterval(() => void silentSync(), SYNC_MS)
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       alive = false
-      clearInterval(h)
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [])
 
@@ -119,15 +135,6 @@ export function App() {
       })
     })
   }, [])
-
-  async function refresh(): Promise<void> {
-    setLoading(true)
-    try {
-      applyOverview(await window.api.refresh())
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function createSession(cwd: string, model: ModelId): Promise<void> {
     // Mint the id here and stand the terminal up BEFORE spawning, so the very first pty bytes land on a
@@ -192,15 +199,9 @@ export function App() {
 
   return (
     <div className="app-bg flex h-screen flex-col text-fg">
-      <GlobalHeader
-        sessionCount={all.length}
-        account={account}
-        loading={loading}
-        onRefresh={() => void refresh()}
-        onNew={() => setCreating(true)}
-      />
+      <GlobalHeader onNew={() => setCreating(true)} />
       <div className="flex min-h-0 flex-1">
-        <SessionList sessions={all} selectedId={selectedId} onSelect={setSelectedId} query={query} onQuery={setQuery} />
+        <SessionList sessions={all} selectedId={selectedId} onSelect={setSelectedId} query={query} onQuery={setQuery} account={account} />
         <div className="flex min-w-0 flex-1">
           {selected ? (
             <Workspace key={selected.id} session={selected} account={account} onAdopt={adoptSession} />

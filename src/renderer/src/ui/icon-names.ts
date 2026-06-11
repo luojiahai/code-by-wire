@@ -20,7 +20,6 @@ export type IconName =
   | 'pause'
   | 'pencil'
   | 'plus'
-  | 'refresh-cw'
   | 'search'
   | 'square'
   | 'square-dashed-mouse-pointer'

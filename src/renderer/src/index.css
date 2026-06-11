@@ -88,3 +88,14 @@ body {
     radial-gradient(820px 480px at -6% 112%, rgba(240, 169, 59, 0.035), transparent 55%),
     var(--color-ink-950);
 }
+
+/* Title-bar drag regions for the frameless window. The header opts the whole strip into dragging;
+   interactive controls inside it opt back out so clicks still register. Mirrors VS Code's
+   .draggable / .nonDraggable. */
+.drag-region { -webkit-app-region: drag; app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; app-region: no-drag; }
+
+/* The title bar counter-zooms so it holds a fixed physical size while the rest of the window zooms,
+   keeping the macOS traffic lights (OS-drawn, immune to web zoom) aligned with it. `--zoom-factor` is
+   kept in sync from the renderer (GlobalHeader). Mirrors VS Code's `.counter-zoom` title bar. */
+.title-bar { zoom: calc(1 / var(--zoom-factor, 1)); }

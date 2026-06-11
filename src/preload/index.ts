@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webFrame, type IpcRendererEvent } from 'electron'
 import { IPC, type AppApi } from '@shared/ipc'
 import { TERMINAL } from '@shared/terminal'
 
@@ -9,6 +9,8 @@ const api: AppApi = {
   readTranscript: (id, sinceMtimeMs) => ipcRenderer.invoke(IPC.readTranscript, id, sinceMtimeMs),
   readTasks: (id, sinceMtimeMs) => ipcRenderer.invoke(IPC.readTasks, id, sinceMtimeMs),
   readMetrics: (id, sinceMtimeMs) => ipcRenderer.invoke(IPC.readMetrics, id, sinceMtimeMs),
+  platform: process.platform,
+  getZoomFactor: () => webFrame.getZoomFactor(),
   terminal: {
     spawn: (req) => ipcRenderer.invoke(TERMINAL.spawn, req),
     adopt: (req) => ipcRenderer.invoke(TERMINAL.adopt, req),

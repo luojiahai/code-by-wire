@@ -1,70 +1,36 @@
-import { useState } from 'react'
-import type { Account } from '@shared/types'
-import { Wordmark } from './atoms'
+import { Wordmark, cx } from './atoms'
 import { Icon } from './icons'
-import { RateLimits } from './RateLimits'
-import { AccountPopover } from './AccountPopover'
+import { useZoomFactor } from './use-zoom-factor'
+import { HEADER_HEIGHT_PX, MAC_TRAFFIC_LIGHT_INSET_PX } from '@shared/chrome'
 
 /**
- * The fixed top app bar for the master/detail shell: wordmark + session count + account rate-limit
- * gauges on the left (the info group shrinks/clips), Refresh + New session pinned right. `now` is a
- * fresh render clock so the rate-limit countdowns tick with App's 3s background re-sync.
+ * The frameless app's title bar: a draggable strip carrying the wordmark and the one global action,
+ * New session. On macOS it reserves a left inset for the native traffic lights and counter-zooms (the
+ * `title-bar` class) so it holds a fixed physical size while the rest of the window zooms — otherwise
+ * web zoom shrinks the bar under the OS-drawn traffic lights, which don't zoom, and they hang off it.
+ * Off macOS there are no traffic lights to align with, so the bar zooms with everything else. Account
+ * identity and rate limits now live in the rail, so this bar is just brand + action.
  */
-export function GlobalHeader({
-  sessionCount,
-  account,
-  loading,
-  onRefresh,
-  onNew,
-}: {
-  sessionCount: number
-  account: Account | null
-  loading: boolean
-  onRefresh: () => void
-  onNew: () => void
-}) {
-  const now = Date.now()
-  const [accountOpen, setAccountOpen] = useState(false)
+export function GlobalHeader({ onNew }: { onNew: () => void }) {
+  const isMac = window.api.platform === 'darwin'
+  useZoomFactor(isMac)
   return (
-    <header className="flex shrink-0 items-center gap-3.5 overflow-hidden border-b border-ink-800 bg-ink-925 px-4 py-2.5">
-      <div className="flex min-w-0 flex-1 items-center gap-3.5 overflow-hidden">
-        <Wordmark />
-        <span className="shrink-0 rounded bg-ink-900 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-fg-muted ring-1 ring-ink-800">
-          {sessionCount} session{sessionCount === 1 ? '' : 's'}
-        </span>
-        <span className="h-5 w-px shrink-0 bg-ink-800" />
-        <RateLimits account={account} now={now} />
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {account?.email && (
-          <button
-            onClick={() => setAccountOpen((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-md border border-ink-700 bg-ink-900 py-1 pl-1.5 pr-2 text-fg transition-colors hover:bg-ink-750"
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-deep text-[10px] font-bold text-ink-950">
-              {account.email.charAt(0).toUpperCase()}
-            </span>
-            <span className="max-w-[150px] truncate text-[12px] text-fg-muted">{account.email}</span>
-            <span className="text-[10px] text-fg-faint">▾</span>
-          </button>
-        )}
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-md border border-ink-700 bg-ink-900 px-3 py-1.5 text-[13px] text-fg transition-colors hover:bg-ink-750 disabled:cursor-default disabled:opacity-50"
-        >
-          <Icon name="refresh-cw" size={14} />
-          {loading ? 'Syncing…' : 'Refresh'}
-        </button>
-        <button
-          onClick={onNew}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[13px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors hover:bg-primary-bright"
-        >
-          <Icon name="plus" size={14} />
-          New session
-        </button>
-      </div>
-      {accountOpen && account && <AccountPopover account={account} now={now} onClose={() => setAccountOpen(false)} />}
+    <header
+      className={cx(
+        'drag-region flex shrink-0 select-none items-center overflow-hidden border-b border-ink-800 bg-ink-925 pr-4',
+        isMac && 'title-bar',
+      )}
+      style={{ height: HEADER_HEIGHT_PX, paddingLeft: isMac ? MAC_TRAFFIC_LIGHT_INSET_PX : 16 }}
+    >
+      <Wordmark />
+      <button
+        type="button"
+        onClick={onNew}
+        className="no-drag ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[13px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors hover:bg-primary-bright"
+      >
+        <Icon name="plus" size={14} />
+        New session
+      </button>
     </header>
   )
 }
