@@ -69,3 +69,13 @@ describe('terminal well matches the theme', () => {
     expect(m![1].toLowerCase()).toBe(token('well').toLowerCase())
   })
 })
+
+describe('electron window matches the theme', () => {
+  it('BrowserWindow backgroundColor is graphite and equals --color-ink-950', () => {
+    const main = readFileSync(join(root, 'src/main/index.ts'), 'utf8')
+    const m = /backgroundColor:\s*'(#[0-9a-fA-F]{6})'/.exec(main)
+    expect(m, 'electron backgroundColor hex').toBeTruthy()
+    expect(spread(m![1])).toBeLessThanOrEqual(1)
+    expect(m![1].toLowerCase()).toBe(token('ink-950').toLowerCase())
+  })
+})
