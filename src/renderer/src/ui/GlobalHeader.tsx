@@ -17,12 +17,14 @@ export function GlobalHeader({ onNew }: { onNew: () => void }) {
   return (
     <header
       className={cx(
-        'drag-region flex shrink-0 select-none items-center overflow-hidden border-b border-ink-800 bg-ink-925 pr-4',
+        'drag-region relative flex shrink-0 select-none items-center overflow-hidden border-b border-ink-800 bg-ink-925 pr-4',
         isMac && 'title-bar',
       )}
       style={{ height: HEADER_HEIGHT_PX, paddingLeft: isMac ? MAC_TRAFFIC_LIGHT_INSET_PX : 16 }}
     >
-      <Wordmark />
+      <div className="absolute left-1/2 -translate-x-1/2">
+        <Wordmark />
+      </div>
       <button
         type="button"
         onClick={onNew}
