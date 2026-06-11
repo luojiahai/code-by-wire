@@ -18,6 +18,7 @@ export function GlobalHeader({ onNew }: { onNew: () => void }) {
       <Wordmark />
       <span className="flex-1" />
       <button
+        type="button"
         onClick={onNew}
         className="no-drag inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[13px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors hover:bg-primary-bright"
       >
