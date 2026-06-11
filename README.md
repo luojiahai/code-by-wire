@@ -12,11 +12,6 @@ scattered across terminal windows.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/luojiahai/code-by-wire)](https://github.com/luojiahai/code-by-wire/releases)
 
-![Working](https://img.shields.io/badge/Working-2dd4bf?style=flat-square)
-![Waiting](https://img.shields.io/badge/Waiting-f0a93b?style=flat-square)
-![Idle](https://img.shields.io/badge/Idle-58a6ff?style=flat-square)
-![Ended](https://img.shields.io/badge/Ended-6e7681?style=flat-square)
-
 <img src="docs/assets/hero.svg" alt="code-by-wire — sessions, live states, and per-session panels" width="100%">
 
 <!-- Replace the hero with a real capture when ready: save the app window as
