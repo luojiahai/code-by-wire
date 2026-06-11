@@ -70,6 +70,24 @@ export function App() {
     }
   }, [])
 
+  // The background tick pauses while the window is hidden, so on refocus the list could be a few
+  // seconds stale. Fire one silent sync the moment the document becomes visible — the same pattern
+  // use-polled-read uses for the per-session polls. Replaces the manual Refresh button.
+  useEffect(() => {
+    function onVisible(): void {
+      if (document.hidden) return
+      void (async () => {
+        try {
+          applyOverview(await window.api.refresh())
+        } catch {
+          // Keep the last-known list; the next 3s tick retries.
+        }
+      })()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
   // Drop a draft once discovery has indexed the real row for its id — the merged list then shows the
   // live row. The terminal keeps streaming throughout; it's driven by the pty, not by this row.
   useEffect(() => {
@@ -119,15 +137,6 @@ export function App() {
       })
     })
   }, [])
-
-  async function refresh(): Promise<void> {
-    setLoading(true)
-    try {
-      applyOverview(await window.api.refresh())
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function createSession(cwd: string, model: ModelId): Promise<void> {
     // Mint the id here and stand the terminal up BEFORE spawning, so the very first pty bytes land on a
@@ -192,15 +201,9 @@ export function App() {
 
   return (
     <div className="app-bg flex h-screen flex-col text-fg">
-      <GlobalHeader
-        sessionCount={all.length}
-        account={account}
-        loading={loading}
-        onRefresh={() => void refresh()}
-        onNew={() => setCreating(true)}
-      />
+      <GlobalHeader onNew={() => setCreating(true)} />
       <div className="flex min-h-0 flex-1">
-        <SessionList sessions={all} selectedId={selectedId} onSelect={setSelectedId} query={query} onQuery={setQuery} />
+        <SessionList sessions={all} selectedId={selectedId} onSelect={setSelectedId} query={query} onQuery={setQuery} account={account} />
         <div className="flex min-w-0 flex-1">
           {selected ? (
             <Workspace key={selected.id} session={selected} account={account} onAdopt={adoptSession} />
