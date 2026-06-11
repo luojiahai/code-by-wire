@@ -1,5 +1,5 @@
-import { useId, type ReactNode } from 'react'
-import { Icon } from '../../ui/icons'
+import { type ReactNode } from 'react'
+import { InfoButton } from '../../ui/InfoButton'
 
 // Shared chrome for the workspace rail panels, so a retone lands in one place.
 
@@ -25,9 +25,6 @@ export function PanelHeading({
   info?: ReactNode
   right?: ReactNode
 }) {
-  // A unique id wiring the info button to its description via aria-describedby (the CSS-only reveal never
-  // reaches the accessibility tree). useId runs before the early return so the hook order stays stable.
-  const tooltipId = useId()
   if (!info && !right) {
     return <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">{children}</h2>
   }
@@ -37,27 +34,14 @@ export function PanelHeading({
       <span className="flex items-center gap-1.5">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">{children}</h2>
         {info && (
-          // The `group` scopes the hover/focus reveal to the button (and the popover itself); the popover
-          // stays `absolute` against the outer relative strip, so left-0/right-0 still span its full width.
-          // inline-flex + items-center hugs the wrapper to the button so it centers on the heading text
-          // instead of riding the inline strut's baseline.
-          <span className="group inline-flex items-center">
-            <button
-              type="button"
-              aria-label={title ? `About ${title}` : 'About this metric'}
-              aria-describedby={tooltipId}
-              className="inline-flex h-[14px] w-[14px] items-center justify-center rounded-full text-fg-faint transition-colors hover:text-fg-muted focus-visible:text-fg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
-            >
-              <Icon name="info" size={12} />
-            </button>
-            <span
-              role="tooltip"
-              id={tooltipId}
-              className="absolute left-0 right-0 top-full z-20 mt-1.5 hidden rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-[11px] leading-snug text-fg-muted shadow-lg group-hover:block group-focus-within:block"
-            >
-              {info}
-            </span>
-          </span>
+          // The popover is absolute against this outer relative strip, so left-0/right-0 span its full
+          // width and top-full drops it below the strip.
+          <InfoButton
+            label={title ? `About ${title}` : 'About this metric'}
+            popoverClassName="left-0 right-0 top-full mt-1.5 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-[11px] leading-snug text-fg-muted shadow-lg"
+          >
+            {info}
+          </InfoButton>
         )}
       </span>
       {right}
