@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { Account } from '@shared/types'
 import { Bar } from './atoms'
 import { barFill } from './meta'
@@ -6,8 +7,10 @@ import { railAccountModel } from './rail-account'
 /** The account block pinned at the top of the rail: email + plan, then the account rate-limit gauges
  *  (5h, weekly, and the per-model weekly buckets when the CLI reports them), each with its reset
  *  countdown below the bar. Renders nothing when there's no account data to show. `now` comes from the
- *  rail's render clock so the countdowns tick with the 3s background sync. */
-export function RailAccount({ account, now }: { account: Account | null; now: number }) {
+ *  rail's render clock so the countdowns tick with the 3s background sync. Memoized so a burst of filter
+ *  keystrokes (which re-render the rail) doesn't rebuild the gauges — `account` is stable across them and
+ *  `now` is floored to the second by the caller. */
+export const RailAccount = memo(function RailAccount({ account, now }: { account: Account | null; now: number }) {
   const view = railAccountModel(account, now)
   if (!view) return null
   return (
@@ -30,4 +33,4 @@ export function RailAccount({ account, now }: { account: Account | null; now: nu
       )}
     </div>
   )
-}
+})

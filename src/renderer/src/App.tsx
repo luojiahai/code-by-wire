@@ -51,42 +51,39 @@ export function App() {
   }, [])
 
   // Background re-sync so session state stays live. Silent (no loading spinner) and paused while the
-  // window is hidden, so it doesn't burn a sweep nobody's looking at. The visibilitychange effect
-  // below covers the gap, firing one sync the moment the window comes back.
+  // window is hidden, so it doesn't burn a sweep nobody's looking at. On refocus the list could be a few
+  // seconds stale, so we also fire one sync the moment the document becomes visible (replacing the old
+  // manual Refresh button) and restart the timer so that focus sync and the next tick don't double-sweep
+  // ~/.claude back to back. A single in-flight guard keeps overlapping syncs from applying out of order
+  // — the same shape use-polled-read uses for the per-session polls.
   useEffect(() => {
     let alive = true
-    async function tick(): Promise<void> {
-      if (document.hidden) return
+    let inFlight = false
+    async function silentSync(): Promise<void> {
+      if (document.hidden || inFlight) return
+      inFlight = true
       try {
         const o = await window.api.refresh()
         if (alive) applyOverview(o)
       } catch {
         // Keep the last-known list; the next tick retries.
+      } finally {
+        inFlight = false
       }
     }
-    const h = setInterval(() => void tick(), SYNC_MS)
-    return () => {
-      alive = false
-      clearInterval(h)
-    }
-  }, [])
-
-  // The background tick pauses while the window is hidden, so on refocus the list could be a few
-  // seconds stale. Fire one silent sync the moment the document becomes visible — the same pattern
-  // use-polled-read uses for the per-session polls. Replaces the manual Refresh button.
-  useEffect(() => {
+    let timer = setInterval(() => void silentSync(), SYNC_MS)
     function onVisible(): void {
       if (document.hidden) return
-      void (async () => {
-        try {
-          applyOverview(await window.api.refresh())
-        } catch {
-          // Keep the last-known list; the next 3s tick retries.
-        }
-      })()
+      clearInterval(timer)
+      void silentSync()
+      timer = setInterval(() => void silentSync(), SYNC_MS)
     }
     document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
+    return () => {
+      alive = false
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   // Drop a draft once discovery has indexed the real row for its id — the merged list then shows the

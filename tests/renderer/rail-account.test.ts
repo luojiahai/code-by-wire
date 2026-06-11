@@ -41,6 +41,21 @@ describe('railAccountModel', () => {
     expect(view!.gauges).toEqual([])
   })
 
+  it('suppresses gauges for a non-subscription account even if windows are present', () => {
+    // Rate-limit windows are subscription-only (ADR-0001); a non-subscription account that somehow
+    // carries them must not render usage bars — the gate is on billingMode, not field presence.
+    const acc: Account = {
+      billingMode: 'unknown',
+      email: 'a@b.com',
+      fiveHour: { usedPct: 42, resetsAt: in2h14m },
+      sevenDay: { usedPct: 18, resetsAt: in5d },
+    }
+    const view = railAccountModel(acc, NOW)
+    expect(view!.email).toBe('a@b.com')
+    expect(view!.plan).toBe('Claude')
+    expect(view!.gauges).toEqual([])
+  })
+
   it('appends Sonnet/Opus rows (percent only, no reset) when present', () => {
     const acc: Account = {
       billingMode: 'subscription',

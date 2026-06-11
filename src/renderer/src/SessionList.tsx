@@ -30,6 +30,9 @@ export function SessionList({
 }) {
   // One timestamp per render for the relative-time labels; the 3s background re-sync re-renders.
   const now = Date.now()
+  // The account gauges only need second granularity for their reset countdowns. Floor the clock so a
+  // burst of filter keystrokes (which re-render this rail) doesn't re-tick the memoized RailAccount.
+  const accountClock = Math.floor(now / 1000) * 1000
   const groups = useMemo(() => groupSessions(sessions, query), [sessions, query])
   // Collapsed groups, by state. Ended is collapsed by default — it's the archive, not the live work.
   // An active filter force-expands every group so a match can't hide inside a collapsed one.
@@ -44,7 +47,7 @@ export function SessionList({
     })
   return (
     <aside className="flex w-[332px] shrink-0 flex-col border-r border-ink-800 bg-ink-925">
-      <RailAccount account={account ?? null} now={now} />
+      <RailAccount account={account ?? null} now={accountClock} />
       <div className="shrink-0 border-b border-ink-800 p-3">
         <div className="flex h-8 items-center gap-2 rounded-md border border-ink-700 bg-well px-2.5">
           <Icon name="search" size={14} className="shrink-0 text-fg-faint" />
