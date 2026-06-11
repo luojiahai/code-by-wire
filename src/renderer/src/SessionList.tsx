@@ -4,9 +4,9 @@ import { RailAccount } from './ui/RailAccount'
 import { RailFooter } from './ui/RailFooter'
 import { groupSessions } from '@shared/overview'
 import { formatRelativeTime } from '@shared/format'
-import { cx, Dot, ManagementChip } from './ui/atoms'
+import { cx, Dot } from './ui/atoms'
 import { Icon } from './ui/icons'
-import { MODEL_SHORT, STATE_META, ctxTone, honestModelLabel } from './ui/meta'
+import { STATE_META, ctxTone, isContextHigh } from './ui/meta'
 
 /**
  * The master rail: every session grouped by state (Waiting → Working → Idle → Ended) with sticky group
@@ -120,21 +120,17 @@ function SessionRow({ session: s, selected, now, onSelect }: { session: Session;
       )}
     >
       <div className="flex items-center gap-2">
-        <Dot state={s.state} />
+        <Dot state={s.state} management={s.management} />
         <span className={cx('min-w-0 flex-1 truncate text-[13px] text-fg', selected ? 'font-semibold' : 'font-medium')} title={s.title}>
           {s.title}
         </span>
+        {isContextHigh(s.contextPct) && (
+          <span className={cx('shrink-0 font-mono text-[10px] tabular-nums', ctxTone(s.contextPct))}>{s.contextPct}%</span>
+        )}
         <span className="shrink-0 font-mono text-[10px] tabular-nums text-fg-faint">{formatRelativeTime(s.lastActivityMs, now)}</span>
       </div>
-      <div className="mt-1.5 flex items-center gap-2 pl-4">
-        <ManagementChip kind={s.management} />
-        <span className="min-w-0 flex-1 truncate font-mono text-[10.5px] text-fg-faint" title={projectLine}>
-          {projectLine}
-        </span>
-        <span className="shrink-0 font-mono text-[10px] text-fg-muted">
-          {honestModelLabel(s.model, s.modelId, s.modelDisplayName, MODEL_SHORT)}
-        </span>
-        <span className={cx('shrink-0 font-mono text-[10px] tabular-nums', ctxTone(s.contextPct))}>{s.contextPct}%</span>
+      <div className="mt-1.5 truncate pl-4 font-mono text-[10.5px] text-fg-faint" title={projectLine}>
+        {projectLine}
       </div>
       {waiting && (
         <div className="ml-4 mt-1.5 truncate text-[11px] text-accent-bright" title={s.waitingReason ?? 'Waiting on you'}>
