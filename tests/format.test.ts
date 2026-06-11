@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatUsd, formatRelativeTime, formatResetCountdown, costDisplay, formatTokens, formatDuration } from '@shared/format'
+import { formatUsd, formatRelativeTime, formatResetCountdown, costDisplay, formatTokens, formatDuration, formatTokensShort, formatTps, formatClock } from '@shared/format'
 
 describe('formatUsd', () => {
   it('uses 2 decimals under $10, 1 under $100, none above', () => {
@@ -100,5 +100,30 @@ describe('formatDuration', () => {
     expect(formatDuration(200_000)).toBe('3m 20s')
     expect(formatDuration(3_600_000)).toBe('1h')
     expect(formatDuration(3_840_000)).toBe('1h 4m')
+  })
+})
+
+describe('formatTokensShort', () => {
+  it('abbreviates with k/M for the dense rail', () => {
+    expect(formatTokensShort(128_400)).toBe('128.4k')
+    expect(formatTokensShort(2_480_000)).toBe('2.48M')
+    expect(formatTokensShort(950)).toBe('950')
+    expect(formatTokensShort(0)).toBe('0')
+  })
+})
+
+describe('formatTps', () => {
+  it('renders tokens/sec with k for large rates', () => {
+    expect(formatTps(86.4)).toBe('86.4 t/s')
+    expect(formatTps(1_300)).toBe('1.3k t/s')
+    expect(formatTps(0)).toBe('0 t/s')
+  })
+})
+
+describe('formatClock', () => {
+  it('renders an elapsed wall-clock as the largest two units', () => {
+    expect(formatClock(6_120_000)).toBe('1h 42m')
+    expect(formatClock(42_000)).toBe('42s')
+    expect(formatClock(0)).toBe('0s')
   })
 })

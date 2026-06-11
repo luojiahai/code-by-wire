@@ -58,6 +58,28 @@ export function formatDuration(ms: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`
 }
 
+/** A token count abbreviated for the dense rail: 128400 → "128.4k", 2_480_000 → "2.48M". Under 1000 is
+ *  the bare integer. Non-finite or ≤0 → "0". */
+export function formatTokensShort(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0'
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
+  return String(Math.round(n))
+}
+
+/** A token throughput like "86.4 t/s" / "1.3k t/s". Non-finite or ≤0 → "0 t/s". */
+export function formatTps(tps: number): string {
+  if (!Number.isFinite(tps) || tps <= 0) return '0 t/s'
+  if (tps >= 1000) return (tps / 1000).toFixed(1) + 'k t/s'
+  return tps.toFixed(1) + ' t/s'
+}
+
+/** An elapsed wall-clock counting up, the largest two units: "1h 42m" / "42s" / "0s". Delegates to
+ *  formatDuration (same two-unit rule); a named alias so the session-clock call site reads as intent. */
+export function formatClock(ms: number): string {
+  return formatDuration(ms)
+}
+
 /**
  * The per-row cost figure plus whether it's an equivalent value (gets a leading ~ and "Equivalent API
  * value" framing) or real spend. Real spend (no ~) is shown only when we have Claude's own live figure
