@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Session, Account } from '@shared/types'
 import { cx, ManagementChip, StateBadge } from '../ui/atoms'
 import { Icon } from '../ui/icons'
@@ -15,7 +15,8 @@ import { TokenSpeedPanel } from './panels/TokenSpeedPanel'
 import { GitPanel } from './panels/GitPanel'
 import { useTasks } from './use-tasks'
 import { useMetrics, type MetricsState } from './use-metrics'
-import { SessionHeaderStats } from './SessionHeaderStats'
+import { SessionPanel } from './panels/SessionPanel'
+import { HeaderActions } from './HeaderActions'
 
 export function Workspace({
   session: s,
@@ -27,59 +28,42 @@ export function Workspace({
   onAdopt: (id: string) => Promise<void>
 }) {
   const isObserved = s.management === 'observed'
-  const [adoptBusy, setAdoptBusy] = useState(false)
-  const [adoptError, setAdoptError] = useState<string | null>(null)
-  const canAdopt = s.management === 'observed' && s.state === 'ended'
-  async function handleAdopt() {
-    setAdoptBusy(true)
-    setAdoptError(null)
-    try {
-      await onAdopt(s.id)
-    } catch (e) {
-      setAdoptError(e instanceof Error ? e.message : 'Failed to resume')
-    } finally {
-      // Always clear busy: the button is hidden after a successful adopt, but a session that later Ends
-      // reverts to Observed/Ended and the button returns — a stuck flag would wedge it on "Adopting…".
-      setAdoptBusy(false)
-    }
-  }
-  // Recomputed each render; App's 3s background re-sync re-renders this, so the countdowns tick.
+  // Recomputed each render; App's 3s background re-sync re-renders this, so the timeline timestamps tick.
   const now = Date.now()
   const metrics = useMetrics(s.id)
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col bg-ink-950 text-fg">
       <header className="flex shrink-0 items-center gap-3 border-b border-ink-800 bg-ink-925 px-4 py-2.5">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="min-w-0 truncate text-sm font-semibold text-fg">{s.title}</span>
+            <button
+              type="button"
+              disabled
+              title="Rename (coming soon)"
+              aria-label="Rename session"
+              className="inline-flex shrink-0 items-center justify-center rounded p-0.5 text-fg-faint opacity-40"
+            >
+              <Icon name="pencil" size={12} />
+            </button>
             <SessionIdChip id={s.id} />
-            <StateBadge state={s.state} />
           </div>
-          <div className="truncate font-mono text-[11px] text-fg-faint">
-            {s.project}
-            {s.branch && ` · ${s.branch}`}
+          <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px]">
+            <StateBadge state={s.state} />
+            <ManagementChip kind={s.management} />
+            {isObserved && (
+              <span className="rounded bg-ink-900 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-faint ring-1 ring-ink-800">
+                read-only
+              </span>
+            )}
+            <span className="text-ink-700">·</span>
+            <span className="min-w-0 truncate font-mono text-fg-faint">
+              {s.project}
+              {s.branch && ` · ${s.branch}`}
+            </span>
           </div>
         </div>
-        <SessionHeaderStats session={s} metrics={metrics} />
-        <ManagementChip kind={s.management} />
-        {isObserved && (
-          <span className="rounded bg-ink-900 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-faint ring-1 ring-ink-800">
-            read-only
-          </span>
-        )}
-        {canAdopt && (
-          <div className="flex items-center gap-2">
-            {adoptError && <span className="text-[11px] text-danger">{adoptError}</span>}
-            <button
-              onClick={() => void handleAdopt()}
-              disabled={adoptBusy}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[12px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
-            >
-              <Icon name="git-pull-request-arrow" size={13} />
-              {adoptBusy ? 'Adopting…' : 'Adopt'}
-            </button>
-          </div>
-        )}
+        <HeaderActions session={s} onAdopt={onAdopt} />
       </header>
 
       <div className="min-h-0 flex-1">
@@ -94,13 +78,19 @@ export function Workspace({
 function SessionIdChip({ id }: { id: string }) {
   const short = id.length > 12 ? `${id.slice(0, 4)}…${id.slice(-4)}` : id
   const [copied, setCopied] = useState(false)
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(resetTimer.current), [])
   function copy() {
     void navigator.clipboard?.writeText(id)
     setCopied(true)
-    setTimeout(() => setCopied(false), 1200)
+    // Restart the timer each copy so a quick second click keeps the check glyph for its full beat
+    // instead of the first timer flipping it back early; the effect above clears it on unmount.
+    clearTimeout(resetTimer.current)
+    resetTimer.current = setTimeout(() => setCopied(false), 1200)
   }
   return (
     <button
+      type="button"
       onClick={copy}
       title={`Copy session id (${id})`}
       className="inline-flex shrink-0 items-center gap-1 rounded border border-ink-700 bg-ink-900 px-1.5 py-0.5 font-mono text-[10px] text-fg-faint transition-colors hover:border-ink-600 hover:text-fg-muted"
@@ -128,6 +118,7 @@ function WorkspaceBody({ session: s, account, now, metrics }: { session: Session
         <Timeline turns={doc?.turns ?? []} now={now} />
       </div>
       <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-ink-800 bg-ink-925 p-4 lg:flex">
+        <SessionPanel session={s} />
         <ContextPanel live={s.liveContext ?? null} context={doc?.context ?? null} contextPct={s.contextPct} contextWindow={s.contextWindow} />
         <CostPanel usage={s.usage} model={s.model} liveCostUsd={s.liveCostUsd} billingMode={account?.billingMode} />
         <TokensPanel usage={s.usage} />
