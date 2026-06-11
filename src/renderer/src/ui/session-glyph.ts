@@ -3,14 +3,14 @@ import { STATE_META } from './meta'
 
 /** The dot's Tailwind classes. Color tracks state (via STATE_META); a managed session is a filled dot,
  *  an observed one is a hollow ring in the same color. Pure so the renderer's Dot stays a thin shell and
- *  the encoding is unit-tested. */
+ *  the encoding is unit-tested. The ring class comes from STATE_META as a literal string (not synthesized)
+ *  so Tailwind's scanner actually emits the border utility. */
 export function glyphClass(state: SessionState, management: Management): string {
-  const fill = STATE_META[state].dot // e.g. 'bg-accent'
+  const m = STATE_META[state]
   if (management === 'observed') {
-    const ring = fill.replace('bg-', 'border-') // 'bg-accent' -> 'border-accent'
-    return `border-[1.5px] bg-transparent ${ring}`
+    return `border-[1.5px] bg-transparent ${m.ring}`
   }
-  return fill
+  return m.dot
 }
 
 /** Hover tooltip for a session glyph: "waiting · observed". The one spot the dot is spelled out in full. */

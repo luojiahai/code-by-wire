@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { honestModelLabel, MODEL_LABEL, MODEL_SHORT, ctxColor, isContextHigh, CONTEXT_WARN_PCT } from '../../src/renderer/src/ui/meta'
+import { honestModelLabel, MODEL_LABEL, MODEL_SHORT, ctxColor, isContextHigh, CONTEXT_WARN_PCT, STATE_META } from '../../src/renderer/src/ui/meta'
 
 describe('honestModelLabel', () => {
   it('shows the clean label for a recognized model (the [1m] tag still matches opus)', () => {
@@ -45,5 +45,14 @@ describe('isContextHigh — the sidebar only shows the % once it warms to amber'
     expect(isContextHigh(70)).toBe(true)
     expect(isContextHigh(85)).toBe(true)
     expect(isContextHigh(100)).toBe(true)
+  })
+})
+
+describe('STATE_META — literal Tailwind classes so the scanner emits them', () => {
+  it('gives every state a bg- dot and a border- ring as literal strings', () => {
+    for (const m of Object.values(STATE_META)) {
+      expect(m.dot.startsWith('bg-')).toBe(true)
+      expect(m.ring.startsWith('border-')).toBe(true)
+    }
   })
 })

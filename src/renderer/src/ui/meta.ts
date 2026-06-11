@@ -3,18 +3,20 @@ import { isKnownModelString } from '@shared/models'
 
 export interface StateMeta {
   label: string
-  /** Tailwind bg class for the status dot. */
+  /** Tailwind bg class for the filled (managed) dot. */
   dot: string
+  /** Tailwind border class for the hollow (observed) ring. Literal so Tailwind's scanner emits it. */
+  ring: string
   /** Tailwind text class for the label. */
   text: string
 }
 
 /** Per-state display metadata. Working = teal, Waiting = amber, Idle = slate, Ended = faint. */
 export const STATE_META: Record<SessionState, StateMeta> = {
-  working: { label: 'Working', dot: 'bg-working', text: 'text-working-bright' },
-  waiting: { label: 'Waiting', dot: 'bg-accent', text: 'text-accent-bright' },
-  idle: { label: 'Idle', dot: 'bg-idle', text: 'text-fg-muted' },
-  ended: { label: 'Ended', dot: 'bg-ink-600', text: 'text-fg-faint' },
+  working: { label: 'Working', dot: 'bg-working', ring: 'border-working', text: 'text-working-bright' },
+  waiting: { label: 'Waiting', dot: 'bg-accent', ring: 'border-accent', text: 'text-accent-bright' },
+  idle: { label: 'Idle', dot: 'bg-idle', ring: 'border-idle', text: 'text-fg-muted' },
+  ended: { label: 'Ended', dot: 'bg-ink-600', ring: 'border-ink-600', text: 'text-fg-faint' },
 }
 
 export const MODEL_LABEL: Record<ModelId, string> = {
