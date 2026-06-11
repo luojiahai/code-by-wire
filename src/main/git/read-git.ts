@@ -3,8 +3,6 @@ import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { GitInfo } from '@shared/metrics'
 
-export type { GitInfo }
-
 const TTL_MS = 5000
 const cache = new Map<string, { token: string; expiry: number; value: GitInfo | null }>()
 

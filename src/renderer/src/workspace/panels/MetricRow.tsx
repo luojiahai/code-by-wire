@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cx, Bar } from '../../ui/atoms'
+import { cx } from '../../ui/atoms'
 
 /** One dense metric row: label left, value right (mono, tabular). A null/undefined value renders a muted
  *  em-dash so the row position stays stable (the empty-state rule). `tone` is an optional Tailwind text
@@ -24,9 +24,4 @@ export function MetricRow({
       </span>
     </div>
   )
-}
-
-/** A full-width section bar (the rail/popover progress bars). `fill` is a Tailwind bg class. */
-export function RailBar({ pct, fill }: { pct: number; fill: string }) {
-  return <Bar pct={pct} fill={fill} className="mt-1.5 w-full" />
 }

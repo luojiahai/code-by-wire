@@ -1,9 +1,8 @@
 import { num } from './transcript-row'
 import type { TokenSpeed } from '@shared/metrics'
 
-export type { TokenSpeed }
-
-/** Rolling-window length for the live speed readout, anchored to the last activity. */
+/** Rolling-window length for the live speed readout, anchored to the last activity. The renderer
+ *  hardcodes the matching label in panels/speed-window.ts (SPEED_WINDOW_LABEL) — keep the two in sync. */
 export const SPEED_WINDOW_MS = 60_000
 
 interface Interval {
