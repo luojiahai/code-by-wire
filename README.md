@@ -37,7 +37,7 @@ scattered across terminal windows.
 
 ## Requirements
 
-- macOS (Apple Silicon or Intel)
+- macOS (Apple Silicon)
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
   locally, so there are sessions to observe and control
 
