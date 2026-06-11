@@ -60,6 +60,9 @@ export function registerIpc({ db, provider, statusLine, accountEmail }: IpcDeps)
   ipcMain.handle(IPC.readTasks, (_e, id: string, sinceMtimeMs?: number) =>
     provider.readTasks(id, sinceMtimeMs),
   )
+  ipcMain.handle(IPC.readMetrics, (_e, id: string, sinceMtimeMs?: number) =>
+    provider.readMetrics(id, sinceMtimeMs),
+  )
 
   return { sync }
 }

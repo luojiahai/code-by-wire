@@ -1,20 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import { statSync } from 'node:fs'
 import { join } from 'node:path'
+import type { GitInfo } from '@shared/metrics'
 
-export interface GitInfo {
-  /** Current branch, or null when detached. */
-  branch: string | null
-  insertions: number
-  deletions: number
-  /** Commits ahead/behind the upstream, or null when there is no upstream. */
-  ahead: number | null
-  behind: number | null
-  /** Short commit hash, or null on an empty repo. */
-  sha: string | null
-  /** Any staged/unstaged/untracked change present. */
-  dirty: boolean
-}
+export type { GitInfo }
 
 const TTL_MS = 5000
 const cache = new Map<string, { token: string; expiry: number; value: GitInfo | null }>()

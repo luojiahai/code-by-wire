@@ -1,14 +1,10 @@
 import { num } from './transcript-row'
+import type { TokenSpeed } from '@shared/metrics'
+
+export type { TokenSpeed }
 
 /** Rolling-window length for the live speed readout, anchored to the last activity. */
 export const SPEED_WINDOW_MS = 60_000
-
-export interface TokenSpeed {
-  /** Input tokens/sec over the active (user→assistant) intervals in the window. */
-  inputTps: number
-  outputTps: number
-  totalTps: number
-}
 
 interface Interval {
   start: number

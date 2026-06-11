@@ -1,12 +1,14 @@
 import type { Session, ProviderCapabilities, Account, Task } from './types'
 import type { TranscriptRead, ReadSettled } from './transcript'
 import type { TerminalApi } from './terminal'
+import type { MetricsRead } from './metrics'
 export const IPC = {
   overview: 'overview:get',
   refresh: 'sessions:refresh',
   capabilities: 'provider:capabilities',
   readTranscript: 'transcript:read',
   readTasks: 'tasks:read',
+  readMetrics: 'metrics:read',
 } as const
 
 /** The index-only slice: the indexed session list from one SQLite read. The SQLite index holds no
@@ -37,6 +39,9 @@ export interface IpcApi {
   /** Read one session's task list from ~/.claude/tasks/<id>/. `sinceMtimeMs` is the change token from
    *  the caller's last read; when it still matches, the result is `unchanged`. */
   readTasks(id: string, sinceMtimeMs?: number): Promise<TaskRead>
+  /** Read one session's lazy metrics (token speed, git, voice, remote). `sinceMtimeMs` is the change
+   *  token from the last read; an unchanged token skips the recompute. */
+  readMetrics(id: string, sinceMtimeMs?: number): Promise<MetricsRead>
 }
 
 /** Everything exposed on `window.api`: the request/response surface plus the Managed-terminal surface. */

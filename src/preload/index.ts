@@ -8,6 +8,7 @@ const api: AppApi = {
   capabilities: () => ipcRenderer.invoke(IPC.capabilities),
   readTranscript: (id, sinceMtimeMs) => ipcRenderer.invoke(IPC.readTranscript, id, sinceMtimeMs),
   readTasks: (id, sinceMtimeMs) => ipcRenderer.invoke(IPC.readTasks, id, sinceMtimeMs),
+  readMetrics: (id, sinceMtimeMs) => ipcRenderer.invoke(IPC.readMetrics, id, sinceMtimeMs),
   terminal: {
     spawn: (req) => ipcRenderer.invoke(TERMINAL.spawn, req),
     adopt: (req) => ipcRenderer.invoke(TERMINAL.adopt, req),

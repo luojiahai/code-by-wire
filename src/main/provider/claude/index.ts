@@ -8,6 +8,12 @@ import { parseJsonlRows } from './transcript-row'
 import { buildSubagentForest, readSubagentSources, subagentsDirFor, subagentsNewestMtime } from './subagents'
 import { readTasksForSession, tasksNewestMtime } from './tasks'
 import { resolveAdoptTarget } from './adopt-target'
+import { computeTokenSpeed, SPEED_WINDOW_MS } from './transcript-speed'
+import { firstTranscriptCwd } from './transcript'
+import { readGit } from '../../git/read-git'
+import { readVoiceEnabled } from '../../settings/voice'
+import { readRemoteControl } from '../../settings/remote-control'
+import type { MetricsRead, SessionMetrics } from '@shared/metrics'
 
 export interface ClaudeProviderDeps {
   claudeDir?: string
@@ -22,6 +28,17 @@ export interface ClaudeProviderDeps {
 }
 
 const DEFAULT_RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
+/** A stable 32-bit hash of the composite metrics token (transcript mtime + git state), so the renderer's
+ *  numeric `since` dedupe works even though git changes aren't mtimes. */
+function hashToken(s: string): number {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
 
 /** A pid is alive if signalling it succeeds, or fails only because we lack permission. */
 function defaultIsPidAlive(pid: number): boolean {
@@ -111,6 +128,50 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
         return { status: 'changed', mtimeMs, tasks: readTasksForSession(claudeDir, id) }
       } catch {
         return { status: 'error' } // transient read failure — caller keeps its last list
+      }
+    },
+    readMetrics: (id, sinceMtimeMs): MetricsRead => {
+      try {
+        let path = pathById.get(id)
+        let mtimeMs: number | undefined
+        if (path !== undefined) {
+          try {
+            mtimeMs = statSync(path).mtimeMs
+          } catch {
+            pathById.delete(id)
+            path = undefined
+          }
+        }
+        if (path === undefined) {
+          const hit = indexTranscripts(claudeDir).get(id)
+          if (!hit) return { status: 'absent' }
+          path = hit.path
+          mtimeMs = hit.mtimeMs
+          pathById.set(id, path)
+        }
+        const jsonl = readTextOrNull(path)
+        if (jsonl === null) {
+          pathById.delete(id)
+          return { status: 'absent' }
+        }
+        const cwd = firstTranscriptCwd(jsonl)
+        const git = cwd ? readGit(cwd) : null
+        const gitToken = git
+          ? `${git.sha}:${git.insertions}:${git.deletions}:${git.dirty}:${git.ahead}:${git.behind}`
+          : 'nogit'
+        const hashed = hashToken(`${mtimeMs}|${gitToken}`)
+        if (hashed === sinceMtimeMs) return { status: 'unchanged', mtimeMs: hashed }
+
+        const rows = parseJsonlRows(jsonl)
+        const metrics: SessionMetrics = {
+          tokenSpeed: computeTokenSpeed(rows, SPEED_WINDOW_MS),
+          git,
+          voiceEnabled: cwd ? readVoiceEnabled(cwd, claudeDir) : null,
+          remoteControl: readRemoteControl(claudeDir, id),
+        }
+        return { status: 'changed', mtimeMs: hashed, metrics }
+      } catch {
+        return { status: 'error' }
       }
     },
   }
