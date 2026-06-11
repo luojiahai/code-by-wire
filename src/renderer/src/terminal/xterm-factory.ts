@@ -16,7 +16,7 @@ const OPTIONS = {
   cursorBlink: true,
   customGlyphs: true,             // draw block/box/powerline glyphs in the atlas, font-independent (default true; inert on the DOM renderer)
   rescaleOverlappingGlyphs: true, // shrink oversized fallback glyphs so they don't bleed into the next cell
-  theme: { background: '#070809', foreground: '#e8ecf3', cursor: '#2dd4bf' },
+  theme: { background: '#080808', foreground: '#e8ecf3', cursor: '#2dd4bf' },
 } as const
 
 /** Load the WebGL renderer onto an opened terminal — the renderer VSCode uses, and the one that makes

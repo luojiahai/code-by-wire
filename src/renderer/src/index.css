@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /* code-by-wire — cockpit dark theme.
-   A designed-from-scratch visual language: a cool, near-black charcoal surface stack with a slight
-   blue cast, ONE sky-blue brand signal ("wire"), and a reserved status palette — teal Working,
+   A designed-from-scratch visual language: a neutral, near-black graphite surface stack (equal RGB,
+   no temperature), ONE sky-blue brand signal ("wire"), and a reserved status palette — teal Working,
    amber Waiting, slate Idle, faint Ended.
 
    Token NAMES are kept from the prior theme (ink-*, fg*, primary, accent, danger, ok); only their
@@ -10,15 +10,15 @@
    roles get new names: `working` (teal, the Working state), `idle` (slate), and `well` (the sunken
    plane under terminals and inputs). Fonts are named here and loaded via <link> in index.html. */
 @theme {
-  /* Surface stack (cool charcoal, slight blue cast), darkest → lightest */
-  --color-well:    #070809; /* sunken: terminal, inputs, code blocks */
-  --color-ink-950: #0a0c10; /* app base */
-  --color-ink-925: #11141a; /* cards, rails, panels */
-  --color-ink-900: #161a22; /* raised: headers, chips, nested panels */
-  --color-ink-850: #1c2029; /* subtle hover / faint divider */
-  --color-ink-800: #232a35; /* default hairline border / dividers */
-  --color-ink-750: #2b333f; /* hover on raised surfaces */
-  --color-ink-700: #303948; /* strong border, focus-adjacent edges */
+  /* Surface stack (neutral graphite, equal RGB), darkest → lightest */
+  --color-well:    #080808; /* sunken: terminal, inputs, code blocks */
+  --color-ink-950: #0c0c0d; /* app base */
+  --color-ink-925: #141414; /* cards, rails, panels */
+  --color-ink-900: #1b1b1c; /* raised: headers, chips, nested panels */
+  --color-ink-850: #202021; /* subtle hover / faint divider */
+  --color-ink-800: #2c2c2d; /* default hairline border / dividers */
+  --color-ink-750: #333334; /* hover on raised surfaces */
+  --color-ink-700: #3a3a3b; /* strong border, focus-adjacent edges */
   --color-ink-600: #49525f; /* Ended state, dim glyphs */
 
   /* Text */
@@ -72,15 +72,15 @@ body {
 
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-thumb {
-  background: #262d38;
+  background: #2d2d2e;
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-*::-webkit-scrollbar-thumb:hover { background: #323b48; }
+*::-webkit-scrollbar-thumb:hover { background: #3b3b3c; }
 *::-webkit-scrollbar-track { background: transparent; }
 
-/* The cockpit plate: flat charcoal with two whisper-faint signal washes — cool top-right, warm
+/* The cockpit plate: flat graphite with two whisper-faint signal washes — cool top-right, warm
    lower-left. No banding, no purple gradients. */
 .app-bg {
   background:
