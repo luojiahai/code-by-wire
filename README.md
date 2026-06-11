@@ -12,11 +12,6 @@ scattered across terminal windows.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/luojiahai/code-by-wire)](https://github.com/luojiahai/code-by-wire/releases)
 
-<img src="docs/assets/hero.svg" alt="code-by-wire — sessions, live states, and per-session panels" width="100%">
-
-<!-- Replace the hero with a real capture when ready: save the app window as
-     docs/assets/screenshot.png and point the src above at it. -->
-
 ## Features
 
 <table>
