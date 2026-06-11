@@ -53,10 +53,10 @@ code-by-wire is built almost entirely by Claude Code agents working GitHub
 issues. The vocabulary and the settled decisions are documented so an agent (or
 a human) can pick up cold:
 
-- `CONTEXT.md` — the glossary the product is built around.
-- `docs/adr/` — the locked architectural decisions (statusLine over hooks,
+- `CONTEXT.md`: the glossary the product is built around.
+- `docs/adr/`: the locked architectural decisions (statusLine over hooks,
   incremental SQLite index, provider-adapter model).
-- `docs/agents/` — how issues, triage labels, and domain docs are managed.
+- `docs/agents/`: how issues, triage labels, and domain docs are managed.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 

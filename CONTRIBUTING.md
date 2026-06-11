@@ -45,9 +45,9 @@ This repo is built by Claude Code agents working GitHub issues. The domain
 language and locked decisions are documented and worth reading before you make
 changes:
 
-- `CONTEXT.md` — the glossary. Use its vocabulary in code and issues.
-- `docs/adr/` — the architectural decisions that are settled.
-- `docs/agents/` — how issues, triage labels, and domain docs are managed.
+- `CONTEXT.md`: the glossary. Use its vocabulary in code and issues.
+- `docs/adr/`: the architectural decisions that are settled.
+- `docs/agents/`: how issues, triage labels, and domain docs are managed.
 
 ## Code of conduct
 
