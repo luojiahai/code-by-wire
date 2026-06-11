@@ -49,8 +49,9 @@ export interface TerminalManagerDeps {
   createPty: (o: SpawnOptions) => PtyProcess
   /** Injected in tests; defaults to the 5ms coalescer (pure, safe to import here). */
   createBufferer?: (flush: (data: string) => void) => DataBufferer
-  /** Child env; defaults to the app's (PATH must carry `claude` under `pnpm dev`). */
-  env?: NodeJS.ProcessEnv
+  /** Returns the child env, resolved at spawn time; defaults to the app's `process.env` (whose PATH must
+   *  carry `claude`, as under `pnpm dev`). A thunk so a costly PATH probe runs lazily, not at startup. */
+  env?: () => NodeJS.ProcessEnv
 }
 
 export interface TerminalManager {
@@ -79,14 +80,15 @@ export interface TerminalManager {
 export function createTerminalManager(deps: TerminalManagerDeps): TerminalManager {
   const createPty = deps.createPty
   const createBufferer = deps.createBufferer ?? createDataBufferer
-  const env = deps.env ?? process.env
   const terms = new Map<string, Term>()
 
   // Stand up one pty for `id` running `command` in `cwd`. The body is identical for a fresh spawn and an
   // Adopt; only the argv differs, so both funnel here.
   function start(id: string, command: ClaudeCommand, cwd: string, cols: number, rows: number): void {
     if (terms.has(id)) return // idempotent — a double start of one id is a no-op
-    const pty = createPty({ file: command.file, args: command.args, cwd, env, cols, rows })
+    // Resolve the child env here, not at construction: the PATH probe behind `deps.env` is a synchronous
+    // shell spawn we keep off the startup path, so it runs (once, memoized) on the first real spawn.
+    const pty = createPty({ file: command.file, args: command.args, cwd, env: deps.env?.() ?? process.env, cols, rows })
     // The flush reads `term.id`, not the captured `id`, so a rename re-points output without rewiring the
     // bufferer. Safe to reference `term` before its declaration: the closure only runs once data flows.
     const bufferer = createBufferer((data) => deps.send(term.id, data))

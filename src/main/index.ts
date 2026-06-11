@@ -11,6 +11,7 @@ import { registerIpc } from './ipc'
 import { createSettingsManager } from './settings/manager'
 import { createStatusLineReader } from './statusline/reader'
 import { registerTerminalIpc } from './terminal/ipc'
+import { shellPath } from './terminal/shell-path'
 import { readAccountEmail } from './settings/account-email'
 import { resolveClaudeDir } from './claude-config'
 import { HEADER_HEIGHT_PX, MAC_TRAFFIC_LIGHT_POSITION } from '@shared/chrome'
@@ -19,6 +20,7 @@ function createWindow(
   managed: ManagedRegistry,
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null,
   registerRename: (rename: (from: string, to: string) => void) => void,
+  childEnv: (() => NodeJS.ProcessEnv) | undefined,
 ): void {
   // The renderer header is a fixed HEADER_HEIGHT_PX tall and doubles as the title bar. On macOS we hide
   // the native title bar but KEEP the traffic lights (titleBarStyle 'hidden', never frame:false — the
@@ -40,7 +42,7 @@ function createWindow(
   // Managed-terminal IPC is per-window: the manager pushes pty output to this window's renderer and
   // kills its ptys when the window closes. Its `rename` (the /clear follow) is handed to the sync
   // reconcile and revoked when the window closes.
-  const { rename } = registerTerminalIpc({ window: win, managed, resolveAdoptTarget })
+  const { rename } = registerTerminalIpc({ window: win, managed, resolveAdoptTarget, env: childEnv })
   registerRename(rename)
   win.on('closed', () => registerRename(() => {}))
 
@@ -95,10 +97,19 @@ app.whenReady()
       console.error('initial session sync failed; opening the window anyway', err)
     }
 
-    createWindow(managed, provider.resolveAdoptTarget, registerRename)
+    // A packaged .app launched from Finder inherits launchd's bare PATH, not the user's shell PATH, so
+    // `claude` (under ~/.local/bin etc.) wouldn't be found and every Managed session would die at spawn.
+    // Recover the real PATH and hand it to each window's terminal IPC — but lazily, on the first spawn,
+    // so the synchronous shell probe never blocks the first window's paint; memoized so only that spawn
+    // pays it. In dev the inherited PATH already carries `claude`, so leave the env untouched (no probe).
+    let recoveredEnv: NodeJS.ProcessEnv | undefined
+    const childEnv = app.isPackaged
+      ? (): NodeJS.ProcessEnv => (recoveredEnv ??= { ...process.env, PATH: shellPath() })
+      : undefined
+    createWindow(managed, provider.resolveAdoptTarget, registerRename, childEnv)
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0)
-        createWindow(managed, provider.resolveAdoptTarget, registerRename)
+        createWindow(managed, provider.resolveAdoptTarget, registerRename, childEnv)
     })
   })
   .catch((err) => {

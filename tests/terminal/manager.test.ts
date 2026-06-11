@@ -73,7 +73,7 @@ function harness() {
       return f.proc
     },
     createBufferer: passthroughBufferer,
-    env: { PATH: '/usr/bin' },
+    env: () => ({ PATH: '/usr/bin' }),
   })
   return { manager, ptys, sent, exited, spawned, spawnedPids, closed }
 }
