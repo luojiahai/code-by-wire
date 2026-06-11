@@ -1,5 +1,3 @@
-`desktop control · claude code`
-
 <h1><img src="docs/assets/wire-mark.svg" alt="" height="32" align="left" hspace="14">code-by-wire</h1>
 
 **The cockpit for local Claude Code.**
@@ -8,9 +6,15 @@ A desktop app that watches your local Claude Code sessions, surfaces the data
 they keep out of sight in `~/.claude`, and keeps them in one place instead of
 scattered across terminal windows.
 
-[![CI](https://github.com/luojiahai/code-by-wire/actions/workflows/ci.yml/badge.svg)](https://github.com/luojiahai/code-by-wire/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/luojiahai/code-by-wire)](https://github.com/luojiahai/code-by-wire/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/luojiahai/code-by-wire/ci.yml?style=flat&label=CI)](https://github.com/luojiahai/code-by-wire/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/luojiahai/code-by-wire?style=flat)](https://github.com/luojiahai/code-by-wire/releases)
+
+![Electron](https://img.shields.io/badge/Electron-2C2E3B?style=flat&logo=electron&logoColor=9FEAF9)
+![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat&logo=sqlite&logoColor=white)
 
 ## Features
 
