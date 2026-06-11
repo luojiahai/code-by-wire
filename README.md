@@ -18,18 +18,12 @@ scattered across terminal windows.
 
 ## Features
 
-<table>
-  <tr>
-    <td width="33%"><b>Every session, one view</b><br>One row per session, with its live state.</td>
-    <td width="33%"><b>States that surface what needs you</b><br>Working, Waiting, Idle, Ended. Waiting is loudest.</td>
-    <td width="33%"><b>The full transcript</b><br>Messages, tool calls, and results, reconstructed from <code>~/.claude</code>.</td>
-  </tr>
-  <tr>
-    <td><b>Tokens, cost &amp; context</b><br>The usage Claude Code keeps hidden, plus equivalent API value for subscription accounts.</td>
-    <td><b>Tasks, subagents &amp; git</b><br>A session's task list, its subagent tree, and its repo state.</td>
-    <td><b>Observe, then adopt</b><br>Read any session you didn't spawn; adopt an ended one to drive it.</td>
-  </tr>
-</table>
+- **Every session, one view.** One row per session, with its live state.
+- **States that surface what needs you.** Working, Waiting, Idle, Ended. Waiting is loudest.
+- **The full transcript.** Messages, tool calls, and results, reconstructed from `~/.claude`.
+- **Tokens, cost & context.** The usage Claude Code keeps hidden, plus equivalent API value for subscription accounts.
+- **Tasks, subagents & git.** A session's task list, its subagent tree, and its repo state.
+- **Observe, then adopt.** Read any session you didn't spawn; adopt an ended one to drive it.
 
 ## Install
 
