@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import type { Management, SessionState } from '@shared/types'
 import { glyphClass, glyphPulses, glyphTitle } from './session-glyph'
 
@@ -41,21 +42,27 @@ export function Bar({ pct, fill, className }: { pct: number; fill: string; class
  *  with "wire" in the sky accent. The mark is the design-system app icon (build/icon.svg) rendered
  *  inline, sans its rounded tile frame — same gradients, no box. */
 function LogoMark() {
+  // Colors come from the theme tokens, not hex literals, so the mark tracks the palette with the rest
+  // of the UI (the wire bar shares `primary` with the "wire" text below). Gradient ids are scoped per
+  // instance so a second mark on the page can't collide on a global id.
+  const uid = useId()
+  const teal = `${uid}-teal`
+  const amber = `${uid}-amber`
   return (
     <svg viewBox="285 425 454 174" className="h-[8px] w-auto shrink-0" fill="none" aria-hidden="true">
       <defs>
-        <radialGradient id="wm-teal" cx="0.35" cy="0.3" r="0.8">
-          <stop offset="0" stopColor="#5ee6d3" />
-          <stop offset="1" stopColor="#2dd4bf" />
+        <radialGradient id={teal} cx="0.35" cy="0.3" r="0.8">
+          <stop offset="0" style={{ stopColor: 'var(--color-working-bright)' }} />
+          <stop offset="1" style={{ stopColor: 'var(--color-working)' }} />
         </radialGradient>
-        <radialGradient id="wm-amber" cx="0.35" cy="0.3" r="0.8">
-          <stop offset="0" stopColor="#f7c065" />
-          <stop offset="1" stopColor="#f0a93b" />
+        <radialGradient id={amber} cx="0.35" cy="0.3" r="0.8">
+          <stop offset="0" style={{ stopColor: 'var(--color-accent-bright)' }} />
+          <stop offset="1" style={{ stopColor: 'var(--color-accent)' }} />
         </radialGradient>
       </defs>
-      <rect x="372" y="497" width="280" height="30" rx="15" fill="#38bdf8" />
-      <circle cx="372" cy="512" r="82" fill="url(#wm-teal)" stroke="rgba(45,212,191,0.45)" strokeWidth="2" />
-      <circle cx="652" cy="512" r="82" fill="url(#wm-amber)" stroke="rgba(240,169,59,0.5)" strokeWidth="2" />
+      <rect x="372" y="497" width="280" height="30" rx="15" className="fill-primary" />
+      <circle cx="372" cy="512" r="82" fill={`url(#${teal})`} className="stroke-working" strokeWidth="2" strokeOpacity={0.45} />
+      <circle cx="652" cy="512" r="82" fill={`url(#${amber})`} className="stroke-accent" strokeWidth="2" strokeOpacity={0.5} />
     </svg>
   )
 }
