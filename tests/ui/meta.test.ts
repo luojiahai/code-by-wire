@@ -20,7 +20,7 @@ describe('honestModelLabel', () => {
   })
 })
 
-describe('ctxColor — context ring fill, same thresholds as ctxBar', () => {
+describe('ctxColor — context ring fill, same thresholds as barFill', () => {
   it('is sky (wire) while roomy, below 70%', () => {
     expect(ctxColor(0)).toBe('var(--color-primary)')
     expect(ctxColor(69)).toBe('var(--color-primary)')

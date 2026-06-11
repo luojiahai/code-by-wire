@@ -45,14 +45,10 @@ export function barFill(pct: number, high = 85): string {
   return 'bg-primary/70'
 }
 
-/** Tailwind fill for the context bar: sky when roomy, amber as it fills. */
-export function ctxBar(pct: number): string {
-  return barFill(pct, 85)
-}
-
 /**
  * The context ring's fill color as a CSS var: sky (wire) while roomy, amber from 70%, bright amber from
- * 85%. Shares the 70/85 thresholds with `ctxBar` so the ring and any bar never disagree on "how full".
+ * 85%. Mirrors the 70/85 fill thresholds `barFill` uses, so the ring and any bar never disagree on
+ * "how full".
  */
 export function ctxColor(pct: number): string {
   if (pct >= 85) return 'var(--color-accent-bright)'
