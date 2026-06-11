@@ -40,10 +40,15 @@ export function registerTerminalIpc({
   window,
   managed,
   resolveAdoptTarget,
+  env,
 }: {
   window: BrowserWindow
   managed: ManagedRegistry
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null
+  /** Env for spawned `claude` sessions, carrying the PATH `claude` lives on. Resolved once at startup
+   *  (see `shellPath`) because a packaged .app inherits launchd's bare PATH, not the user's shell PATH.
+   *  Omitted in tests/dev, where the manager falls back to the inherited `process.env`. */
+  env?: NodeJS.ProcessEnv
 }): { rename: (from: string, to: string) => void } {
   const manager = createTerminalManager({
     send: (id, data) => {
@@ -57,6 +62,7 @@ export function registerTerminalIpc({
     // The composition root: this is the one place node-pty is injected, so the manager (and its tests)
     // stay free of the native addon.
     createPty: createPtyProcess,
+    env,
   })
 
   // The renderer mints the id and stands up its terminal BEFORE calling spawn, so the very first pty
