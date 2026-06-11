@@ -13,6 +13,7 @@ export const TERMINAL = {
   pickDirectory: 'terminal:pick-directory',
   data: 'terminal:data',
   exit: 'terminal:exit',
+  rename: 'terminal:rename',
 } as const
 
 /**
@@ -87,4 +88,7 @@ export interface TerminalApi {
   onData(cb: (id: string, data: string) => void): () => void
   /** Subscribe to process-exit for ANY Managed session. Returns unsubscribe. */
   onExit(cb: (id: string, exitCode: number) => void): () => void
+  /** Subscribe to a session-id rotation (a `/clear`): the live pty moved from `from` to `to`. The
+   *  renderer follows it onto the new id. Returns unsubscribe. */
+  onRename(cb: (from: string, to: string) => void): () => void
 }

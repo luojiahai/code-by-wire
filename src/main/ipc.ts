@@ -14,13 +14,22 @@ export interface IpcDeps {
   statusLine?: StatusLineReader
   /** Reads the logged-in account email (cached by the caller). Defaults to no email. */
   accountEmail?: () => string | null
+  /** Runs at the start of every sync, before discovery. Used to follow `/clear` rotations so the
+   *  provider labels a rotated session correctly on the same tick. Its failure must not block the sync. */
+  beforeSync?: () => void
 }
 
-export function registerIpc({ db, provider, statusLine, accountEmail }: IpcDeps): { sync: () => void } {
+export function registerIpc({ db, provider, statusLine, accountEmail, beforeSync }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] }
   const readEmail = accountEmail ?? ((): string | null => null)
 
   const sync = (): void => {
+    try {
+      beforeSync?.()
+    } catch (err) {
+      // A reconcile failure (e.g. ~/.claude briefly unreadable) must not cost the session list.
+      console.error('rotation reconcile failed; continuing with sync', err)
+    }
     syncSessions(db, provider)
   }
 

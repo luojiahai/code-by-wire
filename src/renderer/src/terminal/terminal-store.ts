@@ -25,6 +25,9 @@ export interface FitLike {
  *  between containers on attach/detach. `opened` guards the one-time `term.open`. On process exit the
  *  buffer is kept (the dim '[process exited]' line marks the end), so no separate flag is needed. */
 export interface TerminalHandle {
+  /** The session id this terminal currently writes. Mutable: a `/clear` rotates it (see `rename`), and the
+   *  keystroke→pty sub and the output-ack callback read it through here so both follow the rotation. */
+  id: string
   term: XtermLike
   fit: FitLike
   wrapper: HTMLElement
@@ -42,6 +45,10 @@ export interface TerminalStore {
    *  survives every tab switch until `dispose`. */
   create(id: string): TerminalHandle
   get(id: string): TerminalHandle | undefined
+  /** Re-key a live terminal from `from` to `to` (a `/clear` rotation), so pushed output and the user's
+   *  keystrokes follow the rotated session id onto the SAME xterm — no flicker, scrollback intact. No-op
+   *  if `from` has no handle or `to` is already taken. */
+  rename(from: string, to: string): void
   /** Close a terminal for good: dispose the xterm and forget the id. */
   dispose(id: string): void
 }
@@ -79,7 +86,10 @@ export function createTerminalStore({ api, createTerminal }: TerminalStoreDeps):
       api.ack(id, data.length)
       return
     }
-    h.term.write(data, () => ackConsumed(id, data.length))
+    // Ack under the handle's CURRENT id (read when xterm finishes parsing), so output that arrived just
+    // before a /clear rename still credits the live pty under its new id instead of being dropped as a
+    // stale ack — which would leak flow-control credit and could wedge a paused pty.
+    h.term.write(data, () => ackConsumed(h.id, data.length))
   })
   api.onExit((id, code) => {
     const h = handles.get(id)
@@ -93,12 +103,24 @@ export function createTerminalStore({ api, createTerminal }: TerminalStoreDeps):
       const existing = handles.get(id)
       if (existing) return existing
       const { term, fit, wrapper } = createTerminal()
-      const handle: TerminalHandle = { term, fit, wrapper, opened: false }
+      const handle: TerminalHandle = { id, term, fit, wrapper, opened: false }
+      // user keystrokes → pty (independent of DOM attach). Reads handle.id so a rename re-points input too.
+      term.onData((data) => api.write(handle.id, data))
       handles.set(id, handle)
-      term.onData((data) => api.write(id, data)) // user keystrokes → pty (independent of DOM attach)
       return handle
     },
     get: (id) => handles.get(id),
+    rename(from, to) {
+      if (from === to) return
+      const h = handles.get(from)
+      if (!h || handles.has(to)) return // unknown source, or target already in use → no-op
+      handles.delete(from)
+      h.id = to // the keystroke sub and ack callback read this, so both follow the rotation
+      handles.set(to, h)
+      const pend = pendingAck.get(from)
+      pendingAck.delete(from)
+      if (pend !== undefined) pendingAck.set(to, pend)
+    },
     dispose(id) {
       const h = handles.get(id)
       if (!h) return

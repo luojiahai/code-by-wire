@@ -5,7 +5,7 @@ import type { PtyProcess, SpawnOptions } from '../../src/main/terminal/pty-proce
 
 /** A controllable stand-in for a node-pty process. State is closed over (no `this`), so the proc's
  *  methods mutate it directly and the test reads it back through `.state`. */
-function fakePty() {
+function fakePty(pid = 4321) {
   const state = {
     spawnedWith: null as SpawnOptions | null,
     writes: [] as string[],
@@ -16,6 +16,7 @@ function fakePty() {
   let dataCb: (d: string) => void = () => {}
   let exitCb: (e: { exitCode: number }) => void = () => {}
   const proc: PtyProcess = {
+    pid,
     write: (d) => {
       state.writes.push(d)
     },
@@ -54,14 +55,19 @@ function harness() {
   const sent: Array<[string, string]> = []
   const exited: Array<[string, number]> = []
   const spawned: string[] = []
+  const spawnedPids: number[] = []
   const closed: string[] = []
+  let nextPid = 1000
   const manager = createTerminalManager({
     send: (id, data) => sent.push([id, data]),
     notifyExit: (id, code) => exited.push([id, code]),
-    onSpawned: (id) => spawned.push(id),
+    onSpawned: (id, pid) => {
+      spawned.push(id)
+      spawnedPids.push(pid)
+    },
     onClosed: (id) => closed.push(id),
     createPty: (o) => {
-      const f = fakePty()
+      const f = fakePty(nextPid++)
       f.state.spawnedWith = o
       ptys.push(f)
       return f.proc
@@ -69,7 +75,7 @@ function harness() {
     createBufferer: passthroughBufferer,
     env: { PATH: '/usr/bin' },
   })
-  return { manager, ptys, sent, exited, spawned, closed }
+  return { manager, ptys, sent, exited, spawned, spawnedPids, closed }
 }
 
 const REQ = { id: 'sess-1', cwd: '/work/app', model: 'claude-sonnet-4-6' as const, cols: 80, rows: 30 }
@@ -83,6 +89,12 @@ describe('createTerminalManager', () => {
     expect(h.ptys).toHaveLength(1)
     expect(h.ptys[0].state.spawnedWith).toMatchObject({ cwd: '/work/app', cols: 80, rows: 30, env: { PATH: '/usr/bin' } })
     expect(h.ptys[0].state.spawnedWith!.args).toEqual(['--session-id', 'sess-1', '--model', 'sonnet'])
+  })
+
+  it('reports the pty pid alongside the id, so the registry can anchor Managed-ness to the process', () => {
+    const h = harness()
+    h.manager.spawn(REQ)
+    expect(h.spawnedPids).toEqual([h.ptys[0].proc.pid])
   })
 
   it('is idempotent: a second spawn of the same id does nothing', () => {
@@ -159,6 +171,31 @@ describe('createTerminalManager', () => {
     h.manager.spawn({ ...REQ, id: 'sess-2' })
     h.manager.disposeAll()
     expect(h.closed.sort()).toEqual(['sess-1', 'sess-2'])
+  })
+
+  it('rename: re-keys a live pty to its new session id, so output, writes, and exit all follow the rotation', () => {
+    const h = harness()
+    h.manager.spawn(REQ) // id 'sess-1'
+    h.manager.rename('sess-1', 'sess-2')
+
+    h.ptys[0].emitData('after')
+    expect(h.sent).toEqual([['sess-2', 'after']]) // output now tagged with the new id
+
+    h.manager.write('sess-2', 'ok')
+    h.manager.write('sess-1', 'ignored') // the old id no longer maps to this pty
+    expect(h.ptys[0].state.writes).toEqual(['ok'])
+
+    h.ptys[0].emitExit(0)
+    expect(h.exited).toEqual([['sess-2', 0]]) // exit reported under the new id
+    expect(h.closed).toEqual(['sess-2']) // and the registry drops the new id
+  })
+
+  it('rename: is a no-op for an unknown id', () => {
+    const h = harness()
+    h.manager.spawn(REQ)
+    h.manager.rename('nope', 'sess-2')
+    h.ptys[0].emitData('x')
+    expect(h.sent).toEqual([['sess-1', 'x']]) // unchanged
   })
 
   it('adopt: resumes under the same id with no --model, and registers it Managed', () => {

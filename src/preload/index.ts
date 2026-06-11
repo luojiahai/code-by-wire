@@ -29,6 +29,11 @@ const api: AppApi = {
       ipcRenderer.on(TERMINAL.exit, handler)
       return () => ipcRenderer.removeListener(TERMINAL.exit, handler)
     },
+    onRename: (cb) => {
+      const handler = (_e: IpcRendererEvent, from: string, to: string) => cb(from, to)
+      ipcRenderer.on(TERMINAL.rename, handler)
+      return () => ipcRenderer.removeListener(TERMINAL.rename, handler)
+    },
   },
 }
 

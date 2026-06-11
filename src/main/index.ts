@@ -5,6 +5,8 @@ import { migrate } from './db/store'
 import { createClaudeProvider } from './provider/claude'
 import { createManagedRegistry } from './managed-registry'
 import type { ManagedRegistry } from './managed-registry'
+import { applyRotations } from './provider/claude/rotation'
+import { readSessionFiles } from './provider/claude/discover'
 import { registerIpc } from './ipc'
 import { createSettingsManager } from './settings/manager'
 import { createStatusLineReader } from './statusline/reader'
@@ -15,6 +17,7 @@ import { resolveClaudeDir } from './claude-config'
 function createWindow(
   managed: ManagedRegistry,
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null,
+  registerRename: (rename: (from: string, to: string) => void) => void,
 ): void {
   const win = new BrowserWindow({
     width: 1100,
@@ -27,8 +30,11 @@ function createWindow(
   })
 
   // Managed-terminal IPC is per-window: the manager pushes pty output to this window's renderer and
-  // kills its ptys when the window closes.
-  registerTerminalIpc({ window: win, managed, resolveAdoptTarget })
+  // kills its ptys when the window closes. Its `rename` (the /clear follow) is handed to the sync
+  // reconcile and revoked when the window closes.
+  const { rename } = registerTerminalIpc({ window: win, managed, resolveAdoptTarget })
+  registerRename(rename)
+  win.on('closed', () => registerRename(() => {}))
 
   if (process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -59,7 +65,19 @@ app.whenReady()
       if (emailCache === undefined) emailCache = readAccountEmail(claudeDir)
       return emailCache
     }
-    const { sync } = registerIpc({ db, provider, statusLine, accountEmail })
+    // The live window's terminal-rename hook, set when a window opens and revoked when it closes. The
+    // reconcile (below) calls through it to follow a /clear, so it's a no-op before the first window.
+    let renameInWindow: (from: string, to: string) => void = () => {}
+    const registerRename = (rename: (from: string, to: string) => void): void => {
+      renameInWindow = rename
+    }
+    // Before each discovery sweep, follow any /clear that rotated a Managed pty's session id: relabel the
+    // registry and re-key the live pty + renderer, so the rotated session stays Managed instead of being
+    // re-derived as a read-only Observed one.
+    const reconcile = (): void => {
+      applyRotations(managed, () => readSessionFiles(claudeDir), renameInWindow)
+    }
+    const { sync } = registerIpc({ db, provider, statusLine, accountEmail, beforeSync: reconcile })
 
     try {
       sync() // incremental parse of ~/.claude → SQLite once, before the window asks for rows
@@ -69,9 +87,10 @@ app.whenReady()
       console.error('initial session sync failed; opening the window anyway', err)
     }
 
-    createWindow(managed, provider.resolveAdoptTarget)
+    createWindow(managed, provider.resolveAdoptTarget, registerRename)
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow(managed, provider.resolveAdoptTarget)
+      if (BrowserWindow.getAllWindows().length === 0)
+        createWindow(managed, provider.resolveAdoptTarget, registerRename)
     })
   })
   .catch((err) => {

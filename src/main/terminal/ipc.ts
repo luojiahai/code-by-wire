@@ -44,7 +44,7 @@ export function registerTerminalIpc({
   window: BrowserWindow
   managed: ManagedRegistry
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null
-}): void {
+}): { rename: (from: string, to: string) => void } {
   const manager = createTerminalManager({
     send: (id, data) => {
       if (!window.isDestroyed()) window.webContents.send(TERMINAL.data, id, data)
@@ -52,7 +52,7 @@ export function registerTerminalIpc({
     notifyExit: (id, code) => {
       if (!window.isDestroyed()) window.webContents.send(TERMINAL.exit, id, code)
     },
-    onSpawned: (id) => managed.add(id),
+    onSpawned: (id, pid) => managed.add(id, pid),
     onClosed: (id) => managed.remove(id),
     // The composition root: this is the one place node-pty is injected, so the manager (and its tests)
     // stay free of the native addon.
@@ -94,6 +94,14 @@ export function registerTerminalIpc({
   const onBeforeQuit = () => manager.disposeAll()
   app.on('before-quit', onBeforeQuit)
 
+  // Follow a /clear: re-key the live pty to its new session id, then tell this window's renderer to move
+  // its terminal handle and selection onto `to`. The managed-registry relabel is the caller's (the sync
+  // reconcile), so by the next snapshot `to` reads Managed and `from` derives as an Ended ghost.
+  const rename = (from: string, to: string): void => {
+    manager.rename(from, to)
+    if (!window.isDestroyed()) window.webContents.send(TERMINAL.rename, from, to)
+  }
+
   window.on('closed', () => {
     manager.disposeAll()
     app.removeListener('before-quit', onBeforeQuit)
@@ -105,4 +113,6 @@ export function registerTerminalIpc({
     ipcMain.removeListener(TERMINAL.ack, onAck)
     ipcMain.removeListener(TERMINAL.kill, onKill)
   })
+
+  return { rename }
 }

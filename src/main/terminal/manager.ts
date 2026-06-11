@@ -7,6 +7,9 @@ import { createDataBufferer, type DataBufferer } from './data-bufferer'
 import type { PtyProcess, SpawnOptions } from './pty-process'
 
 interface Term {
+  /** The session id this pty currently writes. Mutable: a `/clear` rotates it (see `rename`), and the
+   *  pty's output/exit closures read it through here so they follow the rotation. */
+  id: string
   pty: PtyProcess
   bufferer: DataBufferer
   /** Chars sent to the renderer but not yet acked — the flow-control credit. */
@@ -34,8 +37,9 @@ export interface TerminalManagerDeps {
   send: (id: string, data: string) => void
   /** Tell the renderer a session's process exited. */
   notifyExit: (id: string, exitCode: number) => void
-  /** Record `id` as Managed (the registry's `add`), so discovery labels it. */
-  onSpawned: (id: string) => void
+  /** Record `id` as Managed (the registry's `add`), anchored to its pty's `pid`, so discovery labels it
+   *  and can follow it across a `/clear` that rotates the session id under the same pid. */
+  onSpawned: (id: string, pid: number) => void
   /** Drop `id`'s Managed label (the registry's `remove`) once its pty is gone — natural exit or a
    *  disposeAll on window close — so Managed-ness stays anchored to the pty's actual lifetime and a
    *  reopened window doesn't resurrect a dead session as Managed. */
@@ -53,6 +57,9 @@ export interface TerminalManager {
   spawn(req: SpawnRequest): void
   /** Resume an Ended session under its own id with `claude --resume <id>` — same pty machinery as spawn. */
   adopt(req: AdoptSpawn): void
+  /** Re-key a live pty from its old session id to a new one (a `/clear` rotation), so its output, writes,
+   *  and exit all flow under the new id. No-op if `from` isn't live or `to` is already taken. */
+  rename(from: string, to: string): void
   write(id: string, data: string): void
   resize(id: string, cols: number, rows: number): void
   /** Credit `charCount` of consumed output back; resumes node-pty if the backlog drains enough. */
@@ -80,8 +87,10 @@ export function createTerminalManager(deps: TerminalManagerDeps): TerminalManage
   function start(id: string, command: ClaudeCommand, cwd: string, cols: number, rows: number): void {
     if (terms.has(id)) return // idempotent — a double start of one id is a no-op
     const pty = createPty({ file: command.file, args: command.args, cwd, env, cols, rows })
-    const bufferer = createBufferer((data) => deps.send(id, data))
-    const term: Term = { pty, bufferer, unacked: 0, paused: false }
+    // The flush reads `term.id`, not the captured `id`, so a rename re-points output without rewiring the
+    // bufferer. Safe to reference `term` before its declaration: the closure only runs once data flows.
+    const bufferer = createBufferer((data) => deps.send(term.id, data))
+    const term: Term = { id, pty, bufferer, unacked: 0, paused: false }
     terms.set(id, term)
 
     pty.onData((data) => {
@@ -94,15 +103,15 @@ export function createTerminalManager(deps: TerminalManagerDeps): TerminalManage
     })
 
     pty.onExit(({ exitCode }) => {
-      if (!terms.has(id)) return // torn down by disposeAll, not a natural exit
+      if (!terms.has(term.id)) return // torn down by disposeAll, not a natural exit
       bufferer.flush() // drain the tail of output instead of stranding it behind the 5ms timer
       bufferer.dispose()
-      terms.delete(id)
-      deps.onClosed(id) // pty is gone → drop the Managed label so it re-derives as Observed
-      deps.notifyExit(id, exitCode)
+      terms.delete(term.id)
+      deps.onClosed(term.id) // pty is gone → drop the Managed label so it re-derives as Observed
+      deps.notifyExit(term.id, exitCode)
     })
 
-    deps.onSpawned(id)
+    deps.onSpawned(id, pty.pid)
   }
 
   function spawn(req: SpawnRequest): void {
@@ -125,9 +134,22 @@ export function createTerminalManager(deps: TerminalManagerDeps): TerminalManage
     }
   }
 
+  // Follow a /clear: the pty lives on, its session id moved. Re-key the terms map and update the term's
+  // own id so the output/exit closures (which read term.id) re-point too. The registry rename and the
+  // renderer hand-off are the caller's job; this owns only the pty side.
+  function rename(from: string, to: string): void {
+    if (from === to) return
+    const term = terms.get(from)
+    if (!term || terms.has(to)) return // unknown source, or target id already in use → no-op
+    terms.delete(from)
+    term.id = to
+    terms.set(to, term)
+  }
+
   return {
     spawn,
     adopt,
+    rename,
     write: (id, data) => terms.get(id)?.pty.write(data),
     resize: (id, cols, rows) => terms.get(id)?.pty.resize(cols, rows),
     ack,

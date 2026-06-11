@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session, ModelId, Account } from '@shared/types'
 import type { OverviewData } from '@shared/ipc'
-import { mergeManaged, applyAdopting } from '@shared/managed'
+import { mergeManaged, applyAdopting, renameManaged, renameAdopting } from '@shared/managed'
 import { newSessionId } from '@shared/terminal'
 import { groupSessions } from '@shared/overview'
 import { Workspace } from './workspace/Workspace'
@@ -86,6 +86,24 @@ export function App() {
       return next.size === prev.size ? prev : next
     })
   }, [sessions])
+
+  // Follow a /clear rotation: the live pty kept running but Claude rotated its session id from `from` to
+  // `to`. Migrate the terminal handle and re-point the open workspace onto `to`. Rename the row wherever it
+  // lives — the discovered list once a sync has indexed it, OR the optimistic drafts when /clear lands
+  // before any prompt (no sync has run, so the draft still carries `from`; left alone it would linger as a
+  // phantom Working session with a dead terminal). An adopt override on `from` follows too, so a /clear
+  // right after an Adopt doesn't strand the override and force `from`'s Ended ghost into a phantom. The next
+  // sync then supersedes this overlay with the authoritative rows: the new id Managed, the old an Ended,
+  // adoptable ghost.
+  useEffect(() => {
+    return window.api.terminal.onRename((from, to) => {
+      terminalStore.rename(from, to)
+      setSessions((ss) => renameManaged(ss, from, to))
+      setDrafts((ds) => renameManaged(ds, from, to))
+      setAdopting((prev) => renameAdopting(prev, from, to))
+      setSelectedId((cur) => (cur === from ? to : cur))
+    })
+  }, [])
 
   // A draft discovery never indexes (the process died before writing a transcript) would otherwise sit at
   // 'working' forever; flip it to 'ended' on pty exit. Also drop any adopting override for that id, so a
