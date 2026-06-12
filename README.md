@@ -6,9 +6,9 @@
 
 **The cockpit for local Claude Code.**
 
-A desktop app that watches your local Claude Code sessions, surfaces the data
-they keep out of sight in `~/.claude`, and keeps them in one place instead of
-scattered across terminal windows.
+A desktop app that puts every Claude Code session in one place: live state,
+transcript, terminal, and the cost and context telemetry the CLI keeps out of
+sight. One pane instead of a dozen terminal windows.
 
 ## Preview
 
