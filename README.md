@@ -10,9 +10,9 @@ A desktop app that puts every agentic coding session in one place: live state,
 transcript, terminal, and the cost and context telemetry the CLI keeps out of
 sight. One pane instead of a dozen terminal windows.
 
-[![Download for macOS (Apple Silicon)](https://img.shields.io/badge/Download%20for%20macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/luojiahai/code-by-wire/releases/latest)
+[![Download for macOS (Apple Silicon)](https://img.shields.io/badge/Download%20for%20macOS%20%28Apple%20Silicon%29-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/luojiahai/code-by-wire/releases/latest)
 
-Apple Silicon, signed and notarized.
+Signed and notarized.
 
 ## Preview
 
