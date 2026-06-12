@@ -4,11 +4,13 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/luojiahai/code-by-wire?style=flat-square)](https://github.com/luojiahai/code-by-wire/releases)
 
-**The cockpit for local Claude Code.**
+**The cockpit for local agentic coding tools (e.g., Claude Code).**
 
-A desktop app that puts every Claude Code session in one place: live state,
+A desktop app that puts every agentic coding session in one place: live state,
 transcript, terminal, and the cost and context telemetry the CLI keeps out of
 sight. One pane instead of a dozen terminal windows.
+
+[![Download for macOS (Apple Silicon)](https://img.shields.io/badge/Download%20for%20macOS%20%28Apple%20Silicon%29-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/luojiahai/code-by-wire/releases/latest)
 
 ## Preview
 
@@ -25,15 +27,32 @@ sight. One pane instead of a dozen terminal windows.
 
 ## Install
 
-1. Download the latest `.dmg` from
-   [Releases](https://github.com/luojiahai/code-by-wire/releases).
-2. Open it and drag code-by-wire to Applications.
-3. The build is **unsigned**, so the first launch needs one extra step. Either
-   right-click the app and choose **Open**, or clear the quarantine flag:
+Download the prebuilt app, or build it yourself.
 
-   ```
-   xattr -dr com.apple.quarantine /Applications/code-by-wire.app
-   ```
+### Download
+
+1. [Download the latest `.dmg`](https://github.com/luojiahai/code-by-wire/releases/latest).
+2. Open it and drag code-by-wire to Applications.
+3. Launch it. The app is signed and notarized by Apple, so it opens straight
+   away, no Gatekeeper warning and no quarantine workaround.
+
+### Build from source
+
+Build an unsigned `.dmg` locally instead:
+
+```
+pnpm install
+pnpm rebuild:native   # rebuild better-sqlite3 + node-pty for Electron's ABI
+pnpm dist             # writes the .dmg to release/
+```
+
+Open the `.dmg` from `release/` and drag code-by-wire to Applications. Because
+it's unsigned, the first launch may need a right-click → **Open**, or clearing
+the quarantine flag:
+
+```
+xattr -dr com.apple.quarantine /Applications/code-by-wire.app
+```
 
 ## Requirements
 
@@ -51,7 +70,6 @@ pnpm dev              # launch the app
 
 `pnpm test` runs the provider read tests over the redacted `~/.claude` fixtures
 in `tests/fixtures/`. `pnpm typecheck` checks the main and renderer projects.
-`pnpm dist` packages a local `.dmg` into `release/`.
 
 ## How this is built
 
