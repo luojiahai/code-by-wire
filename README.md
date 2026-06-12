@@ -11,6 +11,17 @@ Code-by-wire is a desktop app that puts every agentic coding session in one plac
 transcript, terminal, and the cost and context telemetry the CLI keeps out of
 sight. One pane instead of a dozen terminal windows.
 
+## The name
+
+Fly-by-wire replaced the mechanical linkages between a pilot's stick and the
+control surfaces with an electronic interface. The pilot still flies. They just
+command intent, and the computers handle the execution.
+
+Code-by-wire is that idea for software. You stop typing every keystroke and
+start commanding intent. The agent executes, and the cockpit keeps you in the
+loop: live state, the full transcript, and the controls to take over the moment
+you need to.
+
 [![Download for macOS (Apple Silicon)](https://img.shields.io/badge/Download%20for%20macOS%20%28Apple%20Silicon%29-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/luojiahai/code-by-wire/releases/latest)
 
 ## Preview
