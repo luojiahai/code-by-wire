@@ -13,6 +13,17 @@ sight. One pane instead of a dozen terminal windows.
 
 [![Download for macOS (Apple Silicon)](https://img.shields.io/badge/Download%20for%20macOS%20%28Apple%20Silicon%29-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/luojiahai/code-by-wire/releases/latest)
 
+## The name
+
+Fly-by-wire didn't take the plane away from the pilot. It put a computer
+between the stick and the control surfaces, so the pilot commands intent and the
+machine handles execution. The pilot still flies, just more capable and more
+precise.
+
+Code-by-wire is that idea for software. You command intent, the agent executes,
+and you stay pilot in command: live state, the full transcript, and the controls
+to take over whenever you want.
+
 ## Preview
 
 ![code-by-wire](docs/assets/preview.png)
