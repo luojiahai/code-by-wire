@@ -39,17 +39,18 @@ function gauge(label: string, limit: RateLimit, now: number, withReset: boolean)
  */
 export function railAccountModel(account: Account | null, now: number): RailAccountView | null {
   if (!account) return null
+  // The account block is a subscription-identity view: both the rate-limit gauges and the login email
+  // come from a Claude subscription (the email from oauthAccount in .claude.json, ADR-0001). A
+  // non-subscription account — an API key, or a gateway like Portkey whose captures carry no rate_limits
+  // — has no subscription identity to surface, so suppress the whole block. Otherwise a stale oauthAccount
+  // email left in .claude.json from a prior login would show beside what is really gateway billing.
+  if (account.billingMode !== 'subscription') return null
   const gauges: RailGauge[] = []
-  // Rate-limit windows are a subscription-only signal (ADR-0001): only a subscription capture carries
-  // them. Gate the gauges on billingMode rather than field presence, so a non-subscription account that
-  // somehow surfaced a window can't render subscription-only bars — the guard RateLimits/AccountPopover
-  // enforced before this view-model existed.
-  if (account.billingMode === 'subscription') {
-    if (account.fiveHour) gauges.push(gauge('5h', account.fiveHour, now, true))
-    if (account.sevenDay) gauges.push(gauge('Weekly', account.sevenDay, now, true))
-    if (account.sevenDaySonnet) gauges.push(gauge('Sonnet', account.sevenDaySonnet, now, false))
-    if (account.sevenDayOpus) gauges.push(gauge('Opus', account.sevenDayOpus, now, false))
-  }
-  if (!account.email && gauges.length === 0) return null
-  return { email: account.email ?? null, plan: planLabel(account.billingMode), gauges }
+  if (account.fiveHour) gauges.push(gauge('5h', account.fiveHour, now, true))
+  if (account.sevenDay) gauges.push(gauge('Weekly', account.sevenDay, now, true))
+  if (account.sevenDaySonnet) gauges.push(gauge('Sonnet', account.sevenDaySonnet, now, false))
+  if (account.sevenDayOpus) gauges.push(gauge('Opus', account.sevenDayOpus, now, false))
+  const email = account.email ?? null
+  if (!email && gauges.length === 0) return null // subscription with nothing live to show (windows all expired)
+  return { email, plan: planLabel(account.billingMode), gauges }
 }

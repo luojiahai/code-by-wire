@@ -34,26 +34,22 @@ describe('railAccountModel', () => {
     ])
   })
 
-  it('labels an API account and shows no gauges', () => {
+  it('returns null for a non-subscription account — the block is subscription-only, no identity to show', () => {
     const acc: Account = { billingMode: 'api', email: 'a@b.com' }
-    const view = railAccountModel(acc, NOW)
-    expect(view!.plan).toBe('Claude · API')
-    expect(view!.gauges).toEqual([])
+    expect(railAccountModel(acc, NOW)).toBeNull()
   })
 
-  it('suppresses gauges for a non-subscription account even if windows are present', () => {
-    // Rate-limit windows are subscription-only (ADR-0001); a non-subscription account that somehow
-    // carries them must not render usage bars — the gate is on billingMode, not field presence.
+  it('suppresses the whole block for a non-subscription account even if a stale email/windows are present', () => {
+    // The Portkey/gateway case: billing is 'unknown' (no rate_limits captured), but a prior subscription
+    // login left an oauthAccount email in .claude.json. Identity and windows are both subscription-only
+    // (ADR-0001), so neither shows — the account block disappears rather than mislabel gateway billing.
     const acc: Account = {
       billingMode: 'unknown',
       email: 'a@b.com',
       fiveHour: { usedPct: 42, resetsAt: in2h14m },
       sevenDay: { usedPct: 18, resetsAt: in5d },
     }
-    const view = railAccountModel(acc, NOW)
-    expect(view!.email).toBe('a@b.com')
-    expect(view!.plan).toBe('Claude')
-    expect(view!.gauges).toEqual([])
+    expect(railAccountModel(acc, NOW)).toBeNull()
   })
 
   it('appends Sonnet/Opus rows (percent only, no reset) when present', () => {
