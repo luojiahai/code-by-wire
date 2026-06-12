@@ -16,6 +16,7 @@ import { readAccountEmail } from './settings/account-email'
 import { readApiConfig, type ApiConfig } from './settings/api-config'
 import { resolveClaudeDir } from './claude-config'
 import { HEADER_HEIGHT_PX, MAC_TRAFFIC_LIGHT_POSITION } from '@shared/chrome'
+import { IPC } from '@shared/ipc'
 
 // Pin the whole app to the sRGB color profile. Without this, the packaged build inherits the
 // display's profile (Display P3 on modern Macs) and Chromium stretches our sRGB-authored palette
@@ -46,6 +47,18 @@ function createWindow(
     },
   })
   if (isMac) win.setSheetOffset(HEADER_HEIGHT_PX)
+
+  // Let the renderer slide the wordmark into the corner when the traffic lights vacate it: push the
+  // window's native fullscreen state on every change, and re-push on each load so a dev reload re-syncs
+  // the fresh renderer. macOS-only — the lights are the only reason the header insets at all.
+  if (isMac) {
+    const sendFullscreen = (): void => {
+      if (!win.isDestroyed()) win.webContents.send(IPC.fullscreen, win.isFullScreen())
+    }
+    win.on('enter-full-screen', sendFullscreen)
+    win.on('leave-full-screen', sendFullscreen)
+    win.webContents.on('did-finish-load', sendFullscreen)
+  }
 
   // Managed-terminal IPC is per-window: the manager pushes pty output to this window's renderer and
   // kills its ptys when the window closes. Its `rename` (the /clear follow) is handed to the sync
