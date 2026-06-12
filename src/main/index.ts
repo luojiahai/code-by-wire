@@ -17,6 +17,13 @@ import { readApiConfig, type ApiConfig } from './settings/api-config'
 import { resolveClaudeDir } from './claude-config'
 import { HEADER_HEIGHT_PX, MAC_TRAFFIC_LIGHT_POSITION } from '@shared/chrome'
 
+// Pin the whole app to the sRGB color profile. Without this, the packaged build inherits the
+// display's profile (Display P3 on modern Macs) and Chromium stretches our sRGB-authored palette
+// toward that wider gamut, oversaturating colors like the Claude Code mascot orange. Dev already
+// renders sRGB, so this only changes the packaged build, making it match dev. Must run before the
+// 'ready' event (before the GPU process starts), so it lives at module top level.
+app.commandLine.appendSwitch('force-color-profile', 'srgb')
+
 function createWindow(
   managed: ManagedRegistry,
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null,

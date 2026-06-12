@@ -79,3 +79,12 @@ describe('electron window matches the theme', () => {
     expect(m![1].toLowerCase()).toBe(token('ink-950').toLowerCase())
   })
 })
+
+describe('packaged build renders sRGB (mascot color matches dev)', () => {
+  it('forces the sRGB color profile in the main process', () => {
+    const main = readFileSync(join(root, 'src/main/index.ts'), 'utf8')
+    // Without this switch the packaged build inherits the display's wide-gamut (P3) profile and
+    // oversaturates the sRGB-authored palette; dev already renders sRGB, so this makes them match.
+    expect(main).toMatch(/appendSwitch\(\s*['"]force-color-profile['"]\s*,\s*['"]srgb['"]\s*\)/)
+  })
+})
