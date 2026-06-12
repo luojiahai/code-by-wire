@@ -1,8 +1,8 @@
 {
   "name": "code-by-wire",
   "private": true,
-  "version": "0.1.0",
-  "description": "The cockpit for local coding agents.",
+  "version": "0.1.1",
+  "description": "The cockpit for local Claude Code.",
   "author": "luojiahai",
   "license": "MIT",
   "homepage": "https://github.com/luojiahai/code-by-wire",

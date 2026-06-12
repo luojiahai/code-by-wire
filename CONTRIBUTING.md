@@ -6,8 +6,8 @@ you from clone to a passing build.
 ## Prerequisites
 
 - macOS (the app is built mac-first)
-- Node 22 (see `.nvmrc`; `nvm use` picks it up)
-- pnpm 10 (`corepack enable` or install pnpm directly)
+- Node 24 (see `.nvmrc`; `nvm use` picks it up)
+- pnpm 11 (`corepack enable` or install pnpm directly)
 - Claude Code installed locally, so there are sessions to observe
 
 ## Setup
