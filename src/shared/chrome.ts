@@ -7,7 +7,7 @@
 
 /** The title bar's height in CSS px. Main offsets native sheets (the directory picker) by this so they
  *  drop below the bar; the renderer applies it as the header height. Change here, both follow. */
-export const HEADER_HEIGHT_PX = 48
+export const HEADER_HEIGHT_PX = 40
 
 /** Left inset (CSS px) the renderer reserves on macOS so the wordmark clears the native traffic lights.
  *  Must stay wider than the lights' right edge (see MAC_TRAFFIC_LIGHT_POSITION). */
@@ -15,4 +15,4 @@ export const MAC_TRAFFIC_LIGHT_INSET_PX = 96
 
 /** Where main parks the macOS traffic lights, in DIP. Kept beside the inset above so the two stay
  *  visually consistent: x must sit within MAC_TRAFFIC_LIGHT_INSET_PX, y centers the lights in the bar. */
-export const MAC_TRAFFIC_LIGHT_POSITION: { x: number; y: number } = { x: 16, y: 16 }
+export const MAC_TRAFFIC_LIGHT_POSITION: { x: number; y: number } = { x: 16, y: 14 }
