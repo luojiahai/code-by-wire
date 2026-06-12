@@ -119,17 +119,24 @@ export function NewSessionDialog({
         <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
           Model
         </label>
-        <select
-          value={model}
-          onChange={(e) => setModel(e.target.value as ModelId)}
-          className="mt-1.5 w-full rounded-md border border-ink-700 bg-well px-2.5 py-2 text-[13px] text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
-        >
-          {MODEL_IDS.map((id) => (
-            <option key={id} value={id}>
-              {MODEL_LABEL[id]}
-            </option>
-          ))}
-        </select>
+        <div className="relative mt-1.5">
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value as ModelId)}
+            className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-[13px] text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+          >
+            {MODEL_IDS.map((id) => (
+              <option key={id} value={id}>
+                {MODEL_LABEL[id]}
+              </option>
+            ))}
+          </select>
+          <Icon
+            name="chevron-down"
+            size={14}
+            className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
+          />
+        </div>
 
         {error && <p className="mt-3 text-[12px] text-danger">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
