@@ -29,6 +29,8 @@
     "rebuild:native": "electron-rebuild -f -w better-sqlite3,node-pty",
     "icon": "electron scripts/make-icon.mjs",
     "dist": "electron-vite build && electron-builder --mac --publish never",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
