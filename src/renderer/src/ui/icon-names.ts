@@ -6,22 +6,22 @@
  * can never drift: add a name here without a glyph there (or vice versa) and the typecheck fails.
  */
 export type IconName =
-  | 'check'
-  | 'chevron-down'
-  | 'chevron-right'
-  | 'code'
-  | 'copy'
-  | 'folder-open'
-  | 'github'
-  | 'git-branch'
-  | 'git-pull-request-arrow'
-  | 'info'
-  | 'messages-square'
-  | 'pause'
-  | 'pencil'
-  | 'plus'
-  | 'search'
-  | 'square'
-  | 'square-dashed-mouse-pointer'
-  | 'square-terminal'
-  | 'terminal'
+  | "check"
+  | "chevron-down"
+  | "chevron-right"
+  | "code"
+  | "copy"
+  | "folder-open"
+  | "github"
+  | "git-branch"
+  | "git-pull-request-arrow"
+  | "info"
+  | "messages-square"
+  | "pause"
+  | "pencil"
+  | "plus"
+  | "search"
+  | "square"
+  | "square-dashed-mouse-pointer"
+  | "square-terminal"
+  | "terminal";

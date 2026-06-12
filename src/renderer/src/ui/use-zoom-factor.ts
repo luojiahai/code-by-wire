@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react'
+import { useLayoutEffect } from "react";
 
 /**
  * Keep the document's `--zoom-factor` var in sync with the renderer's web zoom, so the macOS title bar
@@ -12,16 +12,16 @@ import { useLayoutEffect } from 'react'
  */
 export function useZoomFactor(enabled: boolean): void {
   useLayoutEffect(() => {
-    if (!enabled) return
-    let last = -1
+    if (!enabled) return;
+    let last = -1;
     const apply = (): void => {
-      const z = window.api.getZoomFactor()
-      if (z === last) return
-      last = z
-      document.documentElement.style.setProperty('--zoom-factor', String(z))
-    }
-    apply()
-    window.addEventListener('resize', apply)
-    return () => window.removeEventListener('resize', apply)
-  }, [enabled])
+      const z = window.api.getZoomFactor();
+      if (z === last) return;
+      last = z;
+      document.documentElement.style.setProperty("--zoom-factor", String(z));
+    };
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, [enabled]);
 }

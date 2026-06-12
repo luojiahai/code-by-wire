@@ -1,1 +1,7 @@
-{"pid":1004,"sessionId":"dddd4444-4444-4444-4444-444444444444","cwd":"/work/checkout","status":"idle","updatedAt":1780959400000}
+{
+  "pid": 1004,
+  "sessionId": "dddd4444-4444-4444-4444-444444444444",
+  "cwd": "/work/checkout",
+  "status": "idle",
+  "updatedAt": 1780959400000
+}

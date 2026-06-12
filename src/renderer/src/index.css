@@ -11,7 +11,7 @@
    plane under terminals and inputs). Fonts are named here and loaded via <link> in index.html. */
 @theme {
   /* Surface stack (neutral graphite, equal RGB), darkest → lightest */
-  --color-well:    #080808; /* sunken: terminal, inputs, code blocks */
+  --color-well: #080808; /* sunken: terminal, inputs, code blocks */
   --color-ink-950: #0c0c0d; /* app base */
   --color-ink-925: #141414; /* cards, rails, panels */
   --color-ink-900: #1b1b1c; /* raised: headers, chips, nested panels */
@@ -45,12 +45,21 @@
   /* Type — display for the wordmark/headings/numerals, sans for UI/body, mono for all data. The
      "* Variable" families are the bundled @fontsource-variable builds (imported in main.tsx); the
      plain names stay as a fallback for anyone with the static font installed locally. */
-  --font-display: "Space Grotesk Variable", "Space Grotesk", system-ui, sans-serif;
-  --font-sans: "Hanken Grotesk Variable", "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display:
+    "Space Grotesk Variable", "Space Grotesk", system-ui, sans-serif;
+  --font-sans:
+    "Hanken Grotesk Variable", "Hanken Grotesk", system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono:
+    "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo,
+    Consolas, monospace;
 }
 
-html, body, #root { height: 100%; }
+html,
+body,
+#root {
+  height: 100%;
+}
 body {
   margin: 0;
   background: var(--color-ink-950);
@@ -61,39 +70,76 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-::selection { background: rgba(56, 189, 248, 0.3); color: var(--color-fg); }
+::selection {
+  background: rgba(56, 189, 248, 0.3);
+  color: var(--color-fg);
+}
 
 /* The live heartbeat on Working / Waiting status dots. */
-@keyframes pulse-soft { 0%, 100% { opacity: 1 } 50% { opacity: .28 } }
-.animate-pulse-soft { animation: pulse-soft 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.28;
+  }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
 
-@keyframes blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
-.cursor-blink { animation: blink 1.1s step-end infinite; }
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.cursor-blink {
+  animation: blink 1.1s step-end infinite;
+}
 
-*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
 *::-webkit-scrollbar-thumb {
   background: #2d2d2e;
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-*::-webkit-scrollbar-thumb:hover { background: #3b3b3c; }
-*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb:hover {
+  background: #3b3b3c;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
 
 /* The terminal well: borderless and padded, with an auto-hiding scrollbar pinned to the trailing edge.
    8px of padding on .xterm gives the content breathing room; FitAddon reads this padding when it sizes
    the grid, so cols/rows fit the padded area. .xterm-viewport is absolutely positioned inset:0 and
    ignores the padding, so its scrollbar lands flush at the right edge while the text stays 8px clear. */
-.xterm { padding: 8px; }
+.xterm {
+  padding: 8px;
+}
 
 /* Transparent so the #080808 well (the container's bg-well) shows through during overscroll, instead of
    xterm's default #000 viewport background flashing a different black. */
-.xterm .xterm-viewport { background: transparent; }
+.xterm .xterm-viewport {
+  background: transparent;
+}
 
 /* Auto-hide overlay: the thumb is invisible at rest and fades in on hover or while scrolling. The
    .is-scrolling class is toggled from xterm-factory on scroll, cleared after an idle beat. This
    overrides the global always-on scrollbar above, just for the terminal viewport. */
-.xterm .xterm-viewport::-webkit-scrollbar { width: 8px; } /* slimmer than the app-wide 10px */
+.xterm .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+} /* slimmer than the app-wide 10px */
 .xterm .xterm-viewport::-webkit-scrollbar-thumb {
   background: transparent;
   border-radius: 8px;
@@ -108,18 +154,34 @@ body {
    lower-left. No banding, no purple gradients. */
 .app-bg {
   background:
-    radial-gradient(1100px 560px at 78% -12%, rgba(56, 189, 248, 0.06), transparent 58%),
-    radial-gradient(820px 480px at -6% 112%, rgba(240, 169, 59, 0.035), transparent 55%),
+    radial-gradient(
+      1100px 560px at 78% -12%,
+      rgba(56, 189, 248, 0.06),
+      transparent 58%
+    ),
+    radial-gradient(
+      820px 480px at -6% 112%,
+      rgba(240, 169, 59, 0.035),
+      transparent 55%
+    ),
     var(--color-ink-950);
 }
 
 /* Title-bar drag regions for the frameless window. The header opts the whole strip into dragging;
    interactive controls inside it opt back out so clicks still register. Mirrors VS Code's
    .draggable / .nonDraggable. */
-.drag-region { -webkit-app-region: drag; app-region: drag; }
-.no-drag { -webkit-app-region: no-drag; app-region: no-drag; }
+.drag-region {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
 
 /* The title bar counter-zooms so it holds a fixed physical size while the rest of the window zooms,
    keeping the macOS traffic lights (OS-drawn, immune to web zoom) aligned with it. `--zoom-factor` is
    kept in sync from the renderer (GlobalHeader). Mirrors VS Code's `.counter-zoom` title bar. */
-.title-bar { zoom: calc(1 / var(--zoom-factor, 1)); }
+.title-bar {
+  zoom: calc(1 / var(--zoom-factor, 1));
+}

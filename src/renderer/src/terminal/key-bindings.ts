@@ -1,15 +1,15 @@
 /** The slice of a keyboard event the editing map reads. A real DOM `KeyboardEvent` satisfies it, so
  *  the terminal store can pass the event straight through, and tests can pass plain objects. */
 export interface EditKey {
-  type: string
-  key: string
-  metaKey: boolean
-  altKey: boolean
-  ctrlKey: boolean
-  shiftKey: boolean
+  type: string;
+  key: string;
+  metaKey: boolean;
+  altKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
   /** True while an IME composition is active (real `KeyboardEvent.isComposing`). We bail in that
    *  window so the keystroke reaches xterm's composition handler instead of becoming a readline byte. */
-  isComposing: boolean
+  isComposing: boolean;
 }
 
 /**
@@ -23,24 +23,24 @@ export interface EditKey {
  * unmapped return null.
  */
 export function macEditSequence(e: EditKey): string | null {
-  if (e.type !== 'keydown') return null
+  if (e.type !== "keydown") return null;
   // Mid-composition (CJK/dead-key): let xterm's composition handler own the key. We run before it, so
   // translating here would inject a readline byte into the middle of an IME session and corrupt it.
-  if (e.isComposing) return null
-  if (e.ctrlKey || e.shiftKey) return null
-  const cmd = e.metaKey && !e.altKey
-  const opt = e.altKey && !e.metaKey
+  if (e.isComposing) return null;
+  if (e.ctrlKey || e.shiftKey) return null;
+  const cmd = e.metaKey && !e.altKey;
+  const opt = e.altKey && !e.metaKey;
   if (cmd) {
-    if (e.key === 'ArrowLeft') return '\x01'  // Ctrl-A — line start
-    if (e.key === 'ArrowRight') return '\x05' // Ctrl-E — line end
-    if (e.key === 'Backspace') return '\x15'  // Ctrl-U — kill to line start
-    if (e.key === 'Delete') return '\x0b'     // Ctrl-K — kill to line end (forward delete)
+    if (e.key === "ArrowLeft") return "\x01"; // Ctrl-A — line start
+    if (e.key === "ArrowRight") return "\x05"; // Ctrl-E — line end
+    if (e.key === "Backspace") return "\x15"; // Ctrl-U — kill to line start
+    if (e.key === "Delete") return "\x0b"; // Ctrl-K — kill to line end (forward delete)
   }
   if (opt) {
-    if (e.key === 'ArrowLeft') return '\x1bb'  // Esc-b — word back
-    if (e.key === 'ArrowRight') return '\x1bf' // Esc-f — word forward
-    if (e.key === 'Backspace') return '\x17'   // Ctrl-W — delete previous word
+    if (e.key === "ArrowLeft") return "\x1bb"; // Esc-b — word back
+    if (e.key === "ArrowRight") return "\x1bf"; // Esc-f — word forward
+    if (e.key === "Backspace") return "\x17"; // Ctrl-W — delete previous word
     // opt+Delete (forward word-delete, Esc-d) is intentionally unmapped: it needs fn on Mac laptops, so it's rare.
   }
-  return null
+  return null;
 }

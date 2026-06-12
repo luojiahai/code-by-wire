@@ -1,8 +1,8 @@
-import { Wordmark, cx } from './atoms'
-import { useZoomFactor } from './use-zoom-factor'
-import { useFullscreen } from './use-fullscreen'
-import { HEADER_HEIGHT_PX, headerLeftPaddingPx } from '@shared/chrome'
-import { isMacPlatform } from '@shared/platform'
+import { Wordmark, cx } from "./atoms";
+import { useZoomFactor } from "./use-zoom-factor";
+import { useFullscreen } from "./use-fullscreen";
+import { HEADER_HEIGHT_PX, headerLeftPaddingPx } from "@shared/chrome";
+import { isMacPlatform } from "@shared/platform";
 
 /**
  * The frameless app's title bar: a draggable strip carrying the wordmark, anchored top-left. On macOS
@@ -15,22 +15,22 @@ import { isMacPlatform } from '@shared/platform'
  * live in the rail, so this bar is just brand.
  */
 export function GlobalHeader() {
-  const isMac = isMacPlatform(window.api.platform)
-  const isFullscreen = useFullscreen()
-  useZoomFactor(isMac)
+  const isMac = isMacPlatform(window.api.platform);
+  const isFullscreen = useFullscreen();
+  useZoomFactor(isMac);
   return (
     <header
       className={cx(
-        'drag-region flex shrink-0 select-none items-center overflow-hidden border-b border-ink-800 bg-ink-925 pr-4',
-        isMac && 'title-bar',
+        "drag-region flex shrink-0 select-none items-center overflow-hidden border-b border-ink-800 bg-ink-925 pr-4",
+        isMac && "title-bar",
       )}
       style={{
         height: HEADER_HEIGHT_PX,
         paddingLeft: headerLeftPaddingPx(isMac, isFullscreen),
-        transition: 'padding-left 200ms ease-out',
+        transition: "padding-left 200ms ease-out",
       }}
     >
       <Wordmark />
     </header>
-  )
+  );
 }

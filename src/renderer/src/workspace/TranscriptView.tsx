@@ -1,7 +1,7 @@
-import { useEffect, useRef, type ReactNode } from 'react'
-import type { SessionState } from '@shared/types'
-import type { DocState } from './use-transcript'
-import { EventItem } from './events'
+import { useEffect, useRef, type ReactNode } from "react";
+import type { SessionState } from "@shared/types";
+import type { DocState } from "./use-transcript";
+import { EventItem } from "./events";
 
 /**
  * A session's rendered transcript: a bottom-sticky feed of events plus a prominent Waiting banner. The
@@ -16,47 +16,53 @@ export function TranscriptView({
   state,
   readOnly,
 }: {
-  doc: DocState
-  project: string
-  state: SessionState
-  readOnly: boolean
+  doc: DocState;
+  project: string;
+  state: SessionState;
+  readOnly: boolean;
 }) {
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const countRef = useRef(0)
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const countRef = useRef(0);
 
   // Stick to the bottom when new events arrive — this is a live, read-only feed.
   useEffect(() => {
-    const n = doc?.events.length ?? 0
-    if (n > countRef.current) bottomRef.current?.scrollIntoView({ block: 'end' })
-    countRef.current = n
-  }, [doc])
+    const n = doc?.events.length ?? 0;
+    if (n > countRef.current)
+      bottomRef.current?.scrollIntoView({ block: "end" });
+    countRef.current = n;
+  }, [doc]);
 
   if (doc === null) {
     return (
       <Center>
         {readOnly
-          ? 'No transcript on disk for this session yet.'
-          : 'No transcript yet — drive the session in the Terminal tab.'}
+          ? "No transcript on disk for this session yet."
+          : "No transcript yet — drive the session in the Terminal tab."}
       </Center>
-    )
+    );
   }
 
   return (
     <div>
       {readOnly && (
         <div className="sticky top-0 z-10 border-b border-ink-800 bg-ink-925/90 px-5 py-2 text-center text-[10px] uppercase tracking-wider text-fg-faint backdrop-blur">
-          ● Read-only — live transcript from {project}. You can't type into an Observed session.
+          ● Read-only — live transcript from {project}. You can't type into an
+          Observed session.
         </div>
       )}
 
       <div className="mx-auto max-w-3xl space-y-4 p-5">
-        {doc?.events.map((e, i) => <EventItem key={i} event={e} />)}
+        {doc?.events.map((e, i) => (
+          <EventItem key={i} event={e} />
+        ))}
 
-        {state === 'waiting' && (
+        {state === "waiting" && (
           <div className="rounded-lg border border-accent/40 bg-accent/[0.08] p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-accent-bright">Waiting for you</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-accent-bright">
+              Waiting for you
+            </div>
             <p className="mt-1 whitespace-pre-wrap font-mono text-[12px] text-accent-bright">
-              {doc?.waitingReason ?? 'Waiting for your input'}
+              {doc?.waitingReason ?? "Waiting for your input"}
             </p>
           </div>
         )}
@@ -64,9 +70,13 @@ export function TranscriptView({
         <div ref={bottomRef} />
       </div>
     </div>
-  )
+  );
 }
 
 function Center({ children }: { children: ReactNode }) {
-  return <div className="flex h-full items-center justify-center text-[12px] text-fg-faint">{children}</div>
+  return (
+    <div className="flex h-full items-center justify-center text-[12px] text-fg-faint">
+      {children}
+    </div>
+  );
 }

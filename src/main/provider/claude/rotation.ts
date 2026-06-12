@@ -1,21 +1,21 @@
 /** One pty this app run spawned and controls, paired with the OS pid of its `claude` process. */
 export interface ManagedPty {
-  id: string
-  pid: number
+  id: string;
+  pid: number;
 }
 
 /** A `<pid>.json` registry file's identity: the live `claude` process and the session id it is
  *  currently writing. `/clear` repoints `sessionId` under the same `pid`. */
 export interface RegistryEntry {
-  pid: number
-  sessionId: string
+  pid: number;
+  sessionId: string;
 }
 
 /** A managed pty whose Claude session id moved out from under it: same process, new transcript. */
 export interface Rotation {
-  from: string
-  to: string
-  pid: number
+  from: string;
+  to: string;
+  pid: number;
 }
 
 /**
@@ -29,22 +29,26 @@ export interface Rotation {
  * process, which the alive→Ended path already handles. Only a present-but-different sessionId is a
  * rotation.
  */
-export function detectRotations(managed: ManagedPty[], registry: RegistryEntry[]): Rotation[] {
-  const sessionByPid = new Map<number, string>()
-  for (const r of registry) sessionByPid.set(r.pid, r.sessionId)
+export function detectRotations(
+  managed: ManagedPty[],
+  registry: RegistryEntry[],
+): Rotation[] {
+  const sessionByPid = new Map<number, string>();
+  for (const r of registry) sessionByPid.set(r.pid, r.sessionId);
 
-  const rotations: Rotation[] = []
+  const rotations: Rotation[] = [];
   for (const { id, pid } of managed) {
-    const current = sessionByPid.get(pid)
-    if (current !== undefined && current !== id) rotations.push({ from: id, to: current, pid })
+    const current = sessionByPid.get(pid);
+    if (current !== undefined && current !== id)
+      rotations.push({ from: id, to: current, pid });
   }
-  return rotations
+  return rotations;
 }
 
 /** The minimum a registry must expose for rotation reconciliation: its managed ptys and a way to re-key one. */
 export interface RenamableRegistry {
-  entries(): ManagedPty[]
-  rename(from: string, to: string): void
+  entries(): ManagedPty[];
+  rename(from: string, to: string): void;
 }
 
 /**
@@ -61,12 +65,12 @@ export function applyRotations(
   readRegistry: () => RegistryEntry[],
   rename: (from: string, to: string) => void,
 ): Rotation[] {
-  const managedPtys = managed.entries()
-  if (managedPtys.length === 0) return []
-  const rotations = detectRotations(managedPtys, readRegistry())
+  const managedPtys = managed.entries();
+  if (managedPtys.length === 0) return [];
+  const rotations = detectRotations(managedPtys, readRegistry());
   for (const { from, to } of rotations) {
-    managed.rename(from, to)
-    rename(from, to)
+    managed.rename(from, to);
+    rename(from, to);
   }
-  return rotations
+  return rotations;
 }

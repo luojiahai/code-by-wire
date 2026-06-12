@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react'
+import { useLayoutEffect, useState } from "react";
 
 /**
  * Track whether the window is in native macOS fullscreen, so the header can slide the wordmark into the
@@ -9,7 +9,7 @@ import { useLayoutEffect, useState } from 'react'
  * this stays false and the header never insets.
  */
 export function useFullscreen(): boolean {
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  useLayoutEffect(() => window.api.onFullscreenChange(setIsFullscreen), [])
-  return isFullscreen
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useLayoutEffect(() => window.api.onFullscreenChange(setIsFullscreen), []);
+  return isFullscreen;
 }

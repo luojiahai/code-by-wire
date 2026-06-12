@@ -1,30 +1,31 @@
-import { useEffect, useId, useRef, useState } from 'react'
-import { Icon } from '../ui/icons'
-import { OPEN_IN_GROUPS } from './open-in-items'
+import { useEffect, useId, useRef, useState } from "react";
+import { Icon } from "../ui/icons";
+import { OPEN_IN_GROUPS } from "./open-in-items";
 
 /** The header's "Open in" dropdown. The trigger toggles a grouped menu of open targets. Every item is a
  *  disabled placeholder for now (its tooltip says so); wiring lands later. The menu closes on an outside
  *  click or Escape. */
 export function OpenInMenu() {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const menuId = useId()
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const menuId = useId();
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === "Escape") setOpen(false);
     }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   return (
     <div ref={ref} className="relative">
@@ -47,7 +48,10 @@ export function OpenInMenu() {
         >
           {OPEN_IN_GROUPS.map(({ group, label, items }) => (
             <div key={group} className="py-1 first:pt-0.5">
-              <div role="presentation" className="px-2 pb-1 text-[9px] uppercase tracking-wider text-fg-faint">
+              <div
+                role="presentation"
+                className="px-2 pb-1 text-[9px] uppercase tracking-wider text-fg-faint"
+              >
                 {label}
               </div>
               {items.map((item) => (
@@ -68,5 +72,5 @@ export function OpenInMenu() {
         </div>
       )}
     </div>
-  )
+  );
 }

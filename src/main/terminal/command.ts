@@ -1,8 +1,8 @@
-import { familyFor, type ModelId } from '@shared/models'
+import { familyFor, type ModelId } from "@shared/models";
 
 export interface ClaudeCommand {
-  file: string
-  args: string[]
+  file: string;
+  args: string[];
 }
 
 /**
@@ -13,11 +13,15 @@ export interface ClaudeCommand {
  * transcript anyway. The executable is the `CBW_CLAUDE_BIN` override else `claude` on PATH, resolved by
  * node-pty. cwd and env are spawn options, not argv, so this stays a pure function of its inputs.
  */
-export function buildClaudeCommand(opts: { id: string; model: ModelId; bin?: string }): ClaudeCommand {
+export function buildClaudeCommand(opts: {
+  id: string;
+  model: ModelId;
+  bin?: string;
+}): ClaudeCommand {
   return {
-    file: opts.bin ?? process.env.CBW_CLAUDE_BIN ?? 'claude',
-    args: ['--session-id', opts.id, '--model', familyFor(opts.model)],
-  }
+    file: opts.bin ?? process.env.CBW_CLAUDE_BIN ?? "claude",
+    args: ["--session-id", opts.id, "--model", familyFor(opts.model)],
+  };
 }
 
 /**
@@ -26,9 +30,12 @@ export function buildClaudeCommand(opts: { id: string; model: ModelId; bin?: str
  * session's model ("model settings still apply"), which is the "inherit" in one-click Adopt. Same bin
  * resolution as buildClaudeCommand.
  */
-export function buildResumeCommand(opts: { id: string; bin?: string }): ClaudeCommand {
+export function buildResumeCommand(opts: {
+  id: string;
+  bin?: string;
+}): ClaudeCommand {
   return {
-    file: opts.bin ?? process.env.CBW_CLAUDE_BIN ?? 'claude',
-    args: ['--resume', opts.id],
-  }
+    file: opts.bin ?? process.env.CBW_CLAUDE_BIN ?? "claude",
+    args: ["--resume", opts.id],
+  };
 }

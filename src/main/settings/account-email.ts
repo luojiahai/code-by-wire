@@ -1,5 +1,5 @@
-import { dirname, join } from 'node:path'
-import { readTextOrNull } from '../claude-config'
+import { dirname, join } from "node:path";
+import { readTextOrNull } from "../claude-config";
 
 /**
  * The logged-in account email from `.claude.json`. Claude Code writes this file as a sibling of the
@@ -8,18 +8,21 @@ import { readTextOrNull } from '../claude-config'
  * malformation returns null (the popover hides the row), never throws.
  */
 export function readAccountEmail(claudeDir: string): string | null {
-  const candidates = [join(dirname(claudeDir), '.claude.json'), join(claudeDir, '.claude.json')]
+  const candidates = [
+    join(dirname(claudeDir), ".claude.json"),
+    join(claudeDir, ".claude.json"),
+  ];
   for (const path of candidates) {
-    const raw = readTextOrNull(path)
-    if (raw === null) continue
+    const raw = readTextOrNull(path);
+    if (raw === null) continue;
     try {
-      const j = JSON.parse(raw) as Record<string, unknown>
-      const oauth = (j.oauthAccount ?? {}) as Record<string, unknown>
-      const email = oauth.emailAddress
-      if (typeof email === 'string' && email.length > 0) return email
+      const j = JSON.parse(raw) as Record<string, unknown>;
+      const oauth = (j.oauthAccount ?? {}) as Record<string, unknown>;
+      const email = oauth.emailAddress;
+      if (typeof email === "string" && email.length > 0) return email;
     } catch {
       // malformed JSON — try the next candidate, then give up
     }
   }
-  return null
+  return null;
 }

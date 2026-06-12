@@ -1,4 +1,4 @@
-import type { Session } from './types'
+import type { Session } from "./types";
 
 /**
  * Merge freshly-discovered sessions with optimistic Managed drafts (sessions the app spawned this run
@@ -7,9 +7,12 @@ import type { Session } from './types'
  * That keeps a just-created Managed session visible in the Overview and openable during the gap between
  * spawn and Claude writing its registry file + transcript.
  */
-export function mergeManaged(sessions: Session[], drafts: Session[]): Session[] {
-  const real = new Set(sessions.map((s) => s.id))
-  return [...sessions, ...drafts.filter((d) => !real.has(d.id))]
+export function mergeManaged(
+  sessions: Session[],
+  drafts: Session[],
+): Session[] {
+  const real = new Set(sessions.map((s) => s.id));
+  return [...sessions, ...drafts.filter((d) => !real.has(d.id))];
 }
 
 /**
@@ -23,9 +26,15 @@ export function mergeManaged(sessions: Session[], drafts: Session[]): Session[] 
  * list that means `from` is the abandoned id's Ended ghost, which must survive; for drafts the rename has
  * already happened. Without it, the rename would duplicate `to` and erase the ghost.
  */
-export function renameManaged(rows: Session[], from: string, to: string): Session[] {
-  if (rows.some((r) => r.id === to)) return rows
-  return rows.map((r) => (r.id === from ? { ...r, id: to, management: 'managed' } : r))
+export function renameManaged(
+  rows: Session[],
+  from: string,
+  to: string,
+): Session[] {
+  if (rows.some((r) => r.id === to)) return rows;
+  return rows.map((r) =>
+    r.id === from ? { ...r, id: to, management: "managed" } : r,
+  );
 }
 
 /**
@@ -36,12 +45,16 @@ export function renameManaged(rows: Session[], from: string, to: string): Sessio
  * forced Managed/Working and lingers as a phantom session, no longer adoptable, for the rest of the run.
  * No-op (same reference) when `from` wasn't adopting.
  */
-export function renameAdopting(adopting: Set<string>, from: string, to: string): Set<string> {
-  if (!adopting.has(from)) return adopting
-  const next = new Set(adopting)
-  next.delete(from)
-  next.add(to)
-  return next
+export function renameAdopting(
+  adopting: Set<string>,
+  from: string,
+  to: string,
+): Set<string> {
+  if (!adopting.has(from)) return adopting;
+  const next = new Set(adopting);
+  next.delete(from);
+  next.add(to);
+  return next;
 }
 
 /**
@@ -50,9 +63,18 @@ export function renameAdopting(adopting: Set<string>, from: string, to: string):
  * live terminal in the same beat. Unlike a draft, the row already exists, so this overrides in place. App
  * clears the id once discovery reports it Managed, or when its pty exits.
  */
-export function applyAdopting(sessions: Session[], adopting: Set<string>): Session[] {
-  if (adopting.size === 0) return sessions
+export function applyAdopting(
+  sessions: Session[],
+  adopting: Set<string>,
+): Session[] {
+  if (adopting.size === 0) return sessions;
   return sessions.map((s) =>
-    adopting.has(s.id) ? { ...s, management: 'managed', state: s.state === 'ended' ? 'working' : s.state } : s,
-  )
+    adopting.has(s.id)
+      ? {
+          ...s,
+          management: "managed",
+          state: s.state === "ended" ? "working" : s.state,
+        }
+      : s,
+  );
 }

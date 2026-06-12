@@ -19,10 +19,10 @@ import {
   SquareTerminal,
   Terminal,
   type LucideIcon,
-} from 'lucide-react'
-import type { IconName } from './icon-names'
+} from "lucide-react";
+import type { IconName } from "./icon-names";
 
-export type { IconName }
+export type { IconName };
 
 /**
  * The app's curated icon set, keyed by stable kebab-case glyph names. One indirection so call sites
@@ -33,28 +33,36 @@ export type { IconName }
  */
 const ICONS = {
   check: Check,
-  'chevron-down': ChevronDown,
-  'chevron-right': ChevronRight,
+  "chevron-down": ChevronDown,
+  "chevron-right": ChevronRight,
   code: Code,
   copy: Copy,
-  'folder-open': FolderOpen,
+  "folder-open": FolderOpen,
   github: FolderGit2,
-  'git-branch': GitBranch,
-  'git-pull-request-arrow': GitPullRequestArrow,
+  "git-branch": GitBranch,
+  "git-pull-request-arrow": GitPullRequestArrow,
   info: Info,
-  'messages-square': MessagesSquare,
+  "messages-square": MessagesSquare,
   pause: Pause,
   pencil: Pencil,
   plus: Plus,
   search: Search,
   square: Square,
-  'square-dashed-mouse-pointer': SquareDashedMousePointer,
-  'square-terminal': SquareTerminal,
+  "square-dashed-mouse-pointer": SquareDashedMousePointer,
+  "square-terminal": SquareTerminal,
   terminal: Terminal,
-} satisfies Record<IconName, LucideIcon>
+} satisfies Record<IconName, LucideIcon>;
 
 /** A Lucide line icon at the cockpit's 1.75 stroke weight; color inherits via currentColor. */
-export function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {
-  const Glyph = ICONS[name]
-  return <Glyph size={size} strokeWidth={1.75} className={className} />
+export function Icon({
+  name,
+  size = 16,
+  className,
+}: {
+  name: IconName;
+  size?: number;
+  className?: string;
+}) {
+  const Glyph = ICONS[name];
+  return <Glyph size={size} strokeWidth={1.75} className={className} />;
 }

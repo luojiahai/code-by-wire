@@ -1,11 +1,11 @@
-import { readFileSync } from 'node:fs'
-import { indexTranscripts, registryById } from './discover'
-import { firstTranscriptCwd } from './transcript'
+import { readFileSync } from "node:fs";
+import { indexTranscripts, registryById } from "./discover";
+import { firstTranscriptCwd } from "./transcript";
 
 export interface AdoptTargetDeps {
-  claudeDir: string
-  isPidAlive: (pid: number) => boolean
-  id: string
+  claudeDir: string;
+  isPidAlive: (pid: number) => boolean;
+  id: string;
 }
 
 /**
@@ -16,20 +16,24 @@ export interface AdoptTargetDeps {
  * Transcript, which records `cwd` on every row — so a reaped registry file (the common Ended case) still
  * yields it. Null when neither source gives a cwd: there is nothing to adopt.
  */
-export function resolveAdoptTarget({ claudeDir, isPidAlive, id }: AdoptTargetDeps): { alive: boolean; cwd: string } | null {
-  const reg = registryById(claudeDir).get(id)
-  const alive = reg ? isPidAlive(reg.pid) : false
+export function resolveAdoptTarget({
+  claudeDir,
+  isPidAlive,
+  id,
+}: AdoptTargetDeps): { alive: boolean; cwd: string } | null {
+  const reg = registryById(claudeDir).get(id);
+  const alive = reg ? isPidAlive(reg.pid) : false;
 
-  let cwd = reg?.cwd ?? ''
+  let cwd = reg?.cwd ?? "";
   if (!cwd) {
-    const t = indexTranscripts(claudeDir).get(id)
+    const t = indexTranscripts(claudeDir).get(id);
     if (t) {
       try {
-        cwd = firstTranscriptCwd(readFileSync(t.path, 'utf8'))
+        cwd = firstTranscriptCwd(readFileSync(t.path, "utf8"));
       } catch {
-        cwd = ''
+        cwd = "";
       }
     }
   }
-  return cwd ? { alive, cwd } : null
+  return cwd ? { alive, cwd } : null;
 }

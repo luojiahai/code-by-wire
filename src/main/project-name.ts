@@ -1,4 +1,4 @@
-import { basename } from 'node:path'
+import { basename } from "node:path";
 
 /**
  * Human-friendly project name from a working directory: the final path segment, or 'unknown' when the
@@ -6,5 +6,5 @@ import { basename } from 'node:path'
  * same session never disagree on the name.
  */
 export function projectFromCwd(cwd: string | undefined): string {
-  return (cwd && basename(cwd)) || 'unknown'
+  return (cwd && basename(cwd)) || "unknown";
 }

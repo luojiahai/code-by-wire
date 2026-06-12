@@ -1,14 +1,14 @@
-import type { SessionState } from '@shared/types'
+import type { SessionState } from "@shared/types";
 
 export interface SessionStateSignals {
   /** Is the session's process still alive? */
-  alive: boolean
+  alive: boolean;
   /** The `sessions/*.json` status field. Claude Code writes `'busy'` while generating and
    *  `'waiting'` while blocked on the user; both are authoritative. */
-  status: string | undefined
+  status: string | undefined;
   /** Transcript-tail fallback: the last turn left a question or permission prompt unanswered.
    *  Catches a blocked session whose status field hasn't (yet) flipped to `'waiting'`. */
-  awaitingUser: boolean
+  awaitingUser: boolean;
 }
 
 /**
@@ -23,8 +23,8 @@ export function deriveSessionState({
   status,
   awaitingUser,
 }: SessionStateSignals): SessionState {
-  if (!alive) return 'ended'
-  if (status === 'busy') return 'working'
-  if (status === 'waiting' || awaitingUser) return 'waiting'
-  return 'idle'
+  if (!alive) return "ended";
+  if (status === "busy") return "working";
+  if (status === "waiting" || awaitingUser) return "waiting";
+  return "idle";
 }

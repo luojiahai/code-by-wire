@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process'
-import { homedir } from 'node:os'
+import { execFileSync } from "node:child_process";
+import { homedir } from "node:os";
 
 /**
  * A macOS .app launched from Finder/Spotlight/Dock inherits launchd's bare PATH
@@ -17,18 +17,18 @@ import { homedir } from 'node:os'
 /** Standard locations a `claude` binary lands in, appended as a backstop if the shell probe comes up
  *  empty. `~/.local/bin` is the official installer's target; the homebrew dirs cover arm64 and intel. */
 function fallbackDirs(home: string): string[] {
-  return [`${home}/.local/bin`, '/opt/homebrew/bin', '/usr/local/bin']
+  return [`${home}/.local/bin`, "/opt/homebrew/bin", "/usr/local/bin"];
 }
 
 export interface ResolvePathDeps {
-  platform: NodeJS.Platform
+  platform: NodeJS.Platform;
   /** The user's login shell (`process.env.SHELL`); defaults to zsh, the macOS default, when unset. */
-  shell: string | undefined
-  home: string
+  shell: string | undefined;
+  home: string;
   /** The PATH the app process was launched with (`process.env.PATH`). */
-  currentPath: string | undefined
+  currentPath: string | undefined;
   /** Returns the login shell's PATH, or null if the shell is missing, hangs, or prints nothing usable. */
-  probe: (shell: string) => string | null
+  probe: (shell: string) => string | null;
 }
 
 /**
@@ -37,29 +37,31 @@ export interface ResolvePathDeps {
  * first occurrence. Off macOS the launchd-PATH problem doesn't exist, so PATH is returned untouched.
  */
 export function resolveShellPath(deps: ResolvePathDeps): string {
-  if (deps.platform !== 'darwin') return deps.currentPath ?? ''
-  const probed = deps.probe(deps.shell || '/bin/zsh')
-  const segments = [probed, deps.currentPath].flatMap((p) => (p ? p.split(':') : [])).concat(fallbackDirs(deps.home))
-  const seen = new Set<string>()
-  const deduped: string[] = []
+  if (deps.platform !== "darwin") return deps.currentPath ?? "";
+  const probed = deps.probe(deps.shell || "/bin/zsh");
+  const segments = [probed, deps.currentPath]
+    .flatMap((p) => (p ? p.split(":") : []))
+    .concat(fallbackDirs(deps.home));
+  const seen = new Set<string>();
+  const deduped: string[] = [];
   for (const seg of segments) {
-    if (!seg || seen.has(seg)) continue
-    seen.add(seg)
-    deduped.push(seg)
+    if (!seg || seen.has(seg)) continue;
+    seen.add(seg);
+    deduped.push(seg);
   }
-  return deduped.join(':')
+  return deduped.join(":");
 }
 
-const DELIM = '__CBW_PATH_DELIM__'
+const DELIM = "__CBW_PATH_DELIM__";
 
 /** Pull the fenced PATH out of the probe's stdout. The value sits between two delimiters so an rc-file
  *  banner the interactive shell prints (before or after it) can't be mistaken for PATH. Exported so the
  *  parse is unit-tested without spawning a real shell. Returns null when the fence or value is missing. */
 export function parseProbedPath(out: string): string | null {
-  const start = out.indexOf(DELIM)
-  const end = out.indexOf(DELIM, start + DELIM.length)
-  if (start === -1 || end === -1) return null
-  return out.slice(start + DELIM.length, end).trim() || null
+  const start = out.indexOf(DELIM);
+  const end = out.indexOf(DELIM, start + DELIM.length);
+  if (start === -1 || end === -1) return null;
+  return out.slice(start + DELIM.length, end).trim() || null;
 }
 
 /** Run the login+interactive shell and print just its PATH, fenced by delimiters. `printenv PATH` reads
@@ -68,15 +70,24 @@ export function parseProbedPath(out: string): string | null {
  *  first spawn; any failure returns null so the caller falls back to the well-known dirs. */
 function probeLoginShell(shell: string): string | null {
   try {
-    const out = execFileSync(shell, ['-ilc', `printf %s "${DELIM}"; printenv PATH; printf %s "${DELIM}"`], {
-      encoding: 'utf8',
-      timeout: 5_000,
-      stdio: ['ignore', 'pipe', 'ignore'],
-      env: { ...process.env, TERM: 'dumb', DISABLE_AUTO_UPDATE: 'true', GIT_TERMINAL_PROMPT: '0' },
-    })
-    return parseProbedPath(out)
+    const out = execFileSync(
+      shell,
+      ["-ilc", `printf %s "${DELIM}"; printenv PATH; printf %s "${DELIM}"`],
+      {
+        encoding: "utf8",
+        timeout: 5_000,
+        stdio: ["ignore", "pipe", "ignore"],
+        env: {
+          ...process.env,
+          TERM: "dumb",
+          DISABLE_AUTO_UPDATE: "true",
+          GIT_TERMINAL_PROMPT: "0",
+        },
+      },
+    );
+    return parseProbedPath(out);
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -88,5 +99,5 @@ export function shellPath(): string {
     home: homedir(),
     currentPath: process.env.PATH,
     probe: probeLoginShell,
-  })
+  });
 }

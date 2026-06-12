@@ -1,13 +1,13 @@
-import type { PersistedSession } from '@shared/types'
-import type { Provider } from './provider/types'
-import { transaction, type SqliteDb } from './db/driver'
-import { getPersisted, upsertSessions, pruneSessions } from './db/store'
+import type { PersistedSession } from "@shared/types";
+import type { Provider } from "./provider/types";
+import { transaction, type SqliteDb } from "./db/driver";
+import { getPersisted, upsertSessions, pruneSessions } from "./db/store";
 
 export interface SyncResult {
   /** Ids whose transcript was (re)parsed this pass. */
-  parsedIds: string[]
+  parsedIds: string[];
   /** Ids dropped from the index (aged out of the window and not live). */
-  prunedIds: string[]
+  prunedIds: string[];
 }
 
 /**
@@ -19,33 +19,35 @@ export interface SyncResult {
  * identical.
  */
 export function syncSessions(db: SqliteDb, provider: Provider): SyncResult {
-  const stored = new Map(getPersisted(db).map((s) => [s.id, s]))
-  const candidates = provider.listCandidates()
+  const stored = new Map(getPersisted(db).map((s) => [s.id, s]));
+  const candidates = provider.listCandidates();
 
-  const snapshots: PersistedSession[] = []
-  const parsedIds: string[] = []
+  const snapshots: PersistedSession[] = [];
+  const parsedIds: string[] = [];
   for (const c of candidates) {
-    const prev = stored.get(c.id)
-    const changed = c.transcriptMtimeMs > 0 && (!prev || c.transcriptMtimeMs > prev.transcriptMtimeMs)
+    const prev = stored.get(c.id);
+    const changed =
+      c.transcriptMtimeMs > 0 &&
+      (!prev || c.transcriptMtimeMs > prev.transcriptMtimeMs);
     if (changed) {
-      snapshots.push(provider.summarize(c)) // new or advanced transcript → parse
-      parsedIds.push(c.id)
+      snapshots.push(provider.summarize(c)); // new or advanced transcript → parse
+      parsedIds.push(c.id);
     } else if (prev) {
-      snapshots.push(provider.restate(c, prev)) // unchanged → reuse, refresh state only, no parse
+      snapshots.push(provider.restate(c, prev)); // unchanged → reuse, refresh state only, no parse
     } else {
-      snapshots.push(provider.summarize(c)) // first sight, no transcript → registry skeleton, no parse
+      snapshots.push(provider.summarize(c)); // first sight, no transcript → registry skeleton, no parse
     }
   }
 
-  const keep = new Set(candidates.map((c) => c.id))
-  const prunedIds = [...stored.keys()].filter((id) => !keep.has(id))
+  const keep = new Set(candidates.map((c) => c.id));
+  const prunedIds = [...stored.keys()].filter((id) => !keep.has(id));
 
   // One transaction so the pass is all-or-nothing: a crash or throw between the upsert and the
   // prune can't leave the index holding both fresh snapshots and rows that should have aged out.
   transaction(db, () => {
-    upsertSessions(db, snapshots)
-    pruneSessions(db, [...keep])
-  })
+    upsertSessions(db, snapshots);
+    pruneSessions(db, [...keep]);
+  });
 
-  return { parsedIds, prunedIds }
+  return { parsedIds, prunedIds };
 }

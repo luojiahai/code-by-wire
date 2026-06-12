@@ -1,1 +1,10 @@
-{"pid":1001,"sessionId":"aaaa1111-1111-1111-1111-111111111111","cwd":"/work/code-by-wire","startedAt":1780959200000,"status":"busy","updatedAt":1780959246078,"version":"2.1.169","kind":"interactive"}
+{
+  "pid": 1001,
+  "sessionId": "aaaa1111-1111-1111-1111-111111111111",
+  "cwd": "/work/code-by-wire",
+  "startedAt": 1780959200000,
+  "status": "busy",
+  "updatedAt": 1780959246078,
+  "version": "2.1.169",
+  "kind": "interactive"
+}

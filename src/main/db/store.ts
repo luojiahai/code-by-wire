@@ -1,13 +1,18 @@
-import type { Session, PersistedSession } from '@shared/types'
-import { contextWindowFor, equivApiValue, normalizeModelId } from '@shared/models'
-import type { IndexOverview } from '@shared/ipc'
-import { transaction, type SqliteDb } from './driver'
+import type { Session, PersistedSession } from "@shared/types";
+import {
+  contextWindowFor,
+  equivApiValue,
+  normalizeModelId,
+} from "@shared/models";
+import type { IndexOverview } from "@shared/ipc";
+import { transaction, type SqliteDb } from "./driver";
 
 /** Bump when the schema changes; `migrate` rebuilds the index (a disposable cache) to match. */
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 3;
 
 function userVersion(db: SqliteDb): number {
-  return (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version
+  return (db.prepare("PRAGMA user_version").get() as { user_version: number })
+    .user_version;
 }
 
 /**
@@ -37,26 +42,26 @@ export function migrate(db: SqliteDb): void {
         context_tokens INTEGER NOT NULL DEFAULT 0
       );
       PRAGMA user_version = ${SCHEMA_VERSION};
-    `)
+    `);
   }
 }
 
 interface Row {
-  id: string
-  title: string
-  project: string
-  branch: string | null
-  state: string
-  management: string
-  model: string
-  last_activity_ms: number
-  awaiting_user: number
-  transcript_mtime_ms: number
-  input_tokens: number
-  output_tokens: number
-  cache_read_tokens: number
-  cache_creation_tokens: number
-  context_tokens: number
+  id: string;
+  title: string;
+  project: string;
+  branch: string | null;
+  state: string;
+  management: string;
+  model: string;
+  last_activity_ms: number;
+  awaiting_user: number;
+  transcript_mtime_ms: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_creation_tokens: number;
+  context_tokens: number;
 }
 
 function rowToPersisted(r: Row): PersistedSession {
@@ -65,8 +70,8 @@ function rowToPersisted(r: Row): PersistedSession {
     title: r.title,
     project: r.project,
     branch: r.branch ?? undefined,
-    state: r.state as PersistedSession['state'],
-    management: r.management as PersistedSession['management'],
+    state: r.state as PersistedSession["state"],
+    management: r.management as PersistedSession["management"],
     model: normalizeModelId(r.model),
     lastActivityMs: r.last_activity_ms,
     awaitingUser: !!r.awaiting_user,
@@ -78,13 +83,13 @@ function rowToPersisted(r: Row): PersistedSession {
       cacheCreationTokens: r.cache_creation_tokens,
     },
     contextTokens: r.context_tokens,
-  }
+  };
 }
 
 /** Context fill as a whole-number percent, capped at 100; 0 when the window is unknown. The cap
  *  guards a model run on a larger window than its family default (e.g. Sonnet on the 1M beta). */
 function pctOfWindow(tokens: number, window: number): number {
-  return window > 0 ? Math.min(100, Math.round((tokens / window) * 100)) : 0
+  return window > 0 ? Math.min(100, Math.round((tokens / window) * 100)) : 0;
 }
 
 /**
@@ -94,7 +99,7 @@ function pctOfWindow(tokens: number, window: number): number {
  * here, not stored.
  */
 export function hydrate(p: PersistedSession): Session {
-  const contextWindow = contextWindowFor(p.model)
+  const contextWindow = contextWindowFor(p.model);
   return {
     id: p.id,
     title: p.title,
@@ -108,7 +113,7 @@ export function hydrate(p: PersistedSession): Session {
     usage: p.usage,
     equivApiValueUsd: equivApiValue(p.usage, p.model),
     lastActivityMs: p.lastActivityMs,
-  }
+  };
 }
 
 const UPSERT = `
@@ -133,15 +138,18 @@ const UPSERT = `
     cache_read_tokens = excluded.cache_read_tokens,
     cache_creation_tokens = excluded.cache_creation_tokens,
     context_tokens = excluded.context_tokens
-`
+`;
 
 /**
  * Upsert snapshots by id: changed rows update in place, new ones insert, the rest are rewritten with
  * identical values (so a no-change pass leaves content untouched). One transaction, so a mid-batch
  * failure leaves the index as it was.
  */
-export function upsertSessions(db: SqliteDb, snapshots: PersistedSession[]): void {
-  const stmt = db.prepare(UPSERT)
+export function upsertSessions(
+  db: SqliteDb,
+  snapshots: PersistedSession[],
+): void {
+  const stmt = db.prepare(UPSERT);
   transaction(db, () => {
     for (const s of snapshots) {
       stmt.run({
@@ -160,21 +168,23 @@ export function upsertSessions(db: SqliteDb, snapshots: PersistedSession[]): voi
         cache_read_tokens: s.usage.cacheReadTokens,
         cache_creation_tokens: s.usage.cacheCreationTokens,
         context_tokens: s.contextTokens,
-      })
+      });
     }
-  })
+  });
 }
 
 /** Every persisted snapshot, freshest first. The sync reads this once to learn stored mtimes and to
  *  reuse unchanged snapshots without reparsing. */
 export function getPersisted(db: SqliteDb): PersistedSession[] {
-  const rows = db.prepare('SELECT * FROM sessions ORDER BY last_activity_ms DESC').all() as Row[]
-  return rows.map(rowToPersisted)
+  const rows = db
+    .prepare("SELECT * FROM sessions ORDER BY last_activity_ms DESC")
+    .all() as Row[];
+  return rows.map(rowToPersisted);
 }
 
 /** The renderer-facing sessions: persisted snapshots hydrated with the derived display values. */
 export function getSessions(db: SqliteDb): Session[] {
-  return getPersisted(db).map(hydrate)
+  return getPersisted(db).map(hydrate);
 }
 
 /**
@@ -182,20 +192,22 @@ export function getSessions(db: SqliteDb): Session[] {
  * snapshot in one IPC round trip. `getPersisted` reads the SQLite rows, never a transcript (ADR-0002).
  */
 export function getOverview(db: SqliteDb): IndexOverview {
-  const persisted = getPersisted(db)
+  const persisted = getPersisted(db);
   // No account here: the SQLite index holds no live statusLine data (ADR-0002). ipc.ts overlays the
   // freshest captures and derives the account before serving the renderer (the IndexOverview → OverviewData
   // seam), so the store never ships a half-built account that some other caller could read as real.
-  return { sessions: persisted.map(hydrate) }
+  return { sessions: persisted.map(hydrate) };
 }
 
 /** Drop every row whose id isn't in `keepIds` — sessions that aged out of the window and aren't live.
  *  An empty keep-set clears the table. */
 export function pruneSessions(db: SqliteDb, keepIds: string[]): void {
   if (keepIds.length === 0) {
-    db.exec('DELETE FROM sessions')
-    return
+    db.exec("DELETE FROM sessions");
+    return;
   }
-  const placeholders = keepIds.map(() => '?').join(',')
-  db.prepare(`DELETE FROM sessions WHERE id NOT IN (${placeholders})`).run(...keepIds)
+  const placeholders = keepIds.map(() => "?").join(",");
+  db.prepare(`DELETE FROM sessions WHERE id NOT IN (${placeholders})`).run(
+    ...keepIds,
+  );
 }

@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { cx, Swatch } from '../../ui/atoms'
+import type { ReactNode } from "react";
+import { cx, Swatch } from "../../ui/atoms";
 
 /** One dense metric row: label left, value right (mono, tabular). A null/undefined value renders a muted
  *  em-dash so the row position stays stable (the empty-state rule). `tone` is an optional Tailwind text
@@ -12,22 +12,30 @@ export function MetricRow({
   title,
   swatch,
 }: {
-  label: string
-  value: ReactNode | null | undefined
-  tone?: string
-  title?: string
-  swatch?: string
+  label: string;
+  value: ReactNode | null | undefined;
+  tone?: string;
+  title?: string;
+  swatch?: string;
 }) {
-  const empty = value === null || value === undefined || value === ''
+  const empty = value === null || value === undefined || value === "";
   return (
-    <div className="flex items-baseline justify-between gap-3 py-0.5" title={title}>
+    <div
+      className="flex items-baseline justify-between gap-3 py-0.5"
+      title={title}
+    >
       <span className="flex items-center gap-1.5 text-[12px] text-fg-muted">
         {swatch && <Swatch color={swatch} />}
         {label}
       </span>
-      <span className={cx('font-mono text-[12px] tabular-nums', empty ? 'text-ink-600' : tone ?? 'text-fg')}>
-        {empty ? '—' : value}
+      <span
+        className={cx(
+          "font-mono text-[12px] tabular-nums",
+          empty ? "text-ink-600" : (tone ?? "text-fg"),
+        )}
+      >
+        {empty ? "—" : value}
       </span>
     </div>
-  )
+  );
 }

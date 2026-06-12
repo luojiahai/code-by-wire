@@ -6,21 +6,21 @@
  * This is a SECOND projection over the transcript, distinct from TranscriptSummary (token sums,
  * derived state). That one answers "what is this session"; this one answers "what does it look like".
  */
-import type { Subagent } from './types'
+import type { Subagent } from "./types";
 
 /** A minimal diff: the removed and added lines of an edit, already split on newline. */
 export interface DiffHunk {
-  removed: string[]
-  added: string[]
+  removed: string[];
+  added: string[];
 }
 
 /** The current context's cache-state split: the latest assistant turn's prompt, broken into the part
  *  read from cache (the stable bulk), the part newly cached this turn, and the fresh uncached input.
  *  Summed, these are the session's current context size. */
 export interface ContextBreakdown {
-  input: number
-  cacheRead: number
-  cacheCreation: number
+  input: number;
+  cacheRead: number;
+  cacheCreation: number;
 }
 
 /** One turn in the timeline: a user prompt and the assistant work it triggered, up to the next prompt.
@@ -28,38 +28,38 @@ export interface ContextBreakdown {
  *  or still in flight). toolCount excludes subagent-internal tools — those live in their own transcript. */
 export interface TurnSummary {
   /** 1-based turn number in file order. */
-  index: number
+  index: number;
   /** Short, single-line label from the user prompt (slash commands by name). */
-  prompt: string
-  startMs: number
-  endMs: number
-  durationMs: number
-  toolCount: number
+  prompt: string;
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+  toolCount: number;
 }
 
 /** One rendered item in the conversation, in file order. */
 export type TranscriptEvent =
-  | { kind: 'user'; text: string }
-  | { kind: 'assistant'; text: string }
-  | { kind: 'thinking'; text: string }
-  | { kind: 'tool'; name: string; input: string }
-  | { kind: 'diff'; tool: string; file: string; hunk: DiffHunk }
-  | { kind: 'subagent'; agentType: string; description: string }
+  | { kind: "user"; text: string }
+  | { kind: "assistant"; text: string }
+  | { kind: "thinking"; text: string }
+  | { kind: "tool"; name: string; input: string }
+  | { kind: "diff"; tool: string; file: string; hunk: DiffHunk }
+  | { kind: "subagent"; agentType: string; description: string };
 
 export interface TranscriptDoc {
   /** The conversation, oldest first. */
-  events: TranscriptEvent[]
+  events: TranscriptEvent[];
   /** Non-null when the transcript's tail left a prompt unanswered: a human-readable reason (a
    *  question, or the pending tool). The workspace shows it prominently for a Waiting session. */
-  waitingReason: string | null
+  waitingReason: string | null;
   /** Turn-by-turn timeline, oldest first. Empty when the transcript has no real user prompt yet. */
-  turns: TurnSummary[]
+  turns: TurnSummary[];
   /** Current context cache-state split, or null when no assistant turn has reported usage. */
-  context: ContextBreakdown | null
+  context: ContextBreakdown | null;
   /** The session's subagent forest, reconstructed from its external subagent transcripts. Roots are
    *  dispatched from the main transcript; children nest under the agent that dispatched them. Empty
    *  when the session spawned no subagents. */
-  subagents: Subagent[]
+  subagents: Subagent[];
 }
 
 /**
@@ -77,9 +77,11 @@ export interface TranscriptDoc {
  * mint its own token. The matching `changed` variant carries the payload plus the same token.
  */
 export type ReadSettled =
-  | { status: 'unchanged'; mtimeMs: number }
-  | { status: 'absent' }
-  | { status: 'error' }
+  | { status: "unchanged"; mtimeMs: number }
+  | { status: "absent" }
+  | { status: "error" };
 
 /** The result of an on-demand transcript read: a fresh doc, or one of the shared settled outcomes. */
-export type TranscriptRead = { status: 'changed'; mtimeMs: number; doc: TranscriptDoc } | ReadSettled
+export type TranscriptRead =
+  | { status: "changed"; mtimeMs: number; doc: TranscriptDoc }
+  | ReadSettled;

@@ -1,26 +1,26 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
-import type { PersistedSession, SessionCandidate } from '@shared/types'
-import { normalizeModelId } from '@shared/models'
-import { projectFromCwd } from '../../project-name'
-import { parseTranscript, type TranscriptSummary } from './transcript'
-import { deriveSessionState } from './state'
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import type { PersistedSession, SessionCandidate } from "@shared/types";
+import { normalizeModelId } from "@shared/models";
+import { projectFromCwd } from "../../project-name";
+import { parseTranscript, type TranscriptSummary } from "./transcript";
+import { deriveSessionState } from "./state";
 
 export interface RawSessionFile {
-  pid: number
-  sessionId: string
-  cwd: string
-  status?: string
-  updatedAt?: number
+  pid: number;
+  sessionId: string;
+  cwd: string;
+  status?: string;
+  updatedAt?: number;
 }
 
 export interface CandidateDeps {
-  claudeDir: string
-  isPidAlive: (pid: number) => boolean
+  claudeDir: string;
+  isPidAlive: (pid: number) => boolean;
   /** Wall-clock (ms) for the recency cut. Injected so tests are deterministic. */
-  now: number
+  now: number;
   /** How far back (ms) a transcript-only (Ended) session still counts as recent. */
-  recentWindowMs: number
+  recentWindowMs: number;
 }
 
 /**
@@ -32,11 +32,11 @@ export interface CandidateDeps {
  */
 function readRoot(dir: string): string[] {
   try {
-    return readdirSync(dir)
+    return readdirSync(dir);
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code
-    if (code === 'ENOENT' || code === 'ENOTDIR') return []
-    throw err
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return [];
+    throw err;
   }
 }
 
@@ -44,35 +44,39 @@ function readRoot(dir: string): string[] {
  *  shouldn't sink the sweep (unlike an unreadable root, which `readRoot` surfaces). */
 function safeReaddir(dir: string): string[] {
   try {
-    return readdirSync(dir)
+    return readdirSync(dir);
   } catch {
-    return []
+    return [];
   }
 }
 
 /** Read every well-formed `sessions/*.json`, skipping malformed files. */
 export function readSessionFiles(claudeDir: string): RawSessionFile[] {
-  const dir = join(claudeDir, 'sessions')
+  const dir = join(claudeDir, "sessions");
 
-  const out: RawSessionFile[] = []
+  const out: RawSessionFile[] = [];
   for (const name of readRoot(dir)) {
-    if (!name.endsWith('.json')) continue
+    if (!name.endsWith(".json")) continue;
     try {
-      const j = JSON.parse(readFileSync(join(dir, name), 'utf8'))
-      if (typeof j.pid === 'number' && j.pid > 0 && typeof j.sessionId === 'string') {
+      const j = JSON.parse(readFileSync(join(dir, name), "utf8"));
+      if (
+        typeof j.pid === "number" &&
+        j.pid > 0 &&
+        typeof j.sessionId === "string"
+      ) {
         out.push({
           pid: j.pid,
           sessionId: j.sessionId,
-          cwd: typeof j.cwd === 'string' ? j.cwd : '',
+          cwd: typeof j.cwd === "string" ? j.cwd : "",
           status: j.status,
           updatedAt: j.updatedAt,
-        })
+        });
       }
     } catch {
       // skip malformed session file
     }
   }
-  return out
+  return out;
 }
 
 /**
@@ -80,36 +84,39 @@ export function readSessionFiles(claudeDir: string): RawSessionFile[] {
  * instead of the skeleton's O(sessions × projectDirs) existsSync probe per session. The filename is
  * the session id (`<sessionId>.jsonl`); if an id appears under two project dirs, the freshest wins.
  */
-export function indexTranscripts(claudeDir: string): Map<string, { path: string; mtimeMs: number }> {
-  const root = join(claudeDir, 'projects')
-  const out = new Map<string, { path: string; mtimeMs: number }>()
+export function indexTranscripts(
+  claudeDir: string,
+): Map<string, { path: string; mtimeMs: number }> {
+  const root = join(claudeDir, "projects");
+  const out = new Map<string, { path: string; mtimeMs: number }>();
   for (const proj of readRoot(root)) {
-    const dir = join(root, proj)
+    const dir = join(root, proj);
     for (const name of safeReaddir(dir)) {
-      if (!name.endsWith('.jsonl')) continue
-      const id = name.slice(0, -'.jsonl'.length)
-      const path = join(dir, name)
-      let mtimeMs: number
+      if (!name.endsWith(".jsonl")) continue;
+      const id = name.slice(0, -".jsonl".length);
+      const path = join(dir, name);
+      let mtimeMs: number;
       try {
-        mtimeMs = statSync(path).mtimeMs
+        mtimeMs = statSync(path).mtimeMs;
       } catch {
-        continue
+        continue;
       }
-      const prev = out.get(id)
-      if (!prev || mtimeMs > prev.mtimeMs) out.set(id, { path, mtimeMs })
+      const prev = out.get(id);
+      if (!prev || mtimeMs > prev.mtimeMs) out.set(id, { path, mtimeMs });
     }
   }
-  return out
+  return out;
 }
 
 /** Freshest registry file per session id (max updatedAt), so a stale re-registered file can't win. */
 export function registryById(claudeDir: string): Map<string, RawSessionFile> {
-  const byId = new Map<string, RawSessionFile>()
+  const byId = new Map<string, RawSessionFile>();
   for (const s of readSessionFiles(claudeDir)) {
-    const prev = byId.get(s.sessionId)
-    if (!prev || (s.updatedAt ?? 0) >= (prev.updatedAt ?? 0)) byId.set(s.sessionId, s)
+    const prev = byId.get(s.sessionId);
+    if (!prev || (s.updatedAt ?? 0) >= (prev.updatedAt ?? 0))
+      byId.set(s.sessionId, s);
   }
-  return byId
+  return byId;
 }
 
 /**
@@ -119,31 +126,36 @@ export function registryById(claudeDir: string): Map<string, RawSessionFile> {
  * calls only for what actually changed. A transcript older than the window with no registry entry is
  * dropped, which is what keeps the 411MB of ancient transcripts out of the index.
  */
-export function listCandidates({ claudeDir, isPidAlive, now, recentWindowMs }: CandidateDeps): SessionCandidate[] {
-  const registry = registryById(claudeDir)
-  const transcripts = indexTranscripts(claudeDir)
-  const cutoff = now - recentWindowMs
+export function listCandidates({
+  claudeDir,
+  isPidAlive,
+  now,
+  recentWindowMs,
+}: CandidateDeps): SessionCandidate[] {
+  const registry = registryById(claudeDir);
+  const transcripts = indexTranscripts(claudeDir);
+  const cutoff = now - recentWindowMs;
 
-  const ids = new Set<string>(registry.keys())
+  const ids = new Set<string>(registry.keys());
   for (const [id, t] of transcripts) {
-    if (t.mtimeMs >= cutoff) ids.add(id)
+    if (t.mtimeMs >= cutoff) ids.add(id);
   }
 
-  const out: SessionCandidate[] = []
+  const out: SessionCandidate[] = [];
   for (const id of ids) {
-    const raw = registry.get(id)
-    const t = transcripts.get(id)
+    const raw = registry.get(id);
+    const t = transcripts.get(id);
     out.push({
       id,
       alive: raw ? isPidAlive(raw.pid) : false,
       status: raw?.status,
-      cwd: raw?.cwd ?? '',
+      cwd: raw?.cwd ?? "",
       transcriptPath: t?.path,
       transcriptMtimeMs: t?.mtimeMs ?? 0,
       updatedAt: raw?.updatedAt,
-    })
+    });
   }
-  return out
+  return out;
 }
 
 /**
@@ -152,32 +164,41 @@ export function listCandidates({ claudeDir, isPidAlive, now, recentWindowMs }: C
  * (basename title, updatedAt), so one bad file never sinks the list.
  */
 export function summarize(c: SessionCandidate): PersistedSession {
-  let t: TranscriptSummary | null = null
+  let t: TranscriptSummary | null = null;
   if (c.transcriptPath) {
     try {
-      t = parseTranscript(readFileSync(c.transcriptPath, 'utf8'), c.cwd)
+      t = parseTranscript(readFileSync(c.transcriptPath, "utf8"), c.cwd);
     } catch {
-      t = null
+      t = null;
     }
   }
-  const fallbackName = projectFromCwd(c.cwd)
-  const model = t ? t.model : normalizeModelId(undefined)
-  const awaitingUser = t?.awaitingUser ?? false
+  const fallbackName = projectFromCwd(c.cwd);
+  const model = t ? t.model : normalizeModelId(undefined);
+  const awaitingUser = t?.awaitingUser ?? false;
 
   return {
     id: c.id,
     title: t?.title ?? fallbackName,
     project: t?.project ?? fallbackName,
     branch: t?.branch,
-    state: deriveSessionState({ alive: c.alive, status: c.status, awaitingUser }),
-    management: 'observed', // default; overridden to 'managed' in createClaudeProvider for app-spawned ids
+    state: deriveSessionState({
+      alive: c.alive,
+      status: c.status,
+      awaitingUser,
+    }),
+    management: "observed", // default; overridden to 'managed' in createClaudeProvider for app-spawned ids
     model,
     lastActivityMs: t?.lastActivityMs || c.updatedAt || 0,
     awaitingUser,
     transcriptMtimeMs: c.transcriptMtimeMs,
-    usage: t?.usage ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+    usage: t?.usage ?? {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+    },
     contextTokens: t?.contextTokens ?? 0,
-  }
+  };
 }
 
 /**
@@ -185,9 +206,16 @@ export function summarize(c: SessionCandidate): PersistedSession {
  * no reparse. This is how a session flips to Ended: its process dies without touching the transcript,
  * so the next sync reuses the stored snapshot but re-derives `state` as ended.
  */
-export function restate(c: SessionCandidate, prev: PersistedSession): PersistedSession {
+export function restate(
+  c: SessionCandidate,
+  prev: PersistedSession,
+): PersistedSession {
   return {
     ...prev,
-    state: deriveSessionState({ alive: c.alive, status: c.status, awaitingUser: prev.awaitingUser }),
-  }
+    state: deriveSessionState({
+      alive: c.alive,
+      status: c.status,
+      awaitingUser: prev.awaitingUser,
+    }),
+  };
 }

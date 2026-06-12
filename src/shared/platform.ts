@@ -6,4 +6,5 @@
  */
 
 /** True when a platform string (`process.platform` or `window.api.platform`) is macOS. */
-export const isMacPlatform = (platform: string): boolean => platform === 'darwin'
+export const isMacPlatform = (platform: string): boolean =>
+  platform === "darwin";

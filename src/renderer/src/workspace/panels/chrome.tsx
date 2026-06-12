@@ -1,11 +1,15 @@
-import { type ReactNode } from 'react'
-import { InfoButton } from '../../ui/InfoButton'
+import { type ReactNode } from "react";
+import { InfoButton } from "../../ui/InfoButton";
 
 // Shared chrome for the workspace rail panels, so a retone lands in one place.
 
 /** A rail panel's shell: vertical rhythm, a bottom hairline, and bottom padding. */
 export function PanelSection({ children }: { children: ReactNode }) {
-  return <section className="space-y-2 border-b border-ink-800 pb-3.5 last:border-0">{children}</section>
+  return (
+    <section className="space-y-2 border-b border-ink-800 pb-3.5 last:border-0">
+      {children}
+    </section>
+  );
 }
 
 /**
@@ -21,23 +25,29 @@ export function PanelHeading({
   info,
   right,
 }: {
-  children: ReactNode
-  info?: ReactNode
-  right?: ReactNode
+  children: ReactNode;
+  info?: ReactNode;
+  right?: ReactNode;
 }) {
   if (!info && !right) {
-    return <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">{children}</h2>
+    return (
+      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+        {children}
+      </h2>
+    );
   }
-  const title = typeof children === 'string' ? children : undefined
+  const title = typeof children === "string" ? children : undefined;
   return (
     <div className="relative flex items-center justify-between gap-2">
       <span className="flex items-center gap-1.5">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">{children}</h2>
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+          {children}
+        </h2>
         {info && (
           // The popover is absolute against this outer relative strip, so left-0/right-0 span its full
           // width and top-full drops it below the strip.
           <InfoButton
-            label={title ? `About ${title}` : 'About this metric'}
+            label={title ? `About ${title}` : "About this metric"}
             popoverClassName="left-0 right-0 top-full mt-1.5 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-[11px] leading-snug text-fg-muted shadow-lg"
           >
             {info}
@@ -46,5 +56,5 @@ export function PanelHeading({
       </span>
       {right}
     </div>
-  )
+  );
 }

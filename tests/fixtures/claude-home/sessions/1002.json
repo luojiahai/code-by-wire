@@ -1,1 +1,7 @@
-{"pid":1002,"sessionId":"bbbb2222-2222-2222-2222-222222222222","cwd":"/work/old-thing","status":"idle","updatedAt":1780950000000}
+{
+  "pid": 1002,
+  "sessionId": "bbbb2222-2222-2222-2222-222222222222",
+  "cwd": "/work/old-thing",
+  "status": "idle",
+  "updatedAt": 1780950000000
+}

@@ -1,1 +1,7 @@
-{"pid":1003,"sessionId":"cccc3333-3333-3333-3333-333333333333","cwd":"/work/api-service","status":"idle","updatedAt":1780959300000}
+{
+  "pid": 1003,
+  "sessionId": "cccc3333-3333-3333-3333-333333333333",
+  "cwd": "/work/api-service",
+  "status": "idle",
+  "updatedAt": 1780959300000
+}

@@ -1,6 +1,6 @@
-import { useId, type ReactNode } from 'react'
-import { cx } from './atoms'
-import { Icon } from './icons'
+import { useId, type ReactNode } from "react";
+import { cx } from "./atoms";
+import { Icon } from "./icons";
 
 /** A small "ⓘ" button that reveals `children` in a popover on hover or keyboard focus. The reveal is
  *  CSS-only (no state) scoped to this button's own `group`, so it survives re-renders and the cursor can
@@ -12,11 +12,11 @@ export function InfoButton({
   popoverClassName,
   children,
 }: {
-  label: string
-  popoverClassName?: string
-  children: ReactNode
+  label: string;
+  popoverClassName?: string;
+  children: ReactNode;
 }) {
-  const tooltipId = useId()
+  const tooltipId = useId();
   return (
     <span className="group inline-flex items-center">
       <button
@@ -30,10 +30,13 @@ export function InfoButton({
       <span
         role="tooltip"
         id={tooltipId}
-        className={cx('absolute z-20 hidden group-hover:block group-focus-within:block', popoverClassName)}
+        className={cx(
+          "absolute z-20 hidden group-hover:block group-focus-within:block",
+          popoverClassName,
+        )}
       >
         {children}
       </span>
     </span>
-  )
+  );
 }

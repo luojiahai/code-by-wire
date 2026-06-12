@@ -1,14 +1,14 @@
 export interface WrapperSpec {
   /** The user's original statusLine command to call through to, or null when there was none. */
-  wrappedCommand: string | null
+  wrappedCommand: string | null;
 }
 
 /** The call-through line bakes the user's command after this prefix; recoverWrappedCommand reads it back. */
-const CALL_THROUGH_PREFIX = 'cat "$src" | '
+const CALL_THROUGH_PREFIX = 'cat "$src" | ';
 
 /** The fixed script tail emitted after the (optional) call-through line. The command is everything between
  *  CALL_THROUGH_PREFIX and this tail, so bake and recover stay exact inverses even for a multi-line command. */
-const SCRIPT_TAIL = 'rm -f "$raw" 2>/dev/null\nexit 0\n'
+const SCRIPT_TAIL = 'rm -f "$raw" 2>/dev/null\nexit 0\n';
 
 /**
  * The POSIX-sh source of the statusLine wrapper the installed statusLine points at. It captures
@@ -33,7 +33,9 @@ const SCRIPT_TAIL = 'rm -f "$raw" 2>/dev/null\nexit 0\n'
  */
 export function wrapperScript({ wrappedCommand }: WrapperSpec): string {
   const callThrough =
-    wrappedCommand && wrappedCommand.trim() !== '' ? `${CALL_THROUGH_PREFIX}${wrappedCommand}\n` : ''
+    wrappedCommand && wrappedCommand.trim() !== ""
+      ? `${CALL_THROUGH_PREFIX}${wrappedCommand}\n`
+      : "";
   return `#!/bin/sh
 # code-by-wire statusLine wrapper — AUTO-GENERATED, do not edit (regenerated on every install).
 # Captures Claude Code's statusLine JSON to a per-Session file, then renders the user's own statusLine.
@@ -49,7 +51,7 @@ if [ -n "$sid" ]; then
 else
   src="$raw"
 fi
-${callThrough}${SCRIPT_TAIL}`
+${callThrough}${SCRIPT_TAIL}`;
 }
 
 /** Recover the wrappedCommand baked into a wrapper script's source — the exact inverse of wrapperScript,
@@ -58,9 +60,9 @@ ${callThrough}${SCRIPT_TAIL}`
  *  Returns null for a capture-only wrapper (no call-through line) or text this no longer recognizes — both
  *  reinstall clean. Lives next to wrapperScript so the bake and its inverse change together. */
 export function recoverWrappedCommand(src: string): string | null {
-  const start = src.indexOf(CALL_THROUGH_PREFIX)
-  if (start === -1) return null
-  const after = src.slice(start + CALL_THROUGH_PREFIX.length)
-  const tail = `\n${SCRIPT_TAIL}`
-  return after.endsWith(tail) ? after.slice(0, -tail.length) : null
+  const start = src.indexOf(CALL_THROUGH_PREFIX);
+  if (start === -1) return null;
+  const after = src.slice(start + CALL_THROUGH_PREFIX.length);
+  const tail = `\n${SCRIPT_TAIL}`;
+  return after.endsWith(tail) ? after.slice(0, -tail.length) : null;
 }

@@ -1,1 +1,7 @@
-{"pid":1005,"sessionId":"eeee5555-5555-5555-5555-555555555555","cwd":"/work/release","status":"waiting","updatedAt":1780959500000}
+{
+  "pid": 1005,
+  "sessionId": "eeee5555-5555-5555-5555-555555555555",
+  "cwd": "/work/release",
+  "status": "waiting",
+  "updatedAt": 1780959500000
+}
