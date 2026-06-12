@@ -201,3 +201,60 @@ describe('registerIpc overview — account email', () => {
     expect(o.account?.email).toBeUndefined()
   })
 })
+
+describe('registerIpc overview — api billing', () => {
+  it('promotes an unknown account to api and attaches the config when apiConfig is provided', () => {
+    const db = openTestDb()
+    migrate(db)
+    upsertSessions(db, [seed])
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      statusLine: reader([lineSample({ sessionId: 'seed' })]), // no rateLimits → deriveAccount returns 'unknown'
+      apiConfig: () => ({ baseUrl: 'https://api.portkey.ai', authMethod: 'token', provider: 'bedrock-use1-nonprod' }),
+    })
+    const o = handlers.get(IPC.overview)!() as OverviewData
+    expect(o.account).toEqual({
+      billingMode: 'api',
+      apiBaseUrl: 'https://api.portkey.ai',
+      apiAuthMethod: 'token',
+      apiProvider: 'bedrock-use1-nonprod',
+    })
+  })
+
+  it('keeps a subscription account in subscription mode even when apiConfig is present (subscription wins)', () => {
+    const db = openTestDb()
+    migrate(db)
+    upsertSessions(db, [seed])
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      statusLine: reader([lineSample({ sessionId: 'seed', rateLimits: { fiveHour: { usedPct: 20, resetsAt: Date.now() + 3_600_000 } } })]),
+      apiConfig: () => ({ baseUrl: 'https://api.portkey.ai' }),
+    })
+    const o = handlers.get(IPC.overview)!() as OverviewData
+    expect(o.account?.billingMode).toBe('subscription')
+    expect(o.account?.apiBaseUrl).toBeUndefined()
+  })
+
+  it('leaves an unknown account untouched when apiConfig returns null (no base URL configured)', () => {
+    const db = openTestDb()
+    migrate(db)
+    upsertSessions(db, [seed])
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      statusLine: reader([lineSample({ sessionId: 'seed' })]),
+      apiConfig: () => null,
+    })
+    expect((handlers.get(IPC.overview)!() as OverviewData).account).toEqual({ billingMode: 'unknown' })
+  })
+
+  it('does not promote when no apiConfig dep is provided', () => {
+    const db = openTestDb()
+    migrate(db)
+    upsertSessions(db, [seed])
+    registerIpc({ db, provider: provider(() => []), statusLine: reader([lineSample({ sessionId: 'seed' })]) })
+    expect((handlers.get(IPC.overview)!() as OverviewData).account).toEqual({ billingMode: 'unknown' })
+  })
+})

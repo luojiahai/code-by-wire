@@ -3,6 +3,7 @@ import { IPC, type OverviewData } from '@shared/ipc'
 import type { Provider } from './provider/types'
 import type { SqliteDb } from './db/driver'
 import type { StatusLineReader } from '@shared/statusline'
+import type { ApiConfig } from './settings/api-config'
 import { deriveAccount, overlaySessions, freshestBySession, CAPTURE_STALE_MS } from '@shared/statusline'
 import { getOverview } from './db/store'
 import { syncSessions } from './sync'
@@ -14,14 +15,17 @@ export interface IpcDeps {
   statusLine?: StatusLineReader
   /** Reads the logged-in account email (cached by the caller). Defaults to no email. */
   accountEmail?: () => string | null
+  /** Reads the configured API-billing config (cached by the caller). Defaults to no config. */
+  apiConfig?: () => ApiConfig | null
   /** Runs at the start of every sync, before discovery. Used to follow `/clear` rotations so the
    *  provider labels a rotated session correctly on the same tick. Its failure must not block the sync. */
   beforeSync?: () => void
 }
 
-export function registerIpc({ db, provider, statusLine, accountEmail, beforeSync }: IpcDeps): { sync: () => void } {
+export function registerIpc({ db, provider, statusLine, accountEmail, apiConfig, beforeSync }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] }
   const readEmail = accountEmail ?? ((): string | null => null)
+  const readApi = apiConfig ?? ((): ApiConfig | null => null)
 
   const sync = (): void => {
     try {
@@ -42,8 +46,23 @@ export function registerIpc({ db, provider, statusLine, accountEmail, beforeSync
     const byId = freshestBySession(reader.read())
     const account = deriveAccount(byId.values(), now, CAPTURE_STALE_MS)
     if (account) {
-      const email = readEmail()
-      if (email) account.email = email
+      if (account.billingMode === 'subscription') {
+        // Subscription identity: the oauthAccount email (ADR-0001). Read only here — beside gateway
+        // billing it would mislabel, so a non-subscription account never gets it.
+        const email = readEmail()
+        if (email) account.email = email
+      } else {
+        // Not a live subscription. If a base URL is configured, this is API billing — promote the
+        // account from 'unknown' to 'api' and surface the endpoint. Subscription wins, so this branch
+        // is only reached when no live rate-limit window exists.
+        const api = readApi()
+        if (api) {
+          account.billingMode = 'api'
+          account.apiBaseUrl = api.baseUrl
+          if (api.authMethod) account.apiAuthMethod = api.authMethod
+          if (api.provider) account.apiProvider = api.provider
+        }
+      }
     }
     return {
       sessions: overlaySessions(base.sessions, byId),

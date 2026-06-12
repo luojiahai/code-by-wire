@@ -13,6 +13,7 @@ import { createStatusLineReader } from './statusline/reader'
 import { registerTerminalIpc } from './terminal/ipc'
 import { shellPath } from './terminal/shell-path'
 import { readAccountEmail } from './settings/account-email'
+import { readApiConfig, type ApiConfig } from './settings/api-config'
 import { resolveClaudeDir } from './claude-config'
 import { HEADER_HEIGHT_PX, MAC_TRAFFIC_LIGHT_POSITION } from '@shared/chrome'
 
@@ -75,6 +76,11 @@ app.whenReady()
       if (emailCache === undefined) emailCache = readAccountEmail(claudeDir)
       return emailCache
     }
+    let apiConfigCache: ApiConfig | null | undefined
+    const apiConfig = (): ApiConfig | null => {
+      if (apiConfigCache === undefined) apiConfigCache = readApiConfig(claudeDir)
+      return apiConfigCache
+    }
     // The live window's terminal-rename hook, set when a window opens and revoked when it closes. The
     // reconcile (below) calls through it to follow a /clear, so it's a no-op before the first window.
     let renameInWindow: (from: string, to: string) => void = () => {}
@@ -87,7 +93,7 @@ app.whenReady()
     const reconcile = (): void => {
       applyRotations(managed, () => readSessionFiles(claudeDir), renameInWindow)
     }
-    const { sync } = registerIpc({ db, provider, statusLine, accountEmail, beforeSync: reconcile })
+    const { sync } = registerIpc({ db, provider, statusLine, accountEmail, apiConfig, beforeSync: reconcile })
 
     try {
       sync() // incremental parse of ~/.claude → SQLite once, before the window asks for rows
