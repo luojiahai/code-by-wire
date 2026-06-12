@@ -1,4 +1,4 @@
-# code-by-wire
+# Code-by-wire (CBW)
 
 [![CI](https://img.shields.io/github/actions/workflow/status/luojiahai/code-by-wire/ci.yml?style=flat-square&label=CI)](https://github.com/luojiahai/code-by-wire/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
@@ -7,7 +7,7 @@
 
 **The cockpit for local agentic coding tools (e.g., Claude Code).**
 
-A desktop app that puts every agentic coding session in one place: live state,
+Code-by-wire is a desktop app that puts every agentic coding session in one place: live state,
 transcript, terminal, and the cost and context telemetry the CLI keeps out of
 sight. One pane instead of a dozen terminal windows.
 
@@ -74,7 +74,7 @@ in `tests/fixtures/`. `pnpm typecheck` checks the main and renderer projects.
 
 ## How this is built
 
-code-by-wire is built almost entirely by Claude Code agents working GitHub
+Code-by-wire is built almost entirely by Claude Code agents working GitHub
 issues. The vocabulary and the settled decisions are documented so an agent (or
 a human) can pick up cold:
 

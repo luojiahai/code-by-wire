@@ -1,4 +1,4 @@
-# code-by-wire
+# Code-by-wire
 
 A desktop app for controlling and monitoring local coding agents, Claude Code CLI first. It surfaces the observability data Claude Code keeps out of sight and lets a person run many sessions at once without losing track of any of them.
 
