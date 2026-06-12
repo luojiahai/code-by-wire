@@ -1,4 +1,4 @@
-# code-by-wire
+# <img src="docs/assets/logo.png" alt="code-by-wire logo" height="38" align="top"> &nbsp;code-by-wire
 
 [![CI](https://img.shields.io/github/actions/workflow/status/luojiahai/code-by-wire/ci.yml?style=flat-square&label=CI)](https://github.com/luojiahai/code-by-wire/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
