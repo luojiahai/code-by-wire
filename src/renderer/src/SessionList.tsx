@@ -54,7 +54,7 @@ export function SessionList({
         <button
           type="button"
           onClick={onNew}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-primary bg-primary/10 px-3 py-1.5 text-[13px] font-semibold text-primary-bright transition-colors hover:bg-primary/20"
+          className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 text-[13px] font-semibold text-primary-bright transition-colors hover:border-primary/60 hover:bg-primary/20"
         >
           <Icon name="plus" size={14} />
           New session
