@@ -80,17 +80,7 @@ pnpm dev              # 启动应用
 `pnpm test` 会针对 `tests/fixtures/` 中脱敏后的 `~/.claude` fixture 运行 provider 读取测试。
 `pnpm typecheck` 检查主进程和渲染进程两个项目。
 
-## 它是怎么构建的
-
-Code-by-wire 几乎完全由处理 GitHub issue 的 Claude Code agent 构建。它的术语和已敲定的决策
-都有文档记录，好让 agent（或人）能从零接手：
-
-- `CONTEXT.md`：产品所围绕的术语表。
-- `docs/adr/`：已锁定的架构决策（statusLine 而非 hooks、增量式 SQLite 索引、
-  provider-adapter 模型）。
-- `docs/agents/`：issue、triage 标签和领域文档的管理方式。
-
-想参与请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
+想参与开发请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 项目结构
 

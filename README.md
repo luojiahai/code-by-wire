@@ -85,17 +85,6 @@ pnpm dev              # launch the app
 `pnpm test` runs the provider read tests over the redacted `~/.claude` fixtures
 in `tests/fixtures/`. `pnpm typecheck` checks the main and renderer projects.
 
-## How this is built
-
-Code-by-wire is built almost entirely by Claude Code agents working GitHub
-issues. The vocabulary and the settled decisions are documented so an agent (or
-a human) can pick up cold:
-
-- `CONTEXT.md`: the glossary the product is built around.
-- `docs/adr/`: the locked architectural decisions (statusLine over hooks,
-  incremental SQLite index, provider-adapter model).
-- `docs/agents/`: how issues, triage labels, and domain docs are managed.
-
 See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 ## Project layout
