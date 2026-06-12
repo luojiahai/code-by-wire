@@ -6,7 +6,7 @@ import {
   type IpcMainEvent,
 } from "electron";
 import type { Session } from "@shared/types";
-import type { ModelId } from "@shared/models";
+import type { Family } from "@shared/models";
 import {
   TERMINAL,
   type SpawnRequest,
@@ -24,7 +24,7 @@ import { createPtyProcess } from "./pty-process";
  * discovery has indexed the real process. Hydrated from zero usage so the derived display fields
  * (context %, equiv value) are well-formed; the real row supersedes it on the next sync.
  */
-function draftSession(id: string, cwd: string, model: ModelId): Session {
+function draftSession(id: string, cwd: string, model: Family): Session {
   const project = projectFromCwd(cwd);
   return hydrate({
     id,

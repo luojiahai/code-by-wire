@@ -1,4 +1,4 @@
-import type { ModelId } from "./models";
+import type { Family } from "./models";
 import type { Session } from "./types";
 
 /** Terminal IPC channels. `data` and `exit` are PUSH channels (main → renderer via webContents.send);
@@ -53,7 +53,7 @@ export interface SpawnRequest {
   id: string;
   /** Absolute project directory the session runs in. */
   cwd: string;
-  model: ModelId;
+  model: Family;
   /** Initial terminal size; the renderer's first fit corrects it. */
   cols: number;
   rows: number;

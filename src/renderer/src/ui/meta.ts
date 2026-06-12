@@ -1,4 +1,4 @@
-import type { ModelId, SessionState } from "@shared/types";
+import type { Family, SessionState } from "@shared/types";
 import { isKnownModelString } from "@shared/models";
 
 export interface StateMeta {
@@ -39,14 +39,14 @@ export const STATE_META: Record<SessionState, StateMeta> = {
   },
 };
 
-export const MODEL_LABEL: Record<ModelId, string> = {
+export const MODEL_LABEL: Record<Family, string> = {
   "claude-opus-4-8": "Opus 4.8",
   "claude-sonnet-4-6": "Sonnet 4.6",
   "claude-haiku-4-5": "Haiku 4.5",
 };
 
 /** Compact model label for the dense table's Model column. */
-export const MODEL_SHORT: Record<ModelId, string> = {
+export const MODEL_SHORT: Record<Family, string> = {
   "claude-opus-4-8": "Opus",
   "claude-sonnet-4-6": "Sonnet",
   "claude-haiku-4-5": "Haiku",
@@ -111,10 +111,10 @@ export const TOKEN_SEGMENT_COLORS = [
  *  Opus fallback. With no capture, the clean label stands; pricing and window keep riding the normalized
  *  `model` regardless. */
 export function honestModelLabel(
-  model: ModelId,
+  model: Family,
   captureModelId: string | undefined,
   captureDisplayName: string | undefined,
-  table: Record<ModelId, string>,
+  table: Record<Family, string>,
 ): string {
   if (captureModelId && !isKnownModelString(captureModelId))
     return captureDisplayName || captureModelId;

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { ModelId, Usage } from "@shared/types";
+import type { Family, Usage } from "@shared/types";
 import { costBreakdown } from "@shared/models";
 import { formatUsd, costDisplay } from "@shared/format";
 import { Donut } from "../../ui/charts";
@@ -23,7 +23,7 @@ export function CostPanel({
   billingMode,
 }: {
   usage: Usage;
-  model: ModelId;
+  model: Family;
   liveCostUsd?: number;
   billingMode?: "subscription" | "api" | "unknown";
 }) {

@@ -4,7 +4,7 @@ import {
   useRef,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import type { ModelId } from "@shared/types";
+import type { Family } from "@shared/types";
 import { MODEL_IDS } from "@shared/models";
 import { MODEL_LABEL } from "../ui/meta";
 import { Icon } from "../ui/icons";
@@ -14,11 +14,11 @@ export function NewSessionDialog({
   onCreate,
   onCancel,
 }: {
-  onCreate: (cwd: string, model: ModelId) => void | Promise<void>;
+  onCreate: (cwd: string, model: Family) => void | Promise<void>;
   onCancel: () => void;
 }) {
   const [cwd, setCwd] = useState<string | null>(null);
-  const [model, setModel] = useState<ModelId>("claude-sonnet-4-6");
+  const [model, setModel] = useState<Family>("claude-sonnet-4-6");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -122,7 +122,7 @@ export function NewSessionDialog({
         <div className="relative mt-1.5">
           <select
             value={model}
-            onChange={(e) => setModel(e.target.value as ModelId)}
+            onChange={(e) => setModel(e.target.value as Family)}
             className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-[13px] text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
           >
             {MODEL_IDS.map((id) => (

@@ -1,4 +1,4 @@
-import { familyFor, type ModelId } from "@shared/models";
+import { familyFor, type Family } from "@shared/models";
 
 export interface ClaudeCommand {
   file: string;
@@ -15,7 +15,7 @@ export interface ClaudeCommand {
  */
 export function buildClaudeCommand(opts: {
   id: string;
-  model: ModelId;
+  model: Family;
   bin?: string;
 }): ClaudeCommand {
   return {

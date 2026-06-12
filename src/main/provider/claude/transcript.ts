@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import { normalizeModelId, type ModelId } from "@shared/models";
+import { normalizeModelId, type Family } from "@shared/models";
 import type { Usage } from "@shared/types";
 import { contextTotal } from "@shared/context";
 import { promptLabel } from "./command-envelope";
@@ -11,7 +11,7 @@ export interface TranscriptSummary {
   project: string;
   cwd: string;
   branch?: string;
-  model: ModelId;
+  model: Family;
   lastActivityMs: number;
   /** The last turn left a question or permission prompt unanswered (a tool_use with no result). */
   awaitingUser: boolean;

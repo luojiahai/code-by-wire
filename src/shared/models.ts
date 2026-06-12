@@ -6,7 +6,7 @@ export const MODEL_IDS = [
   "claude-haiku-4-5",
 ] as const;
 
-export type ModelId = (typeof MODEL_IDS)[number];
+export type Family = (typeof MODEL_IDS)[number];
 
 /** USD per million tokens, by token kind. cacheWrite is the 5-minute cache-creation rate. */
 export interface ModelPricing {
@@ -17,7 +17,7 @@ export interface ModelPricing {
 }
 
 interface ModelSpec {
-  id: ModelId;
+  id: Family;
   /** Substring that identifies this family in a raw transcript model string. */
   family: string;
   /** Context window the session runs under — the standard 200K fallback for every family (see the table note). */
@@ -60,7 +60,7 @@ const MODELS: readonly ModelSpec[] = [
 const DEFAULT_SPEC = MODELS[0];
 
 /** The spec for a canonical model id; DEFAULT_SPEC if somehow unmatched. */
-function specById(model: ModelId): ModelSpec {
+function specById(model: Family): ModelSpec {
   return MODELS.find((m) => m.id === model) ?? DEFAULT_SPEC;
 }
 
@@ -74,9 +74,9 @@ function specForRaw(raw: string | undefined): ModelSpec | null {
   return null;
 }
 
-/** Map a raw model string (possibly suffixed, e.g. a date stamp or `[1m]`) to a canonical ModelId. An
+/** Map a raw model string (possibly suffixed, e.g. a date stamp or `[1m]`) to a canonical Family. An
  *  unrecognized string falls to DEFAULT_SPEC, the safe Opus default for pricing and window. */
-export function normalizeModelId(raw: string | undefined): ModelId {
+export function normalizeModelId(raw: string | undefined): Family {
   return (specForRaw(raw) ?? DEFAULT_SPEC).id;
 }
 
@@ -92,18 +92,18 @@ export function isKnownModelString(raw: string | undefined): boolean {
  * never inferred here; a live statusLine capture overlays the true size when present. This is only the
  * fallback window for an uncaptured session.
  */
-export function contextWindowFor(model: ModelId): number {
+export function contextWindowFor(model: Family): number {
   return specById(model).contextWindow;
 }
 
 /** Per-million-token API rates for a canonical model. */
-export function priceFor(model: ModelId): ModelPricing {
+export function priceFor(model: Family): ModelPricing {
   return specById(model).pricing;
 }
 
 /** The model's short family name ('opus' | 'sonnet' | 'haiku'), which doubles as the stable
  *  `claude --model` alias. One source of truth so the spawn flag can't drift from the MODELS table. */
-export function familyFor(model: ModelId): string {
+export function familyFor(model: Family): string {
   return specById(model).family;
 }
 
@@ -112,7 +112,7 @@ export function familyFor(model: ModelId): string {
  * subscription account this is a reference figure, not money owed (see CONTEXT.md). Rates are per
  * million tokens, so divide the weighted sum by 1e6.
  */
-export function equivApiValue(usage: Usage, model: ModelId): number {
+export function equivApiValue(usage: Usage, model: Family): number {
   const p = priceFor(model);
   return (
     (usage.inputTokens * p.input +
@@ -143,7 +143,7 @@ export interface CostBreakdown {
  * savings. The four parts sum to equivApiValue(usage, model) (same rates, same /1e6). On a subscription
  * this is all Equivalent API value, not money owed (see CONTEXT.md); on an API account it's real spend.
  */
-export function costBreakdown(usage: Usage, model: ModelId): CostBreakdown {
+export function costBreakdown(usage: Usage, model: Family): CostBreakdown {
   const p = priceFor(model);
   const input = (usage.inputTokens * p.input) / 1_000_000;
   const output = (usage.outputTokens * p.output) / 1_000_000;

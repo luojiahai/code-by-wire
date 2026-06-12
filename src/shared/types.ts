@@ -1,7 +1,7 @@
-import type { ModelId } from "./models";
+import type { Family } from "./models";
 import type { ContextBreakdown } from "./transcript";
 
-export type { ModelId };
+export type { Family };
 
 export type SessionState = "working" | "waiting" | "idle" | "ended";
 export type Management = "managed" | "observed";
@@ -25,7 +25,7 @@ export interface Subagent {
   type: string;
   status: "working" | "done" | "failed";
   /** Absent until an assistant turn reports a model (a just-spawned agent has none yet). */
-  model?: ModelId;
+  model?: Family;
   tokens: number;
   durationMs: number;
   children?: Subagent[];
@@ -38,7 +38,7 @@ export interface Session {
   branch?: string;
   state: SessionState;
   management: Management;
-  model: ModelId;
+  model: Family;
   contextPct: number;
   contextWindow: number;
   /** The live context split from the statusLine capture (current_usage), or null/undefined when no
@@ -79,7 +79,7 @@ export interface PersistedSession {
   branch?: string;
   state: SessionState;
   management: Management;
-  model: ModelId;
+  model: Family;
   lastActivityMs: number;
   /** Last parsed transcript tail left a prompt unanswered. Stored so state can be recomputed on a
    *  sync that skips the (unchanged) transcript, without reparsing it. */

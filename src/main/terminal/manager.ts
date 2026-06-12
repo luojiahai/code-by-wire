@@ -1,4 +1,4 @@
-import type { ModelId } from "@shared/models";
+import type { Family } from "@shared/models";
 import { FLOW } from "@shared/terminal";
 import {
   buildClaudeCommand,
@@ -24,7 +24,7 @@ interface Term {
 export interface SpawnRequest {
   id: string;
   cwd: string;
-  model: ModelId;
+  model: Family;
   cols: number;
   rows: number;
 }

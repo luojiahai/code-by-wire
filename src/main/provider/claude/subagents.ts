@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import type { ModelId, Subagent } from "@shared/types";
+import type { Family, Subagent } from "@shared/types";
 import { normalizeModelId } from "@shared/models";
 import { num, parseJsonlRows } from "./transcript-row";
 import { newestMtime } from "./dir-mtime";
@@ -140,7 +140,7 @@ export function buildSubagentForest(
         : "done";
     // No assistant row reported a model yet (e.g. a just-spawned agent): leave it unset rather than
     // asserting the Opus normalize-fallback as a real label.
-    const model: ModelId | undefined =
+    const model: Family | undefined =
       s.model !== undefined ? normalizeModelId(s.model) : undefined;
     const durationMs =
       Number.isFinite(s.firstTs) && s.lastTs >= s.firstTs
