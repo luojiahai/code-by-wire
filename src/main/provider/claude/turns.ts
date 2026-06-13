@@ -48,6 +48,8 @@ export function extractTurns(
     out.push({
       messageId: id,
       sessionId,
+      // 0 is the unknown-time sentinel: a missing/unparseable timestamp. readTotals' windowed ranges
+      // exclude ts=0 (no positive bound matches it) but all-time keeps it — see the note there.
       ts: Number.isNaN(tsMs) ? 0 : tsMs,
       modelRaw: typeof model === "string" ? model : undefined,
       usage: {

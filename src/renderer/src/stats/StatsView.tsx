@@ -3,6 +3,8 @@ import {
   type StatsSnapshot,
   type ScanProgress,
   type StatsTotals,
+  type StatsRange,
+  DEFAULT_RANGE,
   emptySnapshot,
 } from "@shared/stats";
 import { formatTokensShort, formatUsd } from "@shared/format";
@@ -23,13 +25,17 @@ const WARM_POLL_MS = 1500;
  */
 export function StatsView() {
   const [snap, setSnap] = useState<StatsSnapshot | null>(null);
+  const [range, setRange] = useState<StatsRange>(DEFAULT_RANGE);
 
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // Range changed: blank the cards back to the loading state rather than leave the prior range's totals
+    // showing under the newly-pressed button until this range's first poll lands.
+    setSnap(null);
     const tick = (): void => {
       void window.api
-        .readStats()
+        .readStats(range)
         .then((s) => {
           if (!alive) return;
           setSnap(s);
@@ -53,22 +59,31 @@ export function StatsView() {
       alive = false;
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [range]);
 
-  const totals = snap?.totals;
-  const progress = snap?.progress;
   return (
     <div className="h-full min-w-0 flex-1 overflow-y-auto bg-ink-950 text-fg">
       <div className="mx-auto flex max-w-[1100px] flex-col gap-4 px-6 py-6">
-        {/* null = first poll in flight: blank, no spinner (matches EmptyDetail's loading). */}
-        {snap && totals && progress && (
+        <header className="flex items-center justify-between">
+          <h1 className="font-display text-lg text-fg">Overall stats</h1>
+          <RangeFilter value={range} onChange={setRange} />
+        </header>
+        {/* null = first poll in flight: blank below the header (matches EmptyDetail's loading). */}
+        {snap && (
           <>
-            <h1 className="font-display text-lg text-fg">Overall stats</h1>
-            {!progress.done && <BuildingHistory progress={progress} />}
-            {totals.turns === 0 && progress.done ? (
+            {!snap.progress.done && (
+              <BuildingHistory progress={snap.progress} />
+            )}
+            {/* "No usage yet" only when the store is empty AND the scoped totals are too. The second
+                clause is the safety: hasAnyTurns rides a separate query (safeHasAnyTurns → false on a read
+                error), so a non-zero scoped count must still win, never EmptyStats over real cards. In the
+                normal case totals.turns is 0 whenever hasAnyTurns is false, so this is a no-op. */}
+            {!snap.hasAnyTurns &&
+            snap.totals.turns === 0 &&
+            snap.progress.done ? (
               <EmptyStats />
             ) : (
-              <Totals totals={totals} />
+              <Totals totals={snap.totals} />
             )}
           </>
         )}
@@ -98,6 +113,50 @@ function BuildingHistory({ progress }: { progress: ScanProgress }) {
           style={{ width: `${pct}%` }}
         />
       </div>
+    </div>
+  );
+}
+
+/** The page-global range filter (#110): five trailing windows, defaulting to 30d. It scopes every total
+ *  on the page (not the calendar, which is range-independent — that's why it sits in the page header, not a
+ *  panel). Presentational; the scoping happens main-side via the range passed through stats:read.
+ *  `satisfies Record<StatsRange, string>` keeps this list exhaustive: a new range can't ship a main-side
+ *  bound without also growing a button here, the way RANGE_DAYS enforces it for the bound. */
+const RANGE_LABELS = {
+  today: "Today",
+  "7d": "7d",
+  "30d": "30d",
+  "90d": "90d",
+  all: "All",
+} satisfies Record<StatsRange, string>;
+
+// Insertion order is the render order (none of the keys are array-index-like), and the cast restores the
+// StatsRange key type that Object.entries widens to string.
+const RANGE_OPTS = Object.entries(RANGE_LABELS) as [StatsRange, string][];
+
+function RangeFilter({
+  value,
+  onChange,
+}: {
+  value: StatsRange;
+  onChange: (r: StatsRange) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-[11px]">
+      {RANGE_OPTS.map(([v, label]) => (
+        <button
+          key={v}
+          onClick={() => onChange(v)}
+          aria-pressed={v === value}
+          className={`rounded px-2 py-0.5 transition-colors ${
+            v === value
+              ? "bg-ink-700 text-fg"
+              : "text-fg-faint hover:text-fg-muted"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

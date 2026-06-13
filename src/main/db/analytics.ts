@@ -180,7 +180,18 @@ export { emptyTotals } from "@shared/stats";
  * contributes its tokens to the token totals above but n/a cost here. Pricing is single-sourced through
  * equivApiValue (the same formula the per-session Cost panel uses), so the two can never drift.
  */
-export function readTotals(db: SqliteDb): StatsTotals {
+export function readTotals(db: SqliteDb, sinceMs?: number | null): StatsTotals {
+  // null/undefined → all-time (no bound). A number → an inclusive lower bound on ts (the window's start,
+  // computed local-day-aware by the caller via rangeSinceMs). `bind` is spread into get/all: an empty
+  // array calls them with no params, a single object binds @since.
+  //
+  // A turn whose timestamp didn't parse is stored ts=0 (the unknown-time sentinel — see turns.ts). Every
+  // windowed bound is a positive epoch, so those turns fall out of dated ranges and survive only in
+  // all-time. That's deliberate: a turn with no known time can't honestly be placed in a calendar window
+  // (exact data only). The consequence is that all-time can exceed the sum of the windows — by design.
+  const where = sinceMs != null ? "WHERE ts >= @since" : "";
+  const bind = sinceMs != null ? [{ since: sinceMs }] : [];
+
   const t = db
     .prepare(
       `SELECT
@@ -190,9 +201,9 @@ export function readTotals(db: SqliteDb): StatsTotals {
          COALESCE(SUM(output_tokens), 0) AS output_tokens,
          COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
          COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
-       FROM turns`,
+       FROM turns ${where}`,
     )
-    .get() as TotalsRow;
+    .get(...bind) as TotalsRow;
 
   const byModel = db
     .prepare(
@@ -202,10 +213,10 @@ export function readTotals(db: SqliteDb): StatsTotals {
          COALESCE(SUM(output_tokens), 0) AS output_tokens,
          COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
          COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
-       FROM turns
+       FROM turns ${where}
        GROUP BY model_raw`,
     )
-    .all() as ModelRow[];
+    .all(...bind) as ModelRow[];
 
   let equivApiValueUsd = 0;
   for (const m of byModel) {
@@ -231,4 +242,14 @@ export function readTotals(db: SqliteDb): StatsTotals {
     cacheCreationTokens: t.cache_creation_tokens,
     equivApiValueUsd,
   };
+}
+
+/** Whether the store holds any turn at all, range-independent. Drives the Stats view's empty state so a
+ *  scoped range that happens to be empty (e.g. "today" before any activity) shows zeroed cards, not the
+ *  "No usage yet" empty state, when history exists outside the window. */
+export function hasAnyTurns(db: SqliteDb): boolean {
+  const row = db
+    .prepare("SELECT EXISTS(SELECT 1 FROM turns) AS present")
+    .get() as { present: number };
+  return row.present === 1;
 }
