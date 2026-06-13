@@ -16,11 +16,11 @@ describe("normalizeModelId", () => {
     expect(normalizeModelId("claude-haiku-4-5")).toBe("haiku");
   });
 
-  it("matches by family across suffixes (date stamps, [1m]) and defaults unknowns to fable", () => {
+  it("matches by family across suffixes (date stamps, [1m]) and defaults unknowns to opus", () => {
     expect(normalizeModelId("claude-opus-4-8[1m]")).toBe("opus");
     expect(normalizeModelId("claude-haiku-4-5-20251001")).toBe("haiku");
-    expect(normalizeModelId(undefined)).toBe("fable");
-    expect(normalizeModelId("something-weird")).toBe("fable");
+    expect(normalizeModelId(undefined)).toBe("opus");
+    expect(normalizeModelId("something-weird")).toBe("opus");
   });
 });
 

@@ -26,9 +26,9 @@ describe("normalizeModelId", () => {
       "opus",
     );
   });
-  it("falls back to fable (priciest) for an unrecognized string", () => {
-    expect(normalizeModelId("claude-neo-1")).toBe<Family>("fable");
-    expect(normalizeModelId(undefined)).toBe<Family>("fable");
+  it("falls back to opus (the neutral default) for an unrecognized string", () => {
+    expect(normalizeModelId("claude-neo-1")).toBe<Family>("opus");
+    expect(normalizeModelId(undefined)).toBe<Family>("opus");
   });
 });
 

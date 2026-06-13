@@ -60,9 +60,14 @@ const SPECS: readonly FamilySpec[] = [
   },
 ];
 
-/** Fallback for a raw string matching no known family: Fable, the priciest, so it never understates the
- *  Equivalent API value. Adding the new family to SPECS above is the real fix when one ships. */
-const DEFAULT_SPEC = SPECS.find((s) => s.alias === "fable")!;
+/** Fallback for a raw string matching no known family. Opus is the neutral conventional default: a
+ *  modelless session (only `<synthetic>` turns, no real model recorded — often one that errored at
+ *  startup) carries no usage, so the rate never bites, and "Opus" reads as a plausible default rather
+ *  than alarming the user by labeling it the rare, priciest Fable. A genuinely unrecognized model string
+ *  that *did* run is shown by its raw id via the honest label, not by this fallback family, so the
+ *  fallback only ever fronts a zero-cost session. Adding the new family to SPECS above is the real fix
+ *  when one ships. */
+const DEFAULT_SPEC = SPECS.find((s) => s.alias === "opus")!;
 
 /** The spec for a family; DEFAULT_SPEC if somehow unmatched. */
 function specByFamily(model: Family): FamilySpec {
@@ -80,7 +85,7 @@ function specForRaw(raw: string | undefined): FamilySpec | null {
 }
 
 /** Map a raw model string (a pinned id, a provider-prefixed id, or a `[1m]`-tagged id) to its family.
- *  An unrecognized string falls to DEFAULT_SPEC, the Fable fallback for pricing and window. */
+ *  An unrecognized string falls to DEFAULT_SPEC, the Opus fallback for pricing and window. */
 export function normalizeModelId(raw: string | undefined): Family {
   return (specForRaw(raw) ?? DEFAULT_SPEC).alias;
 }
