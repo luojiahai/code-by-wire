@@ -107,9 +107,7 @@ describe("store", () => {
   });
 
   it("derives the 200K default window for an uncaptured Opus session", () => {
-    const s = hydrate(
-      snap({ model: "opus", contextTokens: 50_000 }),
-    );
+    const s = hydrate(snap({ model: "opus", contextTokens: 50_000 }));
     expect(s.contextWindow).toBe(200_000);
     expect(s.contextPct).toBe(25); // 50000 / 200000
   });
@@ -117,9 +115,7 @@ describe("store", () => {
   it("clamps context % at 100 when context exceeds the window", () => {
     // A Sonnet/Haiku session on the 1M beta is modeled with a 200K window, so its real context can
     // run past that. Context % must not render above 100.
-    const s = hydrate(
-      snap({ model: "sonnet", contextTokens: 600_000 }),
-    );
+    const s = hydrate(snap({ model: "sonnet", contextTokens: 600_000 }));
     expect(s.contextWindow).toBe(200_000);
     expect(s.contextPct).toBe(100);
   });

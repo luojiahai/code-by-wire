@@ -29,8 +29,9 @@ describe("readModelDefaults", () => {
   it("reads an override from process env when settings is absent", () => {
     const dir = emptyDir();
     expect(
-      readModelDefaults(dir, { ANTHROPIC_DEFAULT_FABLE_MODEL: "claude-fable-5" })
-        .overrides.fable,
+      readModelDefaults(dir, {
+        ANTHROPIC_DEFAULT_FABLE_MODEL: "claude-fable-5",
+      }).overrides.fable,
     ).toBe("claude-fable-5");
   });
   it("prefers the settings override over process env", () => {
@@ -43,13 +44,14 @@ describe("readModelDefaults", () => {
     ).toBe("from-settings");
   });
   it("reads the default model when it is a known family", () => {
-    expect(readModelDefaults(writeSettings({ model: "opus" }), {}).default).toBe(
-      "opus",
-    );
+    expect(
+      readModelDefaults(writeSettings({ model: "opus" }), {}).default,
+    ).toBe("opus");
   });
   it("ignores a default that is not one of our families", () => {
     expect(
-      readModelDefaults(writeSettings({ model: "claude-opus-4-8" }), {}).default,
+      readModelDefaults(writeSettings({ model: "claude-opus-4-8" }), {})
+        .default,
     ).toBeUndefined();
   });
   it("intersects availableModels with the known families", () => {

@@ -9,9 +9,9 @@ import {
 
 describe("modelLabel", () => {
   it("shows Family (raw) for a recognized model", () => {
-    expect(
-      modelLabel("opus", "claude-opus-4-8", "Opus 4.8 (1M context)"),
-    ).toBe("Opus (claude-opus-4-8)");
+    expect(modelLabel("opus", "claude-opus-4-8", "Opus 4.8 (1M context)")).toBe(
+      "Opus (claude-opus-4-8)",
+    );
   });
   it("surfaces the [1m] tag verbatim", () => {
     expect(modelLabel("opus", "claude-opus-4-8[1m]", undefined)).toBe(

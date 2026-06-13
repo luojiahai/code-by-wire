@@ -137,10 +137,7 @@ describe("costBreakdown", () => {
 
   it("reports cache-hit savings as the read discount vs full input price", () => {
     // 1M cache-read on opus: paid $0.50, would have been $5.00 fresh → saved $4.50.
-    const b = costBreakdown(
-      usage({ cacheReadTokens: 1_000_000 }),
-      "opus",
-    );
+    const b = costBreakdown(usage({ cacheReadTokens: 1_000_000 }), "opus");
     expect(b.cacheSavings).toBeCloseTo(4.5);
   });
 });

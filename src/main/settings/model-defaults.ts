@@ -32,8 +32,7 @@ export function readModelDefaults(
       const key = `ANTHROPIC_DEFAULT_${family.toUpperCase()}_MODEL`;
       const fromSettings =
         typeof settingsEnv[key] === "string" ? settingsEnv[key] : undefined;
-      const fromEnv =
-        typeof env[key] === "string" ? env[key] : undefined;
+      const fromEnv = typeof env[key] === "string" ? env[key] : undefined;
       const value = fromSettings ?? fromEnv;
       if (value) result.overrides[family] = value;
     }
@@ -57,7 +56,11 @@ export function readModelDefaults(
 
     // If a default was set but isn't in the allowlist, drop it — the wire contract requires
     // that default is always one of the offered families.
-    if (result.allowed && result.default && !result.allowed.includes(result.default)) {
+    if (
+      result.allowed &&
+      result.default &&
+      !result.allowed.includes(result.default)
+    ) {
       delete result.default;
     }
   } catch {

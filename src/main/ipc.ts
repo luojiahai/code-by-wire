@@ -43,7 +43,8 @@ export function registerIpc({
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
   const readApi = apiConfig ?? ((): ApiConfig | null => null);
-  const readDefaults = modelDefaults ?? ((): ModelDefaults => ({ overrides: {} }));
+  const readDefaults =
+    modelDefaults ?? ((): ModelDefaults => ({ overrides: {} }));
 
   const sync = (): void => {
     try {

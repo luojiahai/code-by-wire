@@ -8,7 +8,11 @@ import { MetricRow } from "./MetricRow";
  *  Effort and Clock are lazy — MetricRow renders a muted em-dash until the capture reports them, so
  *  the empty-state rule comes for free. Voice and Remote were dropped in the redesign. */
 export function SessionPanel({ session: s }: { session: Session }) {
-  const model = modelLabel(s.model, s.modelId ?? s.modelRaw, s.modelDisplayName);
+  const model = modelLabel(
+    s.model,
+    s.modelId ?? s.modelRaw,
+    s.modelDisplayName,
+  );
   const clock = s.sessionClockMs != null ? formatClock(s.sessionClockMs) : null;
   return (
     <PanelSection>
