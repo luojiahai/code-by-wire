@@ -126,7 +126,7 @@ describe("scanAllTranscripts (real disk walk, scratch analytics db)", () => {
     expect(readTotals(db)).toEqual(first);
   });
 
-  it("re-reads a changed transcript and updates in place (last-write-wins, no double-count)", () => {
+  it("re-reads only the appended lines on a later pass (append-only), no double-count", () => {
     const home = makeHome();
     writeTranscript(
       home,
@@ -141,19 +141,22 @@ describe("scanAllTranscripts (real disk walk, scratch analytics db)", () => {
     scanAllTranscripts(db, home);
     expect(readTotals(db).inputTokens).toBe(500);
 
-    // Same session + same message id, but the turn now reports more tokens. A re-scan must rewrite the
-    // row, not add a second one.
+    // The Session continues: a second turn is appended and the file's mtime bumps. The next scan ingests
+    // only the new line; the first turn is neither dropped nor double-counted.
     writeTranscript(
       home,
       "-work-a",
       "sess-a",
-      [assistantLine("a-1", "claude-opus-4-8", 900)],
+      [
+        assistantLine("a-1", "claude-opus-4-8", 500),
+        assistantLine("a-2", "claude-opus-4-8", 400),
+      ],
       ANCIENT + 1000,
     );
     scanAllTranscripts(db, home);
     const t = readTotals(db);
-    expect(t.turns).toBe(1);
-    expect(t.inputTokens).toBe(900); // updated, not 1400
+    expect(t.turns).toBe(2);
+    expect(t.inputTokens).toBe(900); // 500 + 400, not 1400
   });
 
   it("ingests nothing from an empty home without throwing", () => {
