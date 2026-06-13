@@ -5,6 +5,8 @@ import {
   upsertTurns,
   readTotals,
   emptyTotals,
+  readProcessedFiles,
+  upsertProcessedFile,
 } from "../../src/main/db/analytics";
 import { openTestDb } from "../helpers/sqlite";
 
@@ -26,22 +28,63 @@ const turn = (over: Partial<AnalyticsTurn> = {}): AnalyticsTurn => ({
 });
 
 describe("analytics store", () => {
-  it("migrates to its own schema and is idempotent", () => {
+  it("migrates to schema v2 and is idempotent", () => {
     const db = openTestDb();
     migrateAnalytics(db);
     migrateAnalytics(db); // second call is a no-op, not an error
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(1);
+    ).toBe(2);
   });
 
-  it("is durable: re-running migrate preserves existing turns (never drops)", () => {
+  it("creates processed_files and round-trips a high-water mark", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    expect(readProcessedFiles(db).size).toBe(0);
+
+    upsertProcessedFile(db, "/a.jsonl", 111.5, 3);
+    upsertProcessedFile(db, "/a.jsonl", 222.5, 9); // upsert by path, not a second row
+    upsertProcessedFile(db, "/b.jsonl", 333, 1);
+
+    const map = readProcessedFiles(db);
+    expect(map.size).toBe(2);
+    expect(map.get("/a.jsonl")).toEqual({ mtime: 222.5, lines: 9 });
+    expect(map.get("/b.jsonl")).toEqual({ mtime: 333, lines: 1 });
+  });
+
+  it("is durable: re-running migrate preserves turns and processed_files", () => {
     const db = openTestDb();
     migrateAnalytics(db);
     upsertTurns(db, [turn()]);
-    migrateAnalytics(db); // a later schema bump must not wipe the historical store
+    upsertProcessedFile(db, "/a.jsonl", 1, 1);
+    migrateAnalytics(db); // already at v2 → the guard skips the block; nothing is wiped
     expect(readTotals(db).turns).toBe(1);
+    expect(readProcessedFiles(db).get("/a.jsonl")).toEqual({ mtime: 1, lines: 1 });
+  });
+
+  it("clears turns once on the v1 → v2 upgrade (id-less surrogate scheme changed)", () => {
+    // Simulate a slice-1 (v1) store: the v1 turns table with a row, user_version pinned at 1.
+    const db = openTestDb();
+    db.exec(`
+      CREATE TABLE turns (
+        message_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, ts INTEGER NOT NULL DEFAULT 0,
+        model_raw TEXT, input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_read_tokens INTEGER NOT NULL DEFAULT 0, cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+        cwd TEXT NOT NULL DEFAULT '', project TEXT NOT NULL DEFAULT '', branch TEXT
+      );
+      PRAGMA user_version = 1;
+    `);
+    upsertTurns(db, [turn()]);
+    expect(readTotals(db).turns).toBe(1);
+
+    migrateAnalytics(db); // 1 → 2: clears turns so the next scan rebuilds under the new surrogate scheme
+    expect(readTotals(db).turns).toBe(0);
+    expect(readProcessedFiles(db).size).toBe(0); // new table exists and is empty
+    expect(
+      (db.prepare("PRAGMA user_version").get() as { user_version: number })
+        .user_version,
+    ).toBe(2);
   });
 
   it("returns zeroed totals for an empty store", () => {

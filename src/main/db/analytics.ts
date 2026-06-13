@@ -8,12 +8,17 @@ import {
 import { transaction, type SqliteDb } from "./driver";
 
 /**
- * Bump when the turn schema changes. Unlike the live index (which DROPs and rebuilds from the JSONL on a
- * bump — ADR-0002), the analytics store is durable: a full disk scan is expensive to redo, so migrate only
- * ever CREATEs, never DROPs. It lives in its own file with its own user_version, so a live-index bump can't
- * touch it. Keyed on user_version so every launch past the first is a no-op.
+ * Bump when the turn schema changes. The analytics store is durable: a full disk scan is expensive to
+ * redo, so migrate never DROPs a table and a live-index bump (ADR-0002) can't touch this separate file.
+ *
+ * v2 adds `processed_files` (the incremental high-water marks) and does a ONE-TIME `DELETE FROM turns`.
+ * That delete is the single exception to "never lose history on a bump": slice 2 re-keys an id-less
+ * turn's surrogate from the parsed-row index to the absolute line number (so an incremental, mid-file
+ * parse keys it the same way a full parse does), and the only coherent way to switch schemes is to let
+ * the next scan rebuild `turns` from disk. It's a deliberate, related migration — not the unrelated
+ * churn the durability rule guards against — and the chunked backfill repopulates within seconds.
  */
-const ANALYTICS_SCHEMA_VERSION = 1;
+const ANALYTICS_SCHEMA_VERSION = 2;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -39,6 +44,12 @@ export function migrateAnalytics(db: SqliteDb): void {
       CREATE INDEX IF NOT EXISTS turns_ts ON turns(ts);
       CREATE INDEX IF NOT EXISTS turns_session ON turns(session_id);
       CREATE INDEX IF NOT EXISTS turns_project ON turns(project);
+      CREATE TABLE IF NOT EXISTS processed_files (
+        path TEXT PRIMARY KEY,
+        mtime REAL NOT NULL,
+        lines INTEGER NOT NULL
+      );
+      DELETE FROM turns;
       PRAGMA user_version = ${ANALYTICS_SCHEMA_VERSION};
     `);
   }
@@ -99,6 +110,42 @@ export function upsertTurns(db: SqliteDb, turns: AnalyticsTurn[]): void {
       });
     }
   });
+}
+
+/** A file's incremental high-water mark: the mtime at which it was last fully processed (or the partial
+ *  sentinel mid-file — see scan.ts), and the count of newline-terminated lines already ingested. */
+export interface ProcessedFile {
+  mtime: number;
+  lines: number;
+}
+
+/** Every file's high-water mark, keyed by absolute path. The scanner loads this once per step to decide,
+ *  per file, whether to skip (mtime unchanged), read the appended tail (grew), or re-read from zero
+ *  (shrank). */
+export function readProcessedFiles(db: SqliteDb): Map<string, ProcessedFile> {
+  const rows = db
+    .prepare("SELECT path, mtime, lines FROM processed_files")
+    .all() as { path: string; mtime: number; lines: number }[];
+  const out = new Map<string, ProcessedFile>();
+  for (const r of rows) out.set(r.path, { mtime: r.mtime, lines: r.lines });
+  return out;
+}
+
+const UPSERT_PROCESSED = `
+  INSERT INTO processed_files (path, mtime, lines)
+  VALUES (@path, @mtime, @lines)
+  ON CONFLICT(path) DO UPDATE SET mtime = excluded.mtime, lines = excluded.lines
+`;
+
+/** Record a file's high-water mark after a step: `mtime` is the file's mtime once fully processed, or the
+ *  partial sentinel while a very large file is still being consumed in line-bounded chunks. */
+export function upsertProcessedFile(
+  db: SqliteDb,
+  path: string,
+  mtime: number,
+  lines: number,
+): void {
+  db.prepare(UPSERT_PROCESSED).run({ path, mtime, lines });
 }
 
 interface TotalsRow {
