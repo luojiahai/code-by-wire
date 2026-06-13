@@ -23,6 +23,23 @@ function writeTranscript(
   utimesSync(path, new Date(mtimeMs), new Date(mtimeMs));
 }
 
+/** Write a subagent transcript under projects/<proj>/<id>/subagents/agent-<agentId>.jsonl — where
+ *  Claude actually stores subagent turns (never inline in the parent). */
+function writeSubagentTranscript(
+  home: string,
+  proj: string,
+  id: string,
+  agentId: string,
+  lines: unknown[],
+): void {
+  const dir = join(home, "projects", proj, id, "subagents");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, `agent-${agentId}.jsonl`),
+    lines.map((l) => JSON.stringify(l)).join("\n") + "\n",
+  );
+}
+
 const assistantLine = (id: string, model: string, input: number) => ({
   type: "assistant",
   cwd: "/work/proj",
@@ -144,5 +161,52 @@ describe("scanAllTranscripts (real disk walk, scratch analytics db)", () => {
     migrateAnalytics(db);
     scanAllTranscripts(db, makeHome());
     expect(readTotals(db).turns).toBe(0);
+  });
+
+  it("counts subagent turns from subagents/agent-*.jsonl, attributed to the parent session", () => {
+    const home = makeHome();
+    // The parent transcript carries only its own turn — real subagent turns live in the sibling
+    // subagents/ dir, never inline (current Claude transcripts have zero inline isSidechain rows).
+    writeTranscript(
+      home,
+      "-work-p",
+      "sess-p",
+      [assistantLine("parent-1", "claude-opus-4-8", 100)],
+      ANCIENT,
+    );
+    writeSubagentTranscript(home, "-work-p", "sess-p", "aaa", [
+      { ...assistantLine("sub-1", "claude-haiku-4-5", 30), isSidechain: true },
+      { ...assistantLine("sub-2", "claude-haiku-4-5", 70), isSidechain: true },
+    ]);
+
+    const db = openTestDb();
+    migrateAnalytics(db);
+    scanAllTranscripts(db, home);
+
+    const t = readTotals(db);
+    expect(t.turns).toBe(3); // 1 parent + 2 subagent turns
+    expect(t.sessions).toBe(1); // subagents roll up under the parent, no phantom session
+    expect(t.inputTokens).toBe(200); // 100 + 30 + 70
+  });
+
+  it("is idempotent across a re-scan that includes subagent turns", () => {
+    const home = makeHome();
+    writeTranscript(
+      home,
+      "-work-p",
+      "sess-p",
+      [assistantLine("parent-1", "claude-opus-4-8", 100)],
+      ANCIENT,
+    );
+    writeSubagentTranscript(home, "-work-p", "sess-p", "aaa", [
+      { ...assistantLine("sub-1", "claude-haiku-4-5", 30), isSidechain: true },
+    ]);
+
+    const db = openTestDb();
+    migrateAnalytics(db);
+    scanAllTranscripts(db, home);
+    const first = readTotals(db);
+    scanAllTranscripts(db, home); // re-run over unchanged parent + subagent files
+    expect(readTotals(db)).toEqual(first);
   });
 });

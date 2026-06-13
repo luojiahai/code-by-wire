@@ -13,13 +13,16 @@ const SYNTHETIC_MODEL = "<synthetic>";
  * dedup (a turn repeats across content-block lines under one message id; first sight wins) and counts
  * Subagent (isSidechain) turns — their usage is real, billed cost — but skips synthetic placeholders.
  *
- * An assistant turn with no message id (rare) gets a position-stable surrogate (`<sessionId>#<rowIndex>`),
+ * An assistant turn with no message id (rare) gets a position-stable surrogate (`<keyPrefix>#<rowIndex>`),
  * so re-parsing an unchanged file yields the same key and a re-scan upserts in place rather than
- * double-counting. `cwd` is recorded in full; `project` is its basename for display.
+ * double-counting. `keyPrefix` defaults to `sessionId`; a subagent transcript passes its own prefix so an
+ * id-less subagent turn can't collide with an id-less parent turn that shares the session. `cwd` is
+ * recorded in full; `project` is its basename for display.
  */
 export function extractTurns(
   jsonl: string,
   sessionId: string,
+  keyPrefix: string = sessionId,
 ): AnalyticsTurn[] {
   const out: AnalyticsTurn[] = [];
   const counted = new Set<string>();
@@ -33,7 +36,7 @@ export function extractTurns(
     const id =
       typeof row.message?.id === "string"
         ? row.message.id
-        : `${sessionId}#${index}`;
+        : `${keyPrefix}#${index}`;
     if (counted.has(id)) return;
     counted.add(id);
 
