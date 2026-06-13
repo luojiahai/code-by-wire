@@ -188,6 +188,7 @@ export function summarize(c: SessionCandidate): PersistedSession {
     }),
     management: "observed", // default; overridden to 'managed' in createClaudeProvider for app-spawned ids
     model,
+    modelRaw: t?.modelRaw,
     lastActivityMs: t?.lastActivityMs || c.updatedAt || 0,
     awaitingUser,
     transcriptMtimeMs: c.transcriptMtimeMs,

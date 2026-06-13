@@ -8,7 +8,7 @@ import type { IndexOverview } from "@shared/ipc";
 import { transaction, type SqliteDb } from "./driver";
 
 /** Bump when the schema changes; `migrate` rebuilds the index (a disposable cache) to match. */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -32,6 +32,7 @@ export function migrate(db: SqliteDb): void {
         state TEXT NOT NULL,
         management TEXT NOT NULL,
         model TEXT NOT NULL,
+        model_raw TEXT,
         last_activity_ms INTEGER NOT NULL,
         awaiting_user INTEGER NOT NULL DEFAULT 0,
         transcript_mtime_ms INTEGER NOT NULL DEFAULT 0,
@@ -54,6 +55,7 @@ interface Row {
   state: string;
   management: string;
   model: string;
+  model_raw: string | null;
   last_activity_ms: number;
   awaiting_user: number;
   transcript_mtime_ms: number;
@@ -73,6 +75,7 @@ function rowToPersisted(r: Row): PersistedSession {
     state: r.state as PersistedSession["state"],
     management: r.management as PersistedSession["management"],
     model: normalizeModelId(r.model),
+    modelRaw: r.model_raw ?? undefined,
     lastActivityMs: r.last_activity_ms,
     awaitingUser: !!r.awaiting_user,
     transcriptMtimeMs: r.transcript_mtime_ms,
@@ -108,6 +111,7 @@ export function hydrate(p: PersistedSession): Session {
     state: p.state,
     management: p.management,
     model: p.model,
+    modelRaw: p.modelRaw,
     contextPct: pctOfWindow(p.contextTokens, contextWindow),
     contextWindow,
     usage: p.usage,
@@ -118,10 +122,10 @@ export function hydrate(p: PersistedSession): Session {
 
 const UPSERT = `
   INSERT INTO sessions
-    (id, title, project, branch, state, management, model, last_activity_ms, awaiting_user, transcript_mtime_ms,
+    (id, title, project, branch, state, management, model, model_raw, last_activity_ms, awaiting_user, transcript_mtime_ms,
      input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, context_tokens)
   VALUES
-    (@id, @title, @project, @branch, @state, @management, @model, @last_activity_ms, @awaiting_user, @transcript_mtime_ms,
+    (@id, @title, @project, @branch, @state, @management, @model, @model_raw, @last_activity_ms, @awaiting_user, @transcript_mtime_ms,
      @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @context_tokens)
   ON CONFLICT(id) DO UPDATE SET
     title = excluded.title,
@@ -130,6 +134,7 @@ const UPSERT = `
     state = excluded.state,
     management = excluded.management,
     model = excluded.model,
+    model_raw = excluded.model_raw,
     last_activity_ms = excluded.last_activity_ms,
     awaiting_user = excluded.awaiting_user,
     transcript_mtime_ms = excluded.transcript_mtime_ms,
@@ -160,6 +165,7 @@ export function upsertSessions(
         state: s.state,
         management: s.management,
         model: s.model,
+        model_raw: s.modelRaw ?? null,
         last_activity_ms: s.lastActivityMs,
         awaiting_user: s.awaitingUser ? 1 : 0,
         transcript_mtime_ms: s.transcriptMtimeMs,

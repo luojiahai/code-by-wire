@@ -39,7 +39,7 @@ describe("store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(3);
+    ).toBe(4);
   });
 
   it("round-trips a snapshot, coercing missing branch and the awaitingUser flag", () => {
@@ -132,6 +132,24 @@ describe("store", () => {
       snap({ id: "new", lastActivityMs: 9 }),
     ]);
     expect(getSessions(db).map((s) => s.id)).toEqual(["new", "old"]);
+  });
+
+  it("round-trips the raw model string", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [
+      snap({ id: "a", modelRaw: "global.anthropic.claude-opus-4-7" }),
+    ]);
+    expect(getPersisted(db)[0].modelRaw).toBe(
+      "global.anthropic.claude-opus-4-7",
+    );
+  });
+
+  it("reads modelRaw as undefined when the column is null", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [snap({ id: "b", modelRaw: undefined })]);
+    expect(getPersisted(db)[0].modelRaw).toBeUndefined();
   });
 
   it("prunes ids outside the keep-set, and clears all on an empty keep-set", () => {

@@ -48,6 +48,10 @@ export interface Session {
    *  and window still ride the normalized `model`). Absent when there's no capture. */
   modelId?: string;
   modelDisplayName?: string;
+  /** The exact resolved model id from the transcript (`message.model`), persisted across syncs. The
+   *  honest label prefers the live statusLine `modelId` when present, else this. Absent for a session
+   *  whose transcript reported no model yet. */
+  modelRaw?: string;
   usage: Usage;
   equivApiValueUsd: number;
   /** Live USD cost from the statusLine when a capture exists (Claude's own figure): real spend on an
@@ -80,6 +84,8 @@ export interface PersistedSession {
   state: SessionState;
   management: Management;
   model: Family;
+  /** The raw transcript model string for this session (see Session.modelRaw). */
+  modelRaw?: string;
   lastActivityMs: number;
   /** Last parsed transcript tail left a prompt unanswered. Stored so state can be recomputed on a
    *  sync that skips the (unchanged) transcript, without reparsing it. */

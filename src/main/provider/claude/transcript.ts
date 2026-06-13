@@ -12,6 +12,9 @@ export interface TranscriptSummary {
   cwd: string;
   branch?: string;
   model: Family;
+  /** The last assistant turn's raw `message.model`, before normalization. Undefined when no turn
+   *  reported a model. */
+  modelRaw?: string;
   lastActivityMs: number;
   /** The last turn left a question or permission prompt unanswered (a tool_use with no result). */
   awaitingUser: boolean;
@@ -179,6 +182,7 @@ export function parseTranscript(
     cwd,
     branch,
     model: normalizeModelId(lastModelRaw),
+    modelRaw: lastModelRaw,
     lastActivityMs,
     awaitingUser: tail.awaitingUser,
     usage: { inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens },
