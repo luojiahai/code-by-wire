@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mkdirSync, writeFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { IPC } from "@shared/ipc";
-import type { StatsSnapshot } from "@shared/stats";
+import type { StatsSnapshot, StatsRange } from "@shared/stats";
 import type { Provider } from "../src/main/provider/types";
 
 // Capture the handlers registerIpc registers, without a real Electron ipcMain (same shape as ipc.test.ts).
@@ -157,6 +157,42 @@ describe("registerIpc stats:read", () => {
       progress: { filesTotal: 0, filesDone: 0, done: true },
       hasAnyTurns: false,
     });
+  });
+
+  it("scopes the returned totals to the requested range", () => {
+    const home = makeHome();
+    mkdirSync(join(home, "projects"), { recursive: true }); // empty: the scan finds nothing, seeds survive
+
+    const now = Date.now();
+    const DAY = 86_400_000;
+    const analyticsDb = openTestDb();
+    migrateAnalytics(analyticsDb);
+    const seed = (id: string, ts: number) => ({
+      messageId: id,
+      sessionId: id,
+      ts,
+      modelRaw: "claude-opus-4-8",
+      usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+      cwd: "/w",
+      project: "w",
+    });
+    upsertTurns(analyticsDb, [
+      seed("recent", now - 60 * 60_000), // an hour ago: inside every windowed range
+      seed("mid", now - 10 * DAY), // ten days ago: inside 90d, outside 7d
+      seed("old", now - 100 * DAY), // a hundred days ago: only all-time
+    ]);
+
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider, analyticsDb, claudeDir: home });
+
+    const turnsFor = (range?: StatsRange): number =>
+      (handlers.get(IPC.readStats)!(null, range) as StatsSnapshot).totals.turns;
+
+    expect(turnsFor("all")).toBe(3);
+    expect(turnsFor("90d")).toBe(2);
+    expect(turnsFor("7d")).toBe(1);
+    expect(turnsFor()).toBe(3); // a missing range falls back to all-time, not the product 30d default
   });
 
   it("with a store but no claude dir, serves last-known totals and reports done", () => {

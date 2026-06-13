@@ -14,8 +14,8 @@ import {
 import { getOverview } from "./db/store";
 import { readTotals, emptyTotals, hasAnyTurns } from "./db/analytics";
 import { scanStep } from "./analytics/scan";
-import type { StatsTotals, StatsSnapshot, ScanProgress } from "@shared/stats";
-import { emptySnapshot } from "@shared/stats";
+import type { StatsTotals, StatsSnapshot, ScanProgress, StatsRange } from "@shared/stats";
+import { emptySnapshot, rangeSinceMs } from "@shared/stats";
 import { syncSessions } from "./sync";
 
 export interface IpcDeps {
@@ -126,9 +126,9 @@ export function registerIpc({
     filesDone: 0,
     done: true,
   });
-  const safeTotals = (adb: SqliteDb): StatsTotals => {
+  const safeTotals = (adb: SqliteDb, sinceMs: number | null): StatsTotals => {
     try {
-      return readTotals(adb);
+      return readTotals(adb, sinceMs);
     } catch (err) {
       console.error("stats read failed; serving zeros", err);
       return emptyTotals();
@@ -142,12 +142,16 @@ export function registerIpc({
       return false;
     }
   };
-  ipcMain.handle(IPC.readStats, (): StatsSnapshot => {
+  ipcMain.handle(IPC.readStats, (_e, range?: StatsRange): StatsSnapshot => {
+    // The window's inclusive lower bound, computed in the MAIN process's local time (the user's calendar
+    // day — #110). A missing or unrecognized range falls back to all-time (null), so a malformed arg shows
+    // everything rather than silently hiding history; the renderer sends the 30d product default on mount.
+    const sinceMs = rangeSinceMs(range ?? "all", Date.now());
     if (!analyticsDb || !claudeDir) {
       // No store, or no dir to scan: a done snapshot (zeros if no store; last-known if a store but no dir).
       return analyticsDb
         ? {
-            totals: safeTotals(analyticsDb),
+            totals: safeTotals(analyticsDb, sinceMs),
             progress: doneProgress(),
             hasAnyTurns: safeHasAnyTurns(analyticsDb),
           }
@@ -160,7 +164,7 @@ export function registerIpc({
       console.error("stats scan step failed; serving last-known totals", err);
     }
     return {
-      totals: safeTotals(analyticsDb),
+      totals: safeTotals(analyticsDb, sinceMs),
       progress,
       hasAnyTurns: safeHasAnyTurns(analyticsDb),
     };

@@ -3,7 +3,7 @@ import type { TranscriptRead, ReadSettled } from "./transcript";
 import type { TerminalApi } from "./terminal";
 import type { MetricsRead } from "./metrics";
 import type { ModelDefaults } from "./models";
-import type { StatsSnapshot } from "./stats";
+import type { StatsSnapshot, StatsRange } from "./stats";
 export const IPC = {
   overview: "overview:get",
   refresh: "sessions:refresh",
@@ -52,10 +52,11 @@ export interface IpcApi {
   /** Per-family model overrides, the configured default family, and the allowed-family allowlist —
    *  read from Claude Code's settings.json and the process env. */
   modelDefaults(): Promise<ModelDefaults>;
-  /** Run one bounded, incremental scan step and return the all-time totals plus scan progress. The Stats
-   *  view polls this while open — briskly until `progress.done`, then gently to pick up turns from other
-   *  Sessions — and stops on unmount, so the main process does no scan work unprompted. */
-  readStats(): Promise<StatsSnapshot>;
+  /** Run one bounded, incremental scan step and return totals scoped to `range` (default all-time when
+   *  omitted), plus scan progress and whether the store holds any turn. The Stats view polls this while
+   *  open — briskly until `progress.done`, then gently to pick up turns from other Sessions — and stops on
+   *  unmount, so the main process does no scan work unprompted. */
+  readStats(range?: StatsRange): Promise<StatsSnapshot>;
 }
 
 /** Everything exposed on `window.api`: the request/response surface plus the Managed-terminal surface. */
