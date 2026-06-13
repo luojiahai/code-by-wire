@@ -48,11 +48,37 @@ describe("readModelDefaults", () => {
       readModelDefaults(writeSettings({ model: "opus" }), {}).default,
     ).toBe("opus");
   });
-  it("ignores a default that is not one of our families", () => {
+  it("normalizes a full model id in the settings model key to its family", () => {
     expect(
       readModelDefaults(writeSettings({ model: "claude-opus-4-8" }), {})
         .default,
-    ).toBeUndefined();
+    ).toBe("opus");
+  });
+  it("reads ANTHROPIC_MODEL from settings env as the default", () => {
+    expect(
+      readModelDefaults(
+        writeSettings({ env: { ANTHROPIC_MODEL: "haiku" } }),
+        {},
+      ).default,
+    ).toBe("haiku");
+  });
+  it("prefers ANTHROPIC_MODEL over the settings model key", () => {
+    const dir = writeSettings({
+      env: { ANTHROPIC_MODEL: "haiku" },
+      model: "opus",
+    });
+    expect(readModelDefaults(dir, {}).default).toBe("haiku");
+  });
+  it("normalizes a gateway-prefixed ANTHROPIC_MODEL to its family", () => {
+    const dir = writeSettings({
+      env: { ANTHROPIC_MODEL: "global.anthropic.claude-sonnet-4-6" },
+    });
+    expect(readModelDefaults(dir, {}).default).toBe("sonnet");
+  });
+  it("reads ANTHROPIC_MODEL from process env when settings is absent", () => {
+    expect(
+      readModelDefaults(emptyDir(), { ANTHROPIC_MODEL: "fable" }).default,
+    ).toBe("fable");
   });
   it("intersects availableModels with the known families", () => {
     expect(

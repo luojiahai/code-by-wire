@@ -1,13 +1,18 @@
 import { join } from "node:path";
-import { FAMILIES, type ModelDefaults } from "@shared/models";
+import { FAMILIES, normalizeModelId, type ModelDefaults } from "@shared/models";
 import { readTextOrNull } from "../claude-config";
+
+/** A trimmed, non-empty string, else undefined. */
+function str(v: unknown): string | undefined {
+  return typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
+}
 
 /**
  * Read the model configuration from `<claudeDir>/settings.json` and the provided env map.
  * Collects per-family `ANTHROPIC_DEFAULT_<FAMILY>_MODEL` overrides (settings env takes precedence
- * over process env), the `model` default when it names a known family, and `availableModels`
- * intersected to known families. Best-effort: any absence or read failure returns `{ overrides: {} }`
- * and never throws.
+ * over process env), the default family (from `ANTHROPIC_MODEL`, else the settings `model` key,
+ * normalized to a family), and `availableModels` intersected to known families. Best-effort: any
+ * absence or read failure returns `{ overrides: {} }` and never throws.
  */
 export function readModelDefaults(
   claudeDir: string,
@@ -37,13 +42,17 @@ export function readModelDefaults(
       if (value) result.overrides[family] = value;
     }
 
-    // Default family: only valid when it is an exact case-sensitive match for a known family.
-    if (
-      typeof settingsModel === "string" &&
-      (FAMILIES as readonly string[]).includes(settingsModel)
-    ) {
-      result.default = settingsModel as (typeof FAMILIES)[number];
-    }
+    // Default family: prefer the ANTHROPIC_MODEL env var (settings env over process env), else the
+    // settings `model` key, normalized to a family. Mirrors Claude Code's resolution — ANTHROPIC_MODEL
+    // outranks the settings `model` key, and either may be an alias (`sonnet`) or a full id
+    // (`claude-sonnet-4-6`, a gateway-prefixed `global.anthropic.claude-sonnet-4-6`). When nothing is
+    // configured the built-in default is account-tier-dependent and not derivable offline, so the picker
+    // keeps its own last-resort fallback.
+    const rawDefault =
+      str(settingsEnv.ANTHROPIC_MODEL) ??
+      str(env.ANTHROPIC_MODEL) ??
+      str(settingsModel);
+    if (rawDefault) result.default = normalizeModelId(rawDefault);
 
     // Available models: intersect with known families, preserve order.
     if (Array.isArray(settingsAvailable)) {
