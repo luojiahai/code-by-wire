@@ -24,13 +24,13 @@ export function MetricRow({
       className="flex items-baseline justify-between gap-3 py-0.5"
       title={title}
     >
-      <span className="flex items-center gap-1.5 text-[12px] text-fg-muted">
+      <span className="flex shrink-0 items-center gap-1.5 text-[12px] text-fg-muted">
         {swatch && <Swatch color={swatch} />}
         {label}
       </span>
       <span
         className={cx(
-          "font-mono text-[12px] tabular-nums",
+          "min-w-0 truncate font-mono text-[12px] tabular-nums",
           empty ? "text-ink-600" : (tone ?? "text-fg"),
         )}
       >
