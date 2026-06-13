@@ -1,5 +1,5 @@
 import type { Usage } from "@shared/types";
-import type { StatsTotals } from "@shared/stats";
+import type { StatsTotals, StatsByModel } from "@shared/stats";
 import {
   equivApiValue,
   isKnownModelString,
@@ -252,4 +252,56 @@ export function hasAnyTurns(db: SqliteDb): boolean {
     .prepare("SELECT EXISTS(SELECT 1 FROM turns) AS present")
     .get() as { present: number };
   return row.present === 1;
+}
+
+/**
+ * The per-model breakdown (#111): one row per raw model id, scoped to the same range bound the totals use.
+ * Tokens are summed across all four kinds; cost maps each raw id through the family-substring pricing
+ * (single-sourced via equivApiValue, the same formula readTotals and the per-session Cost panel use), and
+ * an unrecognized id gets null cost (n/a) while its tokens still count. Rows order by tokens descending so
+ * the heaviest model reads first. The GROUP BY mirrors readTotals' internal cost grouping — kept as its own
+ * query so each function stays one focused read rather than one threading a second return value through.
+ */
+export function readByModel(
+  db: SqliteDb,
+  sinceMs?: number | null,
+): StatsByModel[] {
+  const where = sinceMs != null ? "WHERE ts >= @since" : "";
+  const bind = sinceMs != null ? [{ since: sinceMs }] : [];
+
+  const rows = db
+    .prepare(
+      `SELECT
+         model_raw,
+         COALESCE(SUM(input_tokens), 0) AS input_tokens,
+         COALESCE(SUM(output_tokens), 0) AS output_tokens,
+         COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
+         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
+       FROM turns ${where}
+       GROUP BY model_raw`,
+    )
+    .all(...bind) as ModelRow[];
+
+  return rows
+    .map((m): StatsByModel => {
+      const raw = m.model_raw ?? undefined;
+      const totalTokens =
+        m.input_tokens +
+        m.output_tokens +
+        m.cache_read_tokens +
+        m.cache_creation_tokens;
+      const equivApiValueUsd = isKnownModelString(raw)
+        ? equivApiValue(
+            {
+              inputTokens: m.input_tokens,
+              outputTokens: m.output_tokens,
+              cacheReadTokens: m.cache_read_tokens,
+              cacheCreationTokens: m.cache_creation_tokens,
+            },
+            normalizeModelId(raw),
+          )
+        : null; // n/a cost: tokens above still count
+      return { modelRaw: m.model_raw, totalTokens, equivApiValueUsd };
+    })
+    .sort((a, b) => b.totalTokens - a.totalTokens);
 }

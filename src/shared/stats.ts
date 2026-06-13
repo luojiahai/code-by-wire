@@ -31,6 +31,20 @@ export function emptyTotals(): StatsTotals {
 }
 
 /**
+ * One row of the per-model breakdown (#111), keyed on the raw model id exactly as the transcript recorded
+ * it (e.g. "claude-opus-4-8"), so one model version is distinct from the next. `totalTokens` is the sum of
+ * all four token kinds — what the donut sizes on and the table shows. `equivApiValueUsd` is null when the
+ * raw id matches no known family: an honest n/a, never a guessed $0. A null `modelRaw` is a turn that
+ * recorded no model; it renders as "Unknown" with n/a cost.
+ */
+export interface StatsByModel {
+  modelRaw: string | null;
+  totalTokens: number;
+  /** Equivalent API value for this model, or null (n/a) when the raw id matches no known family. */
+  equivApiValueUsd: number | null;
+}
+
+/**
  * How far the incremental scan has gotten, returned alongside the totals so the Stats view can show a
  * "building history" state on a first cold run and know when to drop from brisk polling to a gentle warm
  * cadence. `filesTotal`/`filesDone` count Transcript and subagent files; `done` is true once every file's
