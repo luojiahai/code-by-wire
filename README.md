@@ -7,11 +7,19 @@ English | [简体中文](README.zh-CN.md)
 [![Latest release](https://img.shields.io/github/v/release/luojiahai/code-by-wire?style=flat-square)](https://github.com/luojiahai/code-by-wire/releases)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?style=flat-square&logo=github&logoColor=white)](https://github.com/sponsors/luojiahai)
 
-**The cockpit for local agentic coding tools (e.g., Claude Code).**
+**The cockpit for Claude Code.**
 
-Code-by-wire is a desktop app that puts every agentic coding session in one place: live state,
-transcript, terminal, and the cost and context telemetry the CLI keeps out of
-sight. One pane instead of a dozen terminal windows.
+Claude Code runs in your terminal and writes a rich trail to `~/.claude` as it
+works: every turn, every token, every tool call, the running cost, the context
+window. The CLI shows you almost none of it. A statusline is one line at the
+bottom of one terminal, and the moment a second session is running it's already
+not enough.
+
+Code-by-wire reads that trail and turns it into one live dashboard. Every Claude
+Code session on your machine in one place: live state, the full transcript, an
+embedded terminal to drive or take over, and the cost, context, and usage
+telemetry the terminal never shows you. One pane instead of a dozen terminal
+windows.
 
 [![Download for macOS (Apple Silicon)](https://img.shields.io/badge/Download%20for%20macOS%20%28Apple%20Silicon%29-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/luojiahai/code-by-wire/releases/latest)
 
@@ -91,6 +99,29 @@ A right-hand rail of live panels:
   blocked by.
 - **Subagents.** The tree of child sessions a session spawned, nested by depth.
 - **Session.** Model, effort level, and the run clock.
+
+### 📈 The whole story across every session
+
+**Overview is where the app opens.** Pinned to the top of the rail, it's an
+app-level view that totals every Claude Code session on your machine, not just
+the one you're watching. Pick a range: Today, 7d, 30d, 90d, or All.
+
+**Headline numbers.** Sessions, turns, tokens, and equivalent API value for the
+range, with a stacked bar of where the tokens went.
+
+**A contributions calendar.** A year of activity as a heatmap, colored by turns,
+tokens, or equivalent API value. Click any day to scope the whole page to it.
+
+**Daily usage.** One stacked bar per day, split by token kind or by model.
+
+**Three ways to slice it.** By model, by project with each project's branches
+folded in, and by session in a sortable table. An _Include cache_ toggle decides
+whether cached tokens count toward the totals.
+
+**Exact, never estimated.** Every number is read straight from the transcripts
+on disk, deduped and totalled. No sampling, no guesses. The first launch
+backfills your history behind a progress bar, then it stays live like everything
+else.
 
 ### 💳 Know your account
 
