@@ -161,6 +161,10 @@ describe("registerIpc stats:read", () => {
       byBranch: [],
       bySession: [],
       daily: [],
+      calendar: [],
+      calendarStart: "",
+      calendarEnd: "",
+      calendarYears: [],
     });
   });
 
@@ -440,6 +444,100 @@ describe("registerIpc stats:read", () => {
     expect(all[1].byModel).toEqual([
       { modelRaw: "claude-opus-4-8", totalTokens: 1_000_000 },
     ]);
+  });
+
+  it("returns the calendar window scoped to the requested year, with the years list", () => {
+    const home = makeHome();
+    mkdirSync(join(home, "projects"), { recursive: true });
+    const noon = (y: number, m: number, d: number): number =>
+      new Date(y, m - 1, d, 12, 0, 0).getTime();
+
+    const analyticsDb = openTestDb();
+    migrateAnalytics(analyticsDb);
+    upsertTurns(analyticsDb, [
+      {
+        messageId: "y24",
+        sessionId: "s",
+        ts: noon(2024, 3, 2),
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+        cwd: "/w",
+        project: "w",
+      },
+      {
+        messageId: "y26",
+        sessionId: "s",
+        ts: noon(2026, 6, 14),
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+        cwd: "/w",
+        project: "w",
+      },
+    ]);
+
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider, analyticsDb, claudeDir: home });
+
+    // calendarYear = 2024 → only the 2024 turn lands in the calendar window.
+    const snap = handlers.get(IPC.readStats)!(
+      null,
+      undefined,
+      2024,
+    ) as StatsSnapshot;
+    expect(snap.calendarStart).toBe("2024-01-01");
+    expect(snap.calendarEnd).toBe("2024-12-31");
+    expect(snap.calendar.map((d) => d.day)).toEqual(["2024-03-02"]);
+    expect(snap.calendar[0].turns).toBe(1);
+    expect(snap.calendarYears).toEqual([2026, 2024]);
+  });
+
+  it("scopes the page totals to a single clicked day (the {day} range)", () => {
+    const home = makeHome();
+    mkdirSync(join(home, "projects"), { recursive: true });
+    const noon = (y: number, m: number, d: number): number =>
+      new Date(y, m - 1, d, 12, 0, 0).getTime();
+
+    const analyticsDb = openTestDb();
+    migrateAnalytics(analyticsDb);
+    const seed = (id: string, ts: number, input: number) => ({
+      messageId: id,
+      sessionId: id,
+      ts,
+      modelRaw: "claude-opus-4-8",
+      usage: {
+        inputTokens: input,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+      },
+      cwd: "/w",
+      project: "w",
+    });
+    upsertTurns(analyticsDb, [
+      seed("d14", noon(2026, 6, 14), 5),
+      seed("d15", noon(2026, 6, 15), 99),
+    ]);
+
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider, analyticsDb, claudeDir: home });
+
+    const snap = handlers.get(IPC.readStats)!(null, {
+      day: "2026-06-14",
+    }) as StatsSnapshot;
+    expect(snap.totals.turns).toBe(1);
+    expect(snap.totals.inputTokens).toBe(5);
   });
 
   it("with a store but no claude dir, serves last-known totals and reports done", () => {

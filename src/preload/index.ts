@@ -12,7 +12,8 @@ const api: AppApi = {
   refresh: () => ipcRenderer.invoke(IPC.refresh),
   capabilities: () => ipcRenderer.invoke(IPC.capabilities),
   modelDefaults: () => ipcRenderer.invoke(IPC.modelDefaults),
-  readStats: (range) => ipcRenderer.invoke(IPC.readStats, range),
+  readStats: (range, calendarYear) =>
+    ipcRenderer.invoke(IPC.readStats, range, calendarYear),
   readTranscript: (id, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readTranscript, id, sinceMtimeMs),
   readTasks: (id, sinceMtimeMs) =>

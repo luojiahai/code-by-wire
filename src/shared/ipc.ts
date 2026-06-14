@@ -53,10 +53,10 @@ export interface IpcApi {
    *  read from Claude Code's settings.json and the process env. */
   modelDefaults(): Promise<ModelDefaults>;
   /** Run one bounded, incremental scan step and return totals scoped to `range` (default all-time when
-   *  omitted), plus scan progress and whether the store holds any turn. The Stats view polls this while
-   *  open — briskly until `progress.done`, then gently to pick up turns from other Sessions — and stops on
-   *  unmount, so the main process does no scan work unprompted. */
-  readStats(range?: StatsRange): Promise<StatsSnapshot>;
+   *  omitted), the per-dimension breakdowns, the daily series, and the contributions calendar for
+   *  `calendarYear` (a specific local year, or the trailing twelve months when omitted) — the calendar window
+   *  is independent of `range`. Polled while the Stats view is open; never rejects. */
+  readStats(range?: StatsRange, calendarYear?: number): Promise<StatsSnapshot>;
 }
 
 /** Everything exposed on `window.api`: the request/response surface plus the Managed-terminal surface. */

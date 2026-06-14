@@ -16,6 +16,8 @@ import {
   readTotals,
   readBreakdowns,
   readDaily,
+  readCalendar,
+  readCalendarYears,
   emptyTotals,
   hasAnyTurns,
 } from "./db/analytics";
@@ -27,8 +29,15 @@ import type {
   ScanProgress,
   StatsRange,
   DailyBucket,
+  CalendarDay,
+  CalendarWindow,
 } from "@shared/stats";
-import { emptySnapshot, emptyBreakdowns, rangeSinceMs } from "@shared/stats";
+import {
+  emptySnapshot,
+  emptyBreakdowns,
+  rangeWindow,
+  calendarWindow,
+} from "@shared/stats";
 import { syncSessions } from "./sync";
 
 export interface IpcDeps {
@@ -139,9 +148,13 @@ export function registerIpc({
     filesDone: 0,
     done: true,
   });
-  const safeTotals = (adb: SqliteDb, sinceMs: number | null): StatsTotals => {
+  const safeTotals = (
+    adb: SqliteDb,
+    sinceMs: number | null,
+    untilMs: number | null,
+  ): StatsTotals => {
     try {
-      return readTotals(adb, sinceMs);
+      return readTotals(adb, sinceMs, untilMs);
     } catch (err) {
       console.error("stats read failed; serving zeros", err);
       return emptyTotals();
@@ -163,9 +176,10 @@ export function registerIpc({
   const safeBreakdowns = (
     adb: SqliteDb,
     sinceMs: number | null,
+    untilMs: number | null,
   ): StatsBreakdowns => {
     try {
-      return readBreakdowns(adb, sinceMs);
+      return readBreakdowns(adb, sinceMs, untilMs);
     } catch (err) {
       console.error("stats breakdown read failed; serving none", err);
       return emptyBreakdowns();
@@ -173,45 +187,81 @@ export function registerIpc({
   };
   // The daily time-series, range-scoped; on a read error serve an empty series so a bad row never sinks
   // the snapshot (matching safeTotals/safeBreakdowns' "serve a safe default" posture).
-  const safeDaily = (adb: SqliteDb, sinceMs: number | null): DailyBucket[] => {
+  const safeDaily = (
+    adb: SqliteDb,
+    sinceMs: number | null,
+    untilMs: number | null,
+  ): DailyBucket[] => {
     try {
-      return readDaily(adb, sinceMs);
+      return readDaily(adb, sinceMs, untilMs);
     } catch (err) {
       console.error("stats daily read failed; serving none", err);
       return [];
     }
   };
-  ipcMain.handle(IPC.readStats, (_e, range?: StatsRange): StatsSnapshot => {
-    // The window's inclusive lower bound, computed in the MAIN process's local time (the user's calendar
-    // day — #110). A missing or unrecognized range falls back to all-time (null), so a malformed arg shows
-    // everything rather than silently hiding history; the renderer sends the 30d product default on mount.
-    const sinceMs = rangeSinceMs(range ?? "all", Date.now());
-    if (!analyticsDb || !claudeDir) {
-      // No store, or no dir to scan: a done snapshot (zeros if no store; last-known if a store but no dir).
-      return analyticsDb
-        ? {
-            totals: safeTotals(analyticsDb, sinceMs),
-            progress: doneProgress(),
-            hasAnyTurns: safeHasAnyTurns(analyticsDb),
-            daily: safeDaily(analyticsDb, sinceMs),
-            ...safeBreakdowns(analyticsDb, sinceMs),
-          }
-        : emptySnapshot();
-    }
-    let progress = doneProgress();
+  // The contributions calendar and its year list, scoped to the calendar's OWN window (#115) — independent
+  // of the page range. On a read error serve an empty series/list so a bad row never sinks the snapshot
+  // (same "serve a safe default" posture as safeDaily/safeBreakdowns).
+  const safeCalendar = (adb: SqliteDb, win: CalendarWindow): CalendarDay[] => {
     try {
-      progress = scanStep(analyticsDb, claudeDir);
+      return readCalendar(adb, win.sinceMs, win.untilMs);
     } catch (err) {
-      console.error("stats scan step failed; serving last-known totals", err);
+      console.error("stats calendar read failed; serving none", err);
+      return [];
     }
-    return {
-      totals: safeTotals(analyticsDb, sinceMs),
-      progress,
-      hasAnyTurns: safeHasAnyTurns(analyticsDb),
-      daily: safeDaily(analyticsDb, sinceMs),
-      ...safeBreakdowns(analyticsDb, sinceMs),
-    };
-  });
+  };
+  const safeCalendarYears = (adb: SqliteDb): number[] => {
+    try {
+      return readCalendarYears(adb);
+    } catch (err) {
+      console.error("stats calendar years read failed; serving none", err);
+      return [];
+    }
+  };
+  ipcMain.handle(
+    IPC.readStats,
+    (_e, range?: StatsRange, calendarYear?: number): StatsSnapshot => {
+      const now = Date.now();
+      // The page window scopes totals/breakdowns/daily. A missing/unrecognized range falls back to all-time
+      // (#110); a single-day range ({day}) bounds it both ends. The calendar window is resolved separately
+      // (#115): trailing twelve months by default, or the selected local year — independent of `range`.
+      const { sinceMs, untilMs } = rangeWindow(range ?? "all", now);
+      const cal = calendarWindow(calendarYear ?? null, now);
+      if (!analyticsDb || !claudeDir) {
+        // No store, or no dir to scan: a done snapshot (zeros if no store; last-known if a store but no dir).
+        return analyticsDb
+          ? {
+              totals: safeTotals(analyticsDb, sinceMs, untilMs),
+              progress: doneProgress(),
+              hasAnyTurns: safeHasAnyTurns(analyticsDb),
+              daily: safeDaily(analyticsDb, sinceMs, untilMs),
+              ...safeBreakdowns(analyticsDb, sinceMs, untilMs),
+              calendar: safeCalendar(analyticsDb, cal),
+              calendarStart: cal.startDay,
+              calendarEnd: cal.endDay,
+              calendarYears: safeCalendarYears(analyticsDb),
+            }
+          : emptySnapshot();
+      }
+      let progress = doneProgress();
+      try {
+        progress = scanStep(analyticsDb, claudeDir);
+      } catch (err) {
+        console.error("stats scan step failed; serving last-known totals", err);
+      }
+      return {
+        totals: safeTotals(analyticsDb, sinceMs, untilMs),
+        progress,
+        hasAnyTurns: safeHasAnyTurns(analyticsDb),
+        daily: safeDaily(analyticsDb, sinceMs, untilMs),
+        ...safeBreakdowns(analyticsDb, sinceMs, untilMs),
+        calendar: safeCalendar(analyticsDb, cal),
+        calendarStart: cal.startDay,
+        calendarEnd: cal.endDay,
+        calendarYears: safeCalendarYears(analyticsDb),
+      };
+    },
+  );
 
   return { sync };
 }
