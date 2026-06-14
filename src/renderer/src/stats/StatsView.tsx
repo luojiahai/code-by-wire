@@ -153,10 +153,12 @@ export function StatsView() {
               <EmptyStats />
             ) : (
               <>
-                {/* Hero: Totals and the calendar share the row at a fluid 1:2 ratio on wide screens, stacking
-                    on narrow ones. The calendar keeps its own horizontal scroll when its column is too narrow
-                    for the full year (CalendarHeatmap), so the ratio holds at every width. */}
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_2fr]">
+                {/* Hero: a fixed-width Totals card beside a flexible calendar that takes the rest of the row
+                    on wide screens, stacking on narrow ones. The calendar column is minmax(0,1fr) — NOT a bare
+                    1fr, whose auto minimum would refuse to shrink below the grid's content and break the inner
+                    scroll — so the panel adjusts to the width and the calendar scrolls horizontally inside it
+                    whenever the column is too narrow for the full year, the same as the stacked narrow view. */}
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
                   <Totals totals={snap.totals} />
                   {snap.calendarStart && (
                     <Contributions
