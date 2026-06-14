@@ -33,6 +33,7 @@ const WARM_POLL_MS = 1500;
 export function StatsView() {
   const [snap, setSnap] = useState<StatsSnapshot | null>(null);
   const [range, setRange] = useState<StatsRange>(DEFAULT_RANGE);
+  const [includeCache, setIncludeCache] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -73,7 +74,10 @@ export function StatsView() {
       <div className="mx-auto flex max-w-[1100px] flex-col gap-4 px-6 py-6">
         <header className="flex items-center justify-between">
           <h1 className="font-display text-lg text-fg">Overall stats</h1>
-          <RangeFilter value={range} onChange={setRange} />
+          <div className="flex items-center gap-2">
+            <CacheToggle on={includeCache} onChange={setIncludeCache} />
+            <RangeFilter value={range} onChange={setRange} />
+          </div>
         </header>
         {/* null = first poll in flight: blank below the header (matches EmptyDetail's loading). */}
         {snap && (
@@ -92,11 +96,18 @@ export function StatsView() {
             ) : (
               <>
                 <Totals totals={snap.totals} />
-                {snap.byModel.length > 0 && <ByModel rows={snap.byModel} />}
-                {snap.byProject.length > 0 && (
-                  <ByProject rows={snap.byProject} />
+                {snap.byModel.length > 0 && (
+                  <ByModel rows={snap.byModel} includeCache={includeCache} />
                 )}
-                {snap.byBranch.length > 0 && <ByBranch rows={snap.byBranch} />}
+                {snap.byProject.length > 0 && (
+                  <ByProject
+                    rows={snap.byProject}
+                    includeCache={includeCache}
+                  />
+                )}
+                {snap.byBranch.length > 0 && (
+                  <ByBranch rows={snap.byBranch} includeCache={includeCache} />
+                )}
               </>
             )}
           </>
@@ -203,9 +214,10 @@ function Totals({ totals }: { totals: StatsTotals }) {
   );
 }
 
-/** A press-to-flip pill for the By-model token metric (#111), shown in the panel header. Off (default)
- *  counts input + output only; on adds cache-read and cache-creation. Styled like RangeFilter's pressed
- *  state. */
+/** The page-level "Include cache" pill in the Stats header, governing the Tokens metric across all three
+ *  breakdowns at once. On (default) counts all four token kinds; off counts fresh tokens (input + output)
+ *  only. Cost is never affected; it always prices every kind, as the tooltip says. Styled like
+ *  RangeFilter's pressed state. */
 function CacheToggle({
   on,
   onChange,
@@ -230,24 +242,39 @@ function CacheToggle({
   );
 }
 
+/** The token figure the page shows for one breakdown row, governed by the header's cache pill: the full
+ *  total (all four kinds) when cache is included, or fresh tokens (input + output) when it's off. Shared by
+ *  By model, By project, and By branch so the three can't drift on what "Tokens" means. It reads the
+ *  { totalTokens, inputTokens, outputTokens } shape common to all three row types. */
+function tokensOf(
+  row: { totalTokens: number; inputTokens: number; outputTokens: number },
+  includeCache: boolean,
+): number {
+  return includeCache ? row.totalTokens : row.inputTokens + row.outputTokens;
+}
+
 /** The per-model breakdown (#111): a donut sized by each model's token share beside a table of tokens and
- *  Equivalent API value per raw model id. The "Include cache" toggle picks the token metric for both the
- *  donut and the Tokens column together, so the donut share always matches the visible numbers. It defaults
- *  to off (input + output) because cache-read volume dwarfs fresh tokens and would swamp the donut. Cost is
- *  unaffected; it always reflects every token at its rate. An unrecognized id shows n/a cost while its
- *  tokens still count; a turn with no recorded model rows as "Unknown". Color is paired onto each row so the
- *  donut and the table legend read off one source, no zip-by-index that could drift if rows reorder. */
-function ByModel({ rows }: { rows: StatsByModel[] }) {
-  const [includeCache, setIncludeCache] = useState(false);
+ *  Equivalent API value per raw model id. The page-level "Include cache" pill (in the header) picks the
+ *  token metric (via the shared `tokensOf`) for both the donut and the Tokens column together, so the
+ *  donut share always matches the visible numbers. Default on (all four kinds), so a cache-heavy model can
+ *  dominate the donut. Cost is unaffected; it always reflects every token at its rate. An unrecognized id
+ *  shows n/a cost while its tokens still count; a turn with no recorded model rows as "Unknown". Color is
+ *  paired onto each row so the donut and the table legend read off one source, no zip-by-index that could
+ *  drift if rows reorder. */
+function ByModel({
+  rows,
+  includeCache,
+}: {
+  rows: StatsByModel[];
+  includeCache: boolean;
+}) {
   // Skip on a window with no tokens at all, judged on the full total so flipping the toggle never makes the
   // whole panel vanish; at worst the donut hides on a pure-cache window in exclude mode (below).
   if (!rows.some((r) => r.totalTokens > 0)) return null;
-  const tokensOf = (r: StatsByModel) =>
-    includeCache ? r.totalTokens : r.inputTokens + r.outputTokens;
   // Re-rank by the displayed metric so the table reads biggest-first and the donut colors pair to it; ties
   // break by raw id for stability. Color is assigned after the sort so it tracks the row, not the model.
   const ranked = rows
-    .map((r) => ({ ...r, tokens: tokensOf(r) }))
+    .map((r) => ({ ...r, tokens: tokensOf(r, includeCache) }))
     .sort(
       (a, b) =>
         b.tokens - a.tokens ||
@@ -262,10 +289,7 @@ function ByModel({ rows }: { rows: StatsByModel[] }) {
   const segments = ranked.map((r) => ({ value: r.tokens, color: r.color }));
   const hasDonut = segments.some((s) => s.value > 0);
   return (
-    <StatsPanel
-      title="By model"
-      right={<CacheToggle on={includeCache} onChange={setIncludeCache} />}
-    >
+    <StatsPanel title="By model">
       <div className="flex items-center gap-4">
         {hasDonut && <Donut segments={segments} />}
         <table className="min-w-0 flex-1 text-[12px]">
@@ -322,12 +346,25 @@ function ByModel({ rows }: { rows: StatsByModel[] }) {
  *  none of its turns ran a recognized model. Capped to the top N with a "+N more" note, so a long project
  *  list stays bounded without silently hiding the tail. */
 const TOP_PROJECTS = 8;
-function ByProject({ rows }: { rows: StatsByProject[] }) {
+function ByProject({
+  rows,
+  includeCache,
+}: {
+  rows: StatsByProject[];
+  includeCache: boolean;
+}) {
   // Guard on the full set so the panel never vanishes on a pure-zero window; rows are sorted desc, so the
   // first is the largest and (past this guard) > 0 — a safe bar denominator.
   if (!rows.some((r) => r.totalTokens > 0)) return null;
   const top = rows.slice(0, TOP_PROJECTS);
-  const max = top[0].totalTokens;
+  // Rows stay in the store's order (by total tokens); only the displayed figure and bar length follow the
+  // toggle. Unlike By model, this panel doesn't re-rank. It's capped to the top N, so re-ranking would
+  // change which projects show.
+  // Bars size on the displayed metric. The denominator is the largest shown value: with cache included that
+  // equals top[0]'s total (rows arrive sorted by total); with cache excluded it's the largest fresh figure,
+  // which need not be top[0]. A zero denominator (a pure cache window in exclude mode) yields empty bars
+  // rather than a divide-by-zero.
+  const max = Math.max(...top.map((r) => tokensOf(r, includeCache)));
   const rest = rows.length - top.length;
   return (
     <StatsPanel title="By project">
@@ -355,14 +392,14 @@ function ByProject({ rows }: { rows: StatsByProject[] }) {
                     {r.project}
                   </span>
                   <Bar
-                    pct={(r.totalTokens / max) * 100}
+                    pct={max > 0 ? (tokensOf(r, includeCache) / max) * 100 : 0}
                     fill="bg-primary/70"
                     className="w-full"
                   />
                 </div>
               </td>
               <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
-                {formatTokensShort(r.totalTokens)}
+                {formatTokensShort(tokensOf(r, includeCache))}
               </td>
               <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
                 {r.equivApiValueUsd == null
@@ -387,7 +424,13 @@ function ByProject({ rows }: { rows: StatsByProject[] }) {
  *  same-basename projects don't merge; a turn that recorded no branch shows a dash. Capped to the top N with
  *  a "+N more" note. */
 const TOP_BRANCHES = 12;
-function ByBranch({ rows }: { rows: StatsByBranch[] }) {
+function ByBranch({
+  rows,
+  includeCache,
+}: {
+  rows: StatsByBranch[];
+  includeCache: boolean;
+}) {
   if (!rows.some((r) => r.totalTokens > 0)) return null;
   const top = rows.slice(0, TOP_BRANCHES);
   const rest = rows.length - top.length;
@@ -428,7 +471,7 @@ function ByBranch({ rows }: { rows: StatsByBranch[] }) {
                 </span>
               </td>
               <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
-                {formatTokensShort(r.totalTokens)}
+                {formatTokensShort(tokensOf(r, includeCache))}
               </td>
               <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
                 {r.equivApiValueUsd == null
@@ -458,7 +501,8 @@ function EmptyStats() {
 }
 
 /** A bordered, titled section box for the stats page — the shell later slices hang the calendar,
- *  time-series, and breakdown panels off. `right` is an optional header slot (a per-panel toggle). */
+ *  time-series, and breakdown panels off. `right` is an optional header slot for a secondary control,
+ *  currently unused since the cache toggle moved to the page header. */
 function StatsPanel({
   title,
   right,
