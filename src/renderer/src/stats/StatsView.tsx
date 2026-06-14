@@ -258,8 +258,9 @@ const STACK_OPTS = Object.entries(STACK_LABELS) as [StackBy, string][];
  *  cache-write). One source for the legend, the tooltip, and the stack order. */
 const KIND_LABELS = ["Input", "Output", "Cache read", "Cache write"] as const;
 
-/** The NUL sentinel for the null ("Unknown") model, so it keys a map distinctly from any real raw id —
- *  the same convention the ByModel table uses. */
+/** An in-module sentinel for the null ("Unknown") model, so the per-day lookup map keys it distinctly from
+ *  any real raw id (a single space can't be a real model id). Used only as a Map key here, never as a React
+ *  key, so it needn't be the NUL the ByModel table uses for its null-model React key. */
 const NULL_MODEL_KEY = " ";
 const modelKey = (raw: string | null): string => raw ?? NULL_MODEL_KEY;
 
