@@ -7,6 +7,7 @@ import {
   readByModel,
   readByProject,
   readByBranch,
+  readBySession,
   readBreakdowns,
   emptyTotals,
   readProcessedFiles,
@@ -1077,6 +1078,207 @@ describe("readByBranch", () => {
   });
 });
 
+describe("readBySession", () => {
+  it("aggregates one row per session: turns, tokens, last activity, and the earliest-to-latest span", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "t1",
+        sessionId: "s1",
+        ts: 1000,
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "t2",
+        sessionId: "s1",
+        ts: 5000,
+        usage: {
+          inputTokens: 50,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readBySession(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sessionId).toBe("s1");
+    expect(rows[0].turns).toBe(2);
+    expect(rows[0].totalTokens).toBe(150);
+    expect(rows[0].lastActivityMs).toBe(5000);
+    expect(rows[0].durationMs).toBe(4000); // 5000 - 1000
+    expect(rows[0].project).toBe("code-by-wire");
+  });
+
+  it("gives a single-turn session a zero duration (earliest equals latest)", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [turn({ messageId: "only", sessionId: "s1", ts: 4242 })]);
+    const rows = readBySession(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].durationMs).toBe(0);
+    expect(rows[0].lastActivityMs).toBe(4242);
+  });
+
+  it("excludes unknown-time (ts=0) turns from the earliest bound, so they don't stretch the span", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({ messageId: "unknown", sessionId: "s1", ts: 0 }),
+      turn({ messageId: "known", sessionId: "s1", ts: 5000 }),
+    ]);
+    const rows = readBySession(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].turns).toBe(2); // the ts=0 turn still counts as a turn
+    expect(rows[0].lastActivityMs).toBe(5000);
+    expect(rows[0].durationMs).toBe(0); // earliest known == latest == 5000, not 5000 - 0
+  });
+
+  it("gives a session whose every turn is unknown-time a zero span and epoch last activity", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({ messageId: "u1", sessionId: "s1", ts: 0 }),
+      turn({ messageId: "u2", sessionId: "s1", ts: 0 }),
+    ]);
+    const rows = readBySession(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].turns).toBe(2); // both unknown-time turns still count
+    expect(rows[0].lastActivityMs).toBe(0); // no known time → epoch, sorts last (exact data only)
+    expect(rows[0].durationMs).toBe(0); // no known-time turn → no span
+  });
+
+  it("shows the dominant model by tokens but sums cost across all the session's models", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      // sonnet does the most token work in this session → it's the displayed model...
+      turn({
+        messageId: "s",
+        sessionId: "s1",
+        modelRaw: "claude-sonnet-4-6",
+        usage: {
+          inputTokens: 2_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      // ...even though opus also ran. Cost is $6 sonnet (2M input) + $5 opus (1M input) = $11.
+      turn({
+        messageId: "o",
+        sessionId: "s1",
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readBySession(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].modelRaw).toBe("claude-sonnet-4-6"); // dominant by tokens
+    expect(rows[0].totalTokens).toBe(3_000_000);
+    expect(rows[0].equivApiValueUsd).toBeCloseTo(11); // summed across both models
+  });
+
+  it("gives a session with only an unrecognized model n/a cost, still counting its tokens", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "x",
+        sessionId: "s1",
+        modelRaw: "gpt-9-ultra", // unrecognized
+        usage: {
+          inputTokens: 1234,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readBySession(db);
+    expect(rows[0].totalTokens).toBe(1234);
+    expect(rows[0].equivApiValueUsd).toBeNull();
+  });
+
+  it("orders rows by last activity descending, breaking ties by session id", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({ messageId: "a", sessionId: "old", ts: 1000 }),
+      turn({ messageId: "b", sessionId: "new", ts: 9000 }),
+      turn({ messageId: "c", sessionId: "mid", ts: 5000 }),
+    ]);
+    expect(readBySession(db).map((r) => r.sessionId)).toEqual([
+      "new",
+      "mid",
+      "old",
+    ]);
+  });
+
+  it("reconciles the summed per-session cost with the grand total", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "o",
+        sessionId: "s1",
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "s",
+        sessionId: "s2",
+        modelRaw: "claude-sonnet-4-6",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const summed = readBySession(db).reduce(
+      (acc, r) => acc + (r.equivApiValueUsd ?? 0),
+      0,
+    );
+    expect(summed).toBeCloseTo(readTotals(db).equivApiValueUsd); // $5 + $3 = $8
+  });
+
+  it("respects the range bound, excluding out-of-window sessions", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({ messageId: "old", sessionId: "old", ts: 1000 }),
+      turn({ messageId: "new", sessionId: "new", ts: 5000 }),
+    ]);
+    const rows = readBySession(db, 5000); // since == the new turn's ts: only it survives
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sessionId).toBe("new");
+  });
+
+  it("returns an empty array for an empty store", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    expect(readBySession(db)).toEqual([]);
+  });
+});
+
 describe("readBreakdowns", () => {
   // The refactor's load-bearing invariant (#112): folding ONE finest-grain scan three ways must produce
   // exactly what three independent reads do. A seed that spans every axis the folds differ on — two repos
@@ -1132,6 +1334,7 @@ describe("readBreakdowns", () => {
     expect(b.byModel).toEqual(readByModel(db));
     expect(b.byProject).toEqual(readByProject(db));
     expect(b.byBranch).toEqual(readByBranch(db));
+    expect(b.bySession).toEqual(readBySession(db));
   });
 
   it("matches the standalone readers under a range bound too", () => {
@@ -1157,6 +1360,7 @@ describe("readBreakdowns", () => {
     expect(b.byModel).toEqual(readByModel(db, 5000));
     expect(b.byProject).toEqual(readByProject(db, 5000));
     expect(b.byBranch).toEqual(readByBranch(db, 5000));
+    expect(b.bySession).toEqual(readBySession(db, 5000));
   });
 
   it("reconciles every breakdown's summed cost with the grand total", () => {
@@ -1181,6 +1385,7 @@ describe("readBreakdowns", () => {
       byModel: [],
       byProject: [],
       byBranch: [],
+      bySession: [],
     });
   });
 });

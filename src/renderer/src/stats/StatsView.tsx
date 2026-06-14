@@ -6,16 +6,30 @@ import {
   type StatsByModel,
   type StatsByProject,
   type StatsByBranch,
+  type StatsBySession,
   type StatsRange,
   DEFAULT_RANGE,
   emptySnapshot,
   branchRowKey,
+  tokensOf,
 } from "@shared/stats";
-import { formatTokensShort, formatUsd } from "@shared/format";
+import {
+  formatTokensShort,
+  formatUsd,
+  formatDuration,
+  formatRelativeTime,
+} from "@shared/format";
 import { Icon } from "../ui/icons";
 import { Donut } from "../ui/charts";
 import { MODEL_SEGMENT_COLORS } from "../ui/meta";
 import { Swatch, Bar } from "../ui/atoms";
+import {
+  sortSessions,
+  defaultDirFor,
+  DEFAULT_SESSION_SORT,
+  type SessionSort,
+  type SessionSortKey,
+} from "./session-sort";
 
 /** Poll cadences: brisk while the first cold backfill fills in, gentle once caught up so a turn landing
  *  in another Session still shows up without a manual refresh. */
@@ -107,6 +121,12 @@ export function StatsView() {
                 )}
                 {snap.byBranch.length > 0 && (
                   <ByBranch rows={snap.byBranch} includeCache={includeCache} />
+                )}
+                {snap.bySession.length > 0 && (
+                  <BySession
+                    rows={snap.bySession}
+                    includeCache={includeCache}
+                  />
                 )}
               </>
             )}
@@ -240,17 +260,6 @@ function CacheToggle({
       Include cache
     </button>
   );
-}
-
-/** The token figure the page shows for one breakdown row, governed by the header's cache pill: the full
- *  total (all four kinds) when cache is included, or fresh tokens (input + output) when it's off. Shared by
- *  By model, By project, and By branch so the three can't drift on what "Tokens" means. It reads the
- *  { totalTokens, inputTokens, outputTokens } shape common to all three row types. */
-function tokensOf(
-  row: { totalTokens: number; inputTokens: number; outputTokens: number },
-  includeCache: boolean,
-): number {
-  return includeCache ? row.totalTokens : row.inputTokens + row.outputTokens;
 }
 
 /** The per-model breakdown (#111): a donut sized by each model's token share beside a table of tokens and
@@ -485,6 +494,183 @@ function ByBranch({
       {rest > 0 && (
         <p className="mt-2 text-[11px] text-fg-faint">
           +{rest} more {rest === 1 ? "branch" : "branches"}
+        </p>
+      )}
+    </StatsPanel>
+  );
+}
+
+/** A capped display list: the per-Session table can run to hundreds of rows over all-time, so it shows the
+ *  top N by the ACTIVE sort with a "+N more" note — sort-then-cap, so re-sorting by cost surfaces the most
+ *  expensive sessions across all history, not a reshuffle of the most-recent N. */
+const TOP_SESSIONS = 50;
+
+/** One sortable column header: a button that toggles the active sort. Clicking an inactive column sorts it
+ *  by its natural first direction (defaultDirFor); clicking the active column flips direction. The active
+ *  column shows a chevron, rotated up when ascending. `aria-sort` rides the th for assistive tech. */
+function SortHeader({
+  label,
+  column,
+  sort,
+  onSort,
+  align = "right",
+}: {
+  label: string;
+  column: SessionSortKey;
+  sort: SessionSort;
+  onSort: (key: SessionSortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = sort.key === column;
+  return (
+    <th
+      scope="col"
+      aria-sort={
+        active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"
+      }
+      className={`pb-1.5 font-normal ${
+        align === "right" ? "text-right" : "text-left"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`inline-flex items-center gap-0.5 transition-colors hover:text-fg ${
+          align === "right" ? "flex-row-reverse" : ""
+        } ${active ? "text-fg-muted" : ""}`}
+      >
+        {label}
+        {active && (
+          <Icon
+            name="chevron-down"
+            size={10}
+            className={sort.dir === "asc" ? "rotate-180" : ""}
+          />
+        )}
+      </button>
+    </th>
+  );
+}
+
+/** The per-Session table (#113): one row per Session with its project, last activity, duration, dominant
+ *  model, turns, tokens, and Equivalent API value. Sortable on every column (client-side via sortSessions),
+ *  defaulting to most recent activity first. The Tokens column follows the page's "Include cache" toggle,
+ *  like the other breakdowns. Capped to the top N by the active sort with a "+N more" note. The model shown
+ *  is the session's dominant one by tokens; cost still sums across all its models, so it's n/a only when no
+ *  turn ran a recognized model. */
+function BySession({
+  rows,
+  includeCache,
+}: {
+  rows: StatsBySession[];
+  includeCache: boolean;
+}) {
+  const [sort, setSort] = useState<SessionSort>(DEFAULT_SESSION_SORT);
+  // Guard on the full set so the panel never vanishes on a pure-zero window (matches the other breakdowns).
+  if (!rows.some((r) => r.totalTokens > 0)) return null;
+  const onSort = (key: SessionSortKey): void =>
+    setSort((s) =>
+      s.key === key
+        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: defaultDirFor(key) },
+    );
+  const sorted = sortSessions(rows, sort, includeCache);
+  const top = sorted.slice(0, TOP_SESSIONS);
+  const rest = sorted.length - top.length;
+  const now = Date.now();
+  return (
+    <StatsPanel title="By session">
+      <table className="w-full text-[12px]">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-wide text-fg-faint">
+            <SortHeader
+              label="Project"
+              column="project"
+              sort={sort}
+              onSort={onSort}
+              align="left"
+            />
+            <SortHeader
+              label="Model"
+              column="model"
+              sort={sort}
+              onSort={onSort}
+              align="left"
+            />
+            <SortHeader
+              label="Last activity"
+              column="lastActivity"
+              sort={sort}
+              onSort={onSort}
+            />
+            <SortHeader
+              label="Duration"
+              column="duration"
+              sort={sort}
+              onSort={onSort}
+            />
+            <SortHeader
+              label="Turns"
+              column="turns"
+              sort={sort}
+              onSort={onSort}
+            />
+            <SortHeader
+              label="Tokens"
+              column="tokens"
+              sort={sort}
+              onSort={onSort}
+            />
+            <SortHeader
+              label="Equiv API value"
+              column="cost"
+              sort={sort}
+              onSort={onSort}
+            />
+          </tr>
+        </thead>
+        <tbody>
+          {/* Key on the session id (globally unique). */}
+          {top.map((r) => (
+            <tr key={r.sessionId} className="border-t border-ink-850">
+              <td className="py-1 pr-3">
+                <span className="block truncate text-fg" title={r.cwd}>
+                  {r.project}
+                </span>
+              </td>
+              <td className="py-1 pr-3">
+                <span className="block truncate font-mono text-fg-muted">
+                  {r.modelRaw ?? "Unknown"}
+                </span>
+              </td>
+              <td className="py-1 pl-2 text-right tabular-nums text-fg-muted">
+                {/* lastActivityMs is 0 only when no turn had a known time; show a dash, not a
+                    formatRelativeTime epoch render ("20000d ago") that fakes exact data. */}
+                {r.lastActivityMs === 0
+                  ? "—"
+                  : formatRelativeTime(r.lastActivityMs, now)}
+              </td>
+              <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
+                {formatDuration(r.durationMs)}
+              </td>
+              <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
+                {r.turns.toLocaleString("en-US")}
+              </td>
+              <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
+                {formatTokensShort(tokensOf(r, includeCache))}
+              </td>
+              <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
+                {r.equivApiValueUsd == null
+                  ? "n/a"
+                  : formatUsd(r.equivApiValueUsd)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rest > 0 && (
+        <p className="mt-2 text-[11px] text-fg-faint">
+          +{rest} more {rest === 1 ? "session" : "sessions"}
         </p>
       )}
     </StatsPanel>

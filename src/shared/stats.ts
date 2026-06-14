@@ -94,6 +94,52 @@ export interface StatsByBranch {
 }
 
 /**
+ * One row of the per-Session table (#113): a single Claude Session, keyed on its globally-unique
+ * `sessionId` (also the React key). `project` is the basename of `cwd`, the display label; `cwd` rides
+ * along to disambiguate two same-basename repos on hover. `modelRaw` is the session's DOMINANT model by
+ * total tokens (a session can span models, but the column is singular) — yet `equivApiValueUsd` sums cost
+ * across ALL its recognized models, so it reconciles with the grand total exactly like the other
+ * breakdowns; it's null (n/a) when none of the session's turns ran a recognized model. `lastActivityMs` is
+ * the latest turn's timestamp (the default sort key). `durationMs` is the span from the session's earliest
+ * to latest KNOWN-time turn (unknown-time `ts=0` turns are excluded from the earliest bound, so an
+ * unparsed timestamp can't stretch it back to the epoch); it's 0 when no turn has a known time, or for a
+ * single-turn session. `totalTokens`/`inputTokens`/`outputTokens` follow the same fresh-vs-total split as
+ * the other rows so the page cache toggle works here too.
+ */
+export interface StatsBySession {
+  sessionId: string;
+  cwd: string;
+  project: string;
+  /** The dominant model by tokens (raw id), or null when no turn recorded a model. */
+  modelRaw: string | null;
+  /** The latest turn's timestamp (epoch ms): "last activity", and the table's default sort key. */
+  lastActivityMs: number;
+  /** Span from the earliest to the latest known-time turn (ms); 0 when no turn has a known time. */
+  durationMs: number;
+  /** Assistant turns ingested for this session. */
+  turns: number;
+  totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** Equivalent API value summed over the session's recognized models, or null (n/a) when it has none. */
+  equivApiValueUsd: number | null;
+}
+
+/**
+ * The token figure shown for one breakdown row, governed by the page's "Include cache" pill: the full total
+ * (all four kinds) when cache is included, or fresh tokens (input + output) when it's off. Read off the
+ * { totalTokens, inputTokens, outputTokens } shape every breakdown row carries, so By model / By project /
+ * By branch / By session — and the session table's SORT — share one definition and can't drift on what
+ * "Tokens" means versus the number on screen.
+ */
+export function tokensOf(
+  row: { totalTokens: number; inputTokens: number; outputTokens: number },
+  includeCache: boolean,
+): number {
+  return includeCache ? row.totalTokens : row.inputTokens + row.outputTokens;
+}
+
+/**
  * The stable, collision-free key for a per-branch row: the full `cwd` joined to the branch with a NUL.
  * Neither a path nor a git ref can contain one, so the null-branch sentinel (a turn that recorded no
  * ref) can never collide with a real branch. The store folds branch turns on this key and the renderer
@@ -128,12 +174,14 @@ export interface StatsBreakdowns {
   byProject: StatsByProject[];
   /** The per-branch breakdown (#112), keyed on cwd + branch. */
   byBranch: StatsByBranch[];
+  /** The per-Session table rows (#113), one per session, ordered by last activity descending. */
+  bySession: StatsBySession[];
 }
 
 /** Empty breakdowns: the per-read error fallback (main) and the building block for emptySnapshot, so the
  *  "serve none" shape lives in one place. */
 export function emptyBreakdowns(): StatsBreakdowns {
-  return { byModel: [], byProject: [], byBranch: [] };
+  return { byModel: [], byProject: [], byBranch: [], bySession: [] };
 }
 
 /** One Stats poll: the totals as they stand, how far the scan has gotten, whether the store holds any turn

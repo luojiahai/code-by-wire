@@ -4,6 +4,7 @@ import type {
   StatsByModel,
   StatsByProject,
   StatsByBranch,
+  StatsBySession,
   StatsBreakdowns,
 } from "@shared/stats";
 import { branchRowKey } from "@shared/stats";
@@ -519,6 +520,165 @@ export function readByBranch(
 }
 
 /**
+ * A (session × model) aggregate row: per-model token sums (so each model slice can be priced through
+ * modelRowCost) plus the session-scoped scalars the per-Session table needs — the earliest KNOWN-time turn
+ * (`MIN(NULLIF(ts,0))`, null when the session has no known-time turn), the latest turn (`MAX(ts)`), and the
+ * turn count. `project`/`cwd` are constant within a session (the app models a session as one working dir),
+ * so the value SQLite picks for these bare columns is well-defined enough.
+ */
+interface SessionModelRow extends ModelRow {
+  session_id: string;
+  project: string;
+  cwd: string;
+  min_ts: number | null;
+  max_ts: number;
+  turns: number;
+}
+
+/**
+ * Group turns by (session × model), range-scoped exactly like groupByModel. The session cut can't ride the
+ * shared dims scan (readBreakdowns' FINEST_DIMS): it needs the session_id grain plus the per-session time
+ * span and turn count, which that scan doesn't carry. `MIN(NULLIF(ts,0))` ignores the unknown-time sentinel
+ * so an unparsed timestamp can't drag the span's start to the epoch; `COUNT(*)` still counts those turns.
+ */
+function groupBySession(
+  db: SqliteDb,
+  sinceMs?: number | null,
+): SessionModelRow[] {
+  const where = sinceMs != null ? "WHERE ts >= @since" : "";
+  const bind = sinceMs != null ? [{ since: sinceMs }] : [];
+  return db
+    .prepare(
+      `SELECT
+         session_id,
+         project,
+         cwd,
+         model_raw,
+         MIN(NULLIF(ts, 0)) AS min_ts,
+         MAX(ts) AS max_ts,
+         COUNT(*) AS turns,
+         COALESCE(SUM(input_tokens), 0) AS input_tokens,
+         COALESCE(SUM(output_tokens), 0) AS output_tokens,
+         COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
+         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
+       FROM turns ${where}
+       GROUP BY session_id, model_raw`,
+    )
+    .all(...bind) as SessionModelRow[];
+}
+
+/** A session mid-fold: tokens and turns summed across its models; the span tracked as earliest-known and
+ *  latest; cost accumulated over only the recognized models (hasKnownCost so an all-unrecognized session
+ *  renders n/a, not a misleading $0); the dominant model tracked as the running argmax of token volume. */
+interface SessionAgg {
+  sessionId: string;
+  cwd: string;
+  project: string;
+  earliestMs: number | null;
+  lastActivityMs: number;
+  turns: number;
+  totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  knownCost: number;
+  hasKnownCost: boolean;
+  topModel: string | null;
+  topModelTokens: number;
+}
+
+/**
+ * Fold (session × model) rows into the per-Session breakdown: one row per session. Tokens and turns sum
+ * across the session's models; the span is the min of the per-model earliest-known timestamps to the max of
+ * the latests (a session with no known-time turn gets durationMs 0); cost sums modelRowCost over only the
+ * recognized models, reconciling with the grand total since equivApiValue is linear in tokens. The displayed
+ * model is the one with the most total tokens, ties broken by raw id so the pick is deterministic across
+ * polls. Rows order by last activity descending, then session id for a stable tie order — the table's
+ * default ("most recent first") so a non-sorting consumer still gets a sensible order.
+ */
+function foldSessions(rows: SessionModelRow[]): StatsBySession[] {
+  const map = new Map<string, SessionAgg>();
+  for (const r of rows) {
+    let a = map.get(r.session_id);
+    if (!a) {
+      a = {
+        sessionId: r.session_id,
+        cwd: r.cwd,
+        project: r.project,
+        earliestMs: null,
+        lastActivityMs: 0,
+        turns: 0,
+        totalTokens: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        knownCost: 0,
+        hasKnownCost: false,
+        topModel: null,
+        topModelTokens: -1,
+      };
+      map.set(r.session_id, a);
+    }
+    if (r.min_ts != null) {
+      a.earliestMs =
+        a.earliestMs == null ? r.min_ts : Math.min(a.earliestMs, r.min_ts);
+    }
+    a.lastActivityMs = Math.max(a.lastActivityMs, r.max_ts);
+    a.turns += r.turns;
+    const groupTokens =
+      r.input_tokens +
+      r.output_tokens +
+      r.cache_read_tokens +
+      r.cache_creation_tokens;
+    a.totalTokens += groupTokens;
+    a.inputTokens += r.input_tokens;
+    a.outputTokens += r.output_tokens;
+    const cost = modelRowCost(r);
+    if (cost != null) {
+      a.knownCost += cost;
+      a.hasKnownCost = true;
+    }
+    // Dominant model by tokens; on an exact token tie pick the lexicographically smaller raw id so the
+    // choice is stable. A null model (the "Unknown" bucket) compares as the empty string, so on a tie it
+    // wins over a named model — an extreme edge case (equal tokens, one named one not), deterministic.
+    if (
+      groupTokens > a.topModelTokens ||
+      (groupTokens === a.topModelTokens &&
+        (r.model_raw ?? "").localeCompare(a.topModel ?? "") < 0)
+    ) {
+      a.topModelTokens = groupTokens;
+      a.topModel = r.model_raw;
+    }
+  }
+  return [...map.values()]
+    .map(
+      (a): StatsBySession => ({
+        sessionId: a.sessionId,
+        cwd: a.cwd,
+        project: a.project,
+        modelRaw: a.topModel,
+        lastActivityMs: a.lastActivityMs,
+        durationMs: a.earliestMs == null ? 0 : a.lastActivityMs - a.earliestMs,
+        turns: a.turns,
+        totalTokens: a.totalTokens,
+        inputTokens: a.inputTokens,
+        outputTokens: a.outputTokens,
+        equivApiValueUsd: a.hasKnownCost ? a.knownCost : null,
+      }),
+    )
+    .sort(
+      (a, b) =>
+        b.lastActivityMs - a.lastActivityMs ||
+        a.sessionId.localeCompare(b.sessionId),
+    );
+}
+
+export function readBySession(
+  db: SqliteDb,
+  sinceMs?: number | null,
+): StatsBySession[] {
+  return foldSessions(groupBySession(db, sinceMs));
+}
+
+/**
  * All three per-dimension breakdowns from ONE finest-grain scan, folded three ways. The poll path
  * (stats:read) calls this once instead of running a separate GROUP BY per breakdown: byModel folds the scan
  * by raw id, byProject by cwd, byBranch by cwd+branch. Every fold is lossless — token sums are additive and
@@ -534,5 +694,8 @@ export function readBreakdowns(
     byModel: foldModels(rows),
     byProject: foldProjects(rows),
     byBranch: foldBranches(rows),
+    // The session cut needs the session grain plus per-session span/count aggregates the dims scan above
+    // can't express, so it runs its own GROUP BY rather than folding `rows`.
+    bySession: readBySession(db, sinceMs),
   };
 }

@@ -159,6 +159,7 @@ describe("registerIpc stats:read", () => {
       byModel: [],
       byProject: [],
       byBranch: [],
+      bySession: [],
     });
   });
 
@@ -326,6 +327,66 @@ describe("registerIpc stats:read", () => {
     expect(week.byProject[0].equivApiValueUsd).toBeCloseTo(5);
     expect(week.byBranch).toHaveLength(1);
     expect(week.byBranch[0].branch).toBe("main");
+  });
+
+  it("returns a per-session breakdown scoped to the requested range", () => {
+    const home = makeHome();
+    mkdirSync(join(home, "projects"), { recursive: true }); // empty: the seeds survive the scan
+
+    const now = Date.now();
+    const DAY = 86_400_000;
+    const analyticsDb = openTestDb();
+    migrateAnalytics(analyticsDb);
+    upsertTurns(analyticsDb, [
+      // in 7d: session "recent", opus 1M input → $5.
+      {
+        messageId: "recent",
+        sessionId: "recent",
+        ts: now - 60 * 60_000,
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+        cwd: "/w/alpha",
+        project: "alpha",
+      },
+      // outside 7d: session "old", 100 days ago → only all-time sees it.
+      {
+        messageId: "old",
+        sessionId: "old",
+        ts: now - 100 * DAY,
+        modelRaw: "claude-sonnet-4-6",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+        cwd: "/w/beta",
+        project: "beta",
+      },
+    ]);
+
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider, analyticsDb, claudeDir: home });
+
+    const snapFor = (range?: StatsRange): StatsSnapshot =>
+      handlers.get(IPC.readStats)!(null, range) as StatsSnapshot;
+
+    const all = snapFor("all");
+    expect(all.bySession.map((r) => r.sessionId).sort()).toEqual([
+      "old",
+      "recent",
+    ]);
+
+    const week = snapFor("7d");
+    expect(week.bySession).toHaveLength(1); // the 100-day-old session is out of the window
+    expect(week.bySession[0].sessionId).toBe("recent");
+    expect(week.bySession[0].equivApiValueUsd).toBeCloseTo(5);
   });
 
   it("with a store but no claude dir, serves last-known totals and reports done", () => {
