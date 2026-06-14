@@ -1,5 +1,12 @@
 import type { Usage } from "@shared/types";
-import type { StatsTotals, StatsByModel } from "@shared/stats";
+import type {
+  StatsTotals,
+  StatsByModel,
+  StatsByProject,
+  StatsByBranch,
+  StatsBreakdowns,
+} from "@shared/stats";
+import { branchRowKey } from "@shared/stats";
 import {
   equivApiValue,
   isKnownModelString,
@@ -286,7 +293,37 @@ export function readByModel(
   db: SqliteDb,
   sinceMs?: number | null,
 ): StatsByModel[] {
-  return groupByModel(db, sinceMs)
+  return foldModels(groupByModel(db, sinceMs));
+}
+
+/**
+ * Fold per-model rows into the per-model breakdown. The input may already be one row per model (groupByModel)
+ * or a finer dimension×model scan (readBreakdowns) — either way we re-group by raw id, summing the four token
+ * kinds, so the result is identical. The map keys on `model_raw` directly (so a null "Unknown" model and an
+ * empty-string id stay distinct buckets, matching SQLite's GROUP BY); cost prices each summed row through
+ * modelRowCost (n/a for an unrecognized id). Rows order by total tokens descending, then by raw id so ties
+ * stay stable across polls.
+ */
+function foldModels(rows: ModelRow[]): StatsByModel[] {
+  const map = new Map<string | null, ModelRow>();
+  for (const r of rows) {
+    let m = map.get(r.model_raw);
+    if (!m) {
+      m = {
+        model_raw: r.model_raw,
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
+      };
+      map.set(r.model_raw, m);
+    }
+    m.input_tokens += r.input_tokens;
+    m.output_tokens += r.output_tokens;
+    m.cache_read_tokens += r.cache_read_tokens;
+    m.cache_creation_tokens += r.cache_creation_tokens;
+  }
+  return [...map.values()]
     .map(
       (m): StatsByModel => ({
         modelRaw: m.model_raw,
@@ -305,4 +342,187 @@ export function readByModel(
         b.totalTokens - a.totalTokens ||
         (a.modelRaw ?? "").localeCompare(b.modelRaw ?? ""),
     );
+}
+
+/**
+ * A (dimension × model) aggregate row: the per-model token sums (so each model slice can be priced through
+ * modelRowCost) carrying the cwd/project — and, for the branch grouping, the branch — they were grouped
+ * under. `branch` is present only when the GROUP BY included it (the per-project read omits it). The grouping
+ * key is always the full cwd, never the basename, so same-basename repos stay distinct.
+ */
+interface DimModelRow extends ModelRow {
+  cwd: string;
+  project: string;
+  branch?: string | null;
+}
+
+/**
+ * Group turns by a dimension column list PLUS model_raw, range-scoped exactly like groupByModel. The caller
+ * folds away the model dimension (summing tokens, pricing each model slice through modelRowCost) to land one
+ * row per dimension tuple. `cols` is an internal constant SQL fragment ("cwd, project" / "cwd, project,
+ * branch"), never user input — the same trusted-interpolation shape as the `where` bound here and the
+ * schema-version exec elsewhere in this file.
+ */
+function groupByDimsAndModel(
+  db: SqliteDb,
+  cols: string,
+  sinceMs?: number | null,
+): DimModelRow[] {
+  const where = sinceMs != null ? "WHERE ts >= @since" : "";
+  const bind = sinceMs != null ? [{ since: sinceMs }] : [];
+  return db
+    .prepare(
+      `SELECT ${cols},
+         model_raw,
+         COALESCE(SUM(input_tokens), 0) AS input_tokens,
+         COALESCE(SUM(output_tokens), 0) AS output_tokens,
+         COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
+         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
+       FROM turns ${where}
+       GROUP BY ${cols}, model_raw`,
+    )
+    .all(...bind) as DimModelRow[];
+}
+
+/** A dimension group mid-fold: tokens summed across its models; cost accumulated over only its recognized
+ *  models, tracking `hasKnownCost` so an all-unrecognized group renders n/a rather than a misleading $0. */
+interface DimAgg {
+  cwd: string;
+  project: string;
+  branch: string | null;
+  totalTokens: number;
+  knownCost: number;
+  hasKnownCost: boolean;
+}
+
+/**
+ * Fold (dimension × model) rows into one DimAgg per dimension tuple, `keyOf` picking the tuple. Tokens sum
+ * across every model; cost sums modelRowCost over only the recognized ones (an unrecognized model adds its
+ * tokens but no cost). This sums the exact same per-model costs readTotals does, just partitioned by
+ * dimension — so a breakdown reconciles with the grand total by construction (equivApiValue is linear in
+ * tokens, so splitting a model's tokens across groups and summing back is lossless).
+ */
+function foldByDim(
+  rows: DimModelRow[],
+  keyOf: (r: DimModelRow) => string,
+): DimAgg[] {
+  const map = new Map<string, DimAgg>();
+  for (const r of rows) {
+    const key = keyOf(r);
+    let a = map.get(key);
+    if (!a) {
+      a = {
+        cwd: r.cwd,
+        project: r.project,
+        branch: r.branch ?? null,
+        totalTokens: 0,
+        knownCost: 0,
+        hasKnownCost: false,
+      };
+      map.set(key, a);
+    }
+    a.totalTokens +=
+      r.input_tokens +
+      r.output_tokens +
+      r.cache_read_tokens +
+      r.cache_creation_tokens;
+    const cost = modelRowCost(r);
+    if (cost != null) {
+      a.knownCost += cost;
+      a.hasKnownCost = true;
+    }
+  }
+  return [...map.values()];
+}
+
+/** A folded group's Equivalent API value: the summed cost of its recognized models, or null (n/a) when none
+ *  of its turns ran a recognized model — an honest n/a, never a guessed $0 (matching a per-model row). */
+function dimCost(a: DimAgg): number | null {
+  return a.hasKnownCost ? a.knownCost : null;
+}
+
+/** The finest dimension grain: one row per (cwd × project × branch × model). readBreakdowns scans at this
+ *  grain once and folds it down to each breakdown, so a poll runs a single GROUP BY instead of one per cut. */
+const FINEST_DIMS = "cwd, project, branch";
+
+/**
+ * Fold (dimension × model) rows into the per-project breakdown (#112): one row per project, keyed on the FULL
+ * cwd so two repos that share a basename stay distinct (`project` is the basename, for display only). The fold
+ * works at any grain finer than cwd — readByProject scans "cwd, project", readBreakdowns hands it the finest
+ * scan — because folding by cwd collapses the extra columns. Tokens sum across the project's models; cost
+ * folds each model slice through modelRowCost and reconciles with the grand total. Rows order by total tokens
+ * descending, then by cwd so ties (and same-basename projects) stay stable across polls.
+ */
+function foldProjects(rows: DimModelRow[]): StatsByProject[] {
+  return foldByDim(rows, (r) => r.cwd)
+    .map(
+      (a): StatsByProject => ({
+        cwd: a.cwd,
+        project: a.project,
+        totalTokens: a.totalTokens,
+        equivApiValueUsd: dimCost(a),
+      }),
+    )
+    .sort(
+      (a, b) => b.totalTokens - a.totalTokens || a.cwd.localeCompare(b.cwd),
+    );
+}
+
+/**
+ * Fold (dimension × model) rows into the per-branch breakdown (#112): one row per (project, git branch),
+ * keyed via branchRowKey on the full cwd plus the branch so the same branch name in two projects stays
+ * distinct, same-basename projects don't merge, and a null branch (no ref recorded) gets its own key. Tokens
+ * and cost fold exactly as the per-project read. Rows order by total tokens descending, then by cwd then
+ * branch for a stable tie order.
+ */
+function foldBranches(rows: DimModelRow[]): StatsByBranch[] {
+  return foldByDim(rows, (r) => branchRowKey(r.cwd, r.branch ?? null))
+    .map(
+      (a): StatsByBranch => ({
+        cwd: a.cwd,
+        project: a.project,
+        branch: a.branch,
+        totalTokens: a.totalTokens,
+        equivApiValueUsd: dimCost(a),
+      }),
+    )
+    .sort(
+      (a, b) =>
+        b.totalTokens - a.totalTokens ||
+        a.cwd.localeCompare(b.cwd) ||
+        (a.branch ?? "").localeCompare(b.branch ?? ""),
+    );
+}
+
+export function readByProject(
+  db: SqliteDb,
+  sinceMs?: number | null,
+): StatsByProject[] {
+  return foldProjects(groupByDimsAndModel(db, "cwd, project", sinceMs));
+}
+
+export function readByBranch(
+  db: SqliteDb,
+  sinceMs?: number | null,
+): StatsByBranch[] {
+  return foldBranches(groupByDimsAndModel(db, FINEST_DIMS, sinceMs));
+}
+
+/**
+ * All three per-dimension breakdowns from ONE finest-grain scan, folded three ways. The poll path
+ * (stats:read) calls this once instead of running a separate GROUP BY per breakdown: byModel folds the scan
+ * by raw id, byProject by cwd, byBranch by cwd+branch. Every fold is lossless — token sums are additive and
+ * equivApiValue is linear in tokens — so each breakdown is identical to its standalone readByX and still
+ * reconciles with the grand total.
+ */
+export function readBreakdowns(
+  db: SqliteDb,
+  sinceMs?: number | null,
+): StatsBreakdowns {
+  const rows = groupByDimsAndModel(db, FINEST_DIMS, sinceMs);
+  return {
+    byModel: foldModels(rows),
+    byProject: foldProjects(rows),
+    byBranch: foldBranches(rows),
+  };
 }

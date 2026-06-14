@@ -4,15 +4,18 @@ import {
   type ScanProgress,
   type StatsTotals,
   type StatsByModel,
+  type StatsByProject,
+  type StatsByBranch,
   type StatsRange,
   DEFAULT_RANGE,
   emptySnapshot,
+  branchRowKey,
 } from "@shared/stats";
 import { formatTokensShort, formatUsd } from "@shared/format";
 import { Icon } from "../ui/icons";
 import { Donut } from "../ui/charts";
 import { MODEL_SEGMENT_COLORS } from "../ui/meta";
-import { Swatch } from "../ui/atoms";
+import { Swatch, Bar } from "../ui/atoms";
 
 /** Poll cadences: brisk while the first cold backfill fills in, gentle once caught up so a turn landing
  *  in another Session still shows up without a manual refresh. */
@@ -90,6 +93,10 @@ export function StatsView() {
               <>
                 <Totals totals={snap.totals} />
                 {snap.byModel.length > 0 && <ByModel rows={snap.byModel} />}
+                {snap.byProject.length > 0 && (
+                  <ByProject rows={snap.byProject} />
+                )}
+                {snap.byBranch.length > 0 && <ByBranch rows={snap.byBranch} />}
               </>
             )}
           </>
@@ -304,6 +311,139 @@ function ByModel({ rows }: { rows: StatsByModel[] }) {
           </tbody>
         </table>
       </div>
+    </StatsPanel>
+  );
+}
+
+/** The per-project breakdown (#112): the top projects as horizontal bars with their tokens and Equivalent
+ *  API value. Rows key and rank on the full cwd, so two repos that share a basename are separate rows — both
+ *  labelled by basename, told apart by the cwd surfaced on hover (the row's title). Bars size on each
+ *  project's share of the top project's tokens. Cost is the project's summed Equivalent API value, n/a when
+ *  none of its turns ran a recognized model. Capped to the top N with a "+N more" note, so a long project
+ *  list stays bounded without silently hiding the tail. */
+const TOP_PROJECTS = 8;
+function ByProject({ rows }: { rows: StatsByProject[] }) {
+  // Guard on the full set so the panel never vanishes on a pure-zero window; rows are sorted desc, so the
+  // first is the largest and (past this guard) > 0 — a safe bar denominator.
+  if (!rows.some((r) => r.totalTokens > 0)) return null;
+  const top = rows.slice(0, TOP_PROJECTS);
+  const max = top[0].totalTokens;
+  const rest = rows.length - top.length;
+  return (
+    <StatsPanel title="By project">
+      <table className="w-full text-[12px]">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-wide text-fg-faint">
+            <th scope="col" className="pb-1.5 text-left font-normal">
+              Project
+            </th>
+            <th scope="col" className="pb-1.5 text-right font-normal">
+              Tokens
+            </th>
+            <th scope="col" className="pb-1.5 text-right font-normal">
+              Equiv API value
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {/* Key on the full cwd (the unique grouping key), so two same-basename projects never collide. */}
+          {top.map((r) => (
+            <tr key={r.cwd} className="border-t border-ink-850">
+              <td className="py-1.5 pr-3 align-middle">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <span className="truncate text-fg" title={r.cwd}>
+                    {r.project}
+                  </span>
+                  <Bar
+                    pct={(r.totalTokens / max) * 100}
+                    fill="bg-primary/70"
+                    className="w-full"
+                  />
+                </div>
+              </td>
+              <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
+                {formatTokensShort(r.totalTokens)}
+              </td>
+              <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
+                {r.equivApiValueUsd == null
+                  ? "n/a"
+                  : formatUsd(r.equivApiValueUsd)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rest > 0 && (
+        <p className="mt-2 text-[11px] text-fg-faint">
+          +{rest} more {rest === 1 ? "project" : "projects"}
+        </p>
+      )}
+    </StatsPanel>
+  );
+}
+
+/** The per-branch breakdown (#112): a table of (project, git branch) pairs with tokens and Equivalent API
+ *  value. Keyed on the full cwd plus the branch, so the same branch name in two projects stays distinct and
+ *  same-basename projects don't merge; a turn that recorded no branch shows a dash. Capped to the top N with
+ *  a "+N more" note. */
+const TOP_BRANCHES = 12;
+function ByBranch({ rows }: { rows: StatsByBranch[] }) {
+  if (!rows.some((r) => r.totalTokens > 0)) return null;
+  const top = rows.slice(0, TOP_BRANCHES);
+  const rest = rows.length - top.length;
+  return (
+    <StatsPanel title="By branch">
+      <table className="w-full text-[12px]">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-wide text-fg-faint">
+            <th scope="col" className="pb-1.5 text-left font-normal">
+              Project
+            </th>
+            <th scope="col" className="pb-1.5 text-left font-normal">
+              Branch
+            </th>
+            <th scope="col" className="pb-1.5 text-right font-normal">
+              Tokens
+            </th>
+            <th scope="col" className="pb-1.5 text-right font-normal">
+              Equiv API value
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {/* The same NUL-joined (cwd, branch) key the store folds on, stable and collision-free. */}
+          {top.map((r) => (
+            <tr
+              key={branchRowKey(r.cwd, r.branch)}
+              className="border-t border-ink-850"
+            >
+              <td className="py-1 pr-3">
+                <span className="block truncate text-fg" title={r.cwd}>
+                  {r.project}
+                </span>
+              </td>
+              <td className="py-1 pr-3">
+                <span className="block truncate font-mono text-fg-muted">
+                  {r.branch ?? "—"}
+                </span>
+              </td>
+              <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
+                {formatTokensShort(r.totalTokens)}
+              </td>
+              <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
+                {r.equivApiValueUsd == null
+                  ? "n/a"
+                  : formatUsd(r.equivApiValueUsd)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rest > 0 && (
+        <p className="mt-2 text-[11px] text-fg-faint">
+          +{rest} more {rest === 1 ? "branch" : "branches"}
+        </p>
+      )}
     </StatsPanel>
   );
 }

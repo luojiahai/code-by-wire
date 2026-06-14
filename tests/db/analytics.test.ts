@@ -5,6 +5,9 @@ import {
   upsertTurns,
   readTotals,
   readByModel,
+  readByProject,
+  readByBranch,
+  readBreakdowns,
   emptyTotals,
   readProcessedFiles,
   upsertProcessedFile,
@@ -594,5 +597,514 @@ describe("readByModel", () => {
       0,
     );
     expect(summed).toBeCloseTo(readTotals(db).equivApiValueUsd); // $5 opus + $3 sonnet = $8
+  });
+});
+
+describe("readByProject", () => {
+  it("separates two projects that share a basename, keyed on the full cwd (#112)", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      // two repos both named "app" under different parents — must NOT merge into one row.
+      turn({
+        messageId: "a",
+        cwd: "/home/me/work/app",
+        project: "app",
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "b",
+        cwd: "/home/me/play/app",
+        project: "app",
+        usage: {
+          inputTokens: 200,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByProject(db);
+    expect(rows).toHaveLength(2); // two rows, not one merged "app"
+    expect(rows.map((r) => r.cwd).sort()).toEqual([
+      "/home/me/play/app",
+      "/home/me/work/app",
+    ]);
+    expect(rows.every((r) => r.project === "app")).toBe(true); // both display the basename
+  });
+
+  it("sums tokens across a project's models and folds cost per model, reconciling with the totals", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      // one project, two models: opus 1M input ($5) + sonnet 1M input ($3) = $8, 2M tokens.
+      turn({
+        messageId: "o",
+        cwd: "/w/proj",
+        project: "proj",
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "s",
+        cwd: "/w/proj",
+        project: "proj",
+        modelRaw: "claude-sonnet-4-6",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByProject(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].project).toBe("proj");
+    expect(rows[0].totalTokens).toBe(2_000_000);
+    expect(rows[0].equivApiValueUsd).toBeCloseTo(8);
+    // the breakdown reconciles with the grand total it partitions.
+    expect(rows[0].equivApiValueUsd!).toBeCloseTo(
+      readTotals(db).equivApiValueUsd,
+    );
+  });
+
+  it("gives a project with only unrecognized models n/a cost, still counting its tokens", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "x",
+        cwd: "/w/proj",
+        project: "proj",
+        modelRaw: "gpt-9-ultra", // matches no family
+        usage: {
+          inputTokens: 500,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByProject(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalTokens).toBe(500); // tokens still counted
+    expect(rows[0].equivApiValueUsd).toBeNull(); // no recognized model → n/a, not $0
+  });
+
+  it("on a mixed project counts both models' tokens but prices only the recognized one", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      // one project, one recognized + one unrecognized model: tokens sum both, cost is the known one only,
+      // and equivApiValueUsd is non-null (hasKnownCost flips true) — n/a is reserved for an ALL-unknown group.
+      turn({
+        messageId: "known",
+        cwd: "/w/proj",
+        project: "proj",
+        modelRaw: "claude-sonnet-4-6",
+        usage: {
+          inputTokens: 1_000_000, // $3 at sonnet's $3/M input
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "unknown",
+        cwd: "/w/proj",
+        project: "proj",
+        modelRaw: "gpt-9-ultra", // matches no family → tokens count, cost excluded
+        usage: {
+          inputTokens: 2_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByProject(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalTokens).toBe(3_000_000); // both models' tokens
+    expect(rows[0].equivApiValueUsd).toBeCloseTo(3); // sonnet only; the unknown adds nothing to cost
+  });
+
+  it("respects the range bound, excluding out-of-window turns", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "old",
+        ts: 1000,
+        cwd: "/w/proj",
+        project: "proj",
+        usage: {
+          inputTokens: 999,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "new",
+        ts: 5000,
+        cwd: "/w/proj",
+        project: "proj",
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByProject(db, 5000); // since == the new turn's ts: only it survives
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalTokens).toBe(100);
+  });
+
+  it("orders by total tokens descending, breaking ties by cwd", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "big",
+        cwd: "/w/big",
+        project: "big",
+        usage: {
+          inputTokens: 1000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      // a tie at 100 tokens between "/w/b" and "/w/a": cwd ascending breaks it deterministically.
+      turn({
+        messageId: "tb",
+        cwd: "/w/b",
+        project: "b",
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "ta",
+        cwd: "/w/a",
+        project: "a",
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    expect(readByProject(db).map((r) => r.cwd)).toEqual([
+      "/w/big",
+      "/w/a",
+      "/w/b",
+    ]);
+  });
+
+  it("returns an empty array for an empty store", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    expect(readByProject(db)).toEqual([]);
+  });
+});
+
+describe("readByBranch", () => {
+  it("groups by project and branch: one project, two branches → two rows (#112)", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "m",
+        cwd: "/w/proj",
+        project: "proj",
+        branch: "main",
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "f",
+        cwd: "/w/proj",
+        project: "proj",
+        branch: "feature",
+        usage: {
+          inputTokens: 50,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByBranch(db);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.branch)).toEqual(["main", "feature"]); // main (100) before feature (50)
+    expect(rows.every((r) => r.project === "proj")).toBe(true);
+  });
+
+  it("keeps the same branch name in two different projects distinct", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "a",
+        cwd: "/w/a",
+        project: "a",
+        branch: "main",
+        usage: {
+          inputTokens: 10,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "b",
+        cwd: "/w/b",
+        project: "b",
+        branch: "main",
+        usage: {
+          inputTokens: 10,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByBranch(db);
+    expect(rows).toHaveLength(2); // "main" in two projects is two rows, not one
+    expect(rows.map((r) => r.cwd).sort()).toEqual(["/w/a", "/w/b"]);
+  });
+
+  it("buckets a turn that recorded no branch under branch null", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "n",
+        cwd: "/w/proj",
+        project: "proj",
+        branch: undefined,
+        usage: {
+          inputTokens: 7,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByBranch(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].branch).toBeNull();
+    expect(rows[0].totalTokens).toBe(7);
+  });
+
+  it("folds cost per model and reconciles with the totals", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "o",
+        cwd: "/w/proj",
+        project: "proj",
+        branch: "main",
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "s",
+        cwd: "/w/proj",
+        project: "proj",
+        branch: "feature",
+        modelRaw: "claude-sonnet-4-6",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const summed = readByBranch(db).reduce(
+      (acc, r) => acc + (r.equivApiValueUsd ?? 0),
+      0,
+    );
+    expect(summed).toBeCloseTo(readTotals(db).equivApiValueUsd); // $5 opus + $3 sonnet = $8
+  });
+
+  it("respects the range bound, excluding out-of-window turns", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "old",
+        ts: 1000,
+        cwd: "/w/proj",
+        project: "proj",
+        branch: "main",
+        usage: {
+          inputTokens: 999,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "new",
+        ts: 5000,
+        cwd: "/w/proj",
+        project: "proj",
+        branch: "feature",
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByBranch(db, 5000);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].branch).toBe("feature");
+    expect(rows[0].totalTokens).toBe(100);
+  });
+
+  it("returns an empty array for an empty store", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    expect(readByBranch(db)).toEqual([]);
+  });
+});
+
+describe("readBreakdowns", () => {
+  // The refactor's load-bearing invariant (#112): folding ONE finest-grain scan three ways must produce
+  // exactly what three independent reads do. A seed that spans every axis the folds differ on — two repos
+  // sharing a basename, two branches per repo, a recognized + an unrecognized model, and a null branch — so
+  // any divergence between a fold and its standalone reader surfaces here.
+  const seed = (): AnalyticsTurn[] => [
+    turn({
+      messageId: "a1",
+      cwd: "/work/app",
+      project: "app",
+      branch: "main",
+      modelRaw: "claude-opus-4-8",
+      usage: {
+        inputTokens: 1_000_000,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+      },
+    }),
+    turn({
+      messageId: "a2",
+      cwd: "/work/app",
+      project: "app",
+      branch: "feature",
+      modelRaw: "gpt-9-ultra", // unrecognized: tokens count, cost n/a
+      usage: {
+        inputTokens: 500,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+      },
+    }),
+    turn({
+      messageId: "b1",
+      cwd: "/play/app", // same basename, different repo — must stay distinct
+      project: "app",
+      branch: undefined, // null branch bucket
+      modelRaw: "claude-sonnet-4-6",
+      usage: {
+        inputTokens: 2_000_000,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+      },
+    }),
+  ];
+
+  it("folds one scan into the same rows the three standalone readers return", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, seed());
+    const b = readBreakdowns(db);
+    expect(b.byModel).toEqual(readByModel(db));
+    expect(b.byProject).toEqual(readByProject(db));
+    expect(b.byBranch).toEqual(readByBranch(db));
+  });
+
+  it("matches the standalone readers under a range bound too", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      ...seed().map((t, i) => ({ ...t, ts: 5000 + i })), // in-window
+      turn({
+        messageId: "old",
+        ts: 1000,
+        cwd: "/work/app",
+        project: "app",
+        branch: "main",
+        usage: {
+          inputTokens: 9_999,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const b = readBreakdowns(db, 5000);
+    expect(b.byModel).toEqual(readByModel(db, 5000));
+    expect(b.byProject).toEqual(readByProject(db, 5000));
+    expect(b.byBranch).toEqual(readByBranch(db, 5000));
+  });
+
+  it("reconciles every breakdown's summed cost with the grand total", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, seed());
+    // $5 opus (1M input) + $6 sonnet (2M input); the unrecognized model contributes tokens but no cost.
+    const total = readTotals(db).equivApiValueUsd;
+    const sum = (rows: { equivApiValueUsd: number | null }[]): number =>
+      rows.reduce((acc, r) => acc + (r.equivApiValueUsd ?? 0), 0);
+    const b = readBreakdowns(db);
+    expect(sum(b.byModel)).toBeCloseTo(total);
+    expect(sum(b.byProject)).toBeCloseTo(total);
+    expect(sum(b.byBranch)).toBeCloseTo(total);
+    expect(total).toBeCloseTo(11);
+  });
+
+  it("returns three empty breakdowns for an empty store", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    expect(readBreakdowns(db)).toEqual({
+      byModel: [],
+      byProject: [],
+      byBranch: [],
+    });
   });
 });

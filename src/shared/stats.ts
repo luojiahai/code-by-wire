@@ -51,6 +51,50 @@ export interface StatsByModel {
 }
 
 /**
+ * One row of the per-project breakdown (#112). The grouping key is the FULL `cwd`, so two repos that share a
+ * folder name stay separate rows; `project` is that cwd's basename, the display label. `totalTokens` sums all
+ * four token kinds — the bar's length and the table's Tokens column. `equivApiValueUsd` is the project's
+ * Equivalent API value summed across its recognized models, or null (n/a) when none of its turns ran a known
+ * model — an honest n/a, never a guessed $0. A mixed project shows the sum over only its recognized models,
+ * which is exactly its contribution to the grand total.
+ */
+export interface StatsByProject {
+  /** The full working directory the turns ran in: the grouping key, kept distinct per repo. The row labels
+   *  by `project`; the cwd disambiguates two same-basename projects (the view surfaces it on hover). */
+  cwd: string;
+  /** The basename of `cwd` — the display label. */
+  project: string;
+  totalTokens: number;
+  /** Equivalent API value summed over the project's recognized models, or null (n/a) when it has none. */
+  equivApiValueUsd: number | null;
+}
+
+/**
+ * One row of the per-branch breakdown (#112): a (project, git branch) pair. Keyed on the full `cwd` plus the
+ * `branch`, so the same branch name in two projects stays distinct and same-basename projects never merge.
+ * `branch` is null when the turn recorded none (it renders as a dash). `totalTokens` and `equivApiValueUsd`
+ * mean the same as in StatsByProject.
+ */
+export interface StatsByBranch {
+  cwd: string;
+  project: string;
+  /** The git branch, or null when the turn recorded none. */
+  branch: string | null;
+  totalTokens: number;
+  equivApiValueUsd: number | null;
+}
+
+/**
+ * The stable, collision-free key for a per-branch row: the full `cwd` joined to the branch with a NUL.
+ * Neither a path nor a git ref can contain one, so the null-branch sentinel (a turn that recorded no
+ * ref) can never collide with a real branch. The store folds branch turns on this key and the renderer
+ * keys its React rows on the same string, so one definition keeps the two from drifting apart.
+ */
+export function branchRowKey(cwd: string, branch: string | null): string {
+  return `${cwd}\u0000${branch ?? "\u0000"}`;
+}
+
+/**
  * How far the incremental scan has gotten, returned alongside the totals so the Stats view can show a
  * "building history" state on a first cold run and know when to drop from brisk polling to a gentle warm
  * cadence. `filesTotal`/`filesDone` count Transcript and subagent files; `done` is true once every file's
@@ -62,9 +106,30 @@ export interface ScanProgress {
   done: boolean;
 }
 
-/** One Stats poll: the totals as they stand, how far the scan has gotten, and whether the store holds any
- *  turn at all. */
-export interface StatsSnapshot {
+/**
+ * The three per-dimension breakdowns a Stats poll carries, all scoped to the same range as the totals and
+ * ordered by tokens descending. Each is empty when there is no store, the scan errors, or the window holds
+ * no turns. Grouped into one shape so the store can fold all three from a single scan (readBreakdowns) and
+ * the snapshot, that reader, and the empty fallback can never disagree on the field set.
+ */
+export interface StatsBreakdowns {
+  /** The per-model breakdown (#111). */
+  byModel: StatsByModel[];
+  /** The per-project breakdown (#112), keyed on the full cwd. */
+  byProject: StatsByProject[];
+  /** The per-branch breakdown (#112), keyed on cwd + branch. */
+  byBranch: StatsByBranch[];
+}
+
+/** Empty breakdowns: the per-read error fallback (main) and the building block for emptySnapshot, so the
+ *  "serve none" shape lives in one place. */
+export function emptyBreakdowns(): StatsBreakdowns {
+  return { byModel: [], byProject: [], byBranch: [] };
+}
+
+/** One Stats poll: the totals as they stand, how far the scan has gotten, whether the store holds any turn
+ *  at all, and the per-dimension breakdowns (all range-scoped to the totals). */
+export interface StatsSnapshot extends StatsBreakdowns {
   /** Totals scoped to the requested range (all-time when no range bound is applied). */
   totals: StatsTotals;
   progress: ScanProgress;
@@ -72,9 +137,6 @@ export interface StatsSnapshot {
    *  scoped totals, so picking a range with no turns shows zeroed cards rather than "No usage yet" when
    *  there is history outside the window. */
   hasAnyTurns: boolean;
-  /** The per-model breakdown (#111), scoped to the same range as `totals`, ordered by tokens descending.
-   *  Empty when there is no store, the scan errors, or the window holds no turns. */
-  byModel: StatsByModel[];
 }
 
 /** An empty, already-"done" snapshot: the no-store fallback and the renderer's IPC-bridge error state, so
@@ -84,7 +146,7 @@ export function emptySnapshot(): StatsSnapshot {
     totals: emptyTotals(),
     progress: { filesTotal: 0, filesDone: 0, done: true },
     hasAnyTurns: false,
-    byModel: [],
+    ...emptyBreakdowns(),
   };
 }
 
