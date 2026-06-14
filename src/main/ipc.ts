@@ -18,6 +18,7 @@ import {
   readDaily,
   readCalendar,
   readCalendarYears,
+  turnsMaxRowid,
   emptyTotals,
   hasAnyTurns,
 } from "./db/analytics";
@@ -210,9 +211,17 @@ export function registerIpc({
       return [];
     }
   };
+  // readCalendarYears is a full-table strftime scan, but its result only changes when a turn lands in a
+  // not-yet-seen year — all but never within a session. Memoize it against the max turns rowid (a cheap O(1)
+  // insert signal) so the gentle poll reuses the cached list instead of rescanning the whole table each tick.
+  let yearsCache: { rowid: number; years: number[] } | null = null;
   const safeCalendarYears = (adb: SqliteDb): number[] => {
     try {
-      return readCalendarYears(adb);
+      const rowid = turnsMaxRowid(adb);
+      if (!yearsCache || yearsCache.rowid !== rowid) {
+        yearsCache = { rowid, years: readCalendarYears(adb) };
+      }
+      return yearsCache.years;
     } catch (err) {
       console.error("stats calendar years read failed; serving none", err);
       return [];

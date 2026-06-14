@@ -958,3 +958,16 @@ export function readCalendarYears(db: SqliteDb): number[] {
     .all() as { y: number }[];
   return rows.map((r) => r.y);
 }
+
+/** The largest turns rowid (0 when empty) — an O(1) "has a new turn landed" signal. Turns are insert/upsert
+ *  only, so a stable max rowid means the set of turns is unchanged; the IPC layer memoizes the all-time year
+ *  scan (a full-table strftime, polled every tick) against it so the gentle poll doesn't rescan for a list
+ *  that's all but static. */
+export function turnsMaxRowid(db: SqliteDb): number {
+  const r = db
+    .prepare(`SELECT COALESCE(MAX(rowid), 0) AS r FROM turns`)
+    .get() as {
+    r: number;
+  };
+  return r.r;
+}
