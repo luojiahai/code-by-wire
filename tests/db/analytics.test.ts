@@ -1570,3 +1570,49 @@ describe("readDaily", () => {
     expect(readDaily(db)).toEqual([]);
   });
 });
+
+// helper: a usage object with all-equal input tokens (hoisted; used by the upper-bound describe below).
+function u(input: number) {
+  return {
+    inputTokens: input,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+  };
+}
+
+describe("upper-bound (untilMs) scoping", () => {
+  const noon = (y: number, m: number, d: number): number =>
+    new Date(y, m - 1, d, 12, 0, 0).getTime();
+
+  it("readTotals excludes turns at or after the exclusive upper bound", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    const inDay = noon(2026, 6, 14);
+    const nextDay = noon(2026, 6, 15);
+    upsertTurns(db, [
+      turn({ messageId: "in", ts: inDay, usage: u(5) }),
+      turn({ messageId: "after", ts: nextDay, usage: u(99) }),
+    ]);
+    // Window = just 2026-06-14: [midnight 14th, midnight 15th).
+    const since = new Date(2026, 5, 14).getTime();
+    const until = new Date(2026, 5, 15).getTime();
+    expect(readTotals(db, since, until).inputTokens).toBe(5);
+    expect(readTotals(db, since, until).turns).toBe(1);
+  });
+
+  it("readBreakdowns and readDaily honor the upper bound too", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({ messageId: "in", ts: noon(2026, 6, 14), usage: u(5) }),
+      turn({ messageId: "after", ts: noon(2026, 6, 15), usage: u(99) }),
+    ]);
+    const since = new Date(2026, 5, 14).getTime();
+    const until = new Date(2026, 5, 15).getTime();
+    expect(readBreakdowns(db, since, until).byModel).toHaveLength(1);
+    expect(readDaily(db, since, until).map((d) => d.day)).toEqual([
+      "2026-06-14",
+    ]);
+  });
+});
