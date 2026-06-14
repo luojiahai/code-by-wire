@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -63,6 +64,7 @@ import {
   type SessionSort,
   type SessionSortKey,
 } from "./session-sort";
+import { groupProjectBranches, TOP_PROJECTS } from "./project-branches";
 
 /** Poll cadences: brisk while the first cold backfill fills in, gentle once caught up so a turn landing
  *  in another Session still shows up without a manual refresh. */
@@ -187,17 +189,28 @@ export function StatsView() {
                     range={range}
                   />
                 )}
-                {snap.byModel.length > 0 && (
-                  <ByModel rows={snap.byModel} includeCache={includeCache} />
-                )}
-                {snap.byProject.length > 0 && (
-                  <ByProject
-                    rows={snap.byProject}
-                    includeCache={includeCache}
-                  />
-                )}
-                {snap.byBranch.length > 0 && (
-                  <ByBranch rows={snap.byBranch} includeCache={includeCache} />
+                {(snap.byModel.length > 0 || snap.byProject.length > 0) && (
+                  <div
+                    className={`grid grid-cols-1 gap-4 ${
+                      snap.byModel.length > 0 && snap.byProject.length > 0
+                        ? "lg:grid-cols-2"
+                        : ""
+                    }`}
+                  >
+                    {snap.byModel.length > 0 && (
+                      <ByModel
+                        rows={snap.byModel}
+                        includeCache={includeCache}
+                      />
+                    )}
+                    {snap.byProject.length > 0 && (
+                      <ByProject
+                        rows={snap.byProject}
+                        branches={snap.byBranch}
+                        includeCache={includeCache}
+                      />
+                    )}
+                  </div>
                 )}
                 {snap.bySession.length > 0 && (
                   <BySession
@@ -934,33 +947,35 @@ function ByModel({
   );
 }
 
-/** The per-project breakdown (#112): the top projects as horizontal bars with their tokens and Equivalent
- *  API value. Rows key and rank on the full cwd, so two repos that share a basename are separate rows — both
- *  labelled by basename, told apart by the cwd surfaced on hover (the row's title). Bars size on each
- *  project's share of the top project's tokens. Cost is the project's summed Equivalent API value, n/a when
- *  none of its turns ran a recognized model. Capped to the top N with a "+N more" note, so a long project
- *  list stays bounded without silently hiding the tail. */
-const TOP_PROJECTS = 8;
+/** The per-project breakdown (#112), now with its branches folded in. Top projects as horizontal bars with
+ *  tokens and Equivalent API value; a project with real branch detail carries a disclosure caret that
+ *  reveals its branches (label, tokens, Equiv) as indented sub-rows. Rows key and rank on the full cwd, so
+ *  two repos that share a basename are separate and a branch never lands under the wrong one. Capped to the
+ *  top N projects with a "+N more" note; each expanded project caps its branches the same way. */
 function ByProject({
   rows,
+  branches,
   includeCache,
 }: {
   rows: StatsByProject[];
+  branches: StatsByBranch[];
   includeCache: boolean;
 }) {
-  // Guard on the full set so the panel never vanishes on a pure-zero window; rows are sorted desc, so the
-  // first is the largest and (past this guard) > 0 — a safe bar denominator.
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
   if (!rows.some((r) => r.totalTokens > 0)) return null;
-  const top = rows.slice(0, TOP_PROJECTS);
-  // Rows stay in the store's order (by total tokens); only the displayed figure and bar length follow the
-  // toggle. Unlike By model, this panel doesn't re-rank. It's capped to the top N, so re-ranking would
-  // change which projects show.
-  // Bars size on the displayed metric. The denominator is the largest shown value: with cache included that
-  // equals top[0]'s total (rows arrive sorted by total); with cache excluded it's the largest fresh figure,
-  // which need not be top[0]. A zero denominator (a pure cache window in exclude mode) yields empty bars
-  // rather than a divide-by-zero.
+  const groups = groupProjectBranches(rows, branches);
+  const top = groups.slice(0, TOP_PROJECTS);
+  // Bars size on the displayed metric; the denominator is the largest shown value. A zero denominator (a
+  // pure cache window in exclude mode) yields empty bars rather than a divide-by-zero.
   const max = Math.max(...top.map((r) => tokensOf(r, includeCache)));
-  const rest = rows.length - top.length;
+  const rest = groups.length - top.length;
+  const toggle = (cwd: string): void =>
+    setOpen((s) => {
+      const next = new Set(s);
+      if (next.has(cwd)) next.delete(cwd);
+      else next.add(cwd);
+      return next;
+    });
   return (
     <StatsPanel title="By project">
       <table className="w-full text-[12px]">
@@ -978,108 +993,96 @@ function ByProject({
           </tr>
         </thead>
         <tbody>
-          {/* Key on the full cwd (the unique grouping key), so two same-basename projects never collide. */}
-          {top.map((r) => (
-            <tr key={r.cwd} className="border-t border-ink-850">
-              <td className="py-1.5 pr-3 align-middle">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <span className="truncate text-fg" title={r.cwd}>
-                    {r.project}
-                  </span>
-                  <Bar
-                    pct={max > 0 ? (tokensOf(r, includeCache) / max) * 100 : 0}
-                    fill="bg-primary/70"
-                    className="w-full"
-                  />
-                </div>
-              </td>
-              <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
-                {formatTokensShort(tokensOf(r, includeCache))}
-              </td>
-              <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
-                {r.equivApiValueUsd == null
-                  ? "n/a"
-                  : formatUsd(r.equivApiValueUsd)}
-              </td>
-            </tr>
-          ))}
+          {top.map((r) => {
+            const isOpen = open.has(r.cwd);
+            return (
+              <Fragment key={r.cwd}>
+                <tr className="border-t border-ink-850">
+                  <td className="py-1.5 pr-3 align-middle">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      {r.expandable ? (
+                        <button
+                          type="button"
+                          onClick={() => toggle(r.cwd)}
+                          aria-expanded={isOpen}
+                          title={r.cwd}
+                          className="flex min-w-0 items-center gap-1 text-left text-fg"
+                        >
+                          <Icon
+                            name="chevron-right"
+                            size={11}
+                            className={`shrink-0 text-fg-faint transition-transform ${
+                              isOpen ? "rotate-90" : ""
+                            }`}
+                          />
+                          <span className="truncate">{r.project}</span>
+                        </button>
+                      ) : (
+                        <span
+                          className="truncate pl-[15px] text-fg"
+                          title={r.cwd}
+                        >
+                          {r.project}
+                        </span>
+                      )}
+                      <Bar
+                        pct={
+                          max > 0 ? (tokensOf(r, includeCache) / max) * 100 : 0
+                        }
+                        fill="bg-primary/70"
+                        className="w-full"
+                      />
+                    </div>
+                  </td>
+                  <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
+                    {formatTokensShort(tokensOf(r, includeCache))}
+                  </td>
+                  <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
+                    {r.equivApiValueUsd == null
+                      ? "n/a"
+                      : formatUsd(r.equivApiValueUsd)}
+                  </td>
+                </tr>
+                {isOpen &&
+                  r.branches.map((b) => (
+                    <tr
+                      key={branchRowKey(b.cwd, b.branch)}
+                      className="bg-ink-900/30"
+                    >
+                      <td className="py-1 pr-3 pl-[22px]">
+                        <span className="block truncate font-mono text-[11px] text-fg-muted">
+                          {b.branch ?? "—"}
+                        </span>
+                      </td>
+                      <td className="py-1 pl-2 text-right font-mono text-[11px] tabular-nums text-fg-faint">
+                        {formatTokensShort(tokensOf(b, includeCache))}
+                      </td>
+                      <td className="py-1 pl-2 text-right font-mono text-[11px] tabular-nums text-fg-faint">
+                        {b.equivApiValueUsd == null
+                          ? "n/a"
+                          : formatUsd(b.equivApiValueUsd)}
+                      </td>
+                    </tr>
+                  ))}
+                {isOpen && r.branchOverflow > 0 && (
+                  <tr className="bg-ink-900/30">
+                    <td
+                      colSpan={3}
+                      className="py-1 pl-[22px] text-[10px] text-fg-faint"
+                    >
+                      +{r.branchOverflow}{" "}
+                      {r.branchOverflow === 1 ? "more branch" : "more branches"}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
       {rest > 0 && (
         <p className="mt-2 text-[11px] text-fg-faint">
           +{rest} more {rest === 1 ? "project" : "projects"}
-        </p>
-      )}
-    </StatsPanel>
-  );
-}
-
-/** The per-branch breakdown (#112): a table of (project, git branch) pairs with tokens and Equivalent API
- *  value. Keyed on the full cwd plus the branch, so the same branch name in two projects stays distinct and
- *  same-basename projects don't merge; a turn that recorded no branch shows a dash. Capped to the top N with
- *  a "+N more" note. */
-const TOP_BRANCHES = 12;
-function ByBranch({
-  rows,
-  includeCache,
-}: {
-  rows: StatsByBranch[];
-  includeCache: boolean;
-}) {
-  if (!rows.some((r) => r.totalTokens > 0)) return null;
-  const top = rows.slice(0, TOP_BRANCHES);
-  const rest = rows.length - top.length;
-  return (
-    <StatsPanel title="By branch">
-      <table className="w-full text-[12px]">
-        <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-fg-faint">
-            <th scope="col" className="pb-1.5 text-left font-normal">
-              Project
-            </th>
-            <th scope="col" className="pb-1.5 text-left font-normal">
-              Branch
-            </th>
-            <th scope="col" className="pb-1.5 text-right font-normal">
-              Tokens
-            </th>
-            <th scope="col" className="pb-1.5 text-right font-normal">
-              Equiv API value
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {/* The same NUL-joined (cwd, branch) key the store folds on, stable and collision-free. */}
-          {top.map((r) => (
-            <tr
-              key={branchRowKey(r.cwd, r.branch)}
-              className="border-t border-ink-850"
-            >
-              <td className="py-1 pr-3">
-                <span className="block truncate text-fg" title={r.cwd}>
-                  {r.project}
-                </span>
-              </td>
-              <td className="py-1 pr-3">
-                <span className="block truncate font-mono text-fg-muted">
-                  {r.branch ?? "—"}
-                </span>
-              </td>
-              <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
-                {formatTokensShort(tokensOf(r, includeCache))}
-              </td>
-              <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
-                {r.equivApiValueUsd == null
-                  ? "n/a"
-                  : formatUsd(r.equivApiValueUsd)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {rest > 0 && (
-        <p className="mt-2 text-[11px] text-fg-faint">
-          +{rest} more {rest === 1 ? "branch" : "branches"}
         </p>
       )}
     </StatsPanel>
