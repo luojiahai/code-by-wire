@@ -9,6 +9,7 @@ import {
   readByBranch,
   readBySession,
   readBreakdowns,
+  readDaily,
   emptyTotals,
   readProcessedFiles,
   upsertProcessedFile,
@@ -1387,5 +1388,185 @@ describe("readBreakdowns", () => {
       byBranch: [],
       bySession: [],
     });
+  });
+});
+
+describe("readDaily", () => {
+  // Local noon instants: the local calendar day is unambiguous in any timezone (DST never strikes at
+  // noon), and SQLite's date(...,'localtime') converts back to the same local day we built from.
+  const noon = (y: number, m: number, d: number): number =>
+    new Date(y, m - 1, d, 12, 0, 0).getTime();
+
+  it("buckets two same-day turns into one bucket, summing the four token kinds", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "a",
+        ts: noon(2026, 6, 14),
+        usage: {
+          inputTokens: 100,
+          outputTokens: 10,
+          cacheReadTokens: 5,
+          cacheCreationTokens: 2,
+        },
+      }),
+      turn({
+        messageId: "b",
+        ts: noon(2026, 6, 14),
+        usage: {
+          inputTokens: 200,
+          outputTokens: 20,
+          cacheReadTokens: 5,
+          cacheCreationTokens: 3,
+        },
+      }),
+    ]);
+    const days = readDaily(db);
+    expect(days).toHaveLength(1);
+    expect(days[0].day).toBe("2026-06-14");
+    expect(days[0].inputTokens).toBe(300);
+    expect(days[0].outputTokens).toBe(30);
+    expect(days[0].cacheReadTokens).toBe(10);
+    expect(days[0].cacheCreationTokens).toBe(5);
+  });
+
+  it("splits turns on different local days into separate buckets, ascending by day", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "later",
+        ts: noon(2026, 6, 15),
+        usage: {
+          inputTokens: 2,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "earlier",
+        ts: noon(2026, 6, 14),
+        usage: {
+          inputTokens: 1,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    expect(readDaily(db).map((d) => [d.day, d.inputTokens])).toEqual([
+      ["2026-06-14", 1],
+      ["2026-06-15", 2],
+    ]);
+  });
+
+  it("carries a per-model breakdown per day, ordered by tokens descending", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      // sonnet does more token work this day → it sorts first in byModel.
+      turn({
+        messageId: "s",
+        ts: noon(2026, 6, 14),
+        modelRaw: "claude-sonnet-4-6",
+        usage: {
+          inputTokens: 1000,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "o",
+        ts: noon(2026, 6, 14),
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const days = readDaily(db);
+    expect(days).toHaveLength(1);
+    expect(days[0].byModel).toEqual([
+      { modelRaw: "claude-sonnet-4-6", totalTokens: 1000 },
+      { modelRaw: "claude-opus-4-8", totalTokens: 100 },
+    ]);
+  });
+
+  it("excludes unknown-time (ts=0) turns even from all-time (no spurious 1970 bucket)", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "no-time",
+        ts: 0,
+        usage: {
+          inputTokens: 7,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "dated",
+        ts: noon(2026, 6, 14),
+        usage: {
+          inputTokens: 3,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const days = readDaily(db);
+    expect(days).toHaveLength(1); // only the dated turn's day
+    expect(days[0].day).toBe("2026-06-14");
+    expect(days[0].inputTokens).toBe(3);
+    // readTotals all-time still counts the ts=0 turn — daily is stricter (exact data only).
+    expect(readTotals(db).inputTokens).toBe(10);
+  });
+
+  it("respects the range bound, excluding out-of-window days", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    const oldTs = noon(2026, 1, 1);
+    const newTs = noon(2026, 6, 14);
+    upsertTurns(db, [
+      turn({
+        messageId: "old",
+        ts: oldTs,
+        usage: {
+          inputTokens: 999,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+      turn({
+        messageId: "new",
+        ts: newTs,
+        usage: {
+          inputTokens: 1,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const days = readDaily(db, newTs); // since == the new turn's ts: only its day survives
+    expect(days).toHaveLength(1);
+    expect(days[0].day).toBe("2026-06-14");
+    expect(days[0].inputTokens).toBe(1);
+  });
+
+  it("returns an empty array for an empty store", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    expect(readDaily(db)).toEqual([]);
   });
 });

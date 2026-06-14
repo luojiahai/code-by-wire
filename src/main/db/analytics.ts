@@ -6,6 +6,7 @@ import type {
   StatsByBranch,
   StatsBySession,
   StatsBreakdowns,
+  DailyBucket,
 } from "@shared/stats";
 import { branchRowKey } from "@shared/stats";
 import {
@@ -698,4 +699,113 @@ export function readBreakdowns(
     // can't express, so it runs its own GROUP BY rather than folding `rows`.
     bySession: readBySession(db, sinceMs),
   };
+}
+
+/**
+ * A (local-day × model) aggregate row: the per-model token sums carrying the local calendar day they fell
+ * on. `day` is SQLite's date(ts/1000,'unixepoch','localtime') — the user's calendar day (#107), the same
+ * key the renderer's localDayKey builds.
+ */
+interface DayModelRow extends ModelRow {
+  day: string;
+}
+
+/**
+ * Group turns by (local-day × model), range-scoped. Unlike the other cuts this always has a WHERE: a
+ * positive `since` already excludes the ts=0 unknown-time sentinel, and all-time adds `ts > 0` explicitly,
+ * so a turn with no known time never lands on a calendar day (no 1970 bucket — exact data only). `ts/1000`
+ * is integer division to seconds; 'localtime' buckets by the main process's calendar day.
+ */
+function groupByDayAndModel(
+  db: SqliteDb,
+  sinceMs?: number | null,
+): DayModelRow[] {
+  const where = sinceMs != null ? "WHERE ts >= @since" : "WHERE ts > 0";
+  const bind = sinceMs != null ? [{ since: sinceMs }] : [];
+  return db
+    .prepare(
+      `SELECT
+         date(ts / 1000, 'unixepoch', 'localtime') AS day,
+         model_raw,
+         COALESCE(SUM(input_tokens), 0) AS input_tokens,
+         COALESCE(SUM(output_tokens), 0) AS output_tokens,
+         COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
+         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
+       FROM turns ${where}
+       GROUP BY day, model_raw`,
+    )
+    .all(...bind) as DayModelRow[];
+}
+
+/** A day mid-fold: the four kind sums, plus a model → total-tokens map so the bucket can carry the
+ *  per-model breakdown the by-model stacking needs. */
+interface DayAgg {
+  day: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+  models: Map<string | null, number>;
+}
+
+/**
+ * Fold (day × model) rows into one DailyBucket per local day. The four kind sums accumulate across the
+ * day's models; the per-model totals (all four kinds) accumulate into a map, then emit ordered by total
+ * tokens descending, ties broken by raw id — the same stable order foldModels uses, so the stacking and
+ * its colors don't flicker across polls. Buckets emit ascending by day (string compare on 'YYYY-MM-DD').
+ */
+function foldDays(rows: DayModelRow[]): DailyBucket[] {
+  const map = new Map<string, DayAgg>();
+  for (const r of rows) {
+    let a = map.get(r.day);
+    if (!a) {
+      a = {
+        day: r.day,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+        models: new Map<string | null, number>(),
+      };
+      map.set(r.day, a);
+    }
+    a.inputTokens += r.input_tokens;
+    a.outputTokens += r.output_tokens;
+    a.cacheReadTokens += r.cache_read_tokens;
+    a.cacheCreationTokens += r.cache_creation_tokens;
+    const modelTotal =
+      r.input_tokens +
+      r.output_tokens +
+      r.cache_read_tokens +
+      r.cache_creation_tokens;
+    a.models.set(r.model_raw, (a.models.get(r.model_raw) ?? 0) + modelTotal);
+  }
+  return [...map.values()]
+    .map(
+      (a): DailyBucket => ({
+        day: a.day,
+        inputTokens: a.inputTokens,
+        outputTokens: a.outputTokens,
+        cacheReadTokens: a.cacheReadTokens,
+        cacheCreationTokens: a.cacheCreationTokens,
+        byModel: [...a.models.entries()]
+          .map(([modelRaw, totalTokens]) => ({ modelRaw, totalTokens }))
+          .sort(
+            (x, y) =>
+              y.totalTokens - x.totalTokens ||
+              (x.modelRaw ?? "").localeCompare(y.modelRaw ?? ""),
+          ),
+      }),
+    )
+    .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+/**
+ * The daily usage time-series (#114): one bucket per local calendar day in the range, each carrying the
+ * four token-kind sums (the default by-kind stacking) and a per-model breakdown (the by-model stacking).
+ * Range-scoped like the other reads; unknown-time turns are excluded (see groupByDayAndModel). Sparse —
+ * only days with turns — the renderer densifies the contiguous calendar range.
+ */
+export function readDaily(db: SqliteDb, sinceMs?: number | null): DailyBucket[] {
+  return foldDays(groupByDayAndModel(db, sinceMs));
 }
