@@ -8,12 +8,15 @@ import {
   type StatsByBranch,
   type StatsBySession,
   type StatsRange,
+  type RangePreset,
   type DailyBucket,
+  type CalendarDay,
   DEFAULT_RANGE,
   emptySnapshot,
   branchRowKey,
   tokensOf,
-  rangeSinceMs,
+  isDayRange,
+  rangeWindow,
   localDayKey,
   densifyDays,
 } from "@shared/stats";
@@ -24,10 +27,26 @@ import {
   formatRelativeTime,
   formatDayShort,
   formatDayLong,
+  formatMonthShort,
 } from "@shared/format";
 import { Icon } from "../ui/icons";
-import { Donut, BarSeries, type DayColumn } from "../ui/charts";
-import { MODEL_SEGMENT_COLORS, COST_SEGMENT_COLORS } from "../ui/meta";
+import {
+  Donut,
+  BarSeries,
+  CalendarHeatmap,
+  type DayColumn,
+} from "../ui/charts";
+import {
+  MODEL_SEGMENT_COLORS,
+  COST_SEGMENT_COLORS,
+  CALENDAR_RAMP,
+} from "../ui/meta";
+import {
+  calendarGrid,
+  intensityThresholds,
+  intensityLevel,
+  monthLabelCols,
+} from "../ui/contributions-geom";
 import { Swatch, Bar } from "../ui/atoms";
 import {
   sortSessions,
@@ -54,6 +73,12 @@ export function StatsView() {
   const [snap, setSnap] = useState<StatsSnapshot | null>(null);
   const [range, setRange] = useState<StatsRange>(DEFAULT_RANGE);
   const [includeCache, setIncludeCache] = useState(true);
+  // The calendar's window selector: null = trailing twelve months, a number = that local year. Independent
+  // of `range` — it drives only the calendar query, not the page totals.
+  const [calendarYear, setCalendarYear] = useState<number | null>(null);
+  // The calendar's intensity metric. Page-local; all three metrics ride each CalendarDay, so switching is a
+  // pure re-bucket with no re-fetch.
+  const [calMetric, setCalMetric] = useState<CalMetric>("turns");
 
   useEffect(() => {
     let alive = true;
@@ -63,7 +88,7 @@ export function StatsView() {
     setSnap(null);
     const tick = (): void => {
       void window.api
-        .readStats(range)
+        .readStats(range, calendarYear ?? undefined)
         .then((s) => {
           if (!alive) return;
           setSnap(s);
@@ -87,7 +112,7 @@ export function StatsView() {
       alive = false;
       if (timer) clearTimeout(timer);
     };
-  }, [range]);
+  }, [range, calendarYear]);
 
   return (
     <div className="h-full min-w-0 flex-1 overflow-y-auto bg-ink-950 text-fg">
@@ -95,6 +120,19 @@ export function StatsView() {
         <header className="flex items-center justify-between">
           <h1 className="font-display text-lg text-fg">Overall stats</h1>
           <div className="flex items-center gap-2">
+            {isDayRange(range) && (
+              <button
+                type="button"
+                onClick={() => setRange(DEFAULT_RANGE)}
+                title="Clear the day filter"
+                className="flex items-center gap-1 rounded-md border border-ink-700 bg-ink-700 px-2 py-0.5 text-[11px] text-fg transition-colors hover:bg-ink-600"
+              >
+                {formatDayShort(range.day)}
+                <span aria-hidden className="text-fg-muted">
+                  ×
+                </span>
+              </button>
+            )}
             <CacheToggle on={includeCache} onChange={setIncludeCache} />
             <RangeFilter value={range} onChange={setRange} />
           </div>
@@ -115,7 +153,23 @@ export function StatsView() {
               <EmptyStats />
             ) : (
               <>
-                <Totals totals={snap.totals} />
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(260px,340px)_1fr]">
+                  <Totals totals={snap.totals} />
+                  {snap.calendarStart && (
+                    <Contributions
+                      days={snap.calendar}
+                      startDay={snap.calendarStart}
+                      endDay={snap.calendarEnd}
+                      years={snap.calendarYears}
+                      year={calendarYear}
+                      onYear={setCalendarYear}
+                      metric={calMetric}
+                      onMetric={setCalMetric}
+                      selectedDay={isDayRange(range) ? range.day : null}
+                      onSelectDay={(day) => setRange({ day })}
+                    />
+                  )}
+                </div>
                 {snap.daily.length > 0 && (
                   <DailyUsage
                     daily={snap.daily}
@@ -178,19 +232,20 @@ function BuildingHistory({ progress }: { progress: ScanProgress }) {
 /** The page-global range filter (#110): five trailing windows, defaulting to 30d. It scopes every total
  *  on the page (not the calendar, which is range-independent — that's why it sits in the page header, not a
  *  panel). Presentational; the scoping happens main-side via the range passed through stats:read.
- *  `satisfies Record<StatsRange, string>` keeps this list exhaustive: a new range can't ship a main-side
- *  bound without also growing a button here, the way RANGE_DAYS enforces it for the bound. */
+ *  `satisfies Record<RangePreset, string>` keeps this list exhaustive: a new preset can't ship a main-side
+ *  bound without also growing a button here, the way RANGE_DAYS enforces it for the bound. (The single-day
+ *  `{ day }` range isn't a preset, so it's deliberately absent — it has no button.) */
 const RANGE_LABELS = {
   today: "Today",
   "7d": "7d",
   "30d": "30d",
   "90d": "90d",
   all: "All",
-} satisfies Record<StatsRange, string>;
+} satisfies Record<RangePreset, string>;
 
 // Insertion order is the render order (none of the keys are array-index-like), and the cast restores the
-// StatsRange key type that Object.entries widens to string.
-const RANGE_OPTS = Object.entries(RANGE_LABELS) as [StatsRange, string][];
+// RangePreset key type that Object.entries widens to string.
+const RANGE_OPTS = Object.entries(RANGE_LABELS) as [RangePreset, string][];
 
 function RangeFilter({
   value,
@@ -219,10 +274,193 @@ function RangeFilter({
   );
 }
 
+/** Which metric the calendar's cell intensity reads. All three ride each CalendarDay, so the toggle is a
+ *  pure re-bucket — no re-fetch. Default is turns (#115). */
+type CalMetric = "turns" | "tokens" | "equiv";
+
+const CAL_METRIC_LABELS: Record<CalMetric, string> = {
+  turns: "Turns",
+  tokens: "Tokens",
+  equiv: "Equiv API value",
+};
+const CAL_METRIC_OPTS = Object.entries(CAL_METRIC_LABELS) as [
+  CalMetric,
+  string,
+][];
+
+/**
+ * The contributions calendar (#115): the hero of the page. A trailing-twelve-month (or selected-year) grid of
+ * one cell per local day, intensity-bucketed adaptively over the visible window by the active metric (turns
+ * default, tokens, or Equivalent API value). Its window is queried independently of the page range filter, so
+ * its year switcher and metric toggle live in this panel's header, not the page toolbar. Hovering a day shows
+ * the date and that day's value; clicking a day drives the page range to that single date (the rest of the
+ * page re-scopes; the calendar stays put, the clicked cell ringed).
+ */
+function Contributions({
+  days,
+  startDay,
+  endDay,
+  years,
+  year,
+  onYear,
+  metric,
+  onMetric,
+  selectedDay,
+  onSelectDay,
+}: {
+  days: CalendarDay[];
+  startDay: string;
+  endDay: string;
+  years: number[];
+  year: number | null;
+  onYear: (y: number | null) => void;
+  metric: CalMetric;
+  onMetric: (m: CalMetric) => void;
+  selectedDay: string | null;
+  onSelectDay: (day: string) => void;
+}) {
+  const byDay = new Map(days.map((d) => [d.day, d]));
+  // The value a day contributes under the active metric. A null equiv (no recognized model that day) reads as
+  // 0 intensity — honest n/a in the tooltip, no guessed cost.
+  const valueOf = (day: string): number => {
+    const d = byDay.get(day);
+    if (!d) return 0;
+    if (metric === "turns") return d.turns;
+    if (metric === "tokens") return d.tokens;
+    return d.equivApiValueUsd ?? 0;
+  };
+
+  const weeks = calendarGrid(startDay, endDay);
+  // Adaptive buckets over only the in-range days' values (padding cells are out of window).
+  const values = weeks
+    .flat()
+    .filter((c) => c.inRange)
+    .map((c) => valueOf(c.day));
+  const thresholds = intensityThresholds(values, CALENDAR_RAMP.length);
+  const levelOf = (day: string): number =>
+    intensityLevel(valueOf(day), thresholds);
+  const monthLabels = monthLabelCols(weeks).map((m) => ({
+    col: m.col,
+    label: formatMonthShort(m.firstDay),
+  }));
+
+  const renderTooltip = (day: string): ReactNode => {
+    const d = byDay.get(day);
+    const value =
+      metric === "turns"
+        ? `${(d?.turns ?? 0).toLocaleString("en-US")} ${
+            (d?.turns ?? 0) === 1 ? "turn" : "turns"
+          }`
+        : metric === "tokens"
+          ? `${formatTokensShort(d?.tokens ?? 0)} tokens`
+          : d?.equivApiValueUsd == null
+            ? "n/a"
+            : formatUsd(d.equivApiValueUsd);
+    return (
+      <div className="flex flex-col gap-0.5">
+        <div className="font-medium text-fg">{formatDayLong(day)}</div>
+        <div className="text-fg-muted">{value}</div>
+      </div>
+    );
+  };
+
+  return (
+    <StatsPanel
+      title="Contributions"
+      right={
+        <div className="flex items-center gap-2">
+          <YearSwitcher years={years} value={year} onChange={onYear} />
+          <CalMetricToggle value={metric} onChange={onMetric} />
+        </div>
+      }
+    >
+      <CalendarHeatmap
+        weeks={weeks}
+        levelOf={levelOf}
+        colors={CALENDAR_RAMP}
+        selectedDay={selectedDay}
+        onSelectDay={onSelectDay}
+        renderTooltip={renderTooltip}
+        monthLabels={monthLabels}
+      />
+      {/* Less -> More ramp legend. */}
+      <div className="mt-3 flex items-center gap-1.5 text-[10px] text-fg-faint">
+        <span>Less</span>
+        {CALENDAR_RAMP.map((c, i) => (
+          <span
+            key={i}
+            className="inline-block h-2.5 w-2.5 rounded-[2px]"
+            style={{ background: c }}
+          />
+        ))}
+        <span>More</span>
+      </div>
+    </StatsPanel>
+  );
+}
+
+/** The calendar's metric toggle (Turns / Tokens / Equiv API value), styled like the daily chart's
+ *  StackByToggle, pinned in the Contributions panel header. */
+function CalMetricToggle({
+  value,
+  onChange,
+}: {
+  value: CalMetric;
+  onChange: (v: CalMetric) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-[11px]">
+      {CAL_METRIC_OPTS.map(([v, label]) => (
+        <button
+          key={v}
+          onClick={() => onChange(v)}
+          aria-pressed={v === value}
+          className={`rounded px-2 py-0.5 transition-colors ${
+            v === value
+              ? "bg-ink-700 text-fg"
+              : "text-fg-faint hover:text-fg-muted"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The calendar's year switcher: "Last 12 months" (the trailing default) plus each year that holds data,
+ *  descending. A native select so it scales to a long history without crowding the header. */
+function YearSwitcher({
+  years,
+  value,
+  onChange,
+}: {
+  years: number[];
+  value: number | null;
+  onChange: (y: number | null) => void;
+}) {
+  return (
+    <select
+      value={value ?? "trailing"}
+      onChange={(e) =>
+        onChange(e.target.value === "trailing" ? null : Number(e.target.value))
+      }
+      className="rounded-md border border-ink-800 bg-ink-900 px-2 py-0.5 text-[11px] text-fg-muted"
+    >
+      <option value="trailing">Last 12 months</option>
+      {years.map((y) => (
+        <option key={y} value={y}>
+          {y}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function Totals({ totals }: { totals: StatsTotals }) {
   return (
     <StatsPanel title="Totals">
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5">
         <StatCard
           label="Sessions"
           value={totals.sessions.toLocaleString("en-US")}
@@ -272,8 +510,8 @@ const modelKey = (raw: string | null): string => raw ?? NULL_MODEL_KEY;
  * "Include cache" pill — cache is its own segment here, not a hidden total.
  *
  * The store's daily buckets are sparse (only days with turns); we densify the contiguous range so a quiet
- * day reads as a gap. The range's start day is the local day of rangeSinceMs (the same bound main scopes
- * to); all-time starts at the earliest bucket. The model series order and colors come from the snapshot's
+ * day reads as a gap. The range's start and end days come from rangeWindow (the same bounds main scopes
+ * to): a single-day range renders one column; all-time starts at the earliest bucket. The model series order and colors come from the snapshot's
  * byModel (its store order, tokens desc), so the chart matches the By-model panel in the default cache-on
  * view; with "Include cache" off that panel re-ranks and can recolor, which the chart doesn't follow.
  */
@@ -288,14 +526,14 @@ function DailyUsage({
 }) {
   const [stackBy, setStackBy] = useState<StackBy>("kind");
 
-  // Contiguous calendar axis for the range. endDay is local today; startDay is the window's first local
-  // day (all-time: the earliest bucket, or today when empty). Recomputed each render off Date.now(); a
-  // midnight tick self-corrects on the next poll.
+  // Contiguous calendar axis for the active window. startDay is the window's first local day (all-time: the
+  // earliest bucket, or today when empty); endDay is its last (today for an open-topped preset, or the
+  // clicked day for a single-day range). Recomputed each render off Date.now(); a midnight tick self-corrects.
   const now = Date.now();
-  const endDay = localDayKey(now);
-  const since = rangeSinceMs(range, now);
+  const { sinceMs, untilMs } = rangeWindow(range, now);
+  const endDay = untilMs != null ? localDayKey(untilMs - 1) : localDayKey(now);
   const startDay =
-    since != null ? localDayKey(since) : (daily[0]?.day ?? endDay);
+    sinceMs != null ? localDayKey(sinceMs) : (daily[0]?.day ?? endDay);
   const days = densifyDays(daily, startDay, endDay);
 
   // Model series: the snapshot's byModel order (tokens desc), each paired by store index to a cycled color,
