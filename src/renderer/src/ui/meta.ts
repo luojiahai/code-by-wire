@@ -112,6 +112,18 @@ export const MODEL_SEGMENT_COLORS = [
   "var(--color-danger)",
 ] as const;
 
+/** The contributions calendar's intensity ramp (#115), indexed by intensityLevel's 0..4 output: level 0 is
+ *  the empty-day track, 1–4 ramp the wire brand color --color-primary from faint to full via color-mix
+ *  opacity — on-brand for code-by-wire and matching the daily chart's fresh-spend hue. CSS var / color-mix
+ *  strings so a retone stays in index.css. */
+export const CALENDAR_RAMP = [
+  "var(--color-ink-850)", // 0 — no activity
+  "color-mix(in srgb, var(--color-primary) 30%, transparent)", // 1
+  "color-mix(in srgb, var(--color-primary) 55%, transparent)", // 2
+  "color-mix(in srgb, var(--color-primary) 78%, transparent)", // 3
+  "var(--color-primary)", // 4 — peak
+] as const;
+
 /** A session's model label: the family name, plus the real resolved id in parens when we have one.
  *  `raw` is the live statusLine modelId else the persisted transcript modelRaw. A raw that matches no
  *  known family shows the capture's display_name (or the raw) rather than a faked family. `compact`
