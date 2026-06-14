@@ -1,9 +1,12 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cx } from "./atoms";
 import {
   donutGradient,
   ringGradient,
   segmentPercents,
+  niceAxisMax,
+  axisTicks,
+  stackBands,
   type Segment,
 } from "./charts-geom";
 
@@ -136,6 +139,138 @@ export function RateBar({
       <span className="w-[52px] shrink-0 text-right font-mono text-[12px] tabular-nums text-fg">
         {value}
       </span>
+    </div>
+  );
+}
+
+/** One day's column for the BarSeries: a stable React key and the segments to stack bottom-up (each a raw
+ *  value and a CSS color). The caller decides what the segments mean (token kind or model). */
+export interface DayColumn {
+  key: string;
+  segments: { value: number; color: string }[];
+}
+
+/** The plot's SVG viewBox height. Bars are drawn in this fixed coordinate space and stretched to the
+ *  container with preserveAspectRatio="none" (plain fills, so the non-uniform scale is invisible). */
+const PLOT_VH = 100;
+
+/**
+ * A hand-rolled SVG stacked-bar time-series (#114): one stacked column per day, a readable Y axis, and a
+ * hover tooltip. Scale, ticks, and segment heights come from charts-geom (niceAxisMax / axisTicks /
+ * stackBands) against the largest column total, so every bar shares one absolute scale and a light day
+ * reads short. The bars are fill-only rects in a non-uniform viewBox; the Y-axis gridlines and labels and
+ * the tooltip are HTML overlays (crisp at any size). `renderTooltip(i)` supplies the hovered day's content;
+ * `xLabels` are the thinned date labels the caller wants under the axis.
+ */
+export function BarSeries({
+  columns,
+  formatTick,
+  xLabels,
+  renderTooltip,
+}: {
+  columns: DayColumn[];
+  formatTick: (n: number) => string;
+  xLabels: { index: number; label: string }[];
+  renderTooltip: (index: number) => ReactNode;
+}) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const n = columns.length;
+  const dataMax = Math.max(
+    0,
+    ...columns.map((c) =>
+      c.segments.reduce((s, seg) => s + Math.max(0, seg.value), 0),
+    ),
+  );
+  const axisMax = niceAxisMax(dataMax);
+  const ticks = axisTicks(axisMax);
+
+  return (
+    <div className="flex gap-2">
+      {/* Y-axis labels, bottom-aligned to their tick fraction. */}
+      <div className="relative h-40 w-12 shrink-0">
+        {ticks.map((t) => (
+          <span
+            key={t}
+            className="absolute right-0 -translate-y-1/2 text-[9px] tabular-nums text-fg-faint"
+            style={{ bottom: `${(t / axisMax) * 100}%` }}
+          >
+            {formatTick(t)}
+          </span>
+        ))}
+      </div>
+      {/* Plot + x labels. */}
+      <div className="min-w-0 flex-1">
+        <div className="relative h-40">
+          {/* Gridlines behind the bars. */}
+          {ticks.map((t) => (
+            <span
+              key={t}
+              className="pointer-events-none absolute inset-x-0 border-t border-ink-850"
+              style={{ bottom: `${(t / axisMax) * 100}%` }}
+            />
+          ))}
+          <svg
+            className="absolute inset-0 h-full w-full"
+            viewBox={`0 0 ${Math.max(n, 1)} ${PLOT_VH}`}
+            preserveAspectRatio="none"
+            onMouseLeave={() => setHovered(null)}
+          >
+            {/* Bars: fill-only rects, so the non-uniform stretch shows no distortion. */}
+            {columns.map((col, i) =>
+              stackBands(
+                col.segments.map((s) => s.value),
+                col.segments.map((s) => s.color),
+                axisMax,
+              ).map((band, j) =>
+                band.y1 > band.y0 ? (
+                  <rect
+                    key={`${col.key}-${j}`}
+                    x={i + 0.1}
+                    width={0.8}
+                    y={PLOT_VH * (1 - band.y1)}
+                    height={PLOT_VH * (band.y1 - band.y0)}
+                    fill={band.color}
+                  />
+                ) : null,
+              ),
+            )}
+            {/* Full-height transparent hit areas, one per column, on top so hover works over the gaps. */}
+            {columns.map((col, i) => (
+              <rect
+                key={`hit-${col.key}`}
+                x={i}
+                width={1}
+                y={0}
+                height={PLOT_VH}
+                fill="transparent"
+                onMouseEnter={() => setHovered(i)}
+              />
+            ))}
+          </svg>
+          {/* Tooltip for the hovered column, centered over it, clamped to stay on-screen by the caller's
+              content width; translateX(-50%) centers it on the column. */}
+          {hovered != null && (
+            <div
+              className="pointer-events-none absolute bottom-full z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-ink-800 bg-ink-900 px-2 py-1.5 text-[11px] shadow-lg"
+              style={{ left: `${((hovered + 0.5) / Math.max(n, 1)) * 100}%` }}
+            >
+              {renderTooltip(hovered)}
+            </div>
+          )}
+        </div>
+        {/* X-axis date labels (thinned by the caller). */}
+        <div className="relative mt-1 h-3">
+          {xLabels.map(({ index, label }) => (
+            <span
+              key={index}
+              className="absolute -translate-x-1/2 text-[9px] tabular-nums text-fg-faint"
+              style={{ left: `${((index + 0.5) / Math.max(n, 1)) * 100}%` }}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
