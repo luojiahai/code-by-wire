@@ -31,6 +31,12 @@ export interface Subagent {
   startMs?: number;
   tokens: number;
   durationMs: number;
+  /** The agent's own tool calls: the count of tool_use ids it dispatched. A nested Task/Agent
+   *  dispatch counts too, since dispatching a subagent is itself a tool call. */
+  toolCount: number;
+  /** The task label from the dispatch meta (the Agent/Task tool's `description`). Absent when the
+   *  meta carries none. */
+  description?: string;
   children?: Subagent[];
 }
 
