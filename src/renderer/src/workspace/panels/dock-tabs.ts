@@ -1,5 +1,5 @@
 import type { Subagent } from "@shared/types";
-import { clampPct, niceAxisMax, ratePct, round2 } from "../../ui/charts-geom";
+import { clampPct, niceAxisMax, round2 } from "../../ui/charts-geom";
 
 // JSX-free dock logic, so the tests can import it under tsconfig.node.json (mirrors open-in-items.ts).
 
@@ -62,16 +62,6 @@ export function flattenSubagents(subagents: Subagent[]): Subagent[] {
  *  never vanishes at the floor. */
 const MIN_BAR_PCT = 3;
 
-/** A lane's bar width as a percent of the longest lane's duration, floored to MIN_BAR_PCT so a sliver
- *  always shows. An empty/zero max (a fresh fan-out, every duration still 0) falls to the floor. Reuses
- *  ratePct so the share-of-max math matches the app's other bars. */
-export function laneWidthPct(
-  durationMs: number,
-  maxDurationMs: number,
-): number {
-  return Math.max(MIN_BAR_PCT, ratePct(durationMs, maxDurationMs));
-}
-
 /** A lane's position on the timeline window: a left offset and width, both in percent. */
 export interface LaneBand {
   left: number;
@@ -105,9 +95,9 @@ export function laneWindow(lanes: Subagent[], now: number): LaneWindow {
   return { start, end };
 }
 
-/** Position one lane on the window as left/width percents. Width is floored to MIN_BAR_PCT so a
- *  near-instant lane stays visible, and left is clamped so a floored sliver never overflows the right
- *  edge. A zero/negative span yields a floored bar at the left. */
+/** Position one lane on the window as left/width percents. For a working lane the caller passes `now` as
+ *  `endMs`. Width is floored to MIN_BAR_PCT so a near-instant lane stays visible, and left is clamped so a
+ *  floored sliver never overflows the right edge. A zero/negative span yields a floored bar at the left. */
 export function laneBand(
   startMs: number,
   endMs: number,

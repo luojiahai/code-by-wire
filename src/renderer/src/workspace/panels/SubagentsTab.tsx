@@ -1,66 +1,78 @@
+import { useMemo } from "react";
 import type { Subagent } from "@shared/types";
 import { formatDuration, formatTokens } from "@shared/format";
+import { clampPct } from "../../ui/charts-geom";
 import { cx } from "../../ui/atoms";
 import { FAMILY_LABEL } from "../../ui/meta";
 import { EmptyState } from "./chrome";
 import {
+  type LaneWindow,
   type SubagentStats,
   flattenSubagents,
-  subagentStats,
+  laneBand,
+  laneWindow,
 } from "./dock-tabs";
 
-/** A just-spawned or near-instant lane still shows this sliver, so it never vanishes at the floor. */
-const MIN_BAR = 0.03;
-
-const GLYPH: Record<Subagent["status"], string> = {
-  working: "◐",
-  done: "✓",
-  failed: "✕",
-};
-
-/** Per-status lane treatment: the duration fill, its left cap, and the glyph tone. Working pulses; done
- *  stays calm so working (teal) and failed (red) pop as the states worth acting on. */
+/** Per-status lane treatment: the glyph char, the duration fill, its left cap, and the glyph tone.
+ *  Working pulses; done stays calm so working (teal) and failed (red) pop as the states worth acting on. */
 const LANE_META: Record<
   Subagent["status"],
-  { fill: string; cap: string; glyph: string }
+  { char: string; fill: string; cap: string; tone: string }
 > = {
   working: {
+    char: "◐",
     fill: "bg-working/20",
     cap: "border-working",
-    glyph: "text-working-bright",
+    tone: "text-working-bright",
   },
-  done: { fill: "bg-ok/10", cap: "border-ok", glyph: "text-fg-muted" },
-  failed: { fill: "bg-danger/20", cap: "border-danger", glyph: "text-danger" },
+  done: {
+    char: "✓",
+    fill: "bg-ok/10",
+    cap: "border-ok",
+    tone: "text-fg-muted",
+  },
+  failed: {
+    char: "✕",
+    fill: "bg-danger/20",
+    cap: "border-danger",
+    tone: "text-danger",
+  },
 };
 
-/** One Subagent as a lane: a duration-sized fill behind a metadata row (type, model, tokens, duration).
- *  Bar width is the agent's duration relative to the longest lane, floored so a sliver always shows. */
+/** One Subagent as a Gantt lane: a fill positioned by the agent's start and span within the shared time
+ *  window, behind a metadata row (type, model, tokens, duration). A working lane's bar runs to `now` and
+ *  its duration ticks live; a finished lane is frozen at its measured span. */
 function SubagentLane({
   agent,
-  maxDurationMs,
+  win,
+  now,
 }: {
   agent: Subagent;
-  maxDurationMs: number;
+  win: LaneWindow;
+  now: number;
 }) {
-  const frac =
-    maxDurationMs > 0
-      ? Math.max(MIN_BAR, agent.durationMs / maxDurationMs)
-      : MIN_BAR;
   const meta = LANE_META[agent.status];
+  const start = agent.startMs ?? win.start;
+  const end = agent.status === "working" ? now : start + agent.durationMs;
+  const band = laneBand(start, end, win.start, win.end);
+  const elapsed =
+    agent.status === "working" && agent.startMs !== undefined
+      ? now - agent.startMs
+      : agent.durationMs;
   return (
     <li className="relative h-[26px] overflow-hidden rounded-sm bg-ink-900">
       <div
         className={cx(
-          "absolute inset-y-0 left-0 border-l-2 transition-[width] duration-700 ease-out",
+          "absolute inset-y-0 border-l-2 transition-[left,width] duration-700 ease-out",
           meta.fill,
           meta.cap,
           agent.status === "working" && "animate-pulse-soft",
         )}
-        style={{ width: `${(frac * 100).toFixed(1)}%` }}
+        style={{ left: `${band.left}%`, width: `${band.width}%` }}
       />
       <div className="relative flex h-full items-center gap-2 px-2">
-        <span className={cx("shrink-0 font-mono text-[11px]", meta.glyph)}>
-          {GLYPH[agent.status]}
+        <span className={cx("shrink-0 font-mono text-[11px]", meta.tone)}>
+          {meta.char}
         </span>
         <span
           className="min-w-0 flex-1 truncate text-[12px] text-fg"
@@ -75,7 +87,7 @@ function SubagentLane({
           {formatTokens(agent.tokens)}
         </span>
         <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-faint">
-          {formatDuration(agent.durationMs)}
+          {formatDuration(elapsed)}
         </span>
       </div>
     </li>
@@ -113,24 +125,47 @@ function SubagentTally({ stats }: { stats: SubagentStats }) {
 }
 
 /**
- * The Structure dock's Subagents tab: a live lane timeline of the fan-out. Each Subagent is a lane whose
- * bar is sized by duration and coloured by status, with a running / done / failed tally above. Working
- * lanes pulse and their bars grow as the poll advances the agent's transcript. Flat (the forest is
+ * The Structure dock's Subagents tab: a live Gantt of the fan-out. Each Subagent is a lane positioned by
+ * its start on a shared time window and coloured by status, with a running / done / failed tally above.
+ * Working lanes pulse and run to a cyan "now" playhead that advances each poll; the window steps up in
+ * round rungs while live and snaps to the exact span once every lane is done. Flat (the forest is
  * flattened); sorting and drill-in are later slices. Shows an empty state until the session spawns one.
  */
-export function SubagentsTab({ subagents }: { subagents: Subagent[] }) {
+export function SubagentsTab({
+  subagents,
+  stats,
+  now,
+}: {
+  subagents: Subagent[];
+  stats: SubagentStats;
+  now: number;
+}) {
+  // Memoized against the subagents identity (stable between polls); the window also tracks `now` so the
+  // live edge advances each tick. `stats` is the parent's already-memoized walk, passed down.
+  const lanes = useMemo(() => flattenSubagents(subagents), [subagents]);
+  const win = useMemo(() => laneWindow(lanes, now), [lanes, now]);
   if (subagents.length === 0) return <EmptyState>No subagents yet.</EmptyState>;
-  const lanes = flattenSubagents(subagents);
-  const stats = subagentStats(subagents);
-  const maxDurationMs = lanes.reduce((m, l) => Math.max(m, l.durationMs), 0);
+  const span = win.end - win.start;
+  const live = stats.working > 0;
+  const nowPct = span > 0 ? clampPct(((now - win.start) / span) * 100) : 100;
   return (
     <div>
       <SubagentTally stats={stats} />
-      <ul className="space-y-1 px-4 py-3">
-        {lanes.map((a) => (
-          <SubagentLane key={a.id} agent={a} maxDurationMs={maxDurationMs} />
-        ))}
-      </ul>
+      <div className="px-4 py-3">
+        <div className="relative">
+          {live && (
+            <div
+              className="pointer-events-none absolute inset-y-0 z-10 w-px bg-working-bright/50"
+              style={{ left: `${nowPct}%` }}
+            />
+          )}
+          <ul className="space-y-1">
+            {lanes.map((a) => (
+              <SubagentLane key={a.id} agent={a} win={win} now={now} />
+            ))}
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }

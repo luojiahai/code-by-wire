@@ -4,7 +4,6 @@ import {
   defaultDockTab,
   flattenSubagents,
   laneBand,
-  laneWidthPct,
   laneWindow,
   subagentStats,
 } from "../../src/renderer/src/workspace/panels/dock-tabs";
@@ -32,7 +31,14 @@ function timed(
   startMs: number | undefined,
   durationMs: number,
 ): Subagent {
-  return { id, type: "general-purpose", status, tokens: 0, durationMs, startMs };
+  return {
+    id,
+    type: "general-purpose",
+    status,
+    tokens: 0,
+    durationMs,
+    startMs,
+  };
 }
 
 describe("subagentStats", () => {
@@ -101,24 +107,6 @@ describe("flattenSubagents", () => {
   });
 });
 
-describe("laneWidthPct", () => {
-  it("floors to the sliver when the max is zero (a fresh fan-out)", () => {
-    expect(laneWidthPct(0, 0)).toBe(3);
-  });
-  it("floors to the sliver for a lane far shorter than the max", () => {
-    expect(laneWidthPct(30_000, 2_400_000)).toBe(3);
-  });
-  it("is full width for the longest lane", () => {
-    expect(laneWidthPct(2_400_000, 2_400_000)).toBe(100);
-  });
-  it("scales proportionally between the floor and full width", () => {
-    expect(laneWidthPct(1_200_000, 2_400_000)).toBe(50);
-  });
-  it("floors a just-spawned lane against a running max", () => {
-    expect(laneWidthPct(0, 2_400_000)).toBe(3);
-  });
-});
-
 describe("laneWindow", () => {
   it("falls back to now for a forest with no positioned lane", () => {
     expect(laneWindow([], 1000)).toEqual({ start: 1000, end: 1000 });
@@ -145,7 +133,9 @@ describe("laneWindow", () => {
     expect(laneWindow(lanes, 51000).end).toBe(100000);
   });
   it("falls back to now when a working lane has no start", () => {
-    expect(laneWindow([timed("a", "working", undefined, 0)], 5000).start).toBe(5000);
+    expect(laneWindow([timed("a", "working", undefined, 0)], 5000).start).toBe(
+      5000,
+    );
   });
 });
 

@@ -71,7 +71,7 @@ export function StructureDock({
           {tab === "turns" ? (
             <TurnsTab turns={turns} now={now} />
           ) : (
-            <SubagentsTab subagents={subagents} />
+            <SubagentsTab subagents={subagents} stats={stats} now={now} />
           )}
         </div>
       </div>
