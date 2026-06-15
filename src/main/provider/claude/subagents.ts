@@ -25,6 +25,8 @@ export interface SubagentSource {
 interface Scan {
   /** tool_use ids dispatched in this transcript — used to find which agent (or main) owns a child. */
   toolUseIds: Set<string>;
+  /** tool_use id → the assistant message.id that carried it; the dispatch-batch key for grouping. */
+  dispatchMsgOf: Map<string, string>;
   /** tool_use_id → is_error, for the tool_results recorded in this transcript. */
   results: Map<string, boolean>;
   /** First raw model string seen on an assistant row, normalized later; undefined when none reported. */
@@ -40,6 +42,7 @@ interface Scan {
 
 function scanRows(rows: any[]): Scan {
   const toolUseIds = new Set<string>();
+  const dispatchMsgOf = new Map<string, string>();
   const results = new Map<string, boolean>();
   let model: string | undefined;
   let tokens = 0;
@@ -71,14 +74,16 @@ function scanRows(rows: any[]): Scan {
     const content = msg?.content;
     if (Array.isArray(content)) {
       for (const b of content) {
-        if (b?.type === "tool_use" && typeof b.id === "string")
+        if (b?.type === "tool_use" && typeof b.id === "string") {
           toolUseIds.add(b.id);
+          if (typeof msg?.id === "string") dispatchMsgOf.set(b.id, msg.id);
+        }
         if (b?.type === "tool_result" && typeof b.tool_use_id === "string")
           results.set(b.tool_use_id, !!b.is_error);
       }
     }
   }
-  return { toolUseIds, results, model, tokens, firstTs, lastTs };
+  return { toolUseIds, dispatchMsgOf, results, model, tokens, firstTs, lastTs };
 }
 
 function cmp(a: string, b: string): number {
@@ -132,6 +137,14 @@ export function buildSubagentForest(
     for (const [id, err] of scans.get(a.agentId)!.results) results.set(id, err);
   for (const [id, err] of mainScan.results) results.set(id, err);
 
+  // tool_use id → its dispatching assistant message id, merged across every transcript (main wins).
+  // Message ids are globally unique, so a collision is not expected; main-wins keeps the rule uniform.
+  const dispatchMsgOf = new Map<string, string>();
+  for (const a of agents)
+    for (const [id, mid] of scans.get(a.agentId)!.dispatchMsgOf)
+      dispatchMsgOf.set(id, mid);
+  for (const [id, mid] of mainScan.dispatchMsgOf) dispatchMsgOf.set(id, mid);
+
   const nodeById = new Map<string, Subagent>();
   for (const a of agents) {
     const s = scans.get(a.agentId)!;
@@ -161,6 +174,8 @@ export function buildSubagentForest(
     if (Number.isFinite(s.firstTs)) node.startMs = s.firstTs;
     const description = a.meta.description.trim();
     if (description) node.description = description;
+    const batchId = dispatchMsgOf.get(a.meta.toolUseId);
+    if (batchId !== undefined) node.batchId = batchId;
     nodeById.set(a.agentId, node);
   }
 

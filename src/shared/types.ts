@@ -37,6 +37,10 @@ export interface Subagent {
   /** The task label from the dispatch meta (the Agent/Task tool's `description`). Absent when the
    *  meta carries none. */
   description?: string;
+  /** The dispatching assistant message id. Agents sharing it were fired in one assistant turn
+   *  (one fan-out batch); the Subagents gantt groups lanes by it. Absent when the dispatch
+   *  could not be located (empty/unknown toolUseId, or a dispatch row with no message id). */
+  batchId?: string;
   children?: Subagent[];
 }
 

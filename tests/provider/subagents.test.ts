@@ -41,6 +41,42 @@ function agent(
   return { agentId, meta: { agentType, toolUseId, description }, rows };
 }
 
+// A main assistant turn with message id `msgId` that dispatches every id in `toolUseIds`, each
+// recorded as a successful result. Unlike `main()`, this carries a message id, so the dispatched
+// agents resolve a batchId.
+function batch(msgId: string, toolUseIds: string[]): any[] {
+  return [
+    {
+      type: "assistant",
+      message: {
+        id: msgId,
+        content: toolUseIds.map((id) => ({
+          type: "tool_use",
+          id,
+          name: "Agent",
+        })),
+      },
+    },
+    ...toolUseIds.map((id) => ({
+      type: "user",
+      message: {
+        content: [{ type: "tool_result", tool_use_id: id, is_error: false }],
+      },
+    })),
+  ];
+}
+
+// A minimal positioned assistant row for a subagent transcript.
+const ar = (ts: string): any => ({
+  type: "assistant",
+  timestamp: ts,
+  message: {
+    model: SONNET,
+    usage: { input_tokens: 1, output_tokens: 1 },
+    content: [],
+  },
+});
+
 // One assistant turn streamed across `n` rows that repeat the same message id and usage.
 function streamedTurn(
   id: string,
@@ -392,5 +428,65 @@ describe("buildSubagentForest", () => {
     expect(forest[0].description).toBe("parent task");
     expect(forest[0].children![0].toolCount).toBe(0);
     expect(forest[0].children![0].description).toBeUndefined();
+  });
+
+  it("shares a batchId across agents dispatched in one assistant message", () => {
+    const forest = buildSubagentForest(batch("msg-1", ["tu-1", "tu-2"]), [
+      agent("a1", "tu-1", "general-purpose", [ar("2026-06-04T03:00:00.000Z")]),
+      agent("a2", "tu-2", "general-purpose", [ar("2026-06-04T03:00:01.000Z")]),
+    ]);
+    expect(forest.map((n) => n.batchId)).toEqual(["msg-1", "msg-1"]);
+  });
+
+  it("gives agents dispatched in different messages different batchIds", () => {
+    const forest = buildSubagentForest(
+      [...batch("msg-1", ["tu-1"]), ...batch("msg-2", ["tu-2"])],
+      [
+        agent("a1", "tu-1", "general-purpose", [
+          ar("2026-06-04T03:00:00.000Z"),
+        ]),
+        agent("a2", "tu-2", "general-purpose", [
+          ar("2026-06-04T03:00:01.000Z"),
+        ]),
+      ],
+    );
+    expect(forest.map((n) => n.batchId)).toEqual(["msg-1", "msg-2"]);
+  });
+
+  it("sets a nested agent's batchId to its parent's dispatching message id", () => {
+    const forest = buildSubagentForest(batch("root-msg", ["p"]), [
+      agent("parent", "p", "general-purpose", [
+        {
+          type: "assistant",
+          timestamp: "2026-06-04T03:00:00.000Z",
+          message: {
+            id: "parent-msg",
+            model: SONNET,
+            usage: { input_tokens: 1, output_tokens: 1 },
+            content: [{ type: "tool_use", id: "c", name: "Agent" }],
+          },
+        },
+        {
+          type: "user",
+          timestamp: "2026-06-04T03:00:05.000Z",
+          message: {
+            content: [
+              { type: "tool_result", tool_use_id: "c", is_error: false },
+            ],
+          },
+        },
+      ]),
+      agent("kid", "c", "Explore", [ar("2026-06-04T03:00:01.000Z")]),
+    ]);
+    expect(forest[0].batchId).toBe("root-msg");
+    expect(forest[0].children![0].batchId).toBe("parent-msg");
+  });
+
+  it("leaves batchId unset when the dispatch row carries no message id", () => {
+    // `main()` builds an assistant row with no message.id, so the dispatch is unlocatable.
+    const forest = buildSubagentForest(main("tu-1", { is_error: false }), [
+      agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:00.000Z")]),
+    ]);
+    expect(forest[0].batchId).toBeUndefined();
   });
 });

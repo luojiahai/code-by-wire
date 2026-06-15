@@ -1,6 +1,10 @@
-import { type ComponentPropsWithoutRef, useMemo } from "react";
+import { type ComponentPropsWithoutRef, useMemo, useState } from "react";
 import type { Subagent } from "@shared/types";
-import { formatDuration, formatTokens } from "@shared/format";
+import {
+  formatDuration,
+  formatRelativeTime,
+  formatTokens,
+} from "@shared/format";
 import { spanPct } from "../../ui/charts-geom";
 import { cx } from "../../ui/atoms";
 import { FAMILY_LABEL } from "../../ui/meta";
@@ -13,6 +17,16 @@ import {
   laneInterval,
   laneWindow,
 } from "./dock-tabs";
+import {
+  type CollapseOverride,
+  type SubagentGroup,
+  groupIsLive,
+  groupSpanMs,
+  groupStartMs,
+  groupSubagents,
+  groupUniformType,
+  resolveCollapsed,
+} from "./subagent-group";
 
 /** Per-status lane treatment: the glyph char, the duration fill, its left cap, and the glyph tone.
  *  Working pulses; done stays calm so working (teal) and failed (red) pop as the states worth acting on. */
@@ -62,7 +76,7 @@ function LaneCell({
   );
 }
 
-/** One Subagent as a Gantt lane: a fill positioned by the agent's start and span within the shared time
+/** One Subagent as a Gantt lane: a fill positioned by the agent's start and span within its group's time
  *  window, behind a metadata row (type, model, tokens, tool count, duration) with the task description on
  *  a second line when present. A working lane's bar runs to `now` and its duration ticks live; a finished
  *  lane is frozen at its measured span. */
@@ -152,25 +166,168 @@ function TallyTerm({
   );
 }
 
-/** The running / done / failed tally, pinned above the lanes so the fan-out's state reads at a glance. */
-function SubagentTally({ stats }: { stats: SubagentStats }) {
+/** The running / done / failed tally with the batch count on the right, pinned above the bands so the
+ *  fan-out's state reads at a glance. */
+function SubagentTally({
+  stats,
+  batchCount,
+}: {
+  stats: SubagentStats;
+  batchCount: number;
+}) {
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-ink-800 bg-ink-925 px-4 py-2 font-mono text-[10px] font-semibold tabular-nums">
-      <TallyTerm n={stats.working} label="running" tone="text-working-bright" />
-      <span className="text-ink-800">·</span>
-      <TallyTerm n={stats.done} label="done" tone="text-ok" />
-      <span className="text-ink-800">·</span>
-      <TallyTerm n={stats.failed} label="failed" tone="text-danger" />
+    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-ink-800 bg-ink-925 px-4 py-2 font-mono text-[10px] font-semibold tabular-nums">
+      <div className="flex items-center gap-2">
+        <TallyTerm
+          n={stats.working}
+          label="running"
+          tone="text-working-bright"
+        />
+        <span className="text-ink-800">·</span>
+        <TallyTerm n={stats.done} label="done" tone="text-ok" />
+        <span className="text-ink-800">·</span>
+        <TallyTerm n={stats.failed} label="failed" tone="text-danger" />
+      </div>
+      <span className="font-normal text-fg-faint">
+        {batchCount} {batchCount === 1 ? "batch" : "batches"}
+      </span>
+    </div>
+  );
+}
+
+/** Per-status counts for one group's mini-tally. */
+function groupCounts(agents: Subagent[]): {
+  working: number;
+  done: number;
+  failed: number;
+} {
+  let working = 0;
+  let done = 0;
+  let failed = 0;
+  for (const a of agents) {
+    if (a.status === "working") working++;
+    else if (a.status === "failed") failed++;
+    else done++;
+  }
+  return { working, done, failed };
+}
+
+/** A group band's clickable header: a chevron, the member count (or "Individual"), the uniform agent
+ *  type when there is one, an "auto" hint while auto-collapsed, and a right-aligned status tally, relative
+ *  start, and span. */
+function GroupHeader({
+  group,
+  now,
+  collapsed,
+  autoCollapsed,
+  onToggle,
+}: {
+  group: SubagentGroup;
+  now: number;
+  collapsed: boolean;
+  autoCollapsed: boolean;
+  onToggle: () => void;
+}) {
+  const counts = groupCounts(group.agents);
+  const type = groupUniformType(group);
+  const start = groupStartMs(group);
+  const label =
+    group.kind === "individual"
+      ? "Individual"
+      : `${group.agents.length} agents`;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={!collapsed}
+      className="flex w-full items-center gap-2 rounded-sm border-b border-ink-850 px-1 py-1 text-left font-mono text-[10px] tabular-nums transition-colors hover:bg-ink-900"
+    >
+      <span
+        className={cx(
+          "w-2.5 shrink-0 text-fg-faint transition-transform",
+          collapsed && "-rotate-90",
+        )}
+        aria-hidden
+      >
+        ▾
+      </span>
+      <span className="shrink-0 font-semibold text-fg">{label}</span>
+      {type && <span className="min-w-0 truncate text-fg-faint">{type}</span>}
+      {autoCollapsed && (
+        <span className="shrink-0 italic text-fg-faint/70">auto</span>
+      )}
+      <span className="ml-auto flex shrink-0 items-center gap-2.5 text-fg-faint">
+        <span className="flex items-center gap-1.5">
+          {counts.working > 0 && (
+            <span className="text-working-bright">◐ {counts.working}</span>
+          )}
+          {counts.done > 0 && <span className="text-ok">✓ {counts.done}</span>}
+          {counts.failed > 0 && (
+            <span className="text-danger">✕ {counts.failed}</span>
+          )}
+        </span>
+        {Number.isFinite(start) && (
+          <span>{formatRelativeTime(start, now)}</span>
+        )}
+        <span>{formatDuration(groupSpanMs(group, now))}</span>
+      </span>
+    </button>
+  );
+}
+
+/** One group as a band: its header plus, when expanded, its lanes on the group's own time window with a
+ *  per-band "now" playhead while the group is live. */
+function SubagentGroupBand({
+  group,
+  now,
+  collapsed,
+  autoCollapsed,
+  onToggle,
+}: {
+  group: SubagentGroup;
+  now: number;
+  collapsed: boolean;
+  autoCollapsed: boolean;
+  onToggle: () => void;
+}) {
+  const win = laneWindow(group.agents, now);
+  const live = groupIsLive(group);
+  const nowPct = spanPct(now - win.start, win.end - win.start);
+  return (
+    <div>
+      <GroupHeader
+        group={group}
+        now={now}
+        collapsed={collapsed}
+        autoCollapsed={autoCollapsed}
+        onToggle={onToggle}
+      />
+      {!collapsed && (
+        <div className="relative mt-1.5">
+          {live && (
+            <div
+              className="pointer-events-none absolute inset-y-0 z-10 w-px bg-working-bright/50 transition-[left] duration-700 ease-out"
+              style={{ left: `${nowPct}%` }}
+            />
+          )}
+          <ul className="space-y-1">
+            {group.agents.map((a) => (
+              <SubagentLane key={a.id} agent={a} win={win} now={now} />
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
 /**
- * The Structure dock's Subagents tab: a live Gantt of the fan-out. Each Subagent is a lane positioned by
- * its start on a shared time window and coloured by status, with a running / done / failed tally above.
- * Working lanes pulse and run to a cyan "now" playhead that advances each poll; the window steps up in
- * round rungs while live and snaps to the exact span once every lane is done. Flat (the forest is
- * flattened); drill-in is a later slice. Shows an empty state until the session spawns one.
+ * The Structure dock's Subagents tab: a live Gantt grouped by dispatch batch. Each fan-out fired in one
+ * assistant turn is its own band on its own time window, coloured by status; lone serial dispatches pool
+ * into a trailing "Individual" band on a shared axis. A band auto-collapses once it finishes with no
+ * failures; a live band or one with a failure stays open. Clicking a header overrides that until the band
+ * flips live to done. A running / done / failed tally and a group count sit above. Shows an empty state
+ * until the session spawns a subagent.
  */
 export function SubagentsTab({
   subagents,
@@ -181,31 +338,45 @@ export function SubagentsTab({
   stats: SubagentStats;
   now: number;
 }) {
-  // `lanes` is memoized on the subagents identity (stable between polls) so the flatten only re-runs when
-  // the forest changes. The window tracks `now`, which is a fresh value every render, so it's computed
-  // inline — a useMemo keyed on `now` would never hit. `stats` is the parent's already-memoized walk.
+  // `lanes` and `groups` memoize on the subagents identity (stable between polls): the flatten and the
+  // partition only re-run when the forest changes. Each band's window tracks `now` (fresh every render),
+  // so it is computed inline inside the band. `stats` is the parent's already-memoized walk.
   const lanes = useMemo(() => flattenSubagents(subagents), [subagents]);
+  const groups = useMemo(() => groupSubagents(lanes), [lanes]);
+  const [overrides, setOverrides] = useState<Map<string, CollapseOverride>>(
+    () => new Map(),
+  );
   if (subagents.length === 0) return <EmptyState>No subagents yet.</EmptyState>;
-  const win = laneWindow(lanes, now);
-  const live = stats.working > 0;
-  const nowPct = spanPct(now - win.start, win.end - win.start);
+  const toggle = (group: SubagentGroup) =>
+    setOverrides((prev) => {
+      const next = new Map(prev);
+      const current = resolveCollapsed(group, prev.get(group.id));
+      next.set(group.id, { collapsed: !current, live: groupIsLive(group) });
+      return next;
+    });
   return (
     <div>
-      <SubagentTally stats={stats} />
-      <div className="px-4 py-3">
-        <div className="relative">
-          {live && (
-            <div
-              className="pointer-events-none absolute inset-y-0 z-10 w-px bg-working-bright/50 transition-[left] duration-700 ease-out"
-              style={{ left: `${nowPct}%` }}
+      <SubagentTally
+        stats={stats}
+        batchCount={groups.filter((g) => g.kind === "batch").length}
+      />
+      <div className="space-y-3 px-4 py-3">
+        {groups.map((group) => {
+          const override = overrides.get(group.id);
+          const collapsed = resolveCollapsed(group, override);
+          const overridden =
+            override !== undefined && override.live === groupIsLive(group);
+          return (
+            <SubagentGroupBand
+              key={group.id}
+              group={group}
+              now={now}
+              collapsed={collapsed}
+              autoCollapsed={collapsed && !overridden}
+              onToggle={() => toggle(group)}
             />
-          )}
-          <ul className="space-y-1">
-            {lanes.map((a) => (
-              <SubagentLane key={a.id} agent={a} win={win} now={now} />
-            ))}
-          </ul>
-        </div>
+          );
+        })}
       </div>
     </div>
   );
