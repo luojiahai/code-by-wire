@@ -60,7 +60,7 @@ function SubagentLane({
       ? now - agent.startMs
       : agent.durationMs;
   return (
-    <li className="relative h-[26px] overflow-hidden rounded-sm bg-ink-900">
+    <li className="relative overflow-hidden rounded-sm bg-ink-900">
       <div
         className={cx(
           "absolute inset-y-0 border-l-2 transition-[left,width] duration-700 ease-out",
@@ -70,25 +70,39 @@ function SubagentLane({
         )}
         style={{ left: `${band.left}%`, width: `${band.width}%` }}
       />
-      <div className="relative flex h-full items-center gap-2 px-2">
-        <span className={cx("shrink-0 font-mono text-[11px]", meta.tone)}>
-          {meta.char}
-        </span>
-        <span
-          className="min-w-0 flex-1 truncate text-[12px] text-fg"
-          title={agent.type}
-        >
-          {agent.type}
-        </span>
-        <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-faint">
-          {agent.model ? FAMILY_LABEL[agent.model] : "—"}
-        </span>
-        <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-muted">
-          {formatTokens(agent.tokens)}
-        </span>
-        <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-faint">
-          {formatDuration(elapsed)}
-        </span>
+      <div className="relative px-2 py-1">
+        <div className="flex items-center gap-2">
+          <span className={cx("shrink-0 font-mono text-[11px]", meta.tone)}>
+            {meta.char}
+          </span>
+          <span
+            className="min-w-0 flex-1 truncate text-[12px] text-fg"
+            title={agent.type}
+          >
+            {agent.type}
+          </span>
+          <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-faint">
+            {agent.model ? FAMILY_LABEL[agent.model] : "—"}
+          </span>
+          <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-muted">
+            {formatTokens(agent.tokens)}
+          </span>
+          <span className="w-10 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-faint">
+            {agent.toolCount}
+            <span aria-hidden>⚒</span>
+          </span>
+          <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-faint">
+            {formatDuration(elapsed)}
+          </span>
+        </div>
+        {agent.description && (
+          <div
+            className="truncate pl-5 pt-0.5 text-[11px] text-fg-faint"
+            title={agent.description}
+          >
+            {agent.description}
+          </div>
+        )}
       </div>
     </li>
   );
@@ -129,7 +143,7 @@ function SubagentTally({ stats }: { stats: SubagentStats }) {
  * its start on a shared time window and coloured by status, with a running / done / failed tally above.
  * Working lanes pulse and run to a cyan "now" playhead that advances each poll; the window steps up in
  * round rungs while live and snaps to the exact span once every lane is done. Flat (the forest is
- * flattened); sorting and drill-in are later slices. Shows an empty state until the session spawns one.
+ * flattened); drill-in is a later slice. Shows an empty state until the session spawns one.
  */
 export function SubagentsTab({
   subagents,
@@ -140,12 +154,12 @@ export function SubagentsTab({
   stats: SubagentStats;
   now: number;
 }) {
-  // `lanes` is memoized on the subagents identity (stable between polls), so the flatten only re-runs when
+  // `lanes` is memoized on the subagents identity (stable between polls) so the flatten only re-runs when
   // the forest changes. The window tracks `now`, which is a fresh value every render, so it's computed
   // inline — a useMemo keyed on `now` would never hit. `stats` is the parent's already-memoized walk.
   const lanes = useMemo(() => flattenSubagents(subagents), [subagents]);
-  const win = laneWindow(lanes, now);
   if (subagents.length === 0) return <EmptyState>No subagents yet.</EmptyState>;
+  const win = laneWindow(lanes, now);
   const live = stats.working > 0;
   const nowPct = spanPct(now - win.start, win.end - win.start);
   return (
