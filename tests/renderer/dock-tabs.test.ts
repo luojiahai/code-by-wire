@@ -19,6 +19,7 @@ function sub(
     type: "general-purpose",
     status,
     tokens: 0,
+    toolCount: 0,
     durationMs: 0,
     children,
   };
@@ -36,6 +37,7 @@ function timed(
     type: "general-purpose",
     status,
     tokens: 0,
+    toolCount: 0,
     durationMs,
     startMs,
   };

@@ -88,9 +88,11 @@ describe("readTranscript — subagents", () => {
       {
         id: "a1",
         type: "Explore",
+        description: "d",
         status: "done",
         model: "sonnet",
         tokens: 30,
+        toolCount: 0,
         durationMs: 4000,
         startMs: Date.parse("2026-06-04T03:00:00.000Z"),
       },

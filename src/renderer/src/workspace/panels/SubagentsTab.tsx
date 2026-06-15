@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type ComponentPropsWithoutRef, useMemo } from "react";
 import type { Subagent } from "@shared/types";
 import { formatDuration, formatTokens } from "@shared/format";
 import { spanPct } from "../../ui/charts-geom";
@@ -40,9 +40,32 @@ const LANE_META: Record<
   },
 };
 
+/** A fixed-width, right-aligned mono metric in the lane's metadata row (model, tokens, tool count,
+ *  duration). `tone` picks the tint; extra props (e.g. aria-label) pass through to the span. */
+function LaneCell({
+  tone = "text-fg-faint",
+  className,
+  children,
+  ...rest
+}: ComponentPropsWithoutRef<"span"> & { tone?: string }) {
+  return (
+    <span
+      className={cx(
+        "w-12 shrink-0 text-right font-mono text-[10px] tabular-nums",
+        tone,
+        className,
+      )}
+      {...rest}
+    >
+      {children}
+    </span>
+  );
+}
+
 /** One Subagent as a Gantt lane: a fill positioned by the agent's start and span within the shared time
- *  window, behind a metadata row (type, model, tokens, duration). A working lane's bar runs to `now` and
- *  its duration ticks live; a finished lane is frozen at its measured span. */
+ *  window, behind a metadata row (type, model, tokens, tool count, duration) with the task description on
+ *  a second line when present. A working lane's bar runs to `now` and its duration ticks live; a finished
+ *  lane is frozen at its measured span. */
 function SubagentLane({
   agent,
   win,
@@ -60,7 +83,7 @@ function SubagentLane({
       ? now - agent.startMs
       : agent.durationMs;
   return (
-    <li className="relative h-[26px] overflow-hidden rounded-sm bg-ink-900">
+    <li className="relative flex min-h-[26px] flex-col justify-center overflow-hidden rounded-sm bg-ink-900">
       <div
         className={cx(
           "absolute inset-y-0 border-l-2 transition-[left,width] duration-700 ease-out",
@@ -70,25 +93,43 @@ function SubagentLane({
         )}
         style={{ left: `${band.left}%`, width: `${band.width}%` }}
       />
-      <div className="relative flex h-full items-center gap-2 px-2">
-        <span className={cx("shrink-0 font-mono text-[11px]", meta.tone)}>
-          {meta.char}
-        </span>
-        <span
-          className="min-w-0 flex-1 truncate text-[12px] text-fg"
-          title={agent.type}
-        >
-          {agent.type}
-        </span>
-        <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-faint">
-          {agent.model ? FAMILY_LABEL[agent.model] : "—"}
-        </span>
-        <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-muted">
-          {formatTokens(agent.tokens)}
-        </span>
-        <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-faint">
-          {formatDuration(elapsed)}
-        </span>
+      <div className="relative px-2 py-1">
+        <div className="flex items-center gap-2">
+          <span
+            className={cx(
+              "w-4 shrink-0 text-center font-mono text-[11px]",
+              meta.tone,
+            )}
+          >
+            {meta.char}
+          </span>
+          <span
+            className="min-w-0 flex-1 truncate text-[12px] text-fg"
+            title={agent.type}
+          >
+            {agent.type}
+          </span>
+          <LaneCell>{agent.model ? FAMILY_LABEL[agent.model] : "—"}</LaneCell>
+          <LaneCell tone="text-fg-muted">{formatTokens(agent.tokens)}</LaneCell>
+          <LaneCell
+            aria-label={`${agent.toolCount} tool ${agent.toolCount === 1 ? "call" : "calls"}`}
+          >
+            {agent.toolCount}
+            <span aria-hidden className="ml-0.5">
+              ⚒
+            </span>
+          </LaneCell>
+          <LaneCell>{formatDuration(elapsed)}</LaneCell>
+        </div>
+        {/* pl-6 lines the description up under the type label: glyph w-4 (16px) + the row's gap-2 (8px). */}
+        {agent.description && (
+          <div
+            className="truncate pl-6 pt-0.5 text-[11px] text-fg-faint"
+            title={agent.description}
+          >
+            {agent.description}
+          </div>
+        )}
       </div>
     </li>
   );
@@ -129,7 +170,7 @@ function SubagentTally({ stats }: { stats: SubagentStats }) {
  * its start on a shared time window and coloured by status, with a running / done / failed tally above.
  * Working lanes pulse and run to a cyan "now" playhead that advances each poll; the window steps up in
  * round rungs while live and snaps to the exact span once every lane is done. Flat (the forest is
- * flattened); sorting and drill-in are later slices. Shows an empty state until the session spawns one.
+ * flattened); drill-in is a later slice. Shows an empty state until the session spawns one.
  */
 export function SubagentsTab({
   subagents,
@@ -140,12 +181,12 @@ export function SubagentsTab({
   stats: SubagentStats;
   now: number;
 }) {
-  // `lanes` is memoized on the subagents identity (stable between polls), so the flatten only re-runs when
+  // `lanes` is memoized on the subagents identity (stable between polls) so the flatten only re-runs when
   // the forest changes. The window tracks `now`, which is a fresh value every render, so it's computed
   // inline — a useMemo keyed on `now` would never hit. `stats` is the parent's already-memoized walk.
   const lanes = useMemo(() => flattenSubagents(subagents), [subagents]);
-  const win = laneWindow(lanes, now);
   if (subagents.length === 0) return <EmptyState>No subagents yet.</EmptyState>;
+  const win = laneWindow(lanes, now);
   const live = stats.working > 0;
   const nowPct = spanPct(now - win.start, win.end - win.start);
   return (

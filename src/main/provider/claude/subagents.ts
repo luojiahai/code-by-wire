@@ -10,6 +10,8 @@ export interface SubagentMeta {
   agentType: string;
   /** The id of the Task/Agent tool_use that spawned this subagent — the link to its parent. */
   toolUseId: string;
+  /** The dispatch's task label (the Agent/Task tool's `description` arg), surfaced onto the lane. */
+  description: string;
 }
 
 /** One subagent's reconstruction inputs: its id, its meta, and its parsed transcript rows. */
@@ -152,10 +154,13 @@ export function buildSubagentForest(
       status,
       tokens: s.tokens,
       durationMs,
+      toolCount: s.toolUseIds.size,
       children: [],
     };
     if (model) node.model = model;
     if (Number.isFinite(s.firstTs)) node.startMs = s.firstTs;
+    const description = a.meta.description.trim();
+    if (description) node.description = description;
     nodeById.set(a.agentId, node);
   }
 
@@ -228,6 +233,7 @@ export function readSubagentSources(dir: string): SubagentSource[] {
       meta = {
         agentType: typeof m.agentType === "string" ? m.agentType : "",
         toolUseId: typeof m.toolUseId === "string" ? m.toolUseId : "",
+        description: typeof m.description === "string" ? m.description : "",
       };
     } catch {
       continue;

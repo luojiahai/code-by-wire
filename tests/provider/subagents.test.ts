@@ -36,8 +36,9 @@ function agent(
   toolUseId: string,
   agentType: string,
   rows: any[],
+  description = "",
 ): SubagentSource {
-  return { agentId, meta: { agentType, toolUseId }, rows };
+  return { agentId, meta: { agentType, toolUseId, description }, rows };
 }
 
 // One assistant turn streamed across `n` rows that repeat the same message id and usage.
@@ -109,6 +110,7 @@ describe("buildSubagentForest", () => {
         model: "sonnet",
         tokens: 157,
         durationMs: 10000,
+        toolCount: 0,
         startMs: Date.parse("2026-06-04T03:00:00.000Z"),
       },
       {
@@ -118,6 +120,7 @@ describe("buildSubagentForest", () => {
         model: "haiku",
         tokens: 10,
         durationMs: 0,
+        toolCount: 0,
         startMs: Date.parse("2026-06-04T03:00:01.000Z"),
       },
     ]);
@@ -165,6 +168,7 @@ describe("buildSubagentForest", () => {
         model: "sonnet",
         tokens: 11,
         durationMs: 5000,
+        toolCount: 1,
         startMs: Date.parse("2026-06-04T03:00:00.000Z"),
         children: [
           {
@@ -174,6 +178,7 @@ describe("buildSubagentForest", () => {
             model: "haiku",
             tokens: 5,
             durationMs: 0,
+            toolCount: 0,
             startMs: Date.parse("2026-06-04T03:00:01.000Z"),
           },
         ],
@@ -272,6 +277,7 @@ describe("buildSubagentForest", () => {
         status: "working",
         tokens: 0,
         durationMs: 0,
+        toolCount: 0,
       },
     ]);
   });
@@ -322,5 +328,69 @@ describe("buildSubagentForest", () => {
     expect(buildSubagentForest(main("tu-1", { is_error: false }), [])).toEqual(
       [],
     );
+  });
+
+  it("surfaces toolCount from the agent's own tool_use ids and the meta description", () => {
+    const forest = buildSubagentForest(main("tu-1", { is_error: false }), [
+      agent(
+        "a1",
+        "tu-1",
+        "Explore",
+        [
+          {
+            type: "assistant",
+            timestamp: "2026-06-04T03:00:00.000Z",
+            message: {
+              model: SONNET,
+              usage: { input_tokens: 1, output_tokens: 1 },
+              content: [
+                { type: "tool_use", id: "t1", name: "Read" },
+                { type: "tool_use", id: "t2", name: "Bash" },
+              ],
+            },
+          },
+        ],
+        "Find the page files",
+      ),
+    ]);
+    expect(forest[0].toolCount).toBe(2);
+    expect(forest[0].description).toBe("Find the page files");
+  });
+
+  it("counts a nested dispatch in toolCount and leaves an empty description unset", () => {
+    // The nested case: parent dispatches one child (toolCount 1, the dispatch itself counts);
+    // the child made no tool calls and carries no description.
+    const forest = buildSubagentForest(main("root", { is_error: false }), [
+      agent(
+        "parent",
+        "root",
+        "general-purpose",
+        [
+          {
+            type: "assistant",
+            timestamp: "2026-06-04T03:00:00.000Z",
+            message: {
+              usage: { input_tokens: 1, output_tokens: 1 },
+              content: [{ type: "tool_use", id: "child", name: "Task" }],
+            },
+          },
+        ],
+        "parent task",
+      ),
+      agent("kid", "child", "Explore", [
+        {
+          type: "assistant",
+          timestamp: "2026-06-04T03:00:01.000Z",
+          message: {
+            usage: { input_tokens: 1, output_tokens: 1 },
+            content: [],
+          },
+        },
+      ]),
+    ]);
+    expect(forest[0].toolCount).toBe(1);
+    expect(forest[0].description).toBe("parent task");
+    expect(forest[0].children![0].toolCount).toBe(0);
+    expect(forest[0].children![0].description).toBeUndefined();
   });
 });
