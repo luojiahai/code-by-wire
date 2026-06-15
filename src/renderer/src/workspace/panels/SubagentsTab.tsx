@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { Subagent } from "@shared/types";
 import { formatDuration, formatTokens } from "@shared/format";
-import { clampPct } from "../../ui/charts-geom";
+import { spanPct } from "../../ui/charts-geom";
 import { cx } from "../../ui/atoms";
 import { FAMILY_LABEL } from "../../ui/meta";
 import { EmptyState } from "./chrome";
@@ -10,6 +10,7 @@ import {
   type SubagentStats,
   flattenSubagents,
   laneBand,
+  laneInterval,
   laneWindow,
 } from "./dock-tabs";
 
@@ -52,8 +53,7 @@ function SubagentLane({
   now: number;
 }) {
   const meta = LANE_META[agent.status];
-  const start = agent.startMs ?? win.start;
-  const end = agent.status === "working" ? now : start + agent.durationMs;
+  const { start, end } = laneInterval(agent, win.start, now);
   const band = laneBand(start, end, win.start, win.end);
   const elapsed =
     agent.status === "working" && agent.startMs !== undefined
@@ -140,14 +140,14 @@ export function SubagentsTab({
   stats: SubagentStats;
   now: number;
 }) {
-  // Memoized against the subagents identity (stable between polls); the window also tracks `now` so the
-  // live edge advances each tick. `stats` is the parent's already-memoized walk, passed down.
+  // `lanes` is memoized on the subagents identity (stable between polls), so the flatten only re-runs when
+  // the forest changes. The window tracks `now`, which is a fresh value every render, so it's computed
+  // inline — a useMemo keyed on `now` would never hit. `stats` is the parent's already-memoized walk.
   const lanes = useMemo(() => flattenSubagents(subagents), [subagents]);
-  const win = useMemo(() => laneWindow(lanes, now), [lanes, now]);
+  const win = laneWindow(lanes, now);
   if (subagents.length === 0) return <EmptyState>No subagents yet.</EmptyState>;
-  const span = win.end - win.start;
   const live = stats.working > 0;
-  const nowPct = span > 0 ? clampPct(((now - win.start) / span) * 100) : 100;
+  const nowPct = spanPct(now - win.start, win.end - win.start);
   return (
     <div>
       <SubagentTally stats={stats} />

@@ -1,5 +1,5 @@
 import type { Subagent } from "@shared/types";
-import { clampPct, niceAxisMax, round2 } from "../../ui/charts-geom";
+import { niceAxisMax, round2, spanPct } from "../../ui/charts-geom";
 
 // JSX-free dock logic, so the tests can import it under tsconfig.node.json (mirrors open-in-items.ts).
 
@@ -74,6 +74,20 @@ export interface LaneWindow {
   end: number;
 }
 
+/** One lane's [start, end] on the timeline, in epoch ms. An unpositioned lane (no startMs) anchors at the
+ *  window's left edge; a working lane runs to `now`, a finished one to its start plus its measured span.
+ *  The single source the window (laneWindow) and the band (SubagentLane) both read, so the two can't drift
+ *  out of sync — change the anchoring here and both follow. */
+export function laneInterval(
+  agent: Subagent,
+  windowStart: number,
+  now: number,
+): { start: number; end: number } {
+  const start = agent.startMs ?? windowStart;
+  const end = agent.status === "working" ? now : start + agent.durationMs;
+  return { start, end };
+}
+
 /** The window the lanes span. `start` is the earliest lane start. While any lane works, the window
  *  extends to a "nice" rung at or past `now` (niceAxisMax) so it rescales in discrete steps with headroom
  *  ahead of the playhead; once all lanes are done it snaps to the exact latest end so the finished
@@ -87,8 +101,7 @@ export function laneWindow(lanes: Subagent[], now: number): LaneWindow {
   let anyWorking = false;
   for (const l of lanes) {
     if (l.status === "working") anyWorking = true;
-    const end =
-      l.status === "working" ? now : (l.startMs ?? start) + l.durationMs;
+    const { end } = laneInterval(l, start, now);
     if (end > latest) latest = end;
   }
   const end = anyWorking ? start + niceAxisMax(latest - start) : latest;
@@ -106,10 +119,7 @@ export function laneBand(
 ): LaneBand {
   const span = windowEnd - windowStart;
   if (!(span > 0)) return { left: 0, width: MIN_BAR_PCT };
-  const left = clampPct(((startMs - windowStart) / span) * 100);
-  const width = Math.max(
-    MIN_BAR_PCT,
-    clampPct(((endMs - startMs) / span) * 100),
-  );
+  const left = spanPct(startMs - windowStart, span);
+  const width = Math.max(MIN_BAR_PCT, spanPct(endMs - startMs, span));
   return { left: round2(Math.min(left, 100 - width)), width: round2(width) };
 }

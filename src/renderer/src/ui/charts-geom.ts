@@ -15,6 +15,12 @@ export interface Segment {
 export const clampPct = (n: number): number => Math.min(100, Math.max(0, n));
 export const round2 = (n: number): number => Math.round(n * 100) / 100;
 
+/** A delta as a percentage of a window span, clamped 0–100. The shared primitive behind a Gantt lane's
+ *  left offset and width and the now-playhead's position (dock-tabs / SubagentsTab), so the three clamp
+ *  the same way. A zero/negative span yields 0. */
+export const spanPct = (delta: number, span: number): number =>
+  span > 0 ? clampPct((delta / span) * 100) : 0;
+
 /** Each value as its percentage share of the total. Assumes all values ≥ 0. All-zero (or empty) yields
  *  zeros — no NaN. */
 export function segmentPercents(values: number[]): number[] {
