@@ -10,6 +10,7 @@ export type IconName =
   | "check"
   | "chevron-down"
   | "chevron-right"
+  | "chevron-up"
   | "code"
   | "copy"
   | "folder-open"
