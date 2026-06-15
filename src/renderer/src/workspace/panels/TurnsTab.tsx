@@ -1,5 +1,6 @@
 import type { TurnSummary } from "@shared/transcript";
 import { formatDuration, formatRelativeTime } from "@shared/format";
+import { EmptyState } from "./chrome";
 
 /**
  * The Structure dock's Turns tab: the turn-by-turn timeline relocated from its old standalone strip.
@@ -15,8 +16,7 @@ export function TurnsTab({
   turns: TurnSummary[];
   now: number;
 }) {
-  if (turns.length === 0)
-    return <p className="px-4 py-3 text-[11px] text-fg-faint">No turns yet.</p>;
+  if (turns.length === 0) return <EmptyState>No turns yet.</EmptyState>;
   return (
     <ol className="px-4 py-2">
       {turns.map((t) => (

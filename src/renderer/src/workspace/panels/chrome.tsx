@@ -1,7 +1,13 @@
 import { type ReactNode } from "react";
 import { InfoButton } from "../../ui/InfoButton";
 
-// Shared chrome for the workspace rail panels, so a retone lands in one place.
+// Shared chrome for the workspace rail panels and the Structure dock, so a retone lands in one place.
+
+/** A dock tab body's empty state: faint, small, padded to the tab's content inset. Shared by the Turns
+ *  and Subagents tabs so their "No X yet." lines stay identical. */
+export function EmptyState({ children }: { children: ReactNode }) {
+  return <p className="px-4 py-3 text-[11px] text-fg-faint">{children}</p>;
+}
 
 /** A rail panel's shell: vertical rhythm, a bottom hairline, and bottom padding. */
 export function PanelSection({ children }: { children: ReactNode }) {

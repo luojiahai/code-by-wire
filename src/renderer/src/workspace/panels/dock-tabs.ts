@@ -5,36 +5,32 @@ import type { Subagent } from "@shared/types";
 /** The dock's right-area tabs. */
 export type DockTab = "turns" | "subagents";
 
-/** A fan-out is "alive" when any subagent in the forest is still Working. Recurses children so a nested
- *  working agent counts. */
-export function hasWorkingSubagent(subagents: Subagent[]): boolean {
-  return subagents.some(
-    (a) =>
-      a.status === "working" ||
-      (a.children ? hasWorkingSubagent(a.children) : false),
+/** The forest tallies the dock needs, gathered in a single walk: total nodes (the Subagents count badge)
+ *  and working nodes (the live-fan-out signal and the collapsed tally's working count). */
+export interface SubagentStats {
+  total: number;
+  working: number;
+}
+
+/** Fold the subagent forest once — children included — into its total and working node counts. One walk
+ *  feeds the count badge, the live tally, and the default-tab choice, so they can't disagree. */
+export function subagentStats(subagents: Subagent[]): SubagentStats {
+  return subagents.reduce<SubagentStats>(
+    (acc, a) => {
+      const child = a.children
+        ? subagentStats(a.children)
+        : { total: 0, working: 0 };
+      return {
+        total: acc.total + 1 + child.total,
+        working: acc.working + (a.status === "working" ? 1 : 0) + child.working,
+      };
+    },
+    { total: 0, working: 0 },
   );
 }
 
-/** Total nodes in the forest, children included — the Subagents tab's count badge. */
-export function countSubagents(subagents: Subagent[]): number {
-  return subagents.reduce(
-    (n, a) => n + 1 + (a.children ? countSubagents(a.children) : 0),
-    0,
-  );
-}
-
-/** Working nodes in the forest, children included — the collapsed tally bar's live count. */
-export function countWorkingSubagents(subagents: Subagent[]): number {
-  return subagents.reduce(
-    (n, a) =>
-      n +
-      (a.status === "working" ? 1 : 0) +
-      (a.children ? countWorkingSubagents(a.children) : 0),
-    0,
-  );
-}
-
-/** The dock's right tab defaults to Subagents while a fan-out is alive, Turns otherwise. */
-export function defaultDockTab(subagents: Subagent[]): DockTab {
-  return hasWorkingSubagent(subagents) ? "subagents" : "turns";
+/** The dock's right tab defaults to Subagents while a fan-out is alive (any node working), Turns
+ *  otherwise. */
+export function defaultDockTab(stats: SubagentStats): DockTab {
+  return stats.working > 0 ? "subagents" : "turns";
 }

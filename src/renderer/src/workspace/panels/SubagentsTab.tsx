@@ -2,6 +2,7 @@ import type { Subagent } from "@shared/types";
 import { formatDuration, formatTokens } from "@shared/format";
 import { cx } from "../../ui/atoms";
 import { FAMILY_LABEL } from "../../ui/meta";
+import { EmptyState } from "./chrome";
 
 const GLYPH: Record<Subagent["status"], string> = {
   working: "◐",
@@ -63,10 +64,7 @@ function AgentNode({ agent, depth }: { agent: Subagent; depth: number }) {
  * drill-in). Shows an empty state until the session spawns a subagent.
  */
 export function SubagentsTab({ subagents }: { subagents: Subagent[] }) {
-  if (subagents.length === 0)
-    return (
-      <p className="px-4 py-3 text-[11px] text-fg-faint">No subagents yet.</p>
-    );
+  if (subagents.length === 0) return <EmptyState>No subagents yet.</EmptyState>;
   return (
     <ul className="space-y-1 px-4 py-3">
       {subagents.map((a) => (

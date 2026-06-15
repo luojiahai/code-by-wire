@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session, Account } from "@shared/types";
-import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { SegmentedTabs } from "../ui/SegmentedTabs";
 import { TranscriptView } from "./TranscriptView";
 import { TerminalView } from "../terminal/TerminalView";
 import { useTranscript, type DocState } from "./use-transcript";
@@ -216,7 +216,7 @@ const CENTER_TABS: {
   { id: "transcript", label: "Transcript", icon: "messages-square" },
 ];
 
-/** The segmented Terminal/Transcript control: a well-track pill with the active tab raised. */
+/** The segmented Terminal/Transcript control: the shared SegmentedTabs pill with the active tab raised. */
 function ViewTabs({
   tab,
   onChange,
@@ -226,24 +226,11 @@ function ViewTabs({
 }) {
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-3 py-2">
-      <div className="inline-flex items-center gap-0.5 rounded-md border border-ink-800 bg-well p-0.5">
-        {CENTER_TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => onChange(t.id)}
-            aria-pressed={tab === t.id}
-            className={cx(
-              "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-[12px] transition-colors",
-              tab === t.id
-                ? "bg-ink-900 font-semibold text-fg"
-                : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <Icon name={t.icon} size={13} />
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs<CenterTab>
+        tabs={CENTER_TABS}
+        value={tab}
+        onChange={onChange}
+      />
     </div>
   );
 }

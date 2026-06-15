@@ -1,16 +1,16 @@
-import { useState } from "react";
-import type { Task, Subagent } from "@shared/types";
-import { cx } from "../../ui/atoms";
+import { useMemo, useState } from "react";
+import type { Task } from "@shared/types";
 import { Icon } from "../../ui/icons";
+import { SegmentedTabs } from "../../ui/SegmentedTabs";
 import type { DocState } from "../use-transcript";
 import { DockTasks } from "./DockTasks";
 import { TurnsTab } from "./TurnsTab";
 import { SubagentsTab } from "./SubagentsTab";
 import {
   type DockTab,
-  countSubagents,
-  countWorkingSubagents,
+  type SubagentStats,
   defaultDockTab,
+  subagentStats,
 } from "./dock-tabs";
 
 /**
@@ -31,17 +31,25 @@ export function StructureDock({
   const [collapsed, setCollapsed] = useState(false);
   const subagents = doc?.subagents ?? [];
   const turns = doc?.turns ?? [];
-  // The right tab follows the live fan-out (Subagents while one is alive, Turns otherwise) until the
-  // user picks a tab, after which their choice sticks. `null` = no explicit pick yet.
-  const [userTab, setUserTab] = useState<DockTab | null>(null);
-  const tab = userTab ?? defaultDockTab(subagents);
+  // One forest walk feeds the count badge, the live tally, and the default tab. Memoized against the
+  // subagents identity (stable between polls) so the 3s render clock doesn't re-walk the forest.
+  const stats = useMemo(() => subagentStats(subagents), [subagents]);
+  const alive = stats.working > 0;
+  // The right tab auto-follows the live fan-out (Subagents while alive, Turns otherwise). A manual pick
+  // overrides that, but only for the current fan-out phase: `pick` records the phase (`alive`) it was
+  // chosen under, so when the fan-out starts or ends the pick lapses and the tab re-follows. That way a
+  // click during a fan-out never strands the user on a now-empty Subagents tab once it finishes.
+  const [pick, setPick] = useState<{ tab: DockTab; alive: boolean } | null>(
+    null,
+  );
+  const tab = pick && pick.alive === alive ? pick.tab : defaultDockTab(stats);
 
   if (collapsed)
     return (
       <DockTally
         tasks={tasks}
         turnCount={turns.length}
-        subagents={subagents}
+        stats={stats}
         onExpand={() => setCollapsed(false)}
       />
     );
@@ -54,9 +62,9 @@ export function StructureDock({
       <div className="flex min-w-0 flex-1 flex-col">
         <DockTabBar
           tab={tab}
-          onChange={setUserTab}
+          onChange={(t) => setPick({ tab: t, alive })}
           turnCount={turns.length}
-          subagentCount={countSubagents(subagents)}
+          subagentCount={stats.total}
           onCollapse={() => setCollapsed(true)}
         />
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -71,8 +79,8 @@ export function StructureDock({
   );
 }
 
-/** The dock's tab bar: a well-track pill of Turns / Subagents (each with a count) plus a collapse glyph,
- *  matching the center column's Terminal/Transcript ViewTabs styling. */
+/** The dock's tab bar: the shared SegmentedTabs pill of Turns / Subagents (each with a count) plus a
+ *  collapse glyph. */
 function DockTabBar({
   tab,
   onChange,
@@ -88,20 +96,14 @@ function DockTabBar({
 }) {
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 px-3 py-2">
-      <div className="inline-flex items-center gap-0.5 rounded-md border border-ink-800 bg-well p-0.5">
-        <DockTabButton
-          active={tab === "turns"}
-          onClick={() => onChange("turns")}
-          label="Turns"
-          count={turnCount}
-        />
-        <DockTabButton
-          active={tab === "subagents"}
-          onClick={() => onChange("subagents")}
-          label="Subagents"
-          count={subagentCount}
-        />
-      </div>
+      <SegmentedTabs<DockTab>
+        tabs={[
+          { id: "turns", label: "Turns", count: turnCount },
+          { id: "subagents", label: "Subagents", count: subagentCount },
+        ]}
+        value={tab}
+        onChange={onChange}
+      />
       <button
         type="button"
         onClick={onCollapse}
@@ -115,53 +117,20 @@ function DockTabBar({
   );
 }
 
-function DockTabButton({
-  active,
-  onClick,
-  label,
-  count,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cx(
-        "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-[12px] transition-colors",
-        active
-          ? "bg-ink-900 font-semibold text-fg"
-          : "text-fg-muted hover:text-fg",
-      )}
-    >
-      {label}
-      <span className="font-mono text-[10px] tabular-nums text-fg-faint">
-        {count}
-      </span>
-    </button>
-  );
-}
-
 /** The collapsed dock: a thin, full-width button summarizing tasks, turns, and subagents, clickable to
  *  expand. Carries the same `lg` width gate as the expanded dock. */
 function DockTally({
   tasks,
   turnCount,
-  subagents,
+  stats,
   onExpand,
 }: {
   tasks: Task[];
   turnCount: number;
-  subagents: Subagent[];
+  stats: SubagentStats;
   onExpand: () => void;
 }) {
   const tasksDone = tasks.filter((t) => t.status === "completed").length;
-  const subCount = countSubagents(subagents);
-  const working = countWorkingSubagents(subagents);
   return (
     <button
       type="button"
@@ -180,7 +149,8 @@ function DockTally({
         </span>
         <span>{turnCount} turns</span>
         <span>
-          {subCount} subagents{working > 0 ? ` · ${working} working` : ""}
+          {stats.total} subagents
+          {stats.working > 0 ? ` · ${stats.working} working` : ""}
         </span>
       </span>
     </button>

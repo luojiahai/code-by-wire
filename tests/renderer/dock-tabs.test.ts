@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Subagent } from "@shared/types";
 import {
-  countSubagents,
-  countWorkingSubagents,
   defaultDockTab,
-  hasWorkingSubagent,
+  subagentStats,
 } from "../../src/renderer/src/workspace/panels/dock-tabs";
 
 /** A minimal Subagent for the helper tests — only the fields the helpers read. */
@@ -23,58 +21,34 @@ function sub(
   };
 }
 
-describe("hasWorkingSubagent", () => {
-  it("is false for an empty forest", () => {
-    expect(hasWorkingSubagent([])).toBe(false);
+describe("subagentStats", () => {
+  it("is all zero for an empty forest", () => {
+    expect(subagentStats([])).toEqual({ total: 0, working: 0 });
   });
-  it("is false when every agent is done or failed", () => {
-    expect(hasWorkingSubagent([sub("a", "done"), sub("b", "failed")])).toBe(
-      false,
-    );
-  });
-  it("is true when a root agent is working", () => {
-    expect(hasWorkingSubagent([sub("a", "done"), sub("b", "working")])).toBe(
-      true,
-    );
-  });
-  it("is true when only a nested child is working", () => {
-    expect(hasWorkingSubagent([sub("a", "done", [sub("a1", "working")])])).toBe(
-      true,
-    );
-  });
-});
-
-describe("countSubagents", () => {
-  it("is zero for an empty forest", () => {
-    expect(countSubagents([])).toBe(0);
-  });
-  it("counts the whole forest, children included", () => {
+  it("counts the whole forest and its working nodes, children included", () => {
     expect(
-      countSubagents([
-        sub("a", "done", [sub("a1", "done"), sub("a2", "working")]),
-        sub("b", "failed"),
-      ]),
-    ).toBe(4);
-  });
-});
-
-describe("countWorkingSubagents", () => {
-  it("counts only working nodes, children included", () => {
-    expect(
-      countWorkingSubagents([
+      subagentStats([
         sub("a", "working", [sub("a1", "done"), sub("a2", "working")]),
         sub("b", "failed"),
       ]),
-    ).toBe(2);
+    ).toEqual({ total: 4, working: 2 });
+  });
+  it("counts a nested working child", () => {
+    expect(subagentStats([sub("a", "done", [sub("a1", "working")])])).toEqual({
+      total: 2,
+      working: 1,
+    });
   });
 });
 
 describe("defaultDockTab", () => {
   it("defaults to turns with no live fan-out", () => {
-    expect(defaultDockTab([])).toBe("turns");
-    expect(defaultDockTab([sub("a", "done")])).toBe("turns");
+    expect(defaultDockTab({ total: 0, working: 0 })).toBe("turns");
+    expect(defaultDockTab(subagentStats([sub("a", "done")]))).toBe("turns");
   });
   it("defaults to subagents while a fan-out is alive", () => {
-    expect(defaultDockTab([sub("a", "working")])).toBe("subagents");
+    expect(defaultDockTab(subagentStats([sub("a", "working")]))).toBe(
+      "subagents",
+    );
   });
 });
