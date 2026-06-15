@@ -276,6 +276,13 @@ export interface StatsWindow {
   untilMs: number | null;
 }
 
+/** The open window: no bounds, i.e. all-time. The default for every analytics read, so an unscoped call
+ *  still means all-time. Frozen and shared — reads only read it, never mutate it. */
+export const ALL_TIME: StatsWindow = Object.freeze({
+  sinceMs: null,
+  untilMs: null,
+});
+
 /** Local midnight (epoch ms) for a 'YYYY-MM-DD' key — the day's inclusive lower bound. Built from the key's
  *  parts as a local Date, the same local-day arithmetic rangeSinceMs and addDays use. */
 export function dayStartMs(day: string): number {

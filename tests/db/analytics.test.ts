@@ -255,12 +255,14 @@ describe("analytics store", () => {
       }),
     ]);
     // since == the edge turn's ts: the edge is included (>=), the older one excluded.
-    const scoped = readTotals(db, 2000);
+    const scoped = readTotals(db, { sinceMs: 2000, untilMs: null });
     expect(scoped.turns).toBe(2);
     expect(scoped.inputTokens).toBe(110);
     // one ms past the edge: the edge falls out, only the newest remains.
-    expect(readTotals(db, 2001).turns).toBe(1);
-    expect(readTotals(db, 2001).inputTokens).toBe(100);
+    expect(readTotals(db, { sinceMs: 2001, untilMs: null }).turns).toBe(1);
+    expect(readTotals(db, { sinceMs: 2001, untilMs: null }).inputTokens).toBe(
+      100,
+    );
   });
 
   it("counts all-time with no bound (a null bound matches the no-arg call)", () => {
@@ -271,7 +273,7 @@ describe("analytics store", () => {
       turn({ messageId: "b", ts: 9_999_999 }),
     ]);
     expect(readTotals(db).turns).toBe(2);
-    expect(readTotals(db, null).turns).toBe(2);
+    expect(readTotals(db, { sinceMs: null, untilMs: null }).turns).toBe(2);
   });
 
   it("scopes sessions and Equivalent API value to the window", () => {
@@ -305,7 +307,7 @@ describe("analytics store", () => {
         },
       }),
     ]);
-    const scoped = readTotals(db, 5000);
+    const scoped = readTotals(db, { sinceMs: 5000, untilMs: null });
     expect(scoped.sessions).toBe(1); // only s-new is active in the window
     expect(scoped.inputTokens).toBe(1_000_000);
     expect(scoped.equivApiValueUsd).toBeCloseTo(3); // sonnet only; the out-of-window opus $5 is excluded
@@ -339,8 +341,8 @@ describe("analytics store", () => {
     // in a calendar window). hasAnyTurns still sees it, so the view shows zeroed cards, not the empty state.
     expect(readTotals(db).turns).toBe(1);
     expect(readTotals(db).inputTokens).toBe(7);
-    expect(readTotals(db, 1).turns).toBe(0);
-    expect(readTotals(db, 1).inputTokens).toBe(0);
+    expect(readTotals(db, { sinceMs: 1, untilMs: null }).turns).toBe(0);
+    expect(readTotals(db, { sinceMs: 1, untilMs: null }).inputTokens).toBe(0);
     expect(hasAnyTurns(db)).toBe(true);
   });
 
@@ -542,7 +544,7 @@ describe("readByModel", () => {
         },
       }),
     ]);
-    const rows = readByModel(db, 5000); // since == the new turn's ts: only it survives
+    const rows = readByModel(db, { sinceMs: 5000, untilMs: null }); // since == the new turn's ts: only it survives
     expect(rows).toHaveLength(1);
     expect(rows[0].modelRaw).toBe("claude-sonnet-4-6");
     expect(rows[0].totalTokens).toBe(100);
@@ -772,7 +774,7 @@ describe("readByProject", () => {
         },
       }),
     ]);
-    const rows = readByProject(db, 5000); // since == the new turn's ts: only it survives
+    const rows = readByProject(db, { sinceMs: 5000, untilMs: null }); // since == the new turn's ts: only it survives
     expect(rows).toHaveLength(1);
     expect(rows[0].totalTokens).toBe(100);
   });
@@ -1031,7 +1033,7 @@ describe("readByBranch", () => {
         },
       }),
     ]);
-    const rows = readByBranch(db, 5000);
+    const rows = readByBranch(db, { sinceMs: 5000, untilMs: null });
     expect(rows).toHaveLength(1);
     expect(rows[0].branch).toBe("feature");
     expect(rows[0].totalTokens).toBe(100);
@@ -1270,7 +1272,7 @@ describe("readBySession", () => {
       turn({ messageId: "old", sessionId: "old", ts: 1000 }),
       turn({ messageId: "new", sessionId: "new", ts: 5000 }),
     ]);
-    const rows = readBySession(db, 5000); // since == the new turn's ts: only it survives
+    const rows = readBySession(db, { sinceMs: 5000, untilMs: null }); // since == the new turn's ts: only it survives
     expect(rows).toHaveLength(1);
     expect(rows[0].sessionId).toBe("new");
   });
@@ -1359,11 +1361,19 @@ describe("readBreakdowns", () => {
         },
       }),
     ]);
-    const b = readBreakdowns(db, 5000);
-    expect(b.byModel).toEqual(readByModel(db, 5000));
-    expect(b.byProject).toEqual(readByProject(db, 5000));
-    expect(b.byBranch).toEqual(readByBranch(db, 5000));
-    expect(b.bySession).toEqual(readBySession(db, 5000));
+    const b = readBreakdowns(db, { sinceMs: 5000, untilMs: null });
+    expect(b.byModel).toEqual(
+      readByModel(db, { sinceMs: 5000, untilMs: null }),
+    );
+    expect(b.byProject).toEqual(
+      readByProject(db, { sinceMs: 5000, untilMs: null }),
+    );
+    expect(b.byBranch).toEqual(
+      readByBranch(db, { sinceMs: 5000, untilMs: null }),
+    );
+    expect(b.bySession).toEqual(
+      readBySession(db, { sinceMs: 5000, untilMs: null }),
+    );
   });
 
   it("reconciles every breakdown's summed cost with the grand total", () => {
@@ -1560,7 +1570,7 @@ describe("readDaily", () => {
         },
       }),
     ]);
-    const days = readDaily(db, newTs); // since == the new turn's ts: only its day survives
+    const days = readDaily(db, { sinceMs: newTs, untilMs: null }); // since == the new turn's ts: only its day survives
     expect(days).toHaveLength(1);
     expect(days[0].day).toBe("2026-06-14");
     expect(days[0].inputTokens).toBe(1);
@@ -1608,8 +1618,10 @@ describe("upper-bound (untilMs) scoping", () => {
     // Window = just 2026-06-14: [midnight 14th, midnight 15th).
     const since = new Date(2026, 5, 14).getTime();
     const until = new Date(2026, 5, 15).getTime();
-    expect(readTotals(db, since, until).inputTokens).toBe(5);
-    expect(readTotals(db, since, until).turns).toBe(1);
+    expect(readTotals(db, { sinceMs: since, untilMs: until }).inputTokens).toBe(
+      5,
+    );
+    expect(readTotals(db, { sinceMs: since, untilMs: until }).turns).toBe(1);
   });
 
   it("readBreakdowns and readDaily honor the upper bound too", () => {
@@ -1621,10 +1633,12 @@ describe("upper-bound (untilMs) scoping", () => {
     ]);
     const since = new Date(2026, 5, 14).getTime();
     const until = new Date(2026, 5, 15).getTime();
-    expect(readBreakdowns(db, since, until).byModel).toHaveLength(1);
-    expect(readDaily(db, since, until).map((d) => d.day)).toEqual([
-      "2026-06-14",
-    ]);
+    expect(
+      readBreakdowns(db, { sinceMs: since, untilMs: until }).byModel,
+    ).toHaveLength(1);
+    expect(
+      readDaily(db, { sinceMs: since, untilMs: until }).map((d) => d.day),
+    ).toEqual(["2026-06-14"]);
   });
 });
 
@@ -1662,7 +1676,7 @@ describe("readCalendar", () => {
         },
       }),
     ]);
-    const cal = readCalendar(db, since, until);
+    const cal = readCalendar(db, { sinceMs: since, untilMs: until });
     expect(cal).toHaveLength(1);
     expect(cal[0].day).toBe("2026-06-14");
     expect(cal[0].turns).toBe(2);
@@ -1688,7 +1702,7 @@ describe("readCalendar", () => {
         },
       }),
     ]);
-    const cal = readCalendar(db, since, until);
+    const cal = readCalendar(db, { sinceMs: since, untilMs: until });
     expect(cal[0].totalTokens).toBe(1515); // all four kinds (cache included)
     expect(cal[0].inputTokens).toBe(10);
     expect(cal[0].outputTokens).toBe(5); // fresh subset = 15, far below the total
@@ -1710,7 +1724,7 @@ describe("readCalendar", () => {
         },
       }),
     ]);
-    const cal = readCalendar(db, since, until);
+    const cal = readCalendar(db, { sinceMs: since, untilMs: until });
     expect(cal[0].totalTokens).toBe(100);
     expect(cal[0].turns).toBe(1);
     expect(cal[0].equivApiValueUsd).toBeNull();
@@ -1745,7 +1759,7 @@ describe("readCalendar", () => {
         },
       }),
     ]);
-    const cal = readCalendar(db, since, until);
+    const cal = readCalendar(db, { sinceMs: since, untilMs: until });
     expect(cal).toHaveLength(1);
     expect(cal[0].turns).toBe(2);
     expect(cal[0].totalTokens).toBe(1_000_500);
@@ -1761,16 +1775,15 @@ describe("readCalendar", () => {
       turn({ messageId: "d2", ts: noon(2026, 6, 15), usage: oneIn() }),
       turn({ messageId: "after", ts: noon(2027, 1, 1), usage: oneIn() }),
     ]);
-    expect(readCalendar(db, since, until).map((d) => d.day)).toEqual([
-      "2026-06-14",
-      "2026-06-15",
-    ]);
+    expect(
+      readCalendar(db, { sinceMs: since, untilMs: until }).map((d) => d.day),
+    ).toEqual(["2026-06-14", "2026-06-15"]);
   });
 
   it("returns an empty array for an empty store", () => {
     const db = openTestDb();
     migrateAnalytics(db);
-    expect(readCalendar(db, since, until)).toEqual([]);
+    expect(readCalendar(db, { sinceMs: since, untilMs: until })).toEqual([]);
   });
 });
 

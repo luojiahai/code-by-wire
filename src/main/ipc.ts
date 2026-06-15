@@ -37,6 +37,7 @@ import type {
   DailyBucket,
   CalendarDay,
   CalendarWindow,
+  StatsWindow,
 } from "@shared/stats";
 import {
   emptySnapshot,
@@ -155,13 +156,9 @@ export function registerIpc({
     filesDone: 0,
     done: true,
   });
-  const safeTotals = (
-    adb: SqliteDb,
-    sinceMs: number | null,
-    untilMs: number | null,
-  ): StatsTotals => {
+  const safeTotals = (adb: SqliteDb, win: StatsWindow): StatsTotals => {
     try {
-      return readTotals(adb, sinceMs, untilMs);
+      return readTotals(adb, win);
     } catch (err) {
       console.error("stats read failed; serving zeros", err);
       return emptyTotals();
@@ -180,13 +177,9 @@ export function registerIpc({
   };
   // All three breakdowns from one finest-grain scan; on any read error serve empty breakdowns so a bad row
   // never sinks the whole snapshot (matching safeTotals' "serve zeros" posture).
-  const safeBreakdowns = (
-    adb: SqliteDb,
-    sinceMs: number | null,
-    untilMs: number | null,
-  ): StatsBreakdowns => {
+  const safeBreakdowns = (adb: SqliteDb, win: StatsWindow): StatsBreakdowns => {
     try {
-      return readBreakdowns(adb, sinceMs, untilMs);
+      return readBreakdowns(adb, win);
     } catch (err) {
       console.error("stats breakdown read failed; serving none", err);
       return emptyBreakdowns();
@@ -194,13 +187,9 @@ export function registerIpc({
   };
   // The daily time-series, range-scoped; on a read error serve an empty series so a bad row never sinks
   // the snapshot (matching safeTotals/safeBreakdowns' "serve a safe default" posture).
-  const safeDaily = (
-    adb: SqliteDb,
-    sinceMs: number | null,
-    untilMs: number | null,
-  ): DailyBucket[] => {
+  const safeDaily = (adb: SqliteDb, win: StatsWindow): DailyBucket[] => {
     try {
-      return readDaily(adb, sinceMs, untilMs);
+      return readDaily(adb, win);
     } catch (err) {
       console.error("stats daily read failed; serving none", err);
       return [];
@@ -208,10 +197,11 @@ export function registerIpc({
   };
   // The contributions calendar and its year list, scoped to the calendar's OWN window (#115) — independent
   // of the page range. On a read error serve an empty series/list so a bad row never sinks the snapshot
-  // (same "serve a safe default" posture as safeDaily/safeBreakdowns).
+  // (same "serve a safe default" posture as safeDaily/safeBreakdowns). A CalendarWindow's sinceMs/untilMs are
+  // always set, so it satisfies readCalendar's StatsWindow structurally — pass it straight through.
   const safeCalendar = (adb: SqliteDb, win: CalendarWindow): CalendarDay[] => {
     try {
-      return readCalendar(adb, win.sinceMs, win.untilMs);
+      return readCalendar(adb, win);
     } catch (err) {
       console.error("stats calendar read failed; serving none", err);
       return [];
@@ -280,7 +270,7 @@ export function registerIpc({
       const now = Date.now();
       // The page window scopes totals/breakdowns/daily; a missing range falls back to all-time (#110). The
       // calendar window is resolved separately (#115), independent of `range`.
-      const { sinceMs, untilMs } = rangeWindow(range ?? "all", now);
+      const win = rangeWindow(range ?? "all", now);
       const cal = calendarWindow(calendarYear ?? null, now);
 
       // No durable store wired in: a constant per-day token, so repeated polls read unchanged after the first.
@@ -330,11 +320,11 @@ export function registerIpc({
         status: "changed",
         token,
         snapshot: {
-          totals: safeTotals(analyticsDb, sinceMs, untilMs),
+          totals: safeTotals(analyticsDb, win),
           progress,
           hasAnyTurns: safeHasAnyTurns(analyticsDb),
-          daily: safeDaily(analyticsDb, sinceMs, untilMs),
-          ...safeBreakdowns(analyticsDb, sinceMs, untilMs),
+          daily: safeDaily(analyticsDb, win),
+          ...safeBreakdowns(analyticsDb, win),
           calendar: safeCalendar(analyticsDb, cal),
           calendarStart: cal.startDay,
           calendarEnd: cal.endDay,
