@@ -38,3 +38,15 @@ export function subagentStats(subagents: Subagent[]): SubagentStats {
 export function defaultDockTab(stats: SubagentStats): DockTab {
   return stats.working > 0 ? "subagents" : "turns";
 }
+
+/** Flatten the subagent forest to a flat lane list, depth-first, each parent before its subtree. The
+ *  forest is already built in dispatch order (roots by first timestamp), so lanes read oldest-first.
+ *  Fan-outs are flat in practice; this collapses the rare nesting into one list. */
+export function flattenSubagents(subagents: Subagent[]): Subagent[] {
+  const lanes: Subagent[] = [];
+  for (const a of subagents) {
+    lanes.push(a);
+    if (a.children) lanes.push(...flattenSubagents(a.children));
+  }
+  return lanes;
+}

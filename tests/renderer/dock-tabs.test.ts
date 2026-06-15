@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Subagent } from "@shared/types";
 import {
   defaultDockTab,
+  flattenSubagents,
   subagentStats,
 } from "../../src/renderer/src/workspace/panels/dock-tabs";
 
@@ -59,5 +60,30 @@ describe("defaultDockTab", () => {
     expect(defaultDockTab(subagentStats([sub("a", "working")]))).toBe(
       "subagents",
     );
+  });
+});
+
+describe("flattenSubagents", () => {
+  it("is empty for an empty forest", () => {
+    expect(flattenSubagents([])).toEqual([]);
+  });
+  it("returns roots in order when there is no nesting", () => {
+    expect(
+      flattenSubagents([sub("a", "done"), sub("b", "working")]).map(
+        (s) => s.id,
+      ),
+    ).toEqual(["a", "b"]);
+  });
+  it("flattens children depth-first, each parent before its subtree", () => {
+    const forest = [
+      sub("a", "done", [sub("a1", "done"), sub("a2", "working")]),
+      sub("b", "failed"),
+    ];
+    expect(flattenSubagents(forest).map((s) => s.id)).toEqual([
+      "a",
+      "a1",
+      "a2",
+      "b",
+    ]);
   });
 });
