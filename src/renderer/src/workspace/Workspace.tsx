@@ -123,8 +123,9 @@ function WorkspaceBody({
   const tasks = useTasks(s.id);
   // The drill-stack: empty = the Session transcript, one crumb = drilled into that Subagent. Lives here
   // because the dock (which triggers the drill) and the center (which renders it) both read it. It's a
-  // stack so N-deep nesting is a natural extension; this slice only ever pushes one level. Workspace is
-  // keyed by session id in App, so it remounts (and the stack clears) on a session switch.
+  // stack so N-deep nesting (drilling an inline dispatch, a later issue) can push onto it; this slice
+  // drills one level from a lane, so onDrill sets a fresh single-crumb path. Workspace is keyed by
+  // session id in App, so it remounts (and the stack clears) on a session switch.
   const [drill, setDrill] = useState<SubagentCrumb[]>([]);
   const activeAgentId = drill[drill.length - 1]?.agentId;
   return (
@@ -220,9 +221,13 @@ function ManagedCenter({
 }) {
   const [tab, setTab] = useState<CenterTab>("terminal");
   const drilled = drill.length > 0;
+  const drilledAgentId = drill[drill.length - 1]?.agentId;
+  // Auto-select Transcript whenever the drilled agent changes — keyed on the agent id, not a boolean, so
+  // drilling a second lane while parked on Terminal still pulls focus. Popping back to the Session (id →
+  // undefined) intentionally leaves the tab where it is rather than forcing back to Terminal.
   useEffect(() => {
-    if (drilled) setTab("transcript");
-  }, [drilled]);
+    if (drilledAgentId) setTab("transcript");
+  }, [drilledAgentId]);
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ViewTabs tab={tab} onChange={setTab} />

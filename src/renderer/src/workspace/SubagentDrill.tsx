@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
 import { useSubagentTranscript } from "./use-subagent-transcript";
-import { TranscriptFeed } from "./TranscriptView";
+import { Center, TranscriptFeed } from "./TranscriptView";
 
 /** One level of the drill path: which subagent, and the label shown in the breadcrumb (its type). */
 export type SubagentCrumb = { agentId: string; label: string };
@@ -27,8 +26,10 @@ export function SubagentDrill({
       <Breadcrumb crumbs={crumbs} onNavigate={onNavigate} />
       <div className="min-h-0 flex-1 overflow-auto">
         {doc === null ? (
-          <Centered>No transcript on disk for this subagent yet.</Centered>
+          <Center>No transcript on disk for this subagent yet.</Center>
         ) : (
+          // `doc` is the doc, or undefined while the first poll is in flight; `?? []` renders an empty
+          // feed until it lands (matching the Session view's first-load behavior).
           <TranscriptFeed key={current.agentId} events={doc?.events ?? []} />
         )}
       </div>
@@ -76,14 +77,6 @@ function Breadcrumb({
       <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-accent/40 px-2 py-0.5 text-[9px] uppercase tracking-wider text-accent-bright">
         ● Read-only subagent
       </span>
-    </div>
-  );
-}
-
-function Centered({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex h-full items-center justify-center text-[12px] text-fg-faint">
-      {children}
     </div>
   );
 }

@@ -88,7 +88,7 @@ export function TranscriptView({
   );
 }
 
-function Center({ children }: { children: ReactNode }) {
+export function Center({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full items-center justify-center text-[12px] text-fg-faint">
       {children}
