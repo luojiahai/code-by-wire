@@ -273,13 +273,17 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
     },
     readSubagentTranscript: (id, agentId, sinceMtimeMs) => {
       try {
-        const resolved = resolveTranscript(id);
-        if (!resolved) return { status: "absent" };
+        // We only need the session dir to locate the subagent file; the subagent file's own mtime is the
+        // change token. So use the warm cached path (no stat of the main transcript) when present — the
+        // parallel session poll keeps it fresh and invalidates a moved file — and pay the full resolve
+        // (a projects/ sweep) only on a cold miss.
+        const path = pathById.get(id) ?? resolveTranscript(id)?.path;
+        if (path === undefined) return { status: "absent" };
         // `agentId` arrives over IPC. A real id is the slug between `agent-` and `.meta.json` in an
         // on-disk filename, so it can never hold a path separator; reject one that does rather than let
         // `agent-${agentId}.jsonl` escape the subagents dir (e.g. `x/../../other`). Genuinely absent.
         if (/[/\\]/.test(agentId)) return { status: "absent" };
-        const file = subagentFileFor(resolved.path, agentId);
+        const file = subagentFileFor(path, agentId);
         let mtimeMs: number;
         try {
           mtimeMs = statSync(file).mtimeMs;
