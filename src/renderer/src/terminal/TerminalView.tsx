@@ -31,20 +31,21 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
       if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
       handle.fit.fit();
       window.api.terminal.resize(sessionId, handle.term.cols, handle.term.rows);
+      // Rebuild xterm's viewport geometry against the live element after every (re)layout. While the wrapper
+      // was detached the pty kept streaming, so background renders recorded the off-DOM offsetHeight of 0 —
+      // shrinking the scroll-area and resetting the DOM scrollTop, which buries the bottom-most line (the
+      // Claude prompt). The fit above is a no-op when the size is unchanged (the StructureDock pins a fixed
+      // height across a tab switch), so driving this from sync — not just the mount tick — is what lets the
+      // ResizeObserver re-run it when a collapsed container later gets its real size; otherwise that stale
+      // geometry would survive and the prompt would stay unreachable.
+      handle.rebuildViewport();
     };
     sync();
-
-    // The wrapper was just re-attached. While it was detached the pty kept streaming, so xterm's
-    // background renders recorded the off-DOM element's offsetHeight of 0 — shrinking the scroll-area and
-    // resetting the DOM scrollTop, which buries the bottom-most line (the Claude prompt) with no way to
-    // scroll down to it. The fit above is a no-op when the size is unchanged (the StructureDock pins the
-    // terminal to a fixed height across a tab switch), so xterm never gets a resize to rebuild on. Force
-    // the geometry rebuild against the live element, the way VSCode does on show (forceRefresh). Run it
-    // again next frame in case the surrounding flex layout hasn't settled this tick; it's idempotent and
-    // pins scrollTop without a rounding knock, so the exact position is restored.
-    handle.rebuildViewport();
+    // Re-run next frame in case the flex layout hasn't settled this tick: the ResizeObserver only fires on a
+    // size change, so a same-size settle wouldn't otherwise re-drive the rebuild. sync self-guards on a
+    // 0-size container and is idempotent.
     let raf = 0;
-    raf = requestAnimationFrame(() => handle.rebuildViewport());
+    raf = requestAnimationFrame(sync);
     handle.term.focus();
 
     const ro = new ResizeObserver(sync);

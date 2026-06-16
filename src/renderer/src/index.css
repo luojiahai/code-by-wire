@@ -139,8 +139,12 @@ body {
    so up to ~1 row of slack remains between the grid and the wrapper; absolute + bottom:0 parks that slack
    ABOVE the first line instead of below the last, so the Claude prompt stays flush to the bottom edge.
    The wrapper is position:relative (xterm-factory) so this anchors to it; .xterm stays a positioned
-   ancestor, so .xterm-viewport's inset:0 still resolves against it. */
-.xterm {
+   ancestor, so .xterm-viewport's inset:0 still resolves against it.
+
+   The selector is doubled (.xterm.xterm) to win the cascade: xterm.css ships `.xterm { position: relative }`
+   and is bundled AFTER this file (it's imported lazily from xterm-factory, after index.css), so at equal
+   specificity its `relative` would override our `absolute` and the bottom-align would silently no-op. */
+.xterm.xterm {
   padding: 8px;
   position: absolute;
   right: 0;
