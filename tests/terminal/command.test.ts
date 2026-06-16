@@ -6,6 +6,21 @@ import {
 import { newSessionId } from "../../src/shared/terminal";
 
 describe("buildClaudeCommand", () => {
+  it("uses the resolved absolute bin when given", () => {
+    const c = buildClaudeCommand({
+      id: "abc",
+      model: "opus",
+      bin: "/real/claude",
+    });
+    expect(c.file).toBe("/real/claude");
+    expect(c.args).toEqual(["--session-id", "abc", "--model", "opus"]);
+  });
+  it("falls back to the bare name when no bin is given", () => {
+    delete process.env.CBW_CLAUDE_BIN;
+    expect(buildClaudeCommand({ id: "abc", model: "opus" }).file).toBe(
+      "claude",
+    );
+  });
   it("pins the session id and maps the model to a stable CLI alias", () => {
     expect(buildClaudeCommand({ id: "sid-1", model: "opus" })).toEqual({
       file: "claude",
@@ -34,6 +49,11 @@ describe("buildClaudeCommand", () => {
 });
 
 describe("buildResumeCommand", () => {
+  it("uses the resolved bin and resume argv", () => {
+    const c = buildResumeCommand({ id: "abc", bin: "/real/claude" });
+    expect(c.file).toBe("/real/claude");
+    expect(c.args).toEqual(["--resume", "abc"]);
+  });
   it("resumes the session under its own id, with no --model (resume restores the model)", () => {
     expect(buildResumeCommand({ id: "sid-9" })).toEqual({
       file: "claude",
