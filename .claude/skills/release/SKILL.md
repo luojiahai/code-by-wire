@@ -1,11 +1,10 @@
 ---
 name: release
 description: >-
-  Cut a code-by-wire release. Use when the maintainer says "bump version",
-  "bump vX.Y.Z", "release it", "ship it", or otherwise wants to prepare or
-  publish a vX.Y.Z release. Phase-aware: phase 1 prepares the version bump,
-  changelog, and PR before release; phase 2 hands off the tag and shepherds CI
-  to a verified draft after the PR merges. Mechanics live in docs/RELEASING.md.
+  Use when the maintainer wants to cut, prepare, or ship a code-by-wire release
+  — e.g. says "bump version", "bump vX.Y.Z", "release it", "ship it", or "cut a
+  release" — whether before the release (preparing the version bump and the
+  changelog PR) or after the bump PR has merged (tagging and publishing).
 ---
 
 # Release
