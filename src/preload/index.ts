@@ -14,6 +14,8 @@ const api: AppApi = {
   modelDefaults: () => ipcRenderer.invoke(IPC.modelDefaults),
   readStats: (range, calendarYear, since) =>
     ipcRenderer.invoke(IPC.readStats, range, calendarYear, since),
+  recheckCli: () => ipcRenderer.invoke(IPC.recheckCli),
+  setClaudeBinPath: (path) => ipcRenderer.invoke(IPC.setClaudeBinPath, path),
   readTranscript: (id, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readTranscript, id, sinceMtimeMs),
   readSubagentTranscript: (id, agentId, sinceMtimeMs) =>

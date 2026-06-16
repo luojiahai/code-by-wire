@@ -4,6 +4,7 @@ import type { TerminalApi } from "./terminal";
 import type { MetricsRead } from "./metrics";
 import type { ModelDefaults } from "./models";
 import type { StatsSnapshot, StatsRange } from "./stats";
+import type { CliStatus } from "./cli-status";
 export const IPC = {
   overview: "overview:get",
   refresh: "sessions:refresh",
@@ -15,6 +16,8 @@ export const IPC = {
   fullscreen: "window:fullscreen",
   modelDefaults: "model:defaults",
   readStats: "stats:read",
+  recheckCli: "cli:recheck",
+  setClaudeBinPath: "cli:setBinPath",
 } as const;
 
 /** The index-only slice: the indexed session list from one SQLite read. The SQLite index holds no
@@ -29,6 +32,8 @@ export interface OverviewData extends IndexOverview {
   /** App-wide account: billing mode + rate limits from the live statusLine. null when there is no
    *  statusLine data (no captures, or all stale) — the UI reads null as "no rate-limit bars". */
   account: Account | null;
+  /** The cached Claude Code CLI verdict, or null before the first check completes. */
+  cliStatus: CliStatus | null;
 }
 
 /** The result of an on-demand tasks read: a fresh list with a change token the caller echoes back as
@@ -78,6 +83,10 @@ export interface IpcApi {
     calendarYear?: number,
     since?: string,
   ): Promise<StatsRead>;
+  /** Force a fresh CLI status check (the footer's Re-check button). */
+  recheckCli(): Promise<CliStatus>;
+  /** Persist an absolute binary-path override (null clears it) and re-check. */
+  setClaudeBinPath(path: string | null): Promise<CliStatus>;
 }
 
 /** Everything exposed on `window.api`: the request/response surface plus the Managed-terminal surface. */

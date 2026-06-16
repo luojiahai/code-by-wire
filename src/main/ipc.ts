@@ -5,6 +5,8 @@ import type { SqliteDb } from "./db/driver";
 import type { StatusLineReader } from "@shared/statusline";
 import type { ApiConfig } from "./settings/api-config";
 import type { ModelDefaults } from "@shared/models";
+import type { CliStatus } from "@shared/cli-status";
+import type { CliStatusController } from "./cli-check";
 import {
   deriveAccount,
   overlaySessions,
@@ -68,6 +70,15 @@ export interface IpcDeps {
   analyticsDb?: SqliteDb;
   /** The Claude config dir, so stats:read can run a full transcript scan before aggregating. */
   claudeDir?: string;
+  /** The cached CLI-status controller. Defaults to a no-op that always returns null. */
+  cliStatus?: CliStatusController;
+}
+
+export function attachCliStatus<T extends object>(
+  base: T,
+  get: () => CliStatus | null,
+): T & { cliStatus: CliStatus | null } {
+  return { ...base, cliStatus: get() };
 }
 
 export function registerIpc({
@@ -80,12 +91,23 @@ export function registerIpc({
   beforeSync,
   analyticsDb,
   claudeDir,
+  cliStatus,
 }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
   const readApi = apiConfig ?? ((): ApiConfig | null => null);
   const readDefaults =
     modelDefaults ?? ((): ModelDefaults => ({ overrides: {} }));
+  const cli = cliStatus ?? {
+    get: () => null,
+    recheck: () => {
+      throw new Error("CLI status not wired");
+    },
+    setBinPath: () => {
+      throw new Error("CLI status not wired");
+    },
+    resolvedPath: () => null,
+  };
 
   const sync = (): void => {
     try {
@@ -118,10 +140,10 @@ export function registerIpc({
       const email = readEmail();
       if (email) account.email = email;
     }
-    return {
-      sessions: overlaySessions(base.sessions, byId),
-      account,
-    };
+    return attachCliStatus(
+      { sessions: overlaySessions(base.sessions, byId), account },
+      () => cli.get(),
+    );
   };
 
   ipcMain.handle(IPC.overview, () => overviewNow());
@@ -137,6 +159,10 @@ export function registerIpc({
   });
   ipcMain.handle(IPC.capabilities, () => provider.capabilities);
   ipcMain.handle(IPC.modelDefaults, () => readDefaults());
+  ipcMain.handle(IPC.recheckCli, () => cli.recheck());
+  ipcMain.handle(IPC.setClaudeBinPath, (_e, path: string | null) =>
+    cli.setBinPath(path),
+  );
   ipcMain.handle(IPC.readTranscript, (_e, id: string, sinceMtimeMs?: number) =>
     provider.readTranscript(id, sinceMtimeMs),
   );
