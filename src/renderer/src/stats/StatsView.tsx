@@ -1067,7 +1067,7 @@ function ByProject({
                         pct={
                           max > 0 ? (tokensOf(r, includeCache) / max) * 100 : 0
                         }
-                        fill="bg-primary/70"
+                        fill="bg-working/70"
                         className="w-full"
                       />
                     </div>

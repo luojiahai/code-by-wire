@@ -10,7 +10,7 @@ const GLYPH: Record<Task["status"], string> = {
 };
 const GLYPH_TONE: Record<Task["status"], string> = {
   completed: "text-fg-faint",
-  in_progress: "text-primary-bright",
+  in_progress: "text-working-bright",
   blocked: "text-accent-bright",
   pending: "text-fg-muted",
 };

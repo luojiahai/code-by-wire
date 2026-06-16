@@ -63,65 +63,69 @@ export function isContextHigh(pct: number): boolean {
   return pct >= CONTEXT_WARN_PCT;
 }
 
-/** Tailwind fill for a progress bar: sky (wire) when roomy, amber as it fills, bright at/over `high`.
- *  Shared by the context bars (high 85) and the rate-limit bars (high 90) so the two never drift. */
+/** Tailwind fill for a progress bar: neutral steel when roomy (telemetry reads as data, not an
+ *  affordance — sky is reserved for interaction), amber as it fills, bright at/over `high`. The bar-shaped
+ *  twin of `ctxColor`; both go steel→amber on the same breakpoints so the ring and the bars never drift. */
 export function barFill(pct: number, high = 85): string {
   if (pct >= high) return "bg-accent";
   if (pct >= 70) return "bg-accent/80";
-  return "bg-primary/70";
+  return "bg-steel/70";
 }
 
 /**
- * The context ring's fill color as a CSS var: sky (wire) while roomy, amber from 70%, bright amber from
- * 85% — the same 70/85 breakpoints as `ctxTone`, so the ring's color and the % text inside it never
- * disagree on "how full".
+ * The context ring's fill color as a CSS var: neutral steel while roomy (telemetry reads as data, not an
+ * affordance — sky is reserved for interaction), amber from 70%, bright amber from 85% — the same 70/85
+ * breakpoints as `ctxTone`, so the ring's color and the % text inside it never disagree on "how full".
  */
 export function ctxColor(pct: number): string {
   if (pct >= 85) return "var(--color-accent-bright)";
   if (pct >= 70) return "var(--color-accent)";
-  return "var(--color-primary)";
+  return "var(--color-steel)";
 }
 
 /**
- * Semantic composition palette: blue = fresh spend/work, green = cache. Used by the cost donut + legend
- * and the token stacked bar + legend, so the diagram and its legend always agree. CSS var strings (and
- * one color-mix for the dim cache-write) so a retone stays in index.css.
+ * Semantic token-kind palette: each token KIND owns one stable hue, read by HUE not by two near-identical
+ * blues — steel Input, violet Output, green cache (read solid, write dimmed). Sky (wire) is reserved for
+ * interaction & brand, so charts read as data, not buttons. Used by the cost donut + legend and the token
+ * stacked bar + legend, so the diagram and its legend always agree. CSS var strings (and one color-mix for
+ * the dim cache-write) so a retone stays in index.css.
  */
 export const COST_SEGMENT_COLORS = [
-  "var(--color-primary)", // Input — fresh
-  "var(--color-primary-bright)", // Output — fresh
-  "var(--color-ok)", // Cache read
-  "color-mix(in srgb, var(--color-ok) 55%, transparent)", // Cache write — dim
+  "var(--color-steel)", // Input — neutral slate-steel
+  "var(--color-violet)", // Output — violet
+  "var(--color-ok)", // Cache read — green
+  "color-mix(in srgb, var(--color-ok) 50%, transparent)", // Cache write — dim green
 ] as const;
 
 export const TOKEN_SEGMENT_COLORS = [
-  "var(--color-primary)", // Input
-  "var(--color-primary-bright)", // Output
+  "var(--color-steel)", // Input
+  "var(--color-violet)", // Output
   "var(--color-ok)", // Cached
 ] as const;
 
 /** The per-model breakdown's donut + legend palette (#111), cycled by row index. Distinct hues so adjacent
- *  models read apart; CSS var strings so a retone stays in index.css. More models than colors wraps — fine
- *  for a legend read top-down against its donut. */
+ *  models read apart, deliberately led off violet (not sky) so the brand accent never doubles as a data
+ *  color; CSS var strings so a retone stays in index.css. More models than colors wraps — fine for a legend
+ *  read top-down against its donut. */
 export const MODEL_SEGMENT_COLORS = [
-  "var(--color-primary)",
+  "var(--color-violet)",
   "var(--color-working)",
   "var(--color-accent)",
   "var(--color-ok)",
-  "var(--color-primary-bright)",
+  "var(--color-steel)",
   "var(--color-danger)",
 ] as const;
 
 /** The contributions calendar's intensity ramp (#115), indexed by intensityLevel's 0..4 output: level 0 is
- *  the empty-day track, 1–4 ramp the wire brand color --color-primary from faint to full via color-mix
- *  opacity — on-brand for code-by-wire and matching the daily chart's fresh-spend hue. CSS var / color-mix
- *  strings so a retone stays in index.css. */
+ *  the empty-day track, 1–4 ramp the analytics teal --color-working from faint to full via color-mix
+ *  opacity — its own data identity, distinct from brand sky so the heatmap reads as information rather than
+ *  a giant button. CSS var / color-mix strings so a retone stays in index.css. */
 export const CALENDAR_RAMP = [
   "var(--color-ink-850)", // 0 — no activity
-  "color-mix(in srgb, var(--color-primary) 30%, transparent)", // 1
-  "color-mix(in srgb, var(--color-primary) 55%, transparent)", // 2
-  "color-mix(in srgb, var(--color-primary) 78%, transparent)", // 3
-  "var(--color-primary)", // 4 — peak
+  "color-mix(in srgb, var(--color-working) 30%, transparent)", // 1
+  "color-mix(in srgb, var(--color-working) 55%, transparent)", // 2
+  "color-mix(in srgb, var(--color-working) 78%, transparent)", // 3
+  "var(--color-working)", // 4 — peak
 ] as const;
 
 /** A session's model label: the family name, plus the real resolved id in parens when we have one.

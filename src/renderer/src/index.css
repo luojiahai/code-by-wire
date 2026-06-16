@@ -6,9 +6,11 @@
    amber Waiting, slate Idle, faint Ended.
 
    Token NAMES are kept from the prior theme (ink-*, fg*, primary, accent, danger, ok); only their
-   VALUES are remapped, so existing utility classes adopt the new palette without a rename. Three new
-   roles get new names: `working` (teal, the Working state), `idle` (slate), and `well` (the sunken
-   plane under terminals and inputs). Fonts are named here and loaded via <link> in index.html. */
+   VALUES are remapped, so existing utility classes adopt the new palette without a rename. New roles
+   get new names: `working` (teal, the Working state), `idle` (slate), `well` (the sunken plane under
+   terminals and inputs), and a data/telemetry pair — `steel` and `violet` — that give charts their own
+   hue language so they read as information, not affordances. Fonts are named here and loaded via <link>
+   in index.html. */
 @theme {
   /* Surface stack (neutral graphite, equal RGB), darkest → lightest */
   --color-well: #080808; /* sunken: terminal, inputs, code blocks */
@@ -42,6 +44,13 @@
   /* Semantic */
   --color-danger: #e5614f; /* diff remove, failed, destructive */
   --color-ok: #46c57a; /* diff add, cache savings, done */
+
+  /* Data / telemetry — charts and readouts get their own language so they read as information, not
+     affordances. Sky (wire) is reserved for interaction & brand, so token kinds split by HUE: steel
+     Input, violet Output, green (ok) cache; teal (--color-working, reused) is the analytics hue for
+     the contributions heatmap and magnitude bars. */
+  --color-steel: #8a97ac; /* Input / neutral data magnitude — slate-steel */
+  --color-violet: #a98bf0; /* Output — violet (model-mix series) */
 
   /* Type — display for the wordmark/headings/numerals, sans for UI/body, mono for all data. The
      "* Variable" families are the bundled @fontsource-variable builds (imported in main.tsx); the

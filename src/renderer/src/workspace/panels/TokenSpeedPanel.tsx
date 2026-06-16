@@ -32,7 +32,7 @@ export function TokenSpeedPanel({
       </PanelHeading>
       <div className="mt-1 flex items-baseline justify-between">
         <span className="text-[11px] text-fg-muted">Total throughput</span>
-        <span className="font-mono text-base font-bold tabular-nums text-primary">
+        <span className="font-mono text-base font-bold tabular-nums text-fg">
           {formatTps(speed.totalTps)}
         </span>
       </div>
@@ -40,7 +40,7 @@ export function TokenSpeedPanel({
         label="Output"
         value={formatTps(speed.outputTps)}
         pct={ratePct(speed.outputTps, max)}
-        color="var(--color-primary)"
+        color="var(--color-violet)"
       />
       <RateBar
         label="Input"
