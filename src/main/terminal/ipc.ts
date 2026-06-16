@@ -57,6 +57,7 @@ export function registerTerminalIpc({
   managed,
   resolveAdoptTarget,
   env,
+  resolveBin,
 }: {
   window: BrowserWindow;
   managed: ManagedRegistry;
@@ -65,6 +66,9 @@ export function registerTerminalIpc({
    *  the first spawn (see `shellPath`) and memoized, because a packaged .app inherits launchd's bare PATH,
    *  not the user's shell PATH. Omitted in tests/dev, where the manager falls back to `process.env`. */
   env?: () => NodeJS.ProcessEnv;
+  /** Returns the resolved absolute `claude` binary path from the CLI-status controller, or null to fall
+   *  back to PATH resolution. Read at each spawn so a freshly-installed/relocated CLI is picked up. */
+  resolveBin?: () => string | null;
 }): { rename: (from: string, to: string) => void } {
   const manager = createTerminalManager({
     send: (id, data) => {
@@ -93,6 +97,7 @@ export function registerTerminalIpc({
       model: req.model,
       cols: req.cols,
       rows: req.rows,
+      bin: resolveBin?.() ?? undefined,
     });
     return draftSession(req.id, req.cwd, req.model);
   });
@@ -108,6 +113,7 @@ export function registerTerminalIpc({
       cwd: target.cwd,
       cols: req.cols,
       rows: req.rows,
+      bin: resolveBin?.() ?? undefined,
     });
     return { ok: true };
   });

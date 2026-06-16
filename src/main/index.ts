@@ -19,6 +19,9 @@ import { readApiConfig, type ApiConfig } from "./settings/api-config";
 import { readModelDefaults } from "./settings/model-defaults";
 import type { ModelDefaults } from "@shared/models";
 import { resolveClaudeDir } from "./claude-config";
+import { createAppSettingsStore } from "./app-settings";
+import { createCliStatusController } from "./cli-check";
+import { probeShellEnv } from "./terminal/shell-path";
 import { HEADER_HEIGHT_PX, MAC_TRAFFIC_LIGHT_POSITION } from "@shared/chrome";
 import { IPC } from "@shared/ipc";
 
@@ -34,6 +37,7 @@ function createWindow(
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null,
   registerRename: (rename: (from: string, to: string) => void) => void,
   childEnv: (() => NodeJS.ProcessEnv) | undefined,
+  resolveBin: (() => string | null) | undefined,
 ): void {
   // The renderer header is a fixed HEADER_HEIGHT_PX tall and doubles as the title bar. On macOS we hide
   // the native title bar but KEEP the traffic lights (titleBarStyle 'hidden', never frame:false — the
@@ -78,6 +82,7 @@ function createWindow(
     managed,
     resolveAdoptTarget,
     env: childEnv,
+    resolveBin,
   });
   registerRename(rename);
   win.on("closed", () => registerRename(() => {}));
@@ -127,7 +132,29 @@ app
     }
     const statusLine = createStatusLineReader();
     const provider = createClaudeProvider({ managed });
-    const claudeDir = resolveClaudeDir();
+    // One login-shell probe at startup: recover the real PATH and a rc-set CLAUDE_CONFIG_DIR that a
+    // Finder-launched .app doesn't inherit. Packaged-only (dev inherits the shell env); tight timeout.
+    const shellEnv = app.isPackaged
+      ? probeShellEnv(process.env.SHELL || "/bin/zsh")
+      : null;
+    const recoveredConfigDir = shellEnv?.configDir ?? null;
+    const claudeDir = resolveClaudeDir(undefined, recoveredConfigDir);
+    const appSettings = createAppSettingsStore({
+      dir: app.getPath("userData"),
+    });
+    const cliStatus = createCliStatusController({
+      settings: appSettings,
+      activeConfigDir: claudeDir,
+      recoveredConfigDir,
+    });
+    // Warm the verdict after the window is up so the synchronous probes never block first paint.
+    setTimeout(() => {
+      try {
+        cliStatus.recheck();
+      } catch (err) {
+        console.error("initial CLI status check failed", err);
+      }
+    }, 0);
     let emailCache: string | null | undefined;
     const accountEmail = (): string | null => {
       if (emailCache === undefined) emailCache = readAccountEmail(claudeDir);
@@ -175,6 +202,7 @@ app
       beforeSync: reconcile,
       analyticsDb,
       claudeDir,
+      cliStatus,
     });
 
     try {
@@ -203,6 +231,7 @@ app
       (id) => provider.resolveAdoptTarget(id),
       registerRename,
       childEnv,
+      () => cliStatus.resolvedPath(),
     );
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0)
@@ -211,6 +240,7 @@ app
           (id) => provider.resolveAdoptTarget(id),
           registerRename,
           childEnv,
+          () => cliStatus.resolvedPath(),
         );
     });
   })

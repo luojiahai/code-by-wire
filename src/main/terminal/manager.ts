@@ -27,6 +27,7 @@ export interface SpawnRequest {
   model: Family;
   cols: number;
   rows: number;
+  bin?: string;
 }
 
 export interface AdoptSpawn {
@@ -34,6 +35,7 @@ export interface AdoptSpawn {
   cwd: string;
   cols: number;
   rows: number;
+  bin?: string;
 }
 
 export interface TerminalManagerDeps {
@@ -147,7 +149,7 @@ export function createTerminalManager(
   function spawn(req: SpawnRequest): void {
     start(
       req.id,
-      buildClaudeCommand({ id: req.id, model: req.model }),
+      buildClaudeCommand({ id: req.id, model: req.model, bin: req.bin }),
       req.cwd,
       req.cols,
       req.rows,
@@ -160,7 +162,7 @@ export function createTerminalManager(
   function adopt(req: AdoptSpawn): void {
     start(
       req.id,
-      buildResumeCommand({ id: req.id }),
+      buildResumeCommand({ id: req.id, bin: req.bin }),
       req.cwd,
       req.cols,
       req.rows,
