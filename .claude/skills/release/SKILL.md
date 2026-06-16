@@ -54,30 +54,38 @@ The tag is the trigger; CI builds the dmg into a draft release.
 1. **Confirm state.** `git switch main && git pull`; check the bump commit is on
    `main` and `node -p "require('./package.json').version"` equals the version to
    tag.
-2. **Hand the tag push to the maintainer.** Claude Code on the web runs behind a
-   git proxy scoped to the session's feature branch: pushing any other ref —
-   tags included — returns **HTTP 403**, and the GitHub tools here can't create
-   a tag/ref. So prepare and verify everything, then give the maintainer the
-   exact commands to run from a local clone:
+2. **Tag the release — environment-aware.** Who pushes the tag depends on where
+   Claude Code is running:
+   - **Local Claude Code** (on the maintainer's machine): push the tag yourself.
 
-   ```
-   git switch main && git pull
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
-   ```
+     ```
+     git switch main && git pull
+     git tag vX.Y.Z
+     git push origin vX.Y.Z
+     ```
 
-   Web-UI alternative: Releases → Draft a new release → choose tag `vX.Y.Z`
-   ("create on publish"), target `main` → **Publish** (saving a draft does *not*
-   create the tag, so CI won't fire). This publishes immediately, so the release
-   is briefly visible without assets until CI's upload step finishes.
+   - **Claude Code on the web / remote sandbox**: the git proxy is scoped to the
+     session's feature branch and **403s any other ref** (tags included), and the
+     GitHub tools here can't create a tag/ref. So prepare and verify everything,
+     then hand the maintainer the same three commands to run from a local clone.
+   - **Unsure which?** Just attempt the push — a successful push means you're
+     local and you're done; an **HTTP 403** on the tag ref (while branch pushes
+     succeed) means you're in the sandbox, so fall back to the handoff.
+
+   Web-UI alternative (maintainer, any environment): Releases → Draft a new
+   release → choose tag `vX.Y.Z` ("create on publish"), target `main` →
+   **Publish** (saving a draft does *not* create the tag, so CI won't fire). This
+   publishes immediately, so the release is briefly visible without assets until
+   CI's upload step finishes.
 3. **Shepherd CI to a verified draft.** CI success and new tags aren't delivered
    as webhook events, so wait for the maintainer's "tag pushed" ping (or arm a
    monitor). Then:
    - Watch the `Release` run via the GitHub Actions tools: `verify` (fails fast
      if tag ≠ `package.json`) → the `macos-14` build.
    - **On failure:** pull the job logs, report the cause. If it was a flake,
-     re-trigger by re-pushing the tag — also maintainer-only:
-     `git push origin :refs/tags/vX.Y.Z && git push origin vX.Y.Z`.
+     re-trigger by re-pushing the tag
+     (`git push origin :refs/tags/vX.Y.Z && git push origin vX.Y.Z`) — yourself if
+     local, otherwise hand it to the maintainer (same sandbox 403 applies).
    - **On success:** confirm the **draft** release for `vX.Y.Z` carries all three
      assets: `Code-by-wire-X.Y.Z-arm64.dmg`, its `.blockmap`, and
      `latest-mac.yml`. An empty asset list means the upload step didn't run —

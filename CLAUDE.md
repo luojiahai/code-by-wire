@@ -26,10 +26,11 @@ The maintainer drives releases in two phases. Run the **`release` skill**
 1. **"Bump version" (before release).** On a branch: set `package.json` `version`,
    update `CHANGELOG.md`, commit as `build(release): vX.Y.Z`, `pnpm format` +
    `lint`, push, and open the PR. Don't tag.
-2. **"Release it" (after the PR merges).** Tag `main` as `vX.Y.Z` and ship.
-   **The tag push is the maintainer's job from a local clone** — Claude Code on
-   the web is behind a git proxy that 403s any ref outside the session branch
-   (tags included). Hand off the commands, then shepherd CI to a verified draft.
+2. **"Release it" (after the PR merges).** Tag `main` as `vX.Y.Z` and ship. Who
+   pushes the tag is environment-aware: **local Claude Code pushes it directly**;
+   **on the web/remote sandbox the git proxy 403s any ref outside the session
+   branch** (tags included), so hand the maintainer the commands instead. Either
+   way, then shepherd CI to a verified draft.
 
 Full mechanics and recovery are in `docs/RELEASING.md`.
 
