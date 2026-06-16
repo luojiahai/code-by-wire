@@ -6,7 +6,15 @@ import {
   type ClaudeCommand,
 } from "./command";
 import { createDataBufferer, type DataBufferer } from "./data-bufferer";
-import { binNotFoundMessage, spawnFailedMessage } from "./resolve-bin";
+import {
+  binNotFoundMessage,
+  fastExitMessage,
+  spawnFailedMessage,
+} from "./resolve-bin";
+
+/** A non-zero exit within this window of spawn reads as a startup failure (bad flags, out-of-date CLI,
+ *  auth) rather than a session the user ran and quit, so it earns the diagnostic hint. */
+const FAST_EXIT_MS = 5_000;
 // Type-only: importing pty-process for VALUES would pull node-pty (a native addon) into the test
 // graph and break `pnpm test`. The real factory is injected at the composition root (the IPC layer).
 import type { PtyProcess, SpawnOptions } from "./pty-process";
@@ -64,6 +72,8 @@ export interface TerminalManagerDeps {
    *  bare exit 1. Injected at the composition root (real filesystem); when omitted the check is skipped —
    *  assume resolvable — so unit tests and the happy path are untouched. */
   resolveBin?: (file: string, path: string) => string | null;
+  /** Clock for the fast-exit hint; injected in tests, defaults to `Date.now`. */
+  now?: () => number;
 }
 
 export interface TerminalManager {
@@ -147,6 +157,8 @@ export function createTerminalManager(
       deps.notifyExit(id, 1);
       return;
     }
+    const clock = deps.now ?? Date.now;
+    const startedAt = clock();
     // The flush reads `term.id`, not the captured `id`, so a rename re-points output without rewiring the
     // bufferer. Safe to reference `term` before its declaration: the closure only runs once data flows.
     const bufferer = createBufferer((data) => deps.send(term.id, data));
@@ -166,6 +178,13 @@ export function createTerminalManager(
       if (!terms.has(term.id)) return; // torn down by disposeAll, not a natural exit
       bufferer.flush(); // drain the tail of output instead of stranding it behind the 5ms timer
       bufferer.dispose();
+      // A non-zero exit moments after spawn is almost always a startup failure — most often an
+      // out-of-date `claude` rejecting our flags (e.g. `--session-id`). Append a hint after the CLI's own
+      // error so it doesn't read as a mysterious "[process exited (1)]". Sent straight (not via the now-
+      // disposed bufferer) so it lands above the renderer's exit line.
+      if (exitCode !== 0 && clock() - startedAt < FAST_EXIT_MS) {
+        deps.send(term.id, fastExitMessage(exitCode));
+      }
       terms.delete(term.id);
       deps.onClosed(term.id); // pty is gone → drop the Managed label so it re-derives as Observed
       deps.notifyExit(term.id, exitCode);

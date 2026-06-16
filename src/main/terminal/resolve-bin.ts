@@ -84,6 +84,7 @@ export function resolveClaudeBin(file: string, path: string): string | null {
 
 const NL = "\r\n";
 const RED = "\x1b[1;31m";
+const YELLOW = "\x1b[33m";
 const RESET = "\x1b[0m";
 
 /**
@@ -111,6 +112,21 @@ export function binNotFoundMessage(file: string, path: string): string {
     `To fix this:${NL}` +
     `  • Confirm \`which claude\` works in your terminal, and that Claude Code is installed.${NL}` +
     `  • If it's installed, set CBW_CLAUDE_BIN to its full path and relaunch.${NL}`
+  );
+}
+
+/**
+ * Hint appended when a session that did start dies right away with a non-zero code. The most common
+ * cause is an out-of-date Claude Code that doesn't understand the app's flags (e.g. `--session-id`),
+ * which `claude` rejects with a usage error and exits 1. That error is already on screen above this;
+ * the hint frames it and points at the fix rather than letting it read as a mysterious "[process
+ * exited (1)]". Yellow (a warning), not the red of a hard launch failure.
+ */
+export function fastExitMessage(code: number): string {
+  return (
+    `${NL}${YELLOW}Claude Code exited right after starting (code ${code}).${RESET}${NL}` +
+    `If you didn't quit it yourself, the installed Claude Code may be out of date — update it ` +
+    `(e.g. \`claude update\`), then check the output above for the exact error.${NL}`
   );
 }
 

@@ -62,6 +62,8 @@ interface HarnessOpts {
   resolveBin?: (file: string, path: string) => string | null;
   /** Override the pty factory (e.g. to throw, simulating a native spawn failure). */
   createPty?: (o: SpawnOptions) => PtyProcess;
+  /** Override the clock that drives the fast-exit hint. */
+  now?: () => number;
 }
 
 function harness(opts: HarnessOpts = {}) {
@@ -91,6 +93,7 @@ function harness(opts: HarnessOpts = {}) {
     createBufferer: passthroughBufferer,
     env: () => ({ PATH: "/usr/bin" }),
     resolveBin: opts.resolveBin,
+    now: opts.now,
   });
   return { manager, ptys, sent, exited, spawned, spawnedPids, closed };
 }
@@ -230,6 +233,39 @@ describe("createTerminalManager", () => {
     expect(h.exited).toEqual([["sess-1", 0]]);
     h.manager.write("sess-1", "ignored");
     expect(h.ptys[0].state.writes).toEqual([]);
+  });
+
+  it("hints at an out-of-date Claude Code when a session dies right after starting", () => {
+    let t = 1000;
+    const h = harness({ now: () => t });
+    h.manager.spawn(REQ);
+    t = 1500; // 500ms after spawn — a fast, non-zero exit
+    h.ptys[0].emitExit(1);
+    const out = h.sent.map(([, data]) => data).join("");
+    expect(out).toContain("exited right after starting");
+    expect(h.exited).toEqual([["sess-1", 1]]);
+  });
+
+  it("does not hint when the session ran a while before exiting non-zero", () => {
+    let t = 1000;
+    const h = harness({ now: () => t });
+    h.manager.spawn(REQ);
+    t = 1000 + 60_000; // a minute later — not a startup failure
+    h.ptys[0].emitExit(1);
+    expect(h.sent.map(([, data]) => data).join("")).not.toContain(
+      "exited right after starting",
+    );
+  });
+
+  it("does not hint on a clean exit", () => {
+    let t = 1000;
+    const h = harness({ now: () => t });
+    h.manager.spawn(REQ);
+    t = 1200;
+    h.ptys[0].emitExit(0);
+    expect(h.sent.map(([, data]) => data).join("")).not.toContain(
+      "exited right after starting",
+    );
   });
 
   it("reports the id closed on natural exit, so the registry drops its Managed label", () => {
