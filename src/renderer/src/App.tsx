@@ -36,7 +36,8 @@ export function App() {
   const [adopting, setAdopting] = useState<Set<string>>(new Set());
   const [account, setAccount] = useState<Account | null>(null);
   const [cliStatus, setCliStatus] = useState<CliStatus | null>(null);
-  const [troubleshootOpen, setTroubleshootOpen] = useState(false); // modal render comes in Task 14
+  // Whether the CLI-status troubleshooting modal is open (opened from the rail footer's Troubleshoot button).
+  const [troubleshootOpen, setTroubleshootOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   // Land on Overview: the app opens to the all-time stats, not a session. The auto-select effect below
   // guards on `!isOverview`, so it never yanks this to a session on first load; the user clicks into a
