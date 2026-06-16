@@ -1,5 +1,4 @@
-import { execFile, execFileSync } from "node:child_process";
-import { promisify } from "node:util";
+import { execFileSync, spawn } from "node:child_process";
 import { homedir } from "node:os";
 
 /**
@@ -161,27 +160,48 @@ export function probeShellEnv(shell: string): ShellEnv | null {
   }
 }
 
-const execFileAsync = promisify(execFile);
-
 /** Async sibling of probeShellEnv: the same one-shot login-shell env probe, but non-blocking so a
- *  user-triggered re-check doesn't freeze the main process. Null on any failure. Untested (spawns a
- *  real shell), like probeShellEnv. */
-export async function probeShellEnvAsync(
-  shell: string,
-): Promise<ShellEnv | null> {
-  try {
-    const { stdout } = await execFileAsync(shell, ["-ilc", SHELL_ENV_SCRIPT], {
-      encoding: "utf8",
-      timeout: 3_000,
-      env: {
-        ...process.env,
-        TERM: "dumb",
-        DISABLE_AUTO_UPDATE: "true",
-        GIT_TERMINAL_PROMPT: "0",
-      },
-    });
-    return parseShellEnv(stdout);
-  } catch {
-    return null;
-  }
+ *  user-triggered re-check doesn't freeze the main process. Uses `spawn` (not execFile) so it can apply the
+ *  same stdio discipline as the sync probe — ignore stdin and DISCARD the child's stderr. execFile has no
+ *  stdio option and would buffer a chatty login rc's stderr into its (1 MB) maxBuffer, rejecting the whole
+ *  probe → a spurious notFound. Null on any failure or the 3s timeout. Untested (spawns a real shell). */
+export function probeShellEnvAsync(shell: string): Promise<ShellEnv | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (v: ShellEnv | null): void => {
+      if (settled) return;
+      settled = true;
+      resolve(v);
+    };
+    try {
+      const child = spawn(shell, ["-ilc", SHELL_ENV_SCRIPT], {
+        stdio: ["ignore", "pipe", "ignore"],
+        env: {
+          ...process.env,
+          TERM: "dumb",
+          DISABLE_AUTO_UPDATE: "true",
+          GIT_TERMINAL_PROMPT: "0",
+        },
+      });
+      const timer = setTimeout(() => {
+        child.kill();
+        done(null);
+      }, 3_000);
+      let out = "";
+      child.stdout?.setEncoding("utf8");
+      child.stdout?.on("data", (chunk: string) => {
+        out += chunk;
+      });
+      child.on("error", () => {
+        clearTimeout(timer);
+        done(null);
+      });
+      child.on("close", () => {
+        clearTimeout(timer);
+        done(parseShellEnv(out));
+      });
+    } catch {
+      done(null);
+    }
+  });
 }
