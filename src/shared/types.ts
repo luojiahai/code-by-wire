@@ -20,6 +20,28 @@ export interface Task {
   blockedBy?: string[];
 }
 
+/** One background bash shell a session spawned (run_in_background, Ctrl+B, or assistant auto-background).
+ *  Reconstructed from the main transcript; the renderer-facing shape carries no filesystem path (the
+ *  `.output` path stays server-side and is read via readShellOutput). */
+export interface BackgroundShell {
+  /** The Claude `backgroundTaskId` (e.g. "bgp2dvqo4"); stable id for the shell. */
+  id: string;
+  /** The Bash command line that was backgrounded. */
+  command: string;
+  /** The Bash tool's `description` arg, when one was given. */
+  description?: string;
+  /** running until a completion notification lands (completed) or a kill is seen (killed). */
+  status: "running" | "completed" | "killed";
+  /** Exit code parsed from the completion summary; present once completed. Non-zero ⇒ the row reads failed. */
+  exitCode?: number;
+  /** Start wall-clock (epoch ms): the background-start tool_result's timestamp. */
+  startMs?: number;
+  /** end − start once finished; absent while running. */
+  durationMs?: number;
+  /** How it was backgrounded: explicit run_in_background, assistant auto-background, or Ctrl+B. */
+  trigger: "explicit" | "auto" | "user";
+}
+
 export interface Subagent {
   id: string;
   type: string;
