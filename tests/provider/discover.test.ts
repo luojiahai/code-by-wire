@@ -272,6 +272,81 @@ describe("listCandidates", () => {
     expect(c.alive).toBe(false);
   });
 
+  it("drops a live background (kind:'bg') session", () => {
+    const home = makeHome();
+    writeSessionFile(home, {
+      pid: 100,
+      sessionId: "bgsess",
+      cwd: "/w/bg",
+      status: "idle",
+      kind: "bg",
+      jobId: "bgsess",
+      updatedAt: 1,
+    });
+    const ids = listCandidates({
+      claudeDir: home,
+      isPidAlive: () => true,
+      now: NOW,
+      recentWindowMs: WINDOW,
+    }).map((c) => c.id);
+    expect(ids).not.toContain("bgsess");
+  });
+
+  it("keeps an interactive session and a session with no kind field", () => {
+    const home = makeHome();
+    writeSessionFile(home, {
+      pid: 101,
+      sessionId: "inter",
+      cwd: "/w/i",
+      status: "busy",
+      kind: "interactive",
+      updatedAt: 1,
+    });
+    writeSessionFile(home, {
+      pid: 102,
+      sessionId: "nokind",
+      cwd: "/w/n",
+      status: "idle",
+      updatedAt: 1,
+    });
+    const ids = listCandidates({
+      claudeDir: home,
+      isPidAlive: () => true,
+      now: NOW,
+      recentWindowMs: WINDOW,
+    }).map((c) => c.id);
+    expect(ids).toContain("inter");
+    expect(ids).toContain("nokind");
+  });
+
+  it("keeps a transcript-only session alongside a dropped bg sibling", () => {
+    const home = makeHome();
+    writeSessionFile(home, {
+      pid: 103,
+      sessionId: "bgsib",
+      cwd: "/w/bg",
+      status: "idle",
+      kind: "bg",
+      jobId: "bgsib",
+      updatedAt: 1,
+    });
+    writeTranscript(
+      home,
+      "-w-ended",
+      "endedsess",
+      '{"type":"user","message":{"content":"hi"}}\n',
+      NOW / 1000 - 1,
+    ); // 1s ago, inside the window
+    const ids = listCandidates({
+      claudeDir: home,
+      isPidAlive: () => true,
+      now: NOW,
+      recentWindowMs: WINDOW,
+    }).map((c) => c.id);
+    expect(ids).toContain("endedsess");
+    expect(ids).not.toContain("bgsib");
+  });
+
   it("keeps the freshest registry file per id (max updatedAt)", () => {
     const home = makeHome();
     writeSessionFile(home, {

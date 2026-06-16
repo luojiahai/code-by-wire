@@ -126,6 +126,18 @@ export function registryById(claudeDir: string): Map<string, RawSessionFile> {
 }
 
 /**
+ * A background session — agent view, `/bg`, or `claude --bg`. Claude Code hosts these under a
+ * supervisor and tags them `kind:"bg"` (always paired with a `jobId`). They are not interactive
+ * conversations, so they stay out of the session list. We trigger only on a positive bg signal: a
+ * registry file with no `kind` and no `jobId` predates the field and is treated as interactive, and
+ * a transcript-only candidate (no registry entry at all) is kept — it is a genuine Ended session.
+ */
+function isBackground(raw: RawSessionFile | undefined): boolean {
+  if (!raw) return false;
+  return raw.kind === "bg" || (raw.jobId !== undefined && raw.jobId !== "");
+}
+
+/**
  * The sessions worth indexing this pass: every registry entry (live or just-reaped), plus every
  * transcript touched within the recency window — a recent Ended session whose registry file Claude
  * already swept. Cheap by design: no transcript is parsed here. That's `summarize`, which the sync
@@ -150,6 +162,7 @@ export function listCandidates({
   const out: SessionCandidate[] = [];
   for (const id of ids) {
     const raw = registry.get(id);
+    if (isBackground(raw)) continue; // hide Claude background sessions; see isBackground
     const t = transcripts.get(id);
     out.push({
       id,
