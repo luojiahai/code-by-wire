@@ -24,6 +24,7 @@ export function SessionList({
   onQuery,
   account,
   cliStatus,
+  checking,
   onRecheck,
   onTroubleshoot,
   canSpawn,
@@ -36,6 +37,7 @@ export function SessionList({
   onQuery: (q: string) => void;
   account?: Account | null;
   cliStatus: CliStatus | null;
+  checking: boolean;
   onRecheck: () => void;
   onTroubleshoot: () => void;
   canSpawn: boolean;
@@ -176,6 +178,7 @@ export function SessionList({
       </div>
       <RailFooter
         status={cliStatus}
+        checking={checking}
         onRecheck={onRecheck}
         onTroubleshoot={onTroubleshoot}
       />

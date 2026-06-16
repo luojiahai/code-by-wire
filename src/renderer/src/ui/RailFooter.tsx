@@ -14,10 +14,13 @@ const DOT_CLASS: Record<FooterView["dot"], string> = {
  *  the label, version + path, a Re-check action, and a Troubleshoot button whenever the CLI isn't ready. */
 export function RailFooter({
   status,
+  checking,
   onRecheck,
   onTroubleshoot,
 }: {
   status: CliStatus | null;
+  /** A check is in flight — spin the Re-check glyph and disable the button. */
+  checking: boolean;
   onRecheck: () => void;
   onTroubleshoot: () => void;
 }) {
@@ -45,8 +48,13 @@ export function RailFooter({
             Troubleshoot
           </button>
         )}
-        <button onClick={onRecheck} className="ml-auto hover:text-fg-muted">
-          ↻ Re-check
+        <button
+          onClick={onRecheck}
+          disabled={checking}
+          className="ml-auto rounded border border-ink-700 px-1.5 py-0.5 hover:border-ink-600 hover:text-fg-muted disabled:opacity-60"
+        >
+          <span className={checking ? "inline-block animate-spin" : ""}>↻</span>{" "}
+          {checking ? "Checking…" : "Re-check"}
         </button>
       </div>
     </div>

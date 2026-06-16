@@ -4,11 +4,14 @@ import { remediesFor, INSTALL_TABS } from "./cli-remedies";
 
 export function CliTroubleshootModal({
   status,
+  checking,
   onClose,
   onRecheck,
   onSetBinPath,
 }: {
   status: CliStatus;
+  /** A check is in flight (Re-check or Save) — spin the Re-check glyph and disable both actions. */
+  checking: boolean;
   onClose: () => void;
   onRecheck: () => void;
   onSetBinPath: (path: string | null) => void;
@@ -108,7 +111,8 @@ export function CliTroubleshootModal({
               />
               <button
                 onClick={() => onSetBinPath(binPath.trim() || null)}
-                className="rounded border border-ink-700 px-2 py-1"
+                disabled={checking}
+                className="rounded border border-ink-700 px-2 py-1 disabled:opacity-60"
               >
                 Save
               </button>
@@ -137,9 +141,13 @@ export function CliTroubleshootModal({
           </a>
           <button
             onClick={onRecheck}
-            className="ml-auto rounded border border-ink-700 px-2 py-1"
+            disabled={checking}
+            className="ml-auto rounded border border-ink-700 px-2 py-1 disabled:opacity-60"
           >
-            ↻ Re-check
+            <span className={checking ? "inline-block animate-spin" : ""}>
+              ↻
+            </span>{" "}
+            {checking ? "Checking…" : "Re-check"}
           </button>
           <button
             onClick={onClose}

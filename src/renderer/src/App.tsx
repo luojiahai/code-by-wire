@@ -38,6 +38,8 @@ export function App() {
   const [cliStatus, setCliStatus] = useState<CliStatus | null>(null);
   // Whether the CLI-status troubleshooting modal is open (opened from the rail footer's Troubleshoot button).
   const [troubleshootOpen, setTroubleshootOpen] = useState(false);
+  // True while a CLI status check (Re-check, or saving a binary-path override) is in flight — drives the spinner.
+  const [checking, setChecking] = useState(false);
   const [loading, setLoading] = useState(true);
   // Land on Overview: the app opens to the all-time stats, not a session. The auto-select effect below
   // guards on `!isOverview`, so it never yanks this to a session on first load; the user clicks into a
@@ -55,11 +57,21 @@ export function App() {
   }
 
   async function recheckCli(): Promise<void> {
-    setCliStatus(await window.api.recheckCli());
+    setChecking(true);
+    try {
+      setCliStatus(await window.api.recheckCli());
+    } finally {
+      setChecking(false);
+    }
   }
 
   async function setClaudeBinPath(path: string | null): Promise<void> {
-    setCliStatus(await window.api.setClaudeBinPath(path));
+    setChecking(true);
+    try {
+      setCliStatus(await window.api.setClaudeBinPath(path));
+    } finally {
+      setChecking(false);
+    }
   }
 
   async function load(): Promise<void> {
@@ -265,6 +277,7 @@ export function App() {
           onQuery={setQuery}
           account={account}
           cliStatus={cliStatus}
+          checking={checking}
           onRecheck={() => void recheckCli()}
           onTroubleshoot={() => setTroubleshootOpen(true)}
           canSpawn={spawnGate(cliStatus).canSpawn}
@@ -293,6 +306,7 @@ export function App() {
       {troubleshootOpen && cliStatus && (
         <CliTroubleshootModal
           status={cliStatus}
+          checking={checking}
           onClose={() => setTroubleshootOpen(false)}
           onRecheck={() => void recheckCli()}
           onSetBinPath={(p) => void setClaudeBinPath(p)}
