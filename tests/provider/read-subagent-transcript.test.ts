@@ -135,4 +135,33 @@ describe("readSubagentTranscript", () => {
       "absent",
     );
   });
+
+  it("rejects a traversal agentId instead of reading a file outside the subagents dir", () => {
+    const home = makeHome();
+    const id = "sid-4";
+    writeMain(
+      home,
+      "-work-w",
+      id,
+      jsonl({
+        type: "assistant",
+        message: { content: [{ type: "text", text: "hi" }] },
+      }),
+    );
+    // Plant a real .jsonl one level above the subagents dir. Without the separator guard, an agentId of
+    // `x/../../evil` resolves `<subagents>/agent-x/../../evil.jsonl` to this file and would read it.
+    mkdirSync(join(home, "projects", "-work-w", id), { recursive: true });
+    writeFileSync(
+      join(home, "projects", "-work-w", id, "evil.jsonl"),
+      jsonl({
+        type: "assistant",
+        isSidechain: true,
+        message: { content: [{ type: "text", text: "secret" }] },
+      }),
+    );
+    const provider = createClaudeProvider({ claudeDir: home });
+    expect(provider.readSubagentTranscript(id, "x/../../evil").status).toBe(
+      "absent",
+    );
+  });
 });

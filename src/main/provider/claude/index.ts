@@ -275,6 +275,10 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
       try {
         const resolved = resolveTranscript(id);
         if (!resolved) return { status: "absent" };
+        // `agentId` arrives over IPC. A real id is the slug between `agent-` and `.meta.json` in an
+        // on-disk filename, so it can never hold a path separator; reject one that does rather than let
+        // `agent-${agentId}.jsonl` escape the subagents dir (e.g. `x/../../other`). Genuinely absent.
+        if (/[/\\]/.test(agentId)) return { status: "absent" };
         const file = subagentFileFor(resolved.path, agentId);
         let mtimeMs: number;
         try {
