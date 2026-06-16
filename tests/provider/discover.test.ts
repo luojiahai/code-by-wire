@@ -292,6 +292,25 @@ describe("listCandidates", () => {
     expect(ids).not.toContain("bgsess");
   });
 
+  it("drops a session with a jobId but no kind field", () => {
+    const home = makeHome();
+    writeSessionFile(home, {
+      pid: 104,
+      sessionId: "jobonly",
+      cwd: "/w/job",
+      status: "idle",
+      jobId: "jobonly",
+      updatedAt: 1,
+    });
+    const ids = listCandidates({
+      claudeDir: home,
+      isPidAlive: () => true,
+      now: NOW,
+      recentWindowMs: WINDOW,
+    }).map((c) => c.id);
+    expect(ids).not.toContain("jobonly");
+  });
+
   it("keeps an interactive session and a session with no kind field", () => {
     const home = makeHome();
     writeSessionFile(home, {

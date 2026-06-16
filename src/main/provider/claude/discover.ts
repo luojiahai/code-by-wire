@@ -130,7 +130,9 @@ export function registryById(claudeDir: string): Map<string, RawSessionFile> {
  * supervisor and tags them `kind:"bg"` (always paired with a `jobId`). They are not interactive
  * conversations, so they stay out of the session list. We trigger only on a positive bg signal: a
  * registry file with no `kind` and no `jobId` predates the field and is treated as interactive, and
- * a transcript-only candidate (no registry entry at all) is kept — it is a genuine Ended session.
+ * a transcript-only candidate (registry file already reaped) is kept. We can't tell a reaped bg
+ * session from a reaped interactive one at this layer, so a finished bg session can still leak in
+ * until we filter on the transcript's `sessionKind` (#158).
  */
 function isBackground(raw: RawSessionFile | undefined): boolean {
   if (!raw) return false;
