@@ -7,10 +7,11 @@ import { viewportScrollTop } from "./viewport-scroll";
 
 /** xterm's internal core, reached the way VSCode does (xtermTerminal.ts: `(raw as ITerminalWithCore)._core`).
  *  We only need the Viewport's `_innerRefresh`, the same hook VSCode's `forceRefresh()` calls to rebuild the
- *  scroll geometry. `viewport` only exists after `open()`. Cast through `unknown` so it stays type-checked
- *  (no `any`) and degrades gracefully if a future xterm renames the hook. */
+ *  scroll geometry. Every member is optional: `_core`/`viewport` only exist after `open()`, and a future
+ *  xterm could rename `_innerRefresh` — `rebuildViewport` probes for it and warns rather than assuming it.
+ *  Cast through `unknown` so it stays type-checked (no `any`). */
 interface TerminalWithCore {
-  _core: { viewport?: { _innerRefresh(): void } };
+  _core?: { viewport?: { _innerRefresh?(): void } };
 }
 
 /** xterm options tuned for the Claude TUI: generous scrollback, a dark theme matching the app's ink
@@ -114,21 +115,31 @@ export function createXterm(): {
   //
   // _innerRefresh re-measures offsetHeight, rebuilds the scroll-area, and re-pins scrollTop = ydisp *
   // rowHeight using xterm's OWN ignore-flag, so the exact scroll position (bottom or scrolled-up) is
-  // restored without the rounding "knock" a manual scrollTop poke causes. If a future xterm drops the
-  // private hook we fall back to re-deriving scrollTop from the live buffer (the pre-rebuild behaviour).
+  // restored without the rounding "knock" a manual scrollTop poke causes. If a future xterm moves or
+  // renames the private hook we warn once (below) and fall back to re-deriving scrollTop from the live
+  // buffer — the weaker pre-rebuild behaviour, which the loud warning flags so the regression is caught.
+  let warnedMissingHook = false;
   const rebuildViewport = () => {
-    const core = (term as unknown as TerminalWithCore)._core;
-    if (core.viewport) {
-      core.viewport._innerRefresh();
+    const viewport = (term as unknown as TerminalWithCore)._core?.viewport;
+    if (typeof viewport?._innerRefresh === "function") {
+      viewport._innerRefresh();
       return;
     }
-    const viewport = wrapper.querySelector(".xterm-viewport");
-    if (!(viewport instanceof HTMLElement)) return;
+    if (!warnedMissingHook) {
+      warnedMissingHook = true;
+      console.warn(
+        "xterm _core.viewport._innerRefresh is unavailable — falling back to a scrollTop-only realign, " +
+          "which doesn't rebuild the scroll-area. The bottom prompt may be unreachable after a tab switch " +
+          "until rebuildViewport is re-pinned to the current xterm API.",
+      );
+    }
+    const viewportEl = wrapper.querySelector(".xterm-viewport");
+    if (!(viewportEl instanceof HTMLElement)) return;
     const buf = term.buffer.active;
-    viewport.scrollTop = viewportScrollTop(
+    viewportEl.scrollTop = viewportScrollTop(
       buf.viewportY,
       buf.length,
-      viewport.scrollHeight,
+      viewportEl.scrollHeight,
     );
   };
   return { term: term, fit, wrapper, rebuildViewport };

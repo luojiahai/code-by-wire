@@ -23,6 +23,16 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
       handle.opened = true;
     }
 
+    // The wrapper was just re-attached. While it was detached the pty kept streaming, so xterm's
+    // background renders recorded the off-DOM element's offsetHeight of 0 — shrinking the scroll-area and
+    // resetting the DOM scrollTop, which buries the bottom-most line (the Claude prompt) with no way to
+    // scroll down to it. The fit below is a no-op when the size is unchanged (the StructureDock pins the
+    // terminal to a fixed height across a tab switch), so xterm never gets a resize to rebuild on — we have
+    // to force the geometry rebuild ourselves. It MUST run against a live, non-zero element, so it's driven
+    // off the size-gated sync() below and fires only on the first real-sized layout after (re)attach.
+    let needsRebuild = true;
+    let raf = 0;
+
     const sync = () => {
       // Don't fit/resize against a collapsed or not-yet-laid-out container — measuring a 0-size element
       // yields a 0/NaN grid and a bogus pty resize, and seeds xterm with junk dimensions (VSCode's
@@ -31,20 +41,18 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
       if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
       handle.fit.fit();
       window.api.terminal.resize(sessionId, handle.term.cols, handle.term.rows);
+      // Rebuild the buried geometry exactly once, the first time we have a real-sized element after
+      // (re)attach — never against the 0-size container the guard above bailed on. Later live resizes
+      // rebuild through xterm's own fit→resize path, so this only needs to fire here. Force it the way
+      // VSCode does on show (forceRefresh), then again next frame in case the surrounding flex layout
+      // hasn't settled this tick; it's idempotent and pins scrollTop without a rounding knock, so the
+      // exact position is restored.
+      if (!needsRebuild) return;
+      needsRebuild = false;
+      handle.rebuildViewport();
+      raf = requestAnimationFrame(() => handle.rebuildViewport());
     };
     sync();
-
-    // The wrapper was just re-attached. While it was detached the pty kept streaming, so xterm's
-    // background renders recorded the off-DOM element's offsetHeight of 0 — shrinking the scroll-area and
-    // resetting the DOM scrollTop, which buries the bottom-most line (the Claude prompt) with no way to
-    // scroll down to it. The fit above is a no-op when the size is unchanged (the StructureDock pins the
-    // terminal to a fixed height across a tab switch), so xterm never gets a resize to rebuild on. Force
-    // the geometry rebuild against the live element, the way VSCode does on show (forceRefresh). Run it
-    // again next frame in case the surrounding flex layout hasn't settled this tick; it's idempotent and
-    // pins scrollTop without a rounding knock, so the exact position is restored.
-    handle.rebuildViewport();
-    let raf = 0;
-    raf = requestAnimationFrame(() => handle.rebuildViewport());
     handle.term.focus();
 
     const ro = new ResizeObserver(sync);
