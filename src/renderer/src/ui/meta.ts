@@ -63,12 +63,13 @@ export function isContextHigh(pct: number): boolean {
   return pct >= CONTEXT_WARN_PCT;
 }
 
-/** Tailwind fill for a progress bar: sky (wire) when roomy, amber as it fills, bright at/over `high`.
- *  Shared by the context bars (high 85) and the rate-limit bars (high 90) so the two never drift. */
+/** Tailwind fill for a progress bar: neutral steel when roomy (telemetry reads as data, not an
+ *  affordance — sky is reserved for interaction), amber as it fills, bright at/over `high`. The bar-shaped
+ *  twin of `ctxColor`; both go steel→amber on the same breakpoints so the ring and the bars never drift. */
 export function barFill(pct: number, high = 85): string {
   if (pct >= high) return "bg-accent";
   if (pct >= 70) return "bg-accent/80";
-  return "bg-primary/70";
+  return "bg-steel/70";
 }
 
 /**

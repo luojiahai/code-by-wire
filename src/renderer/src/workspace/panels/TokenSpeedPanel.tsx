@@ -40,7 +40,7 @@ export function TokenSpeedPanel({
         label="Output"
         value={formatTps(speed.outputTps)}
         pct={ratePct(speed.outputTps, max)}
-        color="var(--color-steel)"
+        color="var(--color-violet)"
       />
       <RateBar
         label="Input"
