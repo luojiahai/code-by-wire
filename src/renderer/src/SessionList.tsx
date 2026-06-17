@@ -1,14 +1,12 @@
 import { useMemo, useState } from "react";
 import type { Session, SessionState, Account } from "@shared/types";
 import type { CliStatus } from "@shared/cli-status";
-import { RailAccount } from "./ui/RailAccount";
-import { RailFooter } from "./ui/RailFooter";
+import { RailPanel } from "./ui/RailPanel";
 import { groupSessions } from "@shared/overview";
 import { formatRelativeTime } from "@shared/format";
 import { cx, Dot } from "./ui/atoms";
 import { Icon } from "./ui/icons";
 import { STATE_META, ctxTone, isContextHigh } from "./ui/meta";
-import { OVERVIEW_ID } from "./stats/sentinel";
 
 /**
  * The master rail: every session grouped by state (Waiting → Working → Idle → Ended) with sticky group
@@ -24,9 +22,7 @@ export function SessionList({
   onQuery,
   account,
   cliStatus,
-  checking,
-  onRecheck,
-  onTroubleshoot,
+  onOpenCliStatus,
   canSpawn,
 }: {
   sessions: Session[];
@@ -37,15 +33,13 @@ export function SessionList({
   onQuery: (q: string) => void;
   account?: Account | null;
   cliStatus: CliStatus | null;
-  checking: boolean;
-  onRecheck: () => void;
-  onTroubleshoot: () => void;
+  onOpenCliStatus: () => void;
   canSpawn: boolean;
 }) {
   // One timestamp per render for the relative-time labels; the 3s background re-sync re-renders.
   const now = Date.now();
   // The account gauges only need second granularity for their reset countdowns. Floor the clock so a
-  // burst of filter keystrokes (which re-render this rail) doesn't re-tick the memoized RailAccount.
+  // burst of filter keystrokes (which re-render this rail) doesn't re-tick RailPanel's countdowns.
   const accountClock = Math.floor(now / 1000) * 1000;
   const groups = useMemo(
     () => groupSessions(sessions, query),
@@ -66,35 +60,18 @@ export function SessionList({
     });
   return (
     <aside className="flex w-[332px] shrink-0 flex-col border-r border-ink-800 bg-ink-925">
-      <RailAccount account={account ?? null} now={accountClock} />
-      {/* Pinned Overview: an app-level destination, kept out of the scrolling session list so it's always
-          one click away and never scrolls off. Styled as navigation, not a session — a filled highlight and
-          a sky chart icon when active, not the rows' left-border accent. */}
-      <div className="shrink-0 border-b border-ink-800 p-3">
-        <button
-          type="button"
-          onClick={() => onSelect(OVERVIEW_ID)}
-          aria-pressed={selectedId === OVERVIEW_ID}
-          aria-label="Open overview"
-          className={cx(
-            "flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] transition-colors",
-            selectedId === OVERVIEW_ID
-              ? "bg-ink-800 font-semibold text-fg"
-              : "font-medium text-fg-muted hover:bg-ink-850 hover:text-fg",
-          )}
-        >
-          <Icon
-            name="chart-column"
-            size={14}
-            className={cx(
-              "shrink-0",
-              selectedId === OVERVIEW_ID ? "text-primary" : "text-fg-faint",
-            )}
-          />
-          <span className="min-w-0 flex-1 truncate">Overview</span>
-        </button>
-      </div>
-      <div className="shrink-0 border-b border-ink-800 p-3">
+      <RailPanel
+        account={account ?? null}
+        now={accountClock}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        cliStatus={cliStatus}
+        onOpenCliStatus={onOpenCliStatus}
+      />
+      {/* Soft seam splits the identity/status zone from the session zone — replaces the old hard
+          per-block dividers. */}
+      <div className="h-px shrink-0 bg-gradient-to-r from-transparent via-ink-800 to-transparent" />
+      <div className="shrink-0 p-3">
         <button
           type="button"
           onClick={onNew}
@@ -102,7 +79,7 @@ export function SessionList({
           title={
             canSpawn
               ? undefined
-              : "Claude Code CLI isn't usable — see the status at the bottom of the rail."
+              : "Claude Code CLI isn't usable — open the status panel above."
           }
           className={cx(
             "inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border text-[13px] font-semibold transition-colors",
@@ -114,9 +91,7 @@ export function SessionList({
           <Icon name="plus" size={14} />
           New session
         </button>
-      </div>
-      <div className="shrink-0 border-b border-ink-800 p-3">
-        <div className="flex h-8 items-center gap-2 rounded-md border border-ink-700 bg-well px-2.5">
+        <div className="mt-2 flex h-8 items-center gap-2 rounded-md border border-ink-700 bg-well px-2.5">
           <Icon name="search" size={14} className="shrink-0 text-fg-faint" />
           <input
             value={query}
@@ -176,12 +151,6 @@ export function SessionList({
           })
         )}
       </div>
-      <RailFooter
-        status={cliStatus}
-        checking={checking}
-        onRecheck={onRecheck}
-        onTroubleshoot={onTroubleshoot}
-      />
     </aside>
   );
 }
