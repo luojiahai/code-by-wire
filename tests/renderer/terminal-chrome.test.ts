@@ -31,14 +31,24 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     expect(css).toMatch(/\.xterm\s*\{[^}]*padding:\s*8px/);
   });
 
-  it("gives the viewport a transparent background and an auto-hiding scrollbar thumb", () => {
+  it("keeps the native viewport scrollbar transparent and renders the overlay thumb instead", () => {
+    // The viewport background stays transparent so the #080808 well shows through during overscroll.
     expect(css).toMatch(
       /\.xterm\s+\.xterm-viewport\s*\{[^}]*background:\s*transparent/,
     );
-    expect(css, "thumb revealed on hover/scroll via is-scrolling").toContain(
-      "is-scrolling",
+    // The native scrollbar is kept only to reserve the right strip and is rendered transparent — the
+    // visible scrollbar is the shared overlay thumb attached over the viewport in xterm-factory.
+    expect(css).toMatch(
+      /\.xterm-viewport[^{]*::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*transparent/,
     );
-    expect(css).toMatch(/\.xterm-viewport[^{]*::-webkit-scrollbar-thumb/);
+    const factory = readFileSync(
+      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
+      "utf8",
+    );
+    expect(
+      factory,
+      "terminal uses the app's shared overlay-scroll-thumb",
+    ).toContain("overlay-scroll-thumb");
   });
 
   it("lets the terminal fill its wrapper with no outer padding (only the 8px inside it)", () => {

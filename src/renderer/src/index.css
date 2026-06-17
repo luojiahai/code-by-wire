@@ -197,20 +197,16 @@ body {
   background: transparent;
 }
 
-/* Auto-hide overlay: the thumb is invisible at rest and fades in on hover or while scrolling. The
-   .is-scrolling class is toggled from xterm-factory on scroll, cleared after an idle beat. This
-   overrides the global always-on scrollbar above, just for the terminal viewport. */
+/* xterm owns this viewport's scrolling; we keep its native scrollbar ONLY to reserve the 10px right strip
+   (matching the overlay thumb width, so terminal text stays clear of it) and render it permanently
+   invisible. The visible scrollbar is the custom .overlay-scroll-thumb attached in xterm-factory: VSCode's
+   terminal scrollbar IS xterm's own ScrollableElement widget, which @xterm/xterm 5.5.0 doesn't expose, so
+   we reproduce its overlay/fade/drag design with the app's shared overlay thumb. */
 .xterm .xterm-viewport::-webkit-scrollbar {
-  width: 8px;
-} /* slimmer than the app-wide 10px */
+  width: 10px;
+}
 .xterm .xterm-viewport::-webkit-scrollbar-thumb {
   background: transparent;
-  border-radius: 8px;
-  transition: background 0.3s ease;
-}
-.xterm .xterm-viewport:hover::-webkit-scrollbar-thumb,
-.xterm .xterm-viewport.is-scrolling::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
 }
 
 /* The cockpit plate: flat graphite with two whisper-faint signal washes — cool top-right, warm

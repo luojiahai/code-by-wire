@@ -4,6 +4,10 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import type { FitLike, XtermLike } from "./terminal-store";
 import { viewportScrollTop } from "./viewport-scroll";
+import {
+  thumbMetrics,
+  scrollTopForThumbTop,
+} from "../ui/overlay-scroll-metrics";
 
 /** xterm's internal core, reached the way VSCode does (xtermTerminal.ts: `(raw as ITerminalWithCore)._core`).
  *  We only need the Viewport's `syncScrollArea`, the public hook xterm itself calls (on clear/show) to force
@@ -44,25 +48,137 @@ function attachWebgl(term: Terminal): void {
   }
 }
 
-/** Fade the viewport scrollbar in while the user scrolls, out after a short idle beat. The thumb is
- *  transparent at rest (see index.css); toggling `is-scrolling` reveals it. Pure visual sugar, so it
- *  silently no-ops if the viewport isn't there. Lives in this seam alongside the WebGL wiring because
- *  it needs the post-open DOM. Returns a teardown that drops the listener and any pending idle timer,
- *  run from the wrapped `term.dispose` so a disposed terminal doesn't leave a timer holding the
- *  detached viewport alive. */
-function attachScrollbarAutohide(parent: HTMLElement): () => void {
+/** Idle after the last scroll before the thumb fades, when the pointer isn't over the terminal (VSCode: 500ms). */
+const SCROLLBAR_HIDE_DELAY = 500;
+
+/**
+ * Attach a VSCode-style overlay scrollbar to the terminal. VSCode's terminal scrollbar IS xterm.js's own
+ * ScrollableElement widget (enabled via the `scrollbar` option + `theme.scrollbarSlider*`), which our
+ * @xterm/xterm 5.5.0 doesn't expose — so we reproduce its design: a thumb floating over the viewport's
+ * right strip that reveals on scroll and while the pointer is over the terminal, fades after an idle beat,
+ * and is draggable. Shares the app's `overlay-scroll-metrics` math and `.overlay-scroll-thumb` styling
+ * (VSCode's slider greys, 100ms-in/800ms-out fade) so the terminal reads the same as every other scroll
+ * area. The native viewport scrollbar stays (transparent, see index.css) only to reserve the strip; this
+ * thumb is the visible one. Lives in this post-open seam beside the WebGL wiring; returns a teardown for
+ * the wrapped `term.dispose` so a disposed terminal leaves no listeners or timer on the detached viewport. */
+function attachOverlayScrollbar(
+  parent: HTMLElement,
+  term: Terminal,
+): () => void {
   const viewport = parent.querySelector(".xterm-viewport");
   if (!(viewport instanceof HTMLElement)) return () => {};
-  let idle: ReturnType<typeof setTimeout> | undefined;
-  const onScroll = () => {
-    viewport.classList.add("is-scrolling");
-    clearTimeout(idle);
-    idle = setTimeout(() => viewport.classList.remove("is-scrolling"), 900);
+
+  const thumb = document.createElement("div");
+  // Width comes from the shared .overlay-scroll-thumb class (10px), so it matches every other scroll area.
+  thumb.className = "overlay-scroll-thumb";
+  thumb.dataset.visible = "false";
+  parent.appendChild(thumb);
+
+  let hideTimer: ReturnType<typeof setTimeout> | undefined;
+  let pointerInside = false;
+  let dragging = false;
+  let dragStartY = 0;
+  let dragStartTop = 0;
+  let dragThumbH = 0;
+
+  // Size and place the thumb from the viewport's live scroll geometry. Returns whether there's overflow.
+  const layout = (): boolean => {
+    const m = thumbMetrics(
+      viewport.scrollTop,
+      viewport.scrollHeight,
+      viewport.clientHeight,
+    );
+    if (!m.overflow) {
+      thumb.dataset.visible = "false";
+      return false;
+    }
+    thumb.style.height = `${m.height}px`;
+    thumb.style.transform = `translateY(${m.top}px)`;
+    return true;
   };
+
+  const clearHide = () => {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = undefined;
+    }
+  };
+  const scheduleHide = () => {
+    clearHide();
+    if (pointerInside || dragging) return;
+    hideTimer = setTimeout(() => {
+      thumb.dataset.visible = "false";
+    }, SCROLLBAR_HIDE_DELAY);
+  };
+  const reveal = () => {
+    if (!layout()) return;
+    thumb.dataset.visible = "true";
+    scheduleHide();
+  };
+
+  const onScroll = () => reveal();
+  const onPointerEnter = () => {
+    pointerInside = true;
+    clearHide();
+    if (layout()) thumb.dataset.visible = "true";
+  };
+  const onPointerLeave = () => {
+    pointerInside = false;
+    if (!dragging) thumb.dataset.visible = "false";
+  };
+  const onThumbDown = (e: PointerEvent) => {
+    e.preventDefault();
+    dragging = true;
+    thumb.dataset.active = "true";
+    thumb.setPointerCapture(e.pointerId);
+    dragStartY = e.clientY;
+    dragStartTop = thumbMetrics(
+      viewport.scrollTop,
+      viewport.scrollHeight,
+      viewport.clientHeight,
+    ).top;
+    dragThumbH = thumb.offsetHeight;
+  };
+  const onThumbMove = (e: PointerEvent) => {
+    if (!dragging) return;
+    viewport.scrollTop = scrollTopForThumbTop(
+      dragStartTop + (e.clientY - dragStartY),
+      dragThumbH,
+      viewport.scrollHeight,
+      viewport.clientHeight,
+    );
+    // setting scrollTop fires onScroll, which lays out the thumb and keeps it revealed.
+  };
+  const onThumbUp = (e: PointerEvent) => {
+    if (!dragging) return;
+    dragging = false;
+    thumb.dataset.active = "false";
+    thumb.releasePointerCapture(e.pointerId);
+    if (pointerInside) scheduleHide();
+    else thumb.dataset.visible = "false";
+  };
+
   viewport.addEventListener("scroll", onScroll);
+  parent.addEventListener("pointerenter", onPointerEnter);
+  parent.addEventListener("pointerleave", onPointerLeave);
+  thumb.addEventListener("pointerdown", onThumbDown);
+  thumb.addEventListener("pointermove", onThumbMove);
+  thumb.addEventListener("pointerup", onThumbUp);
+  thumb.addEventListener("pointercancel", onThumbUp);
+  // Re-measure when xterm repaints (output, scrollback growth) or resizes — the viewport geometry shifts
+  // in those cases without firing a DOM 'scroll' event.
+  const render = term.onRender(() => layout());
+  const resize = term.onResize(() => layout());
+  layout();
+
   return () => {
     viewport.removeEventListener("scroll", onScroll);
-    clearTimeout(idle);
+    parent.removeEventListener("pointerenter", onPointerEnter);
+    parent.removeEventListener("pointerleave", onPointerLeave);
+    render.dispose();
+    resize.dispose();
+    clearHide();
+    thumb.remove();
   };
 }
 
@@ -85,17 +201,17 @@ export function createXterm(): {
   // the renderer attaches itself right after — keeping all GPU-renderer wiring in this seam, with the
   // view and store untouched. open() is called once (guarded by handle.opened in the view).
   const open = term.open.bind(term);
-  let disposeAutohide: () => void = () => {};
+  let disposeScrollbar: () => void = () => {};
   term.open = (parent: HTMLElement) => {
     open(parent);
     attachWebgl(term);
-    disposeAutohide = attachScrollbarAutohide(parent);
+    disposeScrollbar = attachOverlayScrollbar(parent, term);
   };
-  // Wrap dispose the same way as open: tear down the scroll listener/timer the autohide attached.
-  // (xterm disposes loadAddon'd addons like WebGL itself; this raw DOM listener it doesn't know about.)
+  // Wrap dispose the same way as open: tear down the overlay scrollbar's listeners, timer, and thumb node.
+  // (xterm disposes loadAddon'd addons like WebGL itself; these raw DOM listeners it doesn't know about.)
   const dispose = term.dispose.bind(term);
   term.dispose = () => {
-    disposeAutohide();
+    disposeScrollbar();
     dispose();
   };
   const wrapper = document.createElement("div");
