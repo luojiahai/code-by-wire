@@ -130,6 +130,16 @@ body {
   background: transparent;
 }
 
+/* The rail's session list hides its scrollbar: the account card, CLI band, and new-session zone pinned
+   above it don't scroll, so a lone bar in just the list read as inconsistent against them. The list still
+   scrolls by wheel / trackpad. */
+.rail-scroll {
+  scrollbar-width: none; /* Firefox */
+}
+.rail-scroll::-webkit-scrollbar {
+  display: none; /* Chromium / Electron */
+}
+
 /* The terminal well: borderless and padded, with an auto-hiding scrollbar pinned to the trailing edge.
    8px of padding on .xterm gives the content breathing room; FitAddon reads this padding when it sizes
    the grid, so cols/rows fit the padded area. .xterm-viewport is absolutely positioned inset:0 and

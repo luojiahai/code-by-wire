@@ -100,7 +100,7 @@ export function SessionList({
           />
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto rail-scroll">
         {groups.length === 0 ? (
           <p className="px-4 py-5 text-[12px] text-fg-faint">
             No sessions match "{query}".
@@ -136,7 +136,7 @@ export function SessionList({
                   </span>
                 </button>
                 {!isCollapsed && (
-                  <div className="flex flex-col gap-[5px] p-2">
+                  <div className="flex flex-col gap-1.5 px-3 py-2">
                     {g.items.map((s) => (
                       <SessionRow
                         key={s.id}
@@ -177,7 +177,7 @@ function SessionRow({
       aria-pressed={selected}
       aria-label={`Open ${s.title}`}
       className={cx(
-        "block w-full rounded-lg border px-2.5 py-2 text-left transition-colors",
+        "block w-full rounded-lg border p-2.5 text-left transition-colors",
         selected
           ? "border-primary/50 bg-primary/[0.06]"
           : "border-ink-800 bg-ink-900 hover:border-ink-700",
