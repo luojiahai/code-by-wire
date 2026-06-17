@@ -23,21 +23,21 @@ import {
 export function StructureDock({
   tasks,
   doc,
-  shells = [],
+  shells,
   now,
   activeAgentId,
   activeShellId,
   onDrill,
-  onDrillShell = () => {},
+  onDrillShell,
 }: {
   tasks: Task[];
   doc: DocState;
-  shells?: BackgroundShell[];
+  shells: BackgroundShell[];
   now: number;
   activeAgentId?: string;
   activeShellId?: string;
   onDrill: (agent: Subagent) => void;
-  onDrillShell?: (shell: BackgroundShell) => void;
+  onDrillShell: (shell: BackgroundShell) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const subagents = doc?.subagents ?? [];

@@ -4,6 +4,11 @@ import type { DocState } from "./use-transcript";
 /** One level of the drill path: which subagent, and the label shown in the breadcrumb (its type). */
 export type SubagentCrumb = { agentId: string; label: string };
 
+/** One level of the drill path. A subagent crumb drills its transcript; a shell crumb drills its log. */
+export type DrillCrumb =
+  | { kind: "subagent"; agentId: string; label: string }
+  | { kind: "shell"; shellId: string; label: string };
+
 /**
  * The drilled-in Subagent surface: a breadcrumb (Session › … › <type>, read-only marked) above the
  * shared event feed. A pure renderer of the `doc` it's handed — the subagent poll is lifted to
