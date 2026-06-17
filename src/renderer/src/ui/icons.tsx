@@ -1,10 +1,12 @@
 import {
+  Archive,
   ArrowUpRight,
   ChartColumn,
   Check,
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Clock,
   Code,
   Copy,
   FolderGit2,
@@ -12,6 +14,7 @@ import {
   GitBranch,
   GitPullRequestArrow,
   Info,
+  LoaderCircle,
   MessagesSquare,
   Pause,
   Pencil,
@@ -21,6 +24,7 @@ import {
   SquareDashedMousePointer,
   SquareTerminal,
   Terminal,
+  TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
 import type { IconName } from "./icon-names";
@@ -35,12 +39,14 @@ export type { IconName };
  * import it; `satisfies Record<IconName, LucideIcon>` keeps this map and that union exhaustively in sync.
  */
 const ICONS = {
+  archive: Archive,
   "arrow-up-right": ArrowUpRight,
   "chart-column": ChartColumn,
   check: Check,
   "chevron-down": ChevronDown,
   "chevron-right": ChevronRight,
   "chevron-up": ChevronUp,
+  clock: Clock,
   code: Code,
   copy: Copy,
   "folder-open": FolderOpen,
@@ -48,6 +54,7 @@ const ICONS = {
   "git-branch": GitBranch,
   "git-pull-request-arrow": GitPullRequestArrow,
   info: Info,
+  "loader-circle": LoaderCircle,
   "messages-square": MessagesSquare,
   pause: Pause,
   pencil: Pencil,
@@ -57,6 +64,7 @@ const ICONS = {
   "square-dashed-mouse-pointer": SquareDashedMousePointer,
   "square-terminal": SquareTerminal,
   terminal: Terminal,
+  "triangle-alert": TriangleAlert,
 } satisfies Record<IconName, LucideIcon>;
 
 /** A Lucide line icon at the cockpit's 1.75 stroke weight; color inherits via currentColor. */

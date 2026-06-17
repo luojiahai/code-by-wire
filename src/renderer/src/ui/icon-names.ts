@@ -6,12 +6,14 @@
  * can never drift: add a name here without a glyph there (or vice versa) and the typecheck fails.
  */
 export type IconName =
+  | "archive"
   | "arrow-up-right"
   | "chart-column"
   | "check"
   | "chevron-down"
   | "chevron-right"
   | "chevron-up"
+  | "clock"
   | "code"
   | "copy"
   | "folder-open"
@@ -19,6 +21,7 @@ export type IconName =
   | "git-branch"
   | "git-pull-request-arrow"
   | "info"
+  | "loader-circle"
   | "messages-square"
   | "pause"
   | "pencil"
@@ -27,4 +30,5 @@ export type IconName =
   | "square"
   | "square-dashed-mouse-pointer"
   | "square-terminal"
-  | "terminal";
+  | "terminal"
+  | "triangle-alert";
