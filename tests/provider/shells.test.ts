@@ -1,7 +1,7 @@
 // tests/provider/shells.test.ts
 import { describe, it, expect } from "vitest";
-import { reconstructShells } from "../../src/main/provider/claude/shells";
 import {
+  reconstructShells,
   tailOutput,
   stitchSnapshots,
 } from "../../src/main/provider/claude/shells";

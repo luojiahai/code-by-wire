@@ -73,8 +73,9 @@ function span(text: string, s: Style): AnsiSpan {
   return out;
 }
 
-/** Parse SGR color/intensity escapes into styled spans; strip every other CSI (cursor/clear) and any
- *  lone ESC. Adjacent text under one style coalesces into a single span. */
+/** Parse SGR color/intensity escapes into styled spans; strip every other CSI sequence (cursor/clear).
+ *  A bare ESC not followed by `[` is passed through as text. Adjacent text under one style coalesces
+ *  into a single span. */
 export function ansiToSpans(input: string): AnsiSpan[] {
   const spans: AnsiSpan[] = [];
   let style: Style = {};

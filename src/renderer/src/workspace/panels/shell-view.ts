@@ -10,8 +10,8 @@ export function shellGlyph(
   if (shell.status === "running")
     return { char: "●", tone: "text-working-bright" };
   if (shell.status === "killed") return { char: "■", tone: "text-fg-faint" };
-  // completed
-  return shell.exitCode && shell.exitCode !== 0
+  // completed: a non-zero exit reads as failed (0 and undefined both read as clean)
+  return shell.exitCode
     ? { char: "✕", tone: "text-danger" }
     : { char: "✓", tone: "text-ok" };
 }
