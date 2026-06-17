@@ -19,7 +19,12 @@ import {
   subagentsNewestMtime,
 } from "./subagents";
 import { readTasksForSession, tasksNewestMtime } from "./tasks";
-import { reconstructShells, tailOutput, stitchSnapshots } from "./shells";
+import {
+  reconstructShells,
+  tailOutput,
+  stitchSnapshots,
+  toBackgroundShell,
+} from "./shells";
 import { resolveAdoptTarget } from "./adopt-target";
 import { computeTokenSpeed, SPEED_WINDOW_MS } from "./transcript-speed";
 import { firstTranscriptCwd } from "./transcript";
@@ -356,7 +361,7 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
         }
         // Strip outputFile: the list is renderer-facing; the log path stays server-side (readShellOutput).
         const shells = reconstructShells(parseJsonlRows(jsonl)).map(
-          ({ outputFile: _omit, ...s }) => s,
+          toBackgroundShell,
         );
         return { status: "changed", mtimeMs, shells };
       } catch {

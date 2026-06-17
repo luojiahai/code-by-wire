@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { statSync } from "node:fs";
 import { join } from "node:path";
 import { createClaudeProvider } from "../../src/main/provider/claude";
 import { tempHomes } from "../helpers/temp-home";

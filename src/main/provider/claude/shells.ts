@@ -8,6 +8,14 @@ export interface ShellRecord extends BackgroundShell {
   outputFile: string;
 }
 
+/** The renderer-facing view of a reconstructed shell: every field except the server-only `.output` path,
+ *  which never crosses IPC (the log is read separately via readShellOutput). */
+export function toBackgroundShell(record: ShellRecord): BackgroundShell {
+  const shell: Partial<ShellRecord> = { ...record };
+  delete shell.outputFile;
+  return shell as BackgroundShell;
+}
+
 /** A backgrounded Bash tool_use, keyed by its tool_use id. */
 interface BashUse {
   command: string;
