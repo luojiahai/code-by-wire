@@ -19,10 +19,10 @@ const BTN_CLASS: Record<FooterView["dot"], string> = {
   idle: "border-ink-700 text-fg-faint",
 };
 
-/** A slim strip pinned at the bottom of the rail carrying the live Claude Code CLI status: a state dot,
- *  the label with its version, the status word, and an info button that opens the CLI status modal (the
- *  single home for version, path, re-check, and troubleshooting) in any resolved state. */
-export function RailFooter({
+/** A slim band below the account card carrying the live Claude Code CLI status: a state dot, the label
+ *  with its version, the status word, and an info button that opens the CLI status modal (the single
+ *  home for version, path, re-check, and troubleshooting) in any resolved state. */
+export function RailCliStatus({
   status,
   onOpenCliStatus,
 }: {
