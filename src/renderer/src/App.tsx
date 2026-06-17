@@ -9,7 +9,7 @@ import {
   renameAdopting,
 } from "@shared/managed";
 import { newSessionId } from "@shared/terminal";
-import { groupSessions } from "@shared/overview";
+import { orderedSessions } from "@shared/overview";
 import { Workspace } from "./workspace/Workspace";
 import { NewSessionDialog } from "./terminal/NewSessionDialog";
 import { terminalStore } from "./terminal/terminal-store-instance";
@@ -257,9 +257,9 @@ export function App() {
       !isOverview &&
       (selectedId === null || !all.some((s) => s.id === selectedId))
     ) {
-      // Pick the rail's top row (Waiting → Working → Idle → Ended, recent first) so the auto-opened
-      // session is the one visually at the top of the list, not an arbitrary first element of `all`.
-      const ordered = groupSessions(all, "").flatMap((g) => g.items);
+      // Pick the rail's top row (Active newest-created first, then Ended) so the auto-opened session
+      // is the one visually at the top of the list, not an arbitrary first element of `all`.
+      const ordered = orderedSessions(all, "");
       setSelectedId((ordered[0] ?? all[0]).id);
     }
   }, [ids]);
