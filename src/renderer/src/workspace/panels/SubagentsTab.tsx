@@ -67,7 +67,7 @@ function LaneCell({
   return (
     <span
       className={cx(
-        "w-12 shrink-0 text-right font-mono text-[10px] tabular-nums",
+        "shrink-0 text-right font-mono text-[10px] tabular-nums",
         tone,
         className,
       )}
@@ -78,21 +78,24 @@ function LaneCell({
   );
 }
 
-/** One Subagent as a Gantt lane: a fill positioned by the agent's start and span within its group's time
- *  window, behind a metadata row (type, model, tokens, tool count, duration) with the task description on
- *  a second line when present. A working lane's bar runs to `now` and its duration ticks live; a finished
- *  lane is frozen at its measured span. */
+/** One Subagent as a Gantt lane: a single row with the task description as its label, a fill positioned by
+ *  the agent's start and span within its group's time window, and a right-aligned metric cluster (model,
+ *  tokens, tool count, duration). A batch lane drops its type (the band header carries the uniform type);
+ *  the Individual pool keeps a small type tag (`showTypeTag`) since its header has none. A working lane's
+ *  bar runs to `now` and its duration ticks live; a finished lane is frozen at its measured span. */
 function SubagentLane({
   agent,
   win,
   now,
   active,
+  showTypeTag,
   onDrill,
 }: {
   agent: Subagent;
   win: LaneWindow;
   now: number;
   active: boolean;
+  showTypeTag: boolean;
   onDrill: (agent: Subagent) => void;
 }) {
   const meta = LANE_META[agent.status];
@@ -102,10 +105,14 @@ function SubagentLane({
     agent.status === "working" && agent.startMs !== undefined
       ? now - agent.startMs
       : agent.durationMs;
+  // Description is the label; fall back to the type when there's no description. The type tag only appears
+  // when the description owns the label AND the band header isn't already showing the type.
+  const primary = agent.description ?? agent.type;
+  const tag = showTypeTag && agent.description ? agent.type : null;
   return (
     <li
       className={cx(
-        "relative flex min-h-[26px] flex-col justify-center overflow-hidden rounded-sm bg-ink-900",
+        "relative flex min-h-[23px] items-center overflow-hidden rounded-sm bg-ink-900",
         active && "ring-1 ring-inset ring-accent",
       )}
     >
@@ -122,26 +129,36 @@ function SubagentLane({
         type="button"
         onClick={() => onDrill(agent)}
         aria-label={`Drill into ${agent.type} subagent`}
-        className="relative block w-full px-2 py-1 text-left"
+        className="relative flex w-full items-center gap-2 px-2 py-1 text-left"
       >
-        <div className="flex items-center gap-2">
-          <span
-            className={cx(
-              "w-4 shrink-0 text-center font-mono text-[11px]",
-              meta.tone,
-            )}
-          >
-            {meta.char}
+        <span
+          className={cx(
+            "w-4 shrink-0 text-center font-mono text-[11px]",
+            meta.tone,
+          )}
+        >
+          {meta.char}
+        </span>
+        {tag && (
+          <span className="shrink-0 rounded bg-ink-850 px-1 py-px font-mono text-[9px] text-fg-faint">
+            {tag}
           </span>
-          <span
-            className="min-w-0 flex-1 truncate text-[12px] text-fg"
-            title={agent.type}
-          >
-            {agent.type}
-          </span>
-          <LaneCell>{agent.model ? FAMILY_LABEL[agent.model] : "—"}</LaneCell>
-          <LaneCell tone="text-fg-muted">{formatTokens(agent.tokens)}</LaneCell>
+        )}
+        <span
+          className="min-w-0 flex-1 truncate text-[12px] text-fg"
+          title={primary}
+        >
+          {primary}
+        </span>
+        <span className="flex shrink-0 items-center gap-2 font-mono text-[10px] tabular-nums">
+          <LaneCell className="w-10">
+            {agent.model ? FAMILY_LABEL[agent.model] : "—"}
+          </LaneCell>
+          <LaneCell className="w-8" tone="text-fg-muted">
+            {formatTokens(agent.tokens)}
+          </LaneCell>
           <LaneCell
+            className="w-8"
             aria-label={`${agent.toolCount} tool ${agent.toolCount === 1 ? "call" : "calls"}`}
           >
             {agent.toolCount}
@@ -149,17 +166,8 @@ function SubagentLane({
               ⚒
             </span>
           </LaneCell>
-          <LaneCell>{formatDuration(elapsed)}</LaneCell>
-        </div>
-        {/* pl-6 lines the description up under the type label: glyph w-4 (16px) + the row's gap-2 (8px). */}
-        {agent.description && (
-          <div
-            className="truncate pl-6 pt-0.5 text-[11px] text-fg-faint"
-            title={agent.description}
-          >
-            {agent.description}
-          </div>
-        )}
+          <LaneCell className="w-9">{formatDuration(elapsed)}</LaneCell>
+        </span>
       </button>
     </li>
   );
@@ -315,6 +323,9 @@ function SubagentGroupLanes({
 }) {
   const win = laneWindow(group.agents, now);
   const live = groupIsLive(group);
+  // Batch bands have a uniform type shown in the header, so their lanes hide it; the Individual pool
+  // (no single type) keeps a per-lane tag.
+  const showTypeTag = !groupUniformType(group);
   const nowPct = spanPct(now - win.start, win.end - win.start);
   return (
     <div className="relative mt-1.5">
@@ -332,6 +343,7 @@ function SubagentGroupLanes({
             win={win}
             now={now}
             active={a.id === activeAgentId}
+            showTypeTag={showTypeTag}
             onDrill={onDrill}
           />
         ))}
