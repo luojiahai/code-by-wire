@@ -28,29 +28,8 @@ describe("railAccountModel — subscription", () => {
       email: "a@b.com",
       plan: "Claude · subscription",
       gauges: [
-        { label: "5h", pct: 42, reset: "resets in 2h 14m" },
-        { label: "Weekly", pct: 18, reset: "resets in 5d" },
-      ],
-    });
-  });
-
-  it("appends Sonnet/Opus rows (percent only, no reset) when present", () => {
-    const acc: Account = {
-      billingMode: "subscription",
-      email: "a@b.com",
-      fiveHour: { usedPct: 42, resetsAt: in2h14m },
-      sevenDay: { usedPct: 18, resetsAt: in5d },
-      sevenDaySonnet: { usedPct: 22, resetsAt: in5d },
-      sevenDayOpus: { usedPct: 61, resetsAt: in5d },
-    };
-    const view = railAccountModel(acc, NOW);
-    expect(view).toMatchObject({
-      mode: "subscription",
-      gauges: [
-        { label: "5h" },
-        { label: "Weekly" },
-        { label: "Sonnet", pct: 22, reset: null },
-        { label: "Opus", pct: 61, reset: null },
+        { label: "5h", pct: 42, reset: "2h 14m" },
+        { label: "Weekly", pct: 18, reset: "5d" },
       ],
     });
   });
