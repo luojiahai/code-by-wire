@@ -18,6 +18,7 @@ import { useMetrics, type MetricsState } from "./use-metrics";
 import { SessionPanel } from "./panels/SessionPanel";
 import { HeaderActions } from "./HeaderActions";
 import { ModeLabel } from "./ModeLabel";
+import { OverlayScroll } from "../ui/OverlayScroll";
 
 export function Workspace({
   session: s,
@@ -158,7 +159,10 @@ function WorkspaceBody({
           }
         />
       </div>
-      <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-ink-800 bg-ink-925 p-4 lg:flex">
+      <OverlayScroll
+        className="hidden w-72 shrink-0 border-l border-ink-800 bg-ink-925 lg:block"
+        contentClassName="flex flex-col gap-4 p-4"
+      >
         <SessionPanel session={s} />
         <ContextPanel
           live={s.liveContext ?? null}
@@ -175,7 +179,7 @@ function WorkspaceBody({
         <TokensPanel usage={s.usage} />
         <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
         <GitPanel git={metrics ? metrics.git : null} />
-      </aside>
+      </OverlayScroll>
     </div>
   );
 }
@@ -273,14 +277,14 @@ function RenderedTranscript({
   doc: DocState;
 }) {
   return (
-    <div className="h-full overflow-auto">
+    <OverlayScroll className="h-full">
       <TranscriptView
         doc={doc}
         project={s.project}
         state={s.state}
         readOnly={s.management === "observed"}
       />
-    </div>
+    </OverlayScroll>
   );
 }
 

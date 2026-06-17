@@ -1,5 +1,6 @@
 import { Center, TranscriptFeed } from "./TranscriptView";
 import type { DocState } from "./use-transcript";
+import { OverlayScroll } from "../ui/OverlayScroll";
 
 /** One level of the drill path: which subagent, and the label shown in the breadcrumb (its type). */
 export type SubagentCrumb = { agentId: string; label: string };
@@ -24,7 +25,7 @@ export function SubagentDrill({
   return (
     <div className="flex h-full flex-col">
       <Breadcrumb crumbs={crumbs} onNavigate={onNavigate} />
-      <div className="min-h-0 flex-1 overflow-auto">
+      <OverlayScroll className="min-h-0 flex-1">
         {doc === null ? (
           <Center>No transcript on disk for this subagent yet.</Center>
         ) : (
@@ -32,7 +33,7 @@ export function SubagentDrill({
           // feed until it lands (matching the Session view's first-load behavior).
           <TranscriptFeed key={current.agentId} events={doc?.events ?? []} />
         )}
-      </div>
+      </OverlayScroll>
     </div>
   );
 }

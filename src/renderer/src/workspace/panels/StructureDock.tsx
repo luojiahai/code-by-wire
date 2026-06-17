@@ -6,6 +6,7 @@ import type { DocState } from "../use-transcript";
 import { DockTasks } from "./DockTasks";
 import { TurnsTab } from "./TurnsTab";
 import { SubagentsTab } from "./SubagentsTab";
+import { OverlayScroll } from "../../ui/OverlayScroll";
 import {
   type DockTab,
   type SubagentStats,
@@ -68,9 +69,12 @@ export function StructureDock({
 
   return (
     <div className="hidden h-64 shrink-0 border-t border-ink-800 bg-ink-925 lg:flex">
-      <div className="w-72 shrink-0 overflow-y-auto border-r border-ink-800 p-3">
+      <OverlayScroll
+        className="w-72 shrink-0 border-r border-ink-800"
+        contentClassName="p-3"
+      >
         <DockTasks tasks={tasks} />
-      </div>
+      </OverlayScroll>
       <div className="flex min-w-0 flex-1 flex-col">
         <DockTabBar
           tab={tab}
@@ -79,7 +83,7 @@ export function StructureDock({
           subagentCount={stats.total}
           onCollapse={() => setCollapsed(true)}
         />
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <OverlayScroll className="min-h-0 flex-1">
           {tab === "turns" ? (
             <TurnsTab turns={turns} now={now} />
           ) : (
@@ -91,7 +95,7 @@ export function StructureDock({
               onDrill={onDrill}
             />
           )}
-        </div>
+        </OverlayScroll>
       </div>
     </div>
   );

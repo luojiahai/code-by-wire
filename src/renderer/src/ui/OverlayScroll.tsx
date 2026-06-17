@@ -16,16 +16,20 @@ const HIDE_DELAY = 500;
  * A scroll container with a VSCode-style overlay scrollbar. The thumb floats over the content (absolutely
  * positioned, so it reserves no layout width), appears while scrolling OR while the pointer is anywhere
  * inside the area, and fades out ~500ms after scrolling stops / the moment the pointer leaves. The thumb is
- * draggable. The native scrollbar is hidden via `.rail-scroll`; the thumb geometry is the unit-tested
+ * draggable. The native scrollbar is hidden via `.overlay-scroll-area`; the thumb geometry is the unit-tested
  * `overlay-scroll-metrics`. Visibility/active state ride on data-attributes so CSS owns the fade timing
  * (100ms in, 800ms out) while the thumb's size/position are written imperatively to avoid per-scroll
  * re-renders.
  */
 export function OverlayScroll({
   className,
+  contentClassName,
   children,
 }: {
+  /** Classes for the outer wrapper — put the sizing/placement here (e.g. `min-h-0 flex-1`, `w-72 shrink-0`). */
   className?: string;
+  /** Classes for the inner scrolling element — put padding and content layout here (e.g. `p-4 flex flex-col gap-4`). */
+  contentClassName?: string;
   children: ReactNode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -152,7 +156,10 @@ export function OverlayScroll({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="h-full overflow-y-auto rail-scroll"
+        className={cx(
+          "h-full overflow-y-auto overlay-scroll-area",
+          contentClassName,
+        )}
       >
         {children}
       </div>

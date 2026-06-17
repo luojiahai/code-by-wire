@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { OverlayScroll } from "../ui/OverlayScroll";
 import {
   type StatsSnapshot,
   type ScanProgress,
@@ -156,7 +157,7 @@ export function StatsView() {
   }, [range, calendarYear]);
 
   return (
-    <div className="h-full min-w-0 flex-1 overflow-y-auto bg-ink-950 text-fg">
+    <OverlayScroll className="h-full min-w-0 flex-1 bg-ink-950 text-fg">
       <div className="mx-auto flex max-w-[1100px] flex-col gap-4 px-6 py-6">
         <header className="flex items-center justify-between">
           <h1 className="font-display text-lg text-fg">Overall stats</h1>
@@ -251,7 +252,7 @@ export function StatsView() {
           </>
         )}
       </div>
-    </div>
+    </OverlayScroll>
   );
 }
 

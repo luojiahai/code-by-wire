@@ -130,13 +130,12 @@ body {
   background: transparent;
 }
 
-/* The rail's session list hides its scrollbar: the account card, CLI band, and new-session zone pinned
-   above it don't scroll, so a lone bar in just the list read as inconsistent against them. The list still
-   scrolls by wheel / trackpad. */
-.rail-scroll {
+/* OverlayScroll's scroll element hides the native scrollbar (both axes); the floating overlay thumb stands
+   in for it, so the app's scroll areas read consistently. The element still scrolls by wheel / trackpad. */
+.overlay-scroll-area {
   scrollbar-width: none; /* Firefox */
 }
-.rail-scroll::-webkit-scrollbar {
+.overlay-scroll-area::-webkit-scrollbar {
   display: none; /* Chromium / Electron */
 }
 
