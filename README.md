@@ -9,63 +9,47 @@ English | [简体中文](README.zh-CN.md)
 
 **The cockpit for local Claude Code.**
 
-Claude Code runs in your terminal and writes a rich trail to `~/.claude` as it
-works: every turn, every token, every tool call, the running cost, the context
-window. The CLI shows you almost none of it. A statusline is one line at the
-bottom of one terminal, and the moment a second session is running it's already
-not enough.
+Claude Code writes a rich trail to the `.claude` directory as it works: every
+turn, every token, every tool call, the running cost, the context window. The
+CLI shows you almost none of it. Code-by-wire reads that trail and turns it into
+one live dashboard. Every session on your machine in one place, with live state,
+the full transcript, an embedded terminal to drive or take over, and the
+telemetry the terminal hides. One pane instead of a dozen terminal windows.
 
-Code-by-wire reads that trail and turns it into one live dashboard. Every Claude
-Code session on your machine in one place: live state, the full transcript, an
-embedded terminal to drive or take over, and the cost, context, and usage
-telemetry the terminal never shows you. One pane instead of a dozen terminal
-windows.
+**[Download for macOS (Apple Silicon)](https://github.com/luojiahai/code-by-wire/releases/latest)**
 
-[![Download for macOS (Apple Silicon)](https://img.shields.io/badge/Download%20for%20macOS%20%28Apple%20Silicon%29-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/luojiahai/code-by-wire/releases/latest)
+## What you get
 
-## The name
-
-Fly-by-wire didn't take the plane away from the pilot. It put a computer
-between the stick and the control surfaces, so the pilot commands intent and the
-machine handles execution. The pilot still flies, just more capable and more
-precise.
-
-Code-by-wire is that idea for software. You command intent, the agent executes,
-and you stay pilot in command: live state, the full transcript, and the controls
-to take over whenever you want.
-
-## Preview
-
-![code-by-wire](docs/assets/preview.png)
+- **Every session in one rail.** Grouped by what needs you first: waiting,
+  working, idle, ended.
+- **Drive or just watch.** Spawn a managed session in an embedded terminal, or
+  observe any other session read-only.
+- **The full transcript.** Every message, tool call, and result, reconstructed
+  from disk and rendered cleanly.
+- **The telemetry the CLI hides.** Live cost, context window, token throughput,
+  git, tasks, and subagents, per session.
+- **The whole story.** A cross-session overview with a year-long contributions
+  calendar and exact, never-estimated totals.
+- **Knows your account.** Reads your plan and rate-limit gauges straight from
+  the `.claude` directory.
 
 ## Features
 
-Code-by-wire reads everything Claude Code writes under `~/.claude` and turns it
-into one live dashboard. Nothing to set up: open the app and every session
-already running on your machine is there.
+Nothing to set up. Open the app and every session already running on your
+machine is there.
 
 ### 👀 See every session at a glance
 
-**One rail, every session.** The left rail lists every Claude Code session on
-your machine, one row each. A filter box narrows the list as you type.
-
-**Grouped by what needs you.** Rows are grouped by state in priority order:
-**Waiting → Working → Idle → Ended**, each group with a sticky header and a live
-count. Ended is collapsed by default. It's the archive, not the live work.
+**Grouped by what needs you.** A filter box narrows the list as you type. Each
+state group (Waiting, Working, Idle, Ended) carries a sticky header and a live
+count, and Ended collapses by default. It's the archive, not the live work.
 
 ### 🕹️ Drive or watch any session
 
-**Spawn a managed session.** Pick a directory and a model, and Code-by-wire
-starts `claude` there and drives it from a live terminal embedded in the
-workspace.
-
-**Observe the rest.** A session you started anywhere else shows up read-only:
-full state and transcript, but no input, because two processes writing one
-transcript would corrupt it.
-
-**Adopt when it ends.** Once an observed session ends, adopt it to resume it
-inside the app and take the controls. The button appears only once the original
-process is gone, which is the only time it's safe.
+**Observe safely, adopt later.** A session you started elsewhere shows up
+read-only, because two processes writing one transcript would corrupt it. Once
+it ends, adopt it to resume inside the app and take the controls. The adopt
+button appears only when the original process is gone, the only time it's safe.
 
 **Terminal or transcript.** A managed session toggles between its live terminal
 and the rendered transcript. Switching away only detaches the view. The terminal
@@ -73,10 +57,10 @@ keeps buffering, so you never lose scrollback.
 
 ### 📜 Read exactly what the agent did
 
-**The full transcript.** Every message, tool call, and tool result,
-reconstructed from the raw transcript on disk and rendered cleanly, step by step.
+**The full transcript, step by step.** Every message, tool call, and tool
+result, reconstructed from the raw transcript on disk and rendered cleanly.
 
-**Turn timeline.** Below the live view, a turn-by-turn strip: each prompt you
+**Turn timeline.** A turn-by-turn strip below the live view: each prompt you
 sent, how many tools it triggered, how long the turn ran, and how long ago it
 started.
 
@@ -102,9 +86,9 @@ A right-hand rail of live panels:
 
 ### 📈 The whole story across every session
 
-**Overview is where the app opens.** Pinned to the top of the rail, it's an
-app-level view that totals every Claude Code session on your machine, not just
-the one you're watching. Pick a range: Today, 7d, 30d, 90d, or All.
+**Overview is where the app opens.** Pinned to the top of the rail, an app-level
+view that totals every Claude Code session on your machine, not just the one
+you're watching. Pick a range: Today, 7d, 30d, 90d, or All.
 
 **Headline numbers.** Sessions, turns, tokens, and equivalent API value for the
 range, with a stacked bar of where the tokens went.
@@ -125,11 +109,10 @@ else.
 
 ### 💳 Know your account
 
-The rail header reads your account straight from `~/.claude`. On a subscription
+The rail header reads your account straight from the `.claude` directory. On a subscription
 (Pro or Max) it shows your plan and rate-limit gauges with live reset
 countdowns, so you can see how close you are to a wall. On an API account it
-shows the endpoint host and plan. The app works out which from whether your
-sessions report rate limits, and shows cost the right way for each.
+shows the endpoint host and plan.
 
 ## Install
 
@@ -174,20 +157,10 @@ pnpm rebuild:native   # rebuild better-sqlite3 + node-pty for Electron's ABI
 pnpm dev              # launch the app
 ```
 
-`pnpm test` runs the provider read tests over the redacted `~/.claude` fixtures
+`pnpm test` runs the provider read tests over the redacted `.claude` fixtures
 in `tests/fixtures/`. `pnpm typecheck` checks the main and renderer projects.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
-
-## Project layout
-
-```
-src/
-  main/       Electron main process: providers, db, git, terminal, sync
-  preload/    the IPC bridge
-  renderer/   React UI (session list, workspace panels, terminal)
-  shared/     types and helpers shared across processes
-```
 
 ## License
 
