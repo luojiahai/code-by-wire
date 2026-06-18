@@ -100,8 +100,11 @@ export function SessionList({
           </p>
         ) : (
           <>
+            {/* Active rows carry no top padding: the filter box's p-3 already sets the gap to the
+                first card, so it sits a uniform 12px below the filter, matching the px-3 sides and the
+                flush Ended header that leads the list when there are no Active rows. */}
             {active.length > 0 && (
-              <div className="flex flex-col gap-1.5 px-3 py-2">
+              <div className="flex flex-col gap-1.5 px-3 pb-2">
                 {active.map((s) => (
                   <SessionRow
                     key={s.id}
