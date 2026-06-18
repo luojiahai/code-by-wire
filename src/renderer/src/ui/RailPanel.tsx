@@ -28,7 +28,16 @@ export const RailPanel = memo(function RailPanel({
 }) {
   const view = railAccountModel(account, now);
   const active = selectedId === OVERVIEW_ID;
+  const email = view && view.mode === "subscription" ? view.email : null;
   const [revealed, setRevealed] = useState(false);
+  // Snap back to masked whenever the account identity changes, so a different account's email never
+  // renders in the clear just because the previous one was revealed. Resetting during render (not in
+  // an effect) means the new email never paints unmasked, even for a frame.
+  const [prevEmail, setPrevEmail] = useState(email);
+  if (prevEmail !== email) {
+    setPrevEmail(email);
+    setRevealed(false);
+  }
 
   return (
     <div className="shrink-0 p-3">
