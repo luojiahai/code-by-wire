@@ -16,6 +16,8 @@ export type IconName =
   | "clock"
   | "code"
   | "copy"
+  | "eye"
+  | "eye-off"
   | "folder-open"
   | "github"
   | "git-branch"
