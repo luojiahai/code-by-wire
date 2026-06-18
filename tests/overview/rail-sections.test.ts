@@ -84,6 +84,15 @@ describe("railSections", () => {
     expect(active.map((x) => x.id)).toEqual(["a"]);
     expect(ended.map((x) => x.id)).toEqual(["c"]);
   });
+
+  it("leaves both zones empty when nothing matches", () => {
+    const { active, ended } = railSections(
+      [s("a", "idle"), s("b", "ended")],
+      "zzz",
+    );
+    expect(active).toEqual([]);
+    expect(ended).toEqual([]);
+  });
 });
 
 describe("orderedSessions", () => {
