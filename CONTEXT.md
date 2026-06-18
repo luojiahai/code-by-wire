@@ -42,6 +42,10 @@ _Avoid_: agent, worker, child
 A unit of work tracked in a session's task list, with a status and optional dependencies on other tasks. Not a Subagent, and not a single tool call.
 _Avoid_: todo, item, ticket
 
+**Background shell**:
+A long-running shell command a session launches to keep working in the background, with its own streamed output. Reconstructed from the transcript and surfaced alongside the session. Not a Subagent and not a Task.
+_Avoid_: process, job, terminal
+
 ### Session states
 
 **Working**:

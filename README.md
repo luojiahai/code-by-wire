@@ -22,14 +22,14 @@ telemetry the terminal hides. One pane instead of a dozen terminal windows.
 
 ## What you get
 
-- **Every session in one rail.** Grouped by what needs you first: waiting,
-  working, idle, ended.
+- **Every session in one rail.** Active sessions in one live list, each card
+  flagging its own state; ended ones fold into a zone below.
 - **Drive or just watch.** Spawn a managed session in an embedded terminal, or
   observe any other session read-only.
 - **The full transcript.** Every message, tool call, and result, reconstructed
   from disk and rendered cleanly.
 - **The telemetry the CLI hides.** Live cost, context window, token throughput,
-  git, tasks, and subagents, per session.
+  git, tasks, subagents, and background shells, per session.
 - **The whole story.** A cross-session overview with a year-long contributions
   calendar and exact, never-estimated totals.
 - **Knows your account.** Reads your plan and rate-limit gauges straight from
@@ -42,9 +42,10 @@ machine is there.
 
 ### 👀 See every session at a glance
 
-**Grouped by what needs you.** A filter box narrows the list as you type. Each
-state group (Waiting, Working, Idle, Ended) carries a sticky header and a live
-count, and Ended collapses by default. It's the archive, not the live work.
+**Active up top, ended folded away.** Everything still running sits in one live
+list, newest first, each card carrying a small state icon for working, waiting,
+or idle. A filter box narrows it as you type. Ended sessions collapse into their
+own zone below, the archive, not the live work.
 
 ### 🕹️ Drive or watch any session
 
@@ -62,9 +63,16 @@ keeps buffering, so you never lose scrollback.
 **The full transcript, step by step.** Every message, tool call, and tool
 result, reconstructed from the raw transcript on disk and rendered cleanly.
 
-**Turn timeline.** A turn-by-turn strip below the live view: each prompt you
-sent, how many tools it triggered, how long the turn ran, and how long ago it
-started.
+**A dock that follows the work.** Below the live view, a dock tabs through the
+session's structure and snaps to whatever's happening:
+
+- **Tasks.** The task list with each item's status and what it's blocked by.
+- **Subagents.** The child sessions a session spawned, as a live timeline you
+  can drill into.
+- **Shells.** Background shells the session kicked off, reconstructed from the
+  transcript, with their full output on demand.
+- **Turns.** A turn-by-turn strip: each prompt you sent, how many tools it
+  triggered, how long it ran, and how long ago.
 
 ### 📊 The telemetry Claude Code keeps out of sight
 
@@ -81,9 +89,6 @@ A right-hand rail of live panels:
 - **Token speed.** Live throughput, output and input rates over a rolling window.
 - **Git.** Branch, lines added and removed, ahead/behind, current SHA, and
   working-tree status. Hidden when the directory isn't a repo.
-- **Tasks.** The session's task list with each item's status and what it's
-  blocked by.
-- **Subagents.** The tree of child sessions a session spawned, nested by depth.
 - **Session.** Model, effort level, and the run clock.
 
 ### 📈 The whole story across every session
@@ -111,10 +116,15 @@ else.
 
 ### 💳 Know your account
 
-The rail header reads your account straight from the `.claude` directory. On a subscription
-(Pro or Max) it shows your plan and rate-limit gauges with live reset
-countdowns, so you can see how close you are to a wall. On an API account it
-shows the endpoint host and plan.
+The rail header reads your account straight from the `.claude` directory. On a
+subscription (Pro or Max) it shows your plan and rate-limit gauges with live
+reset countdowns, so you can see how close you are to a wall. On an API account
+it shows the endpoint host and plan. The account email is masked by default, one
+click to reveal, so you can screen-share without leaking it.
+
+**Is the CLI ready?** A status band under the account checks your local Claude
+Code: whether it's found, current, and logged in, and points you at the fix when
+it isn't.
 
 ## Install
 
