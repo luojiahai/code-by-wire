@@ -537,6 +537,53 @@ describe("parseTranscript", () => {
       cacheCreationTokens: 2000,
     });
   });
+
+  it("captures createdMs as the earliest timestamp, regardless of row order", () => {
+    const jsonl = [
+      {
+        type: "user",
+        isMeta: false,
+        cwd: "/w/app",
+        timestamp: "2026-06-10T10:00:00.000Z",
+        message: { role: "user", content: "first prompt" },
+      },
+      {
+        type: "assistant",
+        timestamp: "2026-06-10T09:00:00.000Z",
+        message: {
+          id: "m1",
+          model: "claude-sonnet-4-6",
+          content: [],
+          usage: { input_tokens: 1 },
+        },
+      },
+      {
+        type: "assistant",
+        timestamp: "2026-06-10T11:00:00.000Z",
+        message: {
+          id: "m2",
+          model: "claude-sonnet-4-6",
+          content: [],
+          usage: { input_tokens: 1 },
+        },
+      },
+    ]
+      .map((r) => JSON.stringify(r))
+      .join("\n");
+    const s = parseTranscript(jsonl);
+    expect(s.createdMs).toBe(Date.parse("2026-06-10T09:00:00.000Z"));
+    expect(s.lastActivityMs).toBe(Date.parse("2026-06-10T11:00:00.000Z"));
+  });
+
+  it("reports createdMs as 0 when no row carries a parseable timestamp", () => {
+    const jsonl = JSON.stringify({
+      type: "user",
+      isMeta: false,
+      cwd: "/w/app",
+      message: { role: "user", content: "hi" },
+    });
+    expect(parseTranscript(jsonl).createdMs).toBe(0);
+  });
 });
 
 describe("firstTranscriptCwd", () => {

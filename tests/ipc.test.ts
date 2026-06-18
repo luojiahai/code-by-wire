@@ -28,6 +28,7 @@ const seed: PersistedSession = {
   management: "observed",
   model: "opus",
   lastActivityMs: 1,
+  createdMs: 0,
   awaitingUser: false,
   transcriptMtimeMs: 0,
   usage: {

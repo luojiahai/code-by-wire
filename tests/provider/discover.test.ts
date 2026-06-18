@@ -150,6 +150,17 @@ describe("summarize", () => {
     expect(s.title).toBe("unknown");
     expect(s.project).toBe("unknown");
   });
+
+  it("falls back to the registry updatedAt for createdMs when there is no transcript", () => {
+    const snap = summarize({
+      id: "x",
+      alive: false,
+      cwd: "/w/app",
+      transcriptMtimeMs: 0,
+      updatedAt: 1780950000000,
+    });
+    expect(snap.createdMs).toBe(1780950000000);
+  });
 });
 
 describe("restate", () => {

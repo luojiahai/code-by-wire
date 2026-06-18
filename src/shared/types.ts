@@ -80,6 +80,9 @@ export interface Session {
   /** Working directory from the live capture, used to scope the lazy git/voice reads. Absent ⇒ no sample. */
   cwd?: string;
   lastActivityMs: number;
+  /** Session creation time (epoch ms); see PersistedSession.createdMs. The rail orders Active
+   *  sessions by this, newest first. */
+  createdMs: number;
   currentTask?: string;
   waitingReason?: string;
 }
@@ -100,6 +103,10 @@ export interface PersistedSession {
   /** The raw transcript model string for this session (see Session.modelRaw). */
   modelRaw?: string;
   lastActivityMs: number;
+  /** Session creation time (epoch ms): the earliest parseable transcript timestamp, frozen as the
+   *  monotonic minimum across reparses (see store.ts UPSERT). Falls back to the registry updatedAt,
+   *  else 0. The rail's Active list sorts on this so a row doesn't move as the session works. */
+  createdMs: number;
   /** Last parsed transcript tail left a prompt unanswered. Stored so state can be recomputed on a
    *  sync that skips the (unchanged) transcript, without reparsing it. */
   awaitingUser: boolean;

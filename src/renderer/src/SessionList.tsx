@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import type { Session, SessionState, Account } from "@shared/types";
+import type { Session, Account } from "@shared/types";
 import type { CliStatus } from "@shared/cli-status";
 import { RailPanel } from "./ui/RailPanel";
 import { RailCliStatus } from "./ui/RailCliStatus";
-import { groupSessions } from "@shared/overview";
+import { railSections } from "@shared/overview";
 import { formatRelativeTime } from "@shared/format";
 import { cx, Dot, SessionTile } from "./ui/atoms";
 import { OverlayScroll } from "./ui/OverlayScroll";
@@ -11,9 +11,9 @@ import { Icon } from "./ui/icons";
 import { STATE_META, ctxTone, isContextHigh } from "./ui/meta";
 
 /**
- * The master rail: every session grouped by state (Waiting → Working → Idle → Ended) with sticky group
- * headers and counts, narrowed by a filter box. Rows are real <button>s, so the list is keyboard- and
- * screen-reader-navigable. Selecting a row opens it in the detail pane to the right.
+ * The master rail: a headerless Active list (every non-ended session, newest-created first) above a
+ * single collapsible Ended section, narrowed by a filter box. Rows are real <button>s, so the list is
+ * keyboard- and screen-reader-navigable. Selecting a row opens it in the detail pane to the right.
  */
 export function SessionList({
   sessions,
@@ -43,23 +43,15 @@ export function SessionList({
   // The account gauges only need second granularity for their reset countdowns. Floor the clock so a
   // burst of filter keystrokes (which re-render this rail) doesn't re-tick the memoized RailPanel.
   const accountClock = Math.floor(now / 1000) * 1000;
-  const groups = useMemo(
-    () => groupSessions(sessions, query),
+  const { active, ended } = useMemo(
+    () => railSections(sessions, query),
     [sessions, query],
   );
-  // Collapsed groups, by state. Ended is collapsed by default — it's the archive, not the live work.
-  // An active filter force-expands every group so a match can't hide inside a collapsed one.
-  const [collapsed, setCollapsed] = useState<Set<SessionState>>(
-    () => new Set<SessionState>(["ended"]),
-  );
+  // Only Ended collapses — it's the archive. Active is your live work and stays open. An active filter
+  // force-expands Ended so a match can't hide inside it.
+  const [endedCollapsed, setEndedCollapsed] = useState(true);
   const filtering = query.trim() !== "";
-  const toggle = (state: SessionState): void =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(state)) next.delete(state);
-      else next.add(state);
-      return next;
-    });
+  const endedOpen = filtering || !endedCollapsed;
   return (
     <aside className="flex w-[332px] shrink-0 flex-col border-r border-ink-800 bg-ink-925">
       <RailPanel
@@ -102,22 +94,37 @@ export function SessionList({
         </div>
       </div>
       <OverlayScroll className="min-h-0 flex-1">
-        {groups.length === 0 ? (
+        {active.length === 0 && ended.length === 0 ? (
           <p className="px-4 py-5 text-[12px] text-fg-faint">
             No sessions match "{query}".
           </p>
         ) : (
-          groups.map((g) => {
-            const isCollapsed = !filtering && collapsed.has(g.state);
-            return (
-              <div key={g.state}>
+          <>
+            {/* Active rows carry no top padding: the filter box's p-3 already sets the gap to the
+                first card, so it sits a uniform 12px below the filter, matching the px-3 sides and the
+                flush Ended header that leads the list when there are no Active rows. */}
+            {active.length > 0 && (
+              <div className="flex flex-col gap-1.5 px-3 pb-2">
+                {active.map((s) => (
+                  <SessionRow
+                    key={s.id}
+                    session={s}
+                    selected={s.id === selectedId}
+                    now={now}
+                    onSelect={() => onSelect(s.id)}
+                  />
+                ))}
+              </div>
+            )}
+            {ended.length > 0 && (
+              <div>
                 <button
                   type="button"
-                  // While filtering, every group is force-expanded; let the header toggle no-op rather
-                  // than silently flip the persisted collapsed state with no visible effect.
-                  onClick={filtering ? undefined : () => toggle(g.state)}
+                  onClick={
+                    filtering ? undefined : () => setEndedCollapsed((v) => !v)
+                  }
                   disabled={filtering}
-                  aria-expanded={!isCollapsed}
+                  aria-expanded={endedOpen}
                   className="sticky top-0 z-10 flex w-full items-center gap-2 border-b border-ink-850 bg-ink-900 px-3.5 py-1.5 text-left transition-colors enabled:hover:bg-ink-850"
                 >
                   <Icon
@@ -125,20 +132,20 @@ export function SessionList({
                     size={12}
                     className={cx(
                       "shrink-0 text-fg-faint transition-transform",
-                      !isCollapsed && "rotate-90",
+                      endedOpen && "rotate-90",
                     )}
                   />
-                  <Dot state={g.state} />
+                  <Dot state="ended" />
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-fg-muted">
-                    {STATE_META[g.state].label}
+                    {STATE_META.ended.label}
                   </span>
                   <span className="font-mono text-[10px] text-fg-faint">
-                    {g.items.length}
+                    {ended.length}
                   </span>
                 </button>
-                {!isCollapsed && (
+                {endedOpen && (
                   <div className="flex flex-col gap-1.5 px-3 py-2">
-                    {g.items.map((s) => (
+                    {ended.map((s) => (
                       <SessionRow
                         key={s.id}
                         session={s}
@@ -150,8 +157,8 @@ export function SessionList({
                   </div>
                 )}
               </div>
-            );
-          })
+            )}
+          </>
         )}
       </OverlayScroll>
     </aside>

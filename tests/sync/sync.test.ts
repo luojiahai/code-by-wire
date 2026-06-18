@@ -27,6 +27,7 @@ const snapOf = (c: SessionCandidate): PersistedSession => ({
   management: "observed",
   model: "opus",
   lastActivityMs: c.transcriptMtimeMs,
+  createdMs: 0,
   awaitingUser: false,
   transcriptMtimeMs: c.transcriptMtimeMs,
   usage: {

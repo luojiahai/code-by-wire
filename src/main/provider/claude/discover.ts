@@ -222,6 +222,7 @@ export function summarize(c: SessionCandidate): PersistedSession {
     model,
     modelRaw: t?.modelRaw,
     lastActivityMs: t?.lastActivityMs || c.updatedAt || 0,
+    createdMs: t?.createdMs || c.updatedAt || 0,
     awaitingUser,
     transcriptMtimeMs: c.transcriptMtimeMs,
     usage: t?.usage ?? {

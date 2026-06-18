@@ -41,6 +41,7 @@ const provider: Provider = {
     management: "observed",
     model: "opus",
     lastActivityMs: 0,
+    createdMs: 0,
     awaitingUser: false,
     transcriptMtimeMs: 0,
     usage: {

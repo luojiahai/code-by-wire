@@ -47,6 +47,7 @@ const session = (over: Partial<Session> = {}): Session => ({
   },
   equivApiValueUsd: 3.5,
   lastActivityMs: NOW,
+  createdMs: 0,
   ...over,
 });
 

@@ -19,6 +19,7 @@ const s = (id: string, over: Partial<Session> = {}): Session => ({
   },
   equivApiValueUsd: 0,
   lastActivityMs: 0,
+  createdMs: 0,
   ...over,
 });
 

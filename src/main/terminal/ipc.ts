@@ -35,6 +35,7 @@ function draftSession(id: string, cwd: string, model: Family): Session {
     management: "managed",
     model,
     lastActivityMs: Date.now(),
+    createdMs: Date.now(),
     awaitingUser: false,
     transcriptMtimeMs: 0,
     usage: {

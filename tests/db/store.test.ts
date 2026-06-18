@@ -19,6 +19,7 @@ const snap = (over: Partial<PersistedSession> = {}): PersistedSession => ({
   management: "observed",
   model: "opus",
   lastActivityMs: 1000,
+  createdMs: 2000,
   awaitingUser: false,
   transcriptMtimeMs: 500,
   usage: {
@@ -39,7 +40,7 @@ describe("store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it("round-trips a snapshot, coercing missing branch and the awaitingUser flag", () => {
@@ -146,6 +147,40 @@ describe("store", () => {
     migrate(db);
     upsertSessions(db, [snap({ id: "b", modelRaw: undefined })]);
     expect(getPersisted(db)[0].modelRaw).toBeUndefined();
+  });
+
+  it("round-trips createdMs", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [snap({ id: "c1", createdMs: 1717000000000 })]);
+    expect(getPersisted(db)[0].createdMs).toBe(1717000000000);
+    expect(getSessions(db)[0].createdMs).toBe(1717000000000);
+  });
+
+  it("freezes createdMs to the earliest value seen across reparses", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [snap({ id: "f", createdMs: 5000 })]);
+    upsertSessions(db, [snap({ id: "f", createdMs: 3000 })]); // earlier wins
+    expect(getPersisted(db)[0].createdMs).toBe(3000);
+    upsertSessions(db, [snap({ id: "f", createdMs: 9000 })]); // later is ignored
+    expect(getPersisted(db)[0].createdMs).toBe(3000);
+  });
+
+  it("does not clobber a real createdMs with 0 from a timestamp-less reparse", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [snap({ id: "g", createdMs: 4000 })]);
+    upsertSessions(db, [snap({ id: "g", createdMs: 0 })]);
+    expect(getPersisted(db)[0].createdMs).toBe(4000);
+  });
+
+  it("adopts the first real createdMs when the stored value is 0", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [snap({ id: "h", createdMs: 0 })]);
+    upsertSessions(db, [snap({ id: "h", createdMs: 7000 })]);
+    expect(getPersisted(db)[0].createdMs).toBe(7000);
   });
 
   it("prunes ids outside the keep-set, and clears all on an empty keep-set", () => {

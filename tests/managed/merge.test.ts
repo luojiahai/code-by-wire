@@ -22,6 +22,7 @@ const s = (
   },
   equivApiValueUsd: 0,
   lastActivityMs: 0,
+  createdMs: 0,
 });
 
 describe("mergeManaged", () => {

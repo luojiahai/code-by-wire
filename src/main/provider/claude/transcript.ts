@@ -17,6 +17,9 @@ export interface TranscriptSummary {
    *  reported a model. */
   modelRaw?: string;
   lastActivityMs: number;
+  /** Session creation time (epoch ms): the earliest parseable transcript timestamp. 0 when no row
+   *  carried one. The rail's Active list sorts on this so a row doesn't move as the session works. */
+  createdMs: number;
   /** The last turn left a question or permission prompt unanswered (a tool_use with no result). */
   awaitingUser: boolean;
   /** Token usage summed across the transcript's assistant turns — the basis for Equivalent API value. */
@@ -141,6 +144,7 @@ export function parseTranscript(
   let branch: string | undefined;
   let lastModelRaw: string | undefined;
   let lastActivityMs = 0;
+  let createdMs = 0; // 0 = no parseable timestamp seen yet
   const userPrompts: string[] = [];
 
   // Token usage summed over every assistant turn (cost is billed per turn).
@@ -170,7 +174,10 @@ export function parseTranscript(
 
     if (typeof row.timestamp === "string") {
       const ms = Date.parse(row.timestamp);
-      if (!Number.isNaN(ms) && ms > lastActivityMs) lastActivityMs = ms;
+      if (!Number.isNaN(ms)) {
+        if (ms > lastActivityMs) lastActivityMs = ms;
+        if (createdMs === 0 || ms < createdMs) createdMs = ms;
+      }
     }
 
     if (row.type === "assistant" && typeof row.message?.model === "string") {
@@ -255,6 +262,7 @@ export function parseTranscript(
     model: normalizeModelId(lastModelRaw),
     modelRaw: lastModelRaw,
     lastActivityMs,
+    createdMs,
     awaitingUser: tail.awaitingUser,
     usage: { inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens },
     contextTokens: tail.context ? contextTotal(tail.context) : 0,
