@@ -135,7 +135,7 @@ pnpm dev              # 启动应用
 `pnpm test` 会针对 `tests/fixtures/` 中脱敏后的 `.claude` fixture 运行 provider 读取测试。
 `pnpm typecheck` 检查主进程和渲染进程两个项目。
 
-想参与开发请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
+这是个人项目，不接受外部代码贡献，但欢迎反馈问题和想法。[提交 issue](https://github.com/luojiahai/code-by-wire/issues/new/choose)，或查看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可证
 

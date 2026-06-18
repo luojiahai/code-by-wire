@@ -160,7 +160,9 @@ pnpm dev              # launch the app
 `pnpm test` runs the provider read tests over the redacted `.claude` fixtures
 in `tests/fixtures/`. `pnpm typecheck` checks the main and renderer projects.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+This is a personal project and isn't taking outside code, but bug reports and
+ideas are welcome. [Open an issue](https://github.com/luojiahai/code-by-wire/issues/new/choose),
+or see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
