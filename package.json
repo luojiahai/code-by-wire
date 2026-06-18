@@ -1,7 +1,7 @@
 {
   "name": "code-by-wire",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "The cockpit for local Claude Code.",
   "author": "luojiahai",
   "license": "MIT",

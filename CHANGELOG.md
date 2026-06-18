@@ -6,6 +6,41 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-06-18
+
+### Added
+
+- A Shells tab in the dock that lists each session's background shells,
+  reconstructed from the transcript, and lets you drill into any shell's full
+  log on the main surface with a live tail and ANSI colors.
+- A reset control in the Overall Stats view that drops and rebuilds the
+  analytics index from scratch, behind a danger-tone confirmation.
+- An email reveal toggle in the account rail that masks the subscription email
+  by default, so you can demo the app without exposing it.
+
+### Changed
+
+- Rebuilt the left sidebar as a single rail panel: the account card opens the
+  Overview, sessions render as cards with a state-icon tile where the icon shape
+  encodes session state and its tone encodes management, and the CLI status sits
+  in a band below the account card with its version. The CLI status modal moved
+  onto the shared modal shell around one dynamic banner.
+- Split the session list into Active and Ended zones by creation time — a
+  headerless Active list above a collapsible Ended section — and froze each
+  session's creation time to its earliest transcript timestamp so the order
+  holds across reparses.
+- Reworked the dock tabs: underline and lozenge tab styles, Tasks folded into
+  the dock as a tabbed section, and the idle dock defaulting to Tasks when a
+  session has any.
+- Restyled subagent lanes into single-row, description-first bands.
+- Gave the session list, workspace, stats, and dock a VSCode-style overlay
+  scrollbar that reveals on hover without taking layout space.
+
+### Fixed
+
+- Spawned sessions now inherit the resolved `CLAUDE_CONFIG_DIR`, so a relocated
+  Claude config directory carries into sessions the app starts.
+
 ## [0.1.5] - 2026-06-17
 
 ### Added
@@ -126,7 +161,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/luojiahai/code-by-wire/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/luojiahai/code-by-wire/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/luojiahai/code-by-wire/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/luojiahai/code-by-wire/compare/v0.1.2...v0.1.3
