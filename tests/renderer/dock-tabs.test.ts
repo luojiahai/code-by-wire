@@ -71,16 +71,25 @@ describe("subagentStats", () => {
 });
 
 describe("defaultDockTab", () => {
-  it("defaults to turns with no live fan-out", () => {
-    expect(defaultDockTab({ total: 0, working: 0, done: 0, failed: 0 })).toBe(
-      "turns",
-    );
-    expect(defaultDockTab(subagentStats([sub("a", "done")]))).toBe("turns");
-  });
-  it("defaults to subagents while a fan-out is alive", () => {
-    expect(defaultDockTab(subagentStats([sub("a", "working")]))).toBe(
+  it("defaults to subagents while a fan-out is alive, tasks or not", () => {
+    expect(defaultDockTab(subagentStats([sub("a", "working")]), 0)).toBe(
       "subagents",
     );
+    expect(defaultDockTab(subagentStats([sub("a", "working")]), 5)).toBe(
+      "subagents",
+    );
+  });
+  it("defaults to tasks when idle and any task exists", () => {
+    expect(
+      defaultDockTab({ total: 0, working: 0, done: 0, failed: 0 }, 3),
+    ).toBe("tasks");
+    expect(defaultDockTab(subagentStats([sub("a", "done")]), 1)).toBe("tasks");
+  });
+  it("falls back to turns when idle with no tasks", () => {
+    expect(
+      defaultDockTab({ total: 0, working: 0, done: 0, failed: 0 }, 0),
+    ).toBe("turns");
+    expect(defaultDockTab(subagentStats([sub("a", "done")]), 0)).toBe("turns");
   });
 });
 

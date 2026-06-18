@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Subagent, Task, BackgroundShell } from "@shared/types";
 import { Icon } from "../../ui/icons";
-import { SegmentedTabs } from "../../ui/SegmentedTabs";
+import { Tabs } from "../../ui/Tabs";
 import type { DocState } from "../use-transcript";
 import { DockTasks } from "./DockTasks";
 import { TurnsTab } from "./TurnsTab";
@@ -16,10 +16,10 @@ import {
 } from "./dock-tabs";
 
 /**
- * The Session workspace's bottom Structure dock: a fixed left Tasks segment plus a tabbed right area
- * (Turns / Subagents), spanning the center column below the live view. Replaces the old standalone
- * Timeline strip. Collapses to a thin tally bar so the Transcript can take the full height, and
- * width-gates with the rail (hidden below `lg`) so a narrow window degrades cleanly to just the live view.
+ * The Session workspace's bottom Structure dock: a single tabbed section (Tasks / Subagents / Shells /
+ * Turns) spanning the center column below the live view. Collapses to a thin tally bar so the Transcript
+ * can take the full height, and width-gates with the rail (hidden below `lg`) so a narrow window degrades
+ * cleanly to just the live view.
  */
 export function StructureDock({
   tasks,
@@ -64,7 +64,7 @@ export function StructureDock({
         ? "shells"
         : activeAgentId
           ? "subagents"
-          : defaultDockTab(stats);
+          : defaultDockTab(stats, tasks.length);
 
   if (collapsed)
     return (
@@ -77,52 +77,48 @@ export function StructureDock({
     );
 
   return (
-    <div className="hidden h-64 shrink-0 border-t border-ink-800 bg-ink-925 lg:flex">
-      <OverlayScroll
-        className="w-72 shrink-0 border-r border-ink-800"
-        contentClassName="p-3"
-      >
-        <DockTasks tasks={tasks} />
+    <div className="hidden h-64 shrink-0 flex-col border-t border-ink-800 bg-ink-925 lg:flex">
+      <DockTabBar
+        tab={tab}
+        onChange={(t) => setPick({ tab: t, alive })}
+        taskCount={tasks.length}
+        turnCount={turns.length}
+        subagentCount={stats.total}
+        shellCount={shells.length}
+        onCollapse={() => setCollapsed(true)}
+      />
+      <OverlayScroll className="min-h-0 flex-1">
+        {tab === "tasks" ? (
+          <DockTasks tasks={tasks} />
+        ) : tab === "subagents" ? (
+          <SubagentsTab
+            subagents={subagents}
+            stats={stats}
+            now={now}
+            activeAgentId={activeAgentId}
+            onDrill={onDrill}
+          />
+        ) : tab === "shells" ? (
+          <ShellsTab
+            shells={shells}
+            now={now}
+            activeShellId={activeShellId}
+            onDrill={onDrillShell}
+          />
+        ) : (
+          <TurnsTab turns={turns} now={now} />
+        )}
       </OverlayScroll>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <DockTabBar
-          tab={tab}
-          onChange={(t) => setPick({ tab: t, alive })}
-          turnCount={turns.length}
-          subagentCount={stats.total}
-          shellCount={shells.length}
-          onCollapse={() => setCollapsed(true)}
-        />
-        <OverlayScroll className="min-h-0 flex-1">
-          {tab === "turns" ? (
-            <TurnsTab turns={turns} now={now} />
-          ) : tab === "subagents" ? (
-            <SubagentsTab
-              subagents={subagents}
-              stats={stats}
-              now={now}
-              activeAgentId={activeAgentId}
-              onDrill={onDrill}
-            />
-          ) : (
-            <ShellsTab
-              shells={shells}
-              now={now}
-              activeShellId={activeShellId}
-              onDrill={onDrillShell}
-            />
-          )}
-        </OverlayScroll>
-      </div>
     </div>
   );
 }
 
-/** The dock's tab bar: the shared SegmentedTabs pill of Turns / Subagents (each with a count) plus a
- *  collapse glyph. */
+/** The dock's tab bar: the shared lozenge Tabs of Tasks / Subagents / Shells / Turns (each with a count)
+ *  plus a collapse glyph. */
 function DockTabBar({
   tab,
   onChange,
+  taskCount,
   turnCount,
   subagentCount,
   shellCount,
@@ -130,21 +126,24 @@ function DockTabBar({
 }: {
   tab: DockTab;
   onChange: (t: DockTab) => void;
+  taskCount: number;
   turnCount: number;
   subagentCount: number;
   shellCount: number;
   onCollapse: () => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 px-3 py-2">
-      <SegmentedTabs<DockTab>
+    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 px-3 py-1.5">
+      <Tabs<DockTab>
         tabs={[
-          { id: "turns", label: "Turns", count: turnCount },
+          { id: "tasks", label: "Tasks", count: taskCount },
           { id: "subagents", label: "Subagents", count: subagentCount },
           { id: "shells", label: "Shells", count: shellCount },
+          { id: "turns", label: "Turns", count: turnCount },
         ]}
         value={tab}
         onChange={onChange}
+        variant="lozenge"
       />
       <button
         type="button"

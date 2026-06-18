@@ -6,7 +6,7 @@ import type {
   BackgroundShell,
 } from "@shared/types";
 import { Icon } from "../ui/icons";
-import { SegmentedTabs } from "../ui/SegmentedTabs";
+import { Tabs } from "../ui/Tabs";
 import { TranscriptView } from "./TranscriptView";
 import { TerminalView } from "../terminal/TerminalView";
 import { useTranscript, type DocState } from "./use-transcript";
@@ -320,7 +320,8 @@ const CENTER_TABS: {
   { id: "transcript", label: "Transcript", icon: "messages-square" },
 ];
 
-/** The segmented Terminal/Transcript control: the shared SegmentedTabs pill with the active tab raised. */
+/** The Terminal/Transcript view switch: underline tabs with their leading glyphs, the active one
+ *  carrying a wire underline on the bar's hairline. */
 function ViewTabs({
   tab,
   onChange,
@@ -329,11 +330,12 @@ function ViewTabs({
   onChange: (t: CenterTab) => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-3 py-2">
-      <SegmentedTabs<CenterTab>
+    <div className="flex h-[34px] shrink-0 items-stretch border-b border-ink-800 bg-ink-925 pr-3">
+      <Tabs<CenterTab>
         tabs={CENTER_TABS}
         value={tab}
         onChange={onChange}
+        variant="underline"
       />
     </div>
   );

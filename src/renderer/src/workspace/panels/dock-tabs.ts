@@ -3,8 +3,8 @@ import { niceAxisMax, round2, spanPct } from "../../ui/charts-geom";
 
 // JSX-free dock logic, so the tests can import it under tsconfig.node.json (mirrors open-in-items.ts).
 
-/** The dock's right-area tabs. */
-export type DockTab = "turns" | "subagents" | "shells";
+/** The dock's tabs. */
+export type DockTab = "tasks" | "turns" | "subagents" | "shells";
 
 /** The forest tallies the dock needs, gathered in a single walk: total nodes (the Subagents count badge)
  *  and the per-status counts (the live-fan-out signal, the collapsed tally's working count, and the
@@ -40,10 +40,14 @@ export function subagentStats(subagents: Subagent[]): SubagentStats {
   }, ZERO_STATS);
 }
 
-/** The dock's right tab defaults to Subagents while a fan-out is alive (any node working), Turns
- *  otherwise. */
-export function defaultDockTab(stats: SubagentStats): DockTab {
-  return stats.working > 0 ? "subagents" : "turns";
+/** The dock's tab default: Subagents while a fan-out is alive (any node working); otherwise Tasks when
+ *  the session has any, else the Turns timeline. */
+export function defaultDockTab(
+  stats: SubagentStats,
+  taskCount: number,
+): DockTab {
+  if (stats.working > 0) return "subagents";
+  return taskCount > 0 ? "tasks" : "turns";
 }
 
 /** Flatten the subagent forest to a flat lane list, depth-first, each parent before its subtree. The
