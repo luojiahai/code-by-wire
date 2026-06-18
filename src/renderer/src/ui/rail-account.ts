@@ -42,6 +42,22 @@ function bareHost(url: string): string {
 }
 
 /**
+ * Mask an email for display: the first couple of local-part characters, a fixed run of bullets, and the
+ * full domain (e.g. "ljiahai@hotmail.com" -> "lj••••@hotmail.com"). The bullet count is fixed, not the real
+ * local-part length, so the masked form doesn't leak how long the address is. The domain stays in full — it's
+ * the mail provider, the strongest "which account am I" hint, and low sensitivity. A short local part reveals
+ * at most length-1 chars so it's never shown whole. A value with no '@' (not a real email, defensive only) is
+ * masked the same way with no domain.
+ */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf("@");
+  const local = at === -1 ? email : email.slice(0, at);
+  const domain = at === -1 ? "" : email.slice(at); // includes the leading "@"
+  const prefixLen = Math.min(2, Math.max(0, local.length - 1));
+  return local.slice(0, prefixLen) + "••••" + domain;
+}
+
+/**
  * Resolve what the rail's account block should show. Two mutually exclusive modes:
  *
  * - subscription: the 5h and weekly windows (each with a reset countdown) and the login email. Returns null when there's neither an email nor a window

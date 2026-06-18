@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { railAccountModel } from "../../src/renderer/src/ui/rail-account";
+import {
+  maskEmail,
+  railAccountModel,
+} from "../../src/renderer/src/ui/rail-account";
 import type { Account } from "@shared/types";
 
 // Fixed clock; resets are expressed as offsets from it so the countdown strings are deterministic.
@@ -116,5 +119,31 @@ describe("railAccountModel — suppression", () => {
       sevenDay: { usedPct: 18, resetsAt: in5d },
     };
     expect(railAccountModel(acc, NOW)).toBeNull();
+  });
+});
+
+describe("maskEmail", () => {
+  it("shows the first 2 local chars, fixed bullets, and the full domain", () => {
+    expect(maskEmail("ljiahai@hotmail.com")).toBe("lj••••@hotmail.com");
+  });
+
+  it("keeps the local part before the '+' for plus-addressing", () => {
+    expect(maskEmail("geoff+tag@gmail.com")).toBe("ge••••@gmail.com");
+  });
+
+  it("reveals only one char when the local part is two chars", () => {
+    expect(maskEmail("ab@x.io")).toBe("a••••@x.io");
+  });
+
+  it("reveals no local chars when the local part is one char", () => {
+    expect(maskEmail("a@b.com")).toBe("••••@b.com");
+  });
+
+  it("preserves a multi-label domain in full", () => {
+    expect(maskEmail("user@mail.corp.co.uk")).toBe("us••••@mail.corp.co.uk");
+  });
+
+  it("masks with no domain when there is no '@' (defensive)", () => {
+    expect(maskEmail("weird")).toBe("we••••");
   });
 });
