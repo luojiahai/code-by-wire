@@ -64,7 +64,7 @@ export function StructureDock({
         ? "shells"
         : activeAgentId
           ? "subagents"
-          : defaultDockTab(stats);
+          : defaultDockTab(stats, tasks.length);
 
   if (collapsed)
     return (
