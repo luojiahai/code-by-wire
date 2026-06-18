@@ -1,13 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  resolveShellPath,
-  parseProbedPath,
-} from "../../src/main/terminal/shell-path";
+import { resolveShellPath } from "../../src/main/terminal/shell-path";
 
 const HOME = "/Users/me";
 // The bare PATH launchd hands a Finder-launched .app — no ~/.local/bin, so `claude` isn't found.
 const LAUNCHD_PATH = "/usr/bin:/bin:/usr/sbin:/sbin";
-const DELIM = "__CBW_PATH_DELIM__";
 
 describe("resolveShellPath", () => {
   it("prepends the login-shell PATH so an installed `claude` resolves again", () => {
@@ -73,22 +69,5 @@ describe("resolveShellPath", () => {
     });
     expect(out).toBe("/usr/bin:/bin");
     expect(probe).not.toHaveBeenCalled();
-  });
-});
-
-describe("parseProbedPath", () => {
-  it("extracts the fenced PATH, ignoring an rc-file banner and printenv’s trailing newline", () => {
-    // What `printf %s "$DELIM"; printenv PATH; printf %s "$DELIM"` emits, with a banner from .zshrc first.
-    const out = `Welcome to your shell!\n${DELIM}/opt/homebrew/bin:/usr/bin\n${DELIM}`;
-    expect(parseProbedPath(out)).toBe("/opt/homebrew/bin:/usr/bin");
-  });
-
-  it("returns null when the fence is missing (shell errored before the probe ran)", () => {
-    expect(parseProbedPath("command not found: printenv\n")).toBeNull();
-    expect(parseProbedPath(`${DELIM}/usr/bin`)).toBeNull(); // only the opening delimiter
-  });
-
-  it("returns null when the fenced value is empty (PATH unset)", () => {
-    expect(parseProbedPath(`${DELIM}\n${DELIM}`)).toBeNull();
   });
 });

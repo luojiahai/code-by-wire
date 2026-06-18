@@ -63,9 +63,10 @@ export function registerTerminalIpc({
   window: BrowserWindow;
   managed: ManagedRegistry;
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null;
-  /** Returns the env for spawned `claude` sessions, carrying the PATH `claude` lives on. Called lazily on
-   *  the first spawn (see `shellPath`) and memoized, because a packaged .app inherits launchd's bare PATH,
-   *  not the user's shell PATH. Omitted in tests/dev, where the manager falls back to `process.env`. */
+  /** Returns the env for spawned/resumed `claude` sessions: pins CLAUDE_CONFIG_DIR to the dir the app
+   *  reads from (so sessions write where discovery looks) and, when packaged, carries the corrected PATH a
+   *  Finder-launched .app needs to find `claude`. Resolved lazily on the first spawn and memoized. Omitted
+   *  only in tests, where the manager falls back to `process.env`. */
   env?: () => NodeJS.ProcessEnv;
   /** Returns the resolved absolute `claude` binary path from the CLI-status controller, or null to fall
    *  back to PATH resolution. Read at each spawn so a freshly-installed/relocated CLI is picked up. */
