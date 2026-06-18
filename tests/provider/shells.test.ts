@@ -51,7 +51,7 @@ const startResult = (
   toolUseResult: { backgroundTaskId: id, ...extra },
 });
 
-/** A completion task-notification (queue-operation row). */
+/** A completion task-notification (legacy queue-operation row: body in string `content`). */
 const notification = (
   id: string,
   tuid: string,
@@ -63,6 +63,25 @@ const notification = (
   operation: "enqueue",
   timestamp: ts,
   content: `<task-notification>\n<task-id>${id}</task-id>\n<tool-use-id>${tuid}</tool-use-id>\n<output-file>${TASKS}/${id}.output</output-file>\n<status>${status}</status>\n<summary>${summary}</summary>\n</task-notification>`,
+});
+
+/** A completion task-notification as the live CLI records it: an `attachment` row whose commandMode
+ *  marks it a task-notification, with the body in `attachment.prompt` (shape observed in a real 2.1.x
+ *  transcript — the legacy `notification` helper above never appears on disk). */
+const attachmentNotification = (
+  id: string,
+  tuid: string,
+  ts: string,
+  summary: string,
+  status = "completed",
+) => ({
+  type: "attachment",
+  timestamp: ts,
+  attachment: {
+    commandMode: "task-notification",
+    type: "queued_command",
+    prompt: `<task-notification>\n<task-id>${id}</task-id>\n<tool-use-id>${tuid}</tool-use-id>\n<output-file>${TASKS}/${id}.output</output-file>\n<status>${status}</status>\n<summary>${summary}</summary>\n</task-notification>`,
+  },
 });
 
 describe("reconstructShells", () => {
@@ -99,6 +118,23 @@ describe("reconstructShells", () => {
     expect(s.status).toBe("completed");
     expect(s.exitCode).toBe(0);
     expect(s.durationMs).toBe(12_000);
+  });
+
+  it("derives completion from the real attachment-shaped notification", () => {
+    const rows = [
+      bashUse("t1", "pnpm dev", { description: "dev server" }),
+      startResult("t1", "bg1", "2026-06-11T00:00:01.000Z"),
+      attachmentNotification(
+        "bg1",
+        "t1",
+        "2026-06-11T00:00:07.000Z",
+        'Background command "dev" completed (exit code 0)',
+      ),
+    ];
+    const [s] = reconstructShells(rows);
+    expect(s.status).toBe("completed");
+    expect(s.exitCode).toBe(0);
+    expect(s.durationMs).toBe(6_000);
   });
 
   it("reads a non-zero exit code (the row will render as failed)", () => {

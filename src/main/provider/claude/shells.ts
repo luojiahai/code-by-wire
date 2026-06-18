@@ -37,6 +37,22 @@ function tag(body: string, name: string): string | undefined {
   return m ? m[1].trim() : undefined;
 }
 
+/** The <task-notification> body a row carries, from either shape the CLI records it as. The real shape
+ *  is an `attachment` row whose commandMode marks it a task-notification, with the body in
+ *  `attachment.prompt`; a queue-operation row carries the same text as a string `content`. "" when the
+ *  row is neither — so completion is detected regardless of how the transcript framed the notification. */
+function notificationBody(row: any): string {
+  const att = row?.attachment;
+  if (
+    att?.commandMode === "task-notification" &&
+    typeof att.prompt === "string"
+  )
+    return att.prompt;
+  if (row?.type === "queue-operation" && typeof row?.content === "string")
+    return row.content;
+  return "";
+}
+
 /**
  * Reconstruct the background-shell list from the main transcript rows. Pure: same rows, same output.
  * Detection is scoped to a Bash tool_result with a backgroundTaskId, so subagent dispatches (Agent/Task)
@@ -105,9 +121,10 @@ export function reconstructShells(rows: any[]): ShellRecord[] {
   }
 
   // Third pass: completion notifications set completed/killed + exit code + duration, scoped to known ids.
+  // notificationBody reads either row shape (attachment or queue-operation), so a real completion isn't
+  // missed — the <task-notification> marker, not the row type, is the discriminator.
   for (const row of rows) {
-    if (row?.type !== "queue-operation") continue;
-    const body = typeof row.content === "string" ? row.content : "";
+    const body = notificationBody(row);
     if (!body.includes("<task-notification>")) continue;
     const id = tag(body, "task-id");
     if (!id) continue;
