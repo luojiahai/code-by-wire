@@ -89,8 +89,26 @@ export const RailPanel = memo(function RailPanel({
             <>
               {view.email && (
                 <div className="flex items-center gap-1.5 pr-5">
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-fg">
-                    {revealed ? view.email : maskEmail(view.email)}
+                  {/* Masked and full forms share one grid cell, so the slot is sized to the wider of
+                      the two and the eye keeps a fixed position across toggles. Only the active form
+                      is visible; the other holds its space via `invisible` (visibility, not display). */}
+                  <span className="grid min-w-0">
+                    <span
+                      className={cx(
+                        "col-start-1 row-start-1 truncate text-[12.5px] font-medium text-fg",
+                        revealed && "invisible",
+                      )}
+                    >
+                      {maskEmail(view.email)}
+                    </span>
+                    <span
+                      className={cx(
+                        "col-start-1 row-start-1 truncate text-[12.5px] font-medium text-fg",
+                        !revealed && "invisible",
+                      )}
+                    >
+                      {view.email}
+                    </span>
                   </span>
                   <button
                     type="button"
