@@ -95,4 +95,9 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$env:GITHUB_REF_NAME" --clobber (Get-Item release/*.exe, release/*.exe.blockmap, release/latest.yml)
+        run: |
+          $assets = Get-ChildItem -Path release/*.exe, release/*.exe.blockmap, release/latest.yml -ErrorAction SilentlyContinue
+          if (-not ($assets | Where-Object { $_.Extension -eq '.exe' })) {
+            throw "No Windows installer (.exe) was produced in release/"
+          }
+          gh release upload "$env:GITHUB_REF_NAME" --clobber @($assets.FullName)
