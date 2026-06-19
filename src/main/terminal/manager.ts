@@ -230,6 +230,11 @@ export function createTerminalManager(
     write: (id, data) => terms.get(id)?.pty.write(data),
     resize: (id, cols, rows) => terms.get(id)?.pty.resize(cols, rows),
     ack,
+    // We kill the pty synchronously here and in disposeAll — on Windows too, unlike VSCode, which defers
+    // an immediate kill on Windows to dodge a ConPTY hang. VSCode can afford the deferral because its
+    // pty-host process outlives the window and force-kills after a timeout; we run ptys in the main
+    // process and tear down on window-close / app-quit, where a deferred timer may never fire (the process
+    // can exit first) and would orphan the claude child. So synchronous best-effort kill is correct here.
     kill: (id) => terms.get(id)?.pty.kill(),
     disposeAll: () => {
       for (const [id, term] of terms) {
