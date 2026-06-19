@@ -6,10 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-19
+
 ### Added
 
 - Windows (x64) support: a downloadable NSIS installer, plus parity for spawning,
   adopting, live telemetry, and CLI detection.
+
+### Changed
+
+- Validate a session's working directory before spawn, surfacing the reason
+  ("Starting directory does not exist") instead of a bare "[process exited]".
 
 ## [0.1.6] - 2026-06-18
 
@@ -166,7 +173,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/luojiahai/code-by-wire/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/luojiahai/code-by-wire/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/luojiahai/code-by-wire/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/luojiahai/code-by-wire/compare/v0.1.3...v0.1.4
