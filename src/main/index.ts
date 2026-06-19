@@ -22,7 +22,11 @@ import type { ModelDefaults } from "@shared/models";
 import { resolveClaudeDir } from "./claude-config";
 import { createAppSettingsStore } from "./app-settings";
 import { createCliStatusController } from "./cli-check";
-import { probeShellEnv, resolveShellPath } from "./terminal/shell-path";
+import {
+  probeShellEnv,
+  resolveShellPath,
+  shouldCorrectPath,
+} from "./terminal/shell-path";
 import { HEADER_HEIGHT_PX, MAC_TRAFFIC_LIGHT_POSITION } from "@shared/chrome";
 import { IPC } from "@shared/ipc";
 
@@ -198,7 +202,7 @@ app
     // of spawning a second login shell.
     childEnvInputs = {
       claudeDir,
-      correctedPath: app.isPackaged
+      correctedPath: shouldCorrectPath(process.platform, app.isPackaged)
         ? resolveShellPath({
             platform: process.platform,
             shell: process.env.SHELL,

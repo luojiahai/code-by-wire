@@ -51,6 +51,21 @@ export function resolveShellPath(deps: ResolvePathDeps): string {
   return deduped.join(":");
 }
 
+/**
+ * Whether spawned-session env should override PATH. PATH correction is a macOS-only fix: a
+ * Finder-launched .app inherits launchd's bare PATH, so the packaged mac build recovers the login-shell
+ * PATH (see resolveShellPath). Off darwin the inherited PATH is already correct — and on Windows the real
+ * env key is `Path`, so adding a `PATH` key (what buildChildEnv does when correctedPath is non-null) would
+ * leave the child env carrying both `Path` and `PATH`, a case-insensitive collision. Returning false here
+ * keeps that from happening. Pure + tested.
+ */
+export function shouldCorrectPath(
+  platform: NodeJS.Platform,
+  isPackaged: boolean,
+): boolean {
+  return platform === "darwin" && isPackaged;
+}
+
 const FIELD = "__CBW_FIELD__";
 
 /** Budget for the one-shot login-shell env probe. Heavy rc files (nvm/conda/pyenv/oh-my-zsh) can take a

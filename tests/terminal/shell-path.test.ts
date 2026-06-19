@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { resolveShellPath } from "../../src/main/terminal/shell-path";
+import {
+  resolveShellPath,
+  shouldCorrectPath,
+} from "../../src/main/terminal/shell-path";
 
 const HOME = "/Users/me";
 // The bare PATH launchd hands a Finder-launched .app — no ~/.local/bin, so `claude` isn't found.
@@ -69,5 +72,21 @@ describe("resolveShellPath", () => {
     });
     expect(out).toBe("/usr/bin:/bin");
     expect(probe).not.toHaveBeenCalled();
+  });
+});
+
+describe("shouldCorrectPath", () => {
+  it("corrects PATH only on packaged macOS (the launchd-PATH fix)", () => {
+    expect(shouldCorrectPath("darwin", true)).toBe(true);
+  });
+  it("does not correct PATH in dev on macOS (the dev shell PATH is inherited)", () => {
+    expect(shouldCorrectPath("darwin", false)).toBe(false);
+  });
+  it("never corrects PATH on Windows — its native `Path` is already right, and a `PATH` key would collide", () => {
+    expect(shouldCorrectPath("win32", true)).toBe(false);
+    expect(shouldCorrectPath("win32", false)).toBe(false);
+  });
+  it("never corrects PATH on Linux", () => {
+    expect(shouldCorrectPath("linux", true)).toBe(false);
   });
 });
