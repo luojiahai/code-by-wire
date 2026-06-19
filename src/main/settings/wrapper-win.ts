@@ -1,17 +1,24 @@
 import type { WrapperSpec } from "./wrapper";
 
-/** The call-through line bakes the user's command after this prefix; recoverWrappedCommandWin reads it back. */
-const CALL_THROUGH_PREFIX = "# CBW_CALL_THROUGH: ";
+/** The wrapped command is baked verbatim between these two markers — a single-quoted PowerShell here-string
+ *  (`@'…'@`). recoverWrappedCommandWin reads back exactly the bytes between them. The here-string is fully
+ *  literal: PowerShell applies no `$`-interpolation and no escaping to its body, so a command containing
+ *  `$env:…`, a backtick, or quotes round-trips unchanged, and embedded newlines are preserved instead of
+ *  truncating the command or breaking out of a comment line. The only sequence the body cannot contain is a
+ *  line consisting solely of `'@` (which would close the here-string early) — the same class of
+ *  delimiter-collision edge the POSIX wrapper has with its tail marker. */
+const HEREDOC_OPEN = "$cbwCmd = @'\n";
+const HEREDOC_CLOSE = "\n'@\n";
 
-/** The fixed script tail emitted after the (optional) call-through line. */
+/** The fixed script tail emitted after the (optional) call-through. */
 const SCRIPT_TAIL = "# CBW_END\n";
 
 /**
  * PowerShell statusLine wrapper (ADR-0001) for Windows. Captures Claude Code's stdin JSON to a
  * per-session side-channel file under the capture dir next to this script, then calls through to
  * the user's original command so their prompt still renders. Best-effort throughout; never fails
- * the prompt. The wrapped command is baked between CALL_THROUGH_PREFIX and SCRIPT_TAIL so
- * recoverWrappedCommandWin is its exact inverse.
+ * the prompt. The wrapped command is baked verbatim into a single-quoted here-string so
+ * recoverWrappedCommandWin is its exact inverse (see HEREDOC_OPEN/HEREDOC_CLOSE).
  *
  * The capture dir is `<scriptdir>/statusline/` (relative, via $PSScriptRoot) so a Claude dir
  * containing special characters can't corrupt the script. session_id is extracted via regex.
@@ -19,12 +26,19 @@ const SCRIPT_TAIL = "# CBW_END\n";
  * capture is published via tmp-then-rename (WriteAllText + Move-Item -Force) so a reader never
  * sees a half-written file. $ErrorActionPreference = 'SilentlyContinue' keeps all capture steps
  * best-effort; the script always exits cleanly.
+ *
+ * The call-through runs the user's command through `cmd /c` — the same interpreter Claude Code
+ * itself uses to run a Windows statusLine command — with the captured JSON piped to its stdin.
+ * The command reaches cmd via $cbwCmd (a variable, not a string literal), so PowerShell does not
+ * re-interpolate or re-escape it on the way through.
  */
 export function wrapperScriptWin({ wrappedCommand }: WrapperSpec): string {
   const callThrough =
     wrappedCommand && wrappedCommand.trim() !== ""
-      ? `${CALL_THROUGH_PREFIX}${wrappedCommand}\n` +
-        `$json | & cmd /c ${JSON.stringify(wrappedCommand)} 2>$null\n`
+      ? HEREDOC_OPEN +
+        wrappedCommand +
+        HEREDOC_CLOSE +
+        `$json | & cmd.exe /c $cbwCmd 2>$null\n`
       : "";
   return (
     `# code-by-wire statusLine wrapper (PowerShell) — AUTO-GENERATED, do not edit.\n` +
@@ -43,11 +57,13 @@ export function wrapperScriptWin({ wrappedCommand }: WrapperSpec): string {
   );
 }
 
-/** Recover the wrapped command baked into a Windows wrapper — exact inverse of wrapperScriptWin. */
+/** Recover the wrapped command baked into a Windows wrapper — exact inverse of wrapperScriptWin. Returns the
+ *  bytes between the here-string markers verbatim (multi-line and special characters preserved), or null for
+ *  a capture-only wrapper or text this no longer recognizes — both reinstall clean. */
 export function recoverWrappedCommandWin(src: string): string | null {
-  const start = src.indexOf(CALL_THROUGH_PREFIX);
+  const start = src.indexOf(HEREDOC_OPEN);
   if (start === -1) return null;
-  const after = src.slice(start + CALL_THROUGH_PREFIX.length);
-  const nl = after.indexOf("\n");
-  return nl === -1 ? null : after.slice(0, nl);
+  const contentStart = start + HEREDOC_OPEN.length;
+  const end = src.indexOf(HEREDOC_CLOSE, contentStart);
+  return end === -1 ? null : src.slice(contentStart, end);
 }

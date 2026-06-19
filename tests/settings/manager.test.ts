@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { createSettingsManager } from "../../src/main/settings/manager";
+import { recoverWrappedCommandWin } from "../../src/main/settings/wrapper-win";
 import { tempHomes } from "../helpers/temp-home";
 
 const makeWinHome = tempHomes("cbw-mgr-win-");
@@ -756,7 +757,7 @@ describe("install — win32 platform selection", () => {
       "utf8",
     );
     expect(ps1).toContain("my-prompt"); // call-through baked
-    expect(ps1).toContain("CBW_CALL_THROUGH"); // recoverable
+    expect(recoverWrappedCommandWin(ps1)).toBe("my-prompt"); // recoverable verbatim
 
     mgr.uninstall();
     const restored = JSON.parse(
