@@ -16,7 +16,7 @@ Claude Code 一边工作，一边把丰富的轨迹写进 `.claude` 目录：每
 
 ![Code-by-wire](docs/assets/cbw-demo.gif)
 
-**[下载 macOS 版（Apple Silicon）](https://github.com/luojiahai/code-by-wire/releases/latest)**
+**[下载 macOS 版（Apple Silicon）](https://github.com/luojiahai/code-by-wire/releases/latest)** · **[下载 Windows 版（x64）](https://github.com/luojiahai/code-by-wire/releases/latest)**
 
 ## 你能得到什么
 
@@ -111,6 +111,8 @@ Code 会话，而不只是你正在看的那一个。选一个区间：Today、7
 3. 启动它。应用已由 Apple 签名并公证，可以直接打开，没有 Gatekeeper 警告，也不需要绕过
    隔离标记。
 
+Windows 上下载 `.exe` 直接运行。目前未签名，SmartScreen 可能会警告——点 **更多信息 → 仍要运行**。也可用 `pnpm dist:win` 从源码构建（见 CONTRIBUTING）。
+
 ### 从源码构建
 
 也可以在本地构建一个未签名的 `.dmg`：
@@ -130,7 +132,7 @@ xattr -dr com.apple.quarantine /Applications/Code-by-wire.app
 
 ## 环境要求
 
-- macOS（Apple Silicon）
+- macOS（Apple Silicon）或 Windows（x64）
 - 本地安装了 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)，这样才有会话
   可供观察和控制
 

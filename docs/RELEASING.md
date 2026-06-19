@@ -1,11 +1,11 @@
 # Releasing
 
-The app ships as an unsigned macOS `.dmg` for Apple Silicon (`arm64`), attached
-to a GitHub release. The build runs in CI on a macOS runner; you never build a
-release on your own machine.
+The app ships a signed macOS `.dmg` (Apple Silicon, `arm64`) and an unsigned
+Windows NSIS `.exe` (x64), attached to a GitHub release built in CI. You never
+build a release on your own machine.
 
-The whole flow is driven by pushing a `vX.Y.Z` tag. CI builds the dmg and uploads
-it to a **draft** GitHub release. You review the draft, then publish it.
+The whole flow is driven by pushing a `vX.Y.Z` tag. CI builds both artifacts and
+uploads them to a **draft** GitHub release. You review the draft, then publish it.
 
 ## Cut a release
 
@@ -30,10 +30,16 @@ it to a **draft** GitHub release. You review the draft, then publish it.
 
 4. **Wait for CI.** The run does:
    - `verify`: fails fast if the tag doesn't equal `v` + `package.json` version.
-     Cheap guard before the mac runner spins up.
-   - `release` on `macos-14`: install → `rebuild:native` → `build` →
-     `electron-builder --publish never`, then a `gh` step creates the draft
-     release once and uploads the dmg, its blockmap, and `latest-mac.yml`.
+     Cheap guard before any runner spins up.
+   - `draft` on `ubuntu-latest`: creates the GitHub draft release exactly once
+     (or reuses it on a re-run).
+   - `build` matrix: two parallel legs after `draft` succeeds.
+     - `macos-14`: install → `rebuild:native` → `build` →
+       `electron-builder --mac --arm64 --publish never` (signs and notarizes),
+       then uploads the `.dmg`, its blockmap, and `latest-mac.yml`.
+     - `windows-latest`: same install/rebuild/build steps →
+       `electron-builder --win --x64 --publish never` (unsigned), then uploads
+       the `.exe`, its blockmap, and `latest.yml`.
 
 5. **Publish the draft.** Releases → find the draft → confirm the notes match the
    changelog → **Publish release**.
@@ -50,12 +56,15 @@ So the job builds with `--publish never` and uploads through `gh` instead: it
 creates the draft once (or reuses it on a re-run) and uploads with `--clobber`,
 which is deterministic and idempotent.
 
-## Apple Silicon only
+## Platforms
 
-Releases are `arm64` only. The Intel (`x64`) leg was dropped: GitHub's `macos-13`
-runners queue for 10-30+ min and are on the way out, and the user base is Apple
-Silicon. Bringing x64 back means adding a second runner leg and reconciling the
-two `latest-mac.yml` manifests into one.
+macOS releases are Apple Silicon (`arm64`) only. The Intel (`x64`) macOS leg was
+dropped: GitHub's `macos-13` runners queue for 10-30+ min and are on the way out,
+and the user base is Apple Silicon.
+
+Windows releases are `x64` only and unsigned. SmartScreen will warn on first
+launch; users click **More info → Run anyway**. Code-signing for Windows is not
+set up yet.
 
 ## Verify a published release
 
@@ -63,9 +72,10 @@ two `latest-mac.yml` manifests into one.
 GH_HOST=github.com gh release view vX.Y.Z -R luojiahai/code-by-wire
 ```
 
-Expect `Code-by-wire-X.Y.Z-arm64.dmg` (+ `.blockmap`) and `latest-mac.yml`. An
-empty asset list means the upload step didn't run or failed. Read the release
-job log.
+Expect `Code-by-wire-X.Y.Z-arm64.dmg` (+ `.blockmap`) and `latest-mac.yml` from
+the macOS leg, and `Code-by-wire Setup X.Y.Z.exe` (+ `.blockmap`) and
+`latest.yml` from the Windows leg. An empty or partial asset list means an upload
+step didn't run or failed — read the relevant `build` job log.
 
 ## Build a dmg locally (testing only, no publish)
 
@@ -99,7 +109,10 @@ an old `--publish always` run):
 
 ## Code signing
 
-Releases are unsigned (`identity: null` in `electron-builder.yml`). On first
-launch users get Gatekeeper's "unidentified developer" warning; they
-right-click → Open, or run `xattr -dr com.apple.quarantine <App>.app`. Signing
-and notarization aren't set up yet.
+macOS releases are signed with a Developer ID certificate and notarized by Apple
+(`CSC_*` and `APPLE_*` secrets in CI), so the downloaded `.dmg` opens without a
+Gatekeeper warning.
+
+Windows releases are unsigned. On first launch SmartScreen shows an "unknown
+publisher" warning; users click **More info → Run anyway**. Windows code-signing
+is not set up yet.

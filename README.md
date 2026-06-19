@@ -18,7 +18,7 @@ telemetry the terminal hides. One pane instead of a dozen terminal windows.
 
 ![Code-by-wire](docs/assets/cbw-demo.gif)
 
-**[Download for macOS (Apple Silicon)](https://github.com/luojiahai/code-by-wire/releases/latest)**
+**[Download for macOS (Apple Silicon)](https://github.com/luojiahai/code-by-wire/releases/latest)** · **[Download for Windows (x64)](https://github.com/luojiahai/code-by-wire/releases/latest)**
 
 ## What you get
 
@@ -137,6 +137,10 @@ Download the prebuilt app, or build it yourself.
 3. Launch it. The app is signed and notarized by Apple, so it opens straight
    away, no Gatekeeper warning and no quarantine workaround.
 
+On Windows, download the `.exe` and run it. It's unsigned for now, so Windows
+SmartScreen may warn — click **More info → Run anyway**. Build from source with
+`pnpm dist:win` (see CONTRIBUTING).
+
 ### Build from source
 
 Build an unsigned `.dmg` locally instead:
@@ -157,7 +161,7 @@ xattr -dr com.apple.quarantine /Applications/Code-by-wire.app
 
 ## Requirements
 
-- macOS (Apple Silicon)
+- macOS (Apple Silicon) or Windows (x64)
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
   locally, so there are sessions to observe and control
 

@@ -130,26 +130,28 @@ The tag is the trigger; CI builds the dmg into a draft release.
    GH_HOST=github.com gh run view <id> -R luojiahai/code-by-wire --json jobs --jq '.jobs[] | {name,status,conclusion}'
    ```
 
-   `verify` fails fast if tag ≠ `package.json`; then the `release` job builds,
-   signs, notarizes, and uploads on `macos-14` (~10-20 min). Poll it in the
-   background so you get pinged on exit — but in zsh, **don't name the loop
-   variable `status`**: it's read-only and silently kills the loop on the first
-   iteration. Use `st` or similar.
+   `verify` fails fast if tag ≠ `package.json`; then `draft` creates the GitHub
+   draft release on `ubuntu-latest`; then the `build` matrix runs two parallel
+   legs: `macos-14` (signs/notarizes, ~10-20 min) and `windows-latest` (unsigned,
+   ~5-10 min). Poll in the background so you get pinged on exit — but in zsh,
+   **don't name the loop variable `status`**: it's read-only and silently kills
+   the loop on the first iteration. Use `st` or similar.
    - **On failure:** pull the job logs, report the cause. If it was a flake,
      re-trigger by re-pushing the tag
      (`git push origin :refs/tags/vX.Y.Z && git push origin vX.Y.Z`) — yourself if
      local, otherwise hand it to the maintainer (same sandbox 403 applies).
-   - **On success:** confirm the **draft** release carries all three assets:
+   - **On success:** confirm the **draft** release carries all assets:
 
      ```
      GH_HOST=github.com gh release view vX.Y.Z -R luojiahai/code-by-wire --json isDraft,assets --jq '{draft:.isDraft, assets:[.assets[].name]}'
      ```
 
-     Expect `draft: true` and `Code-by-wire-X.Y.Z-arm64.dmg`, its `.blockmap`,
-     and `latest-mac.yml`. An empty asset list means the upload step didn't run —
-     read the release job log. (`isLatest` isn't valid on `gh release view` —
-     use `isDraft`/`isPrerelease` here, or `gh release list --json isLatest` to
-     check which release is latest.)
+     Expect `draft: true` and `Code-by-wire-X.Y.Z-arm64.dmg` + `.blockmap` +
+     `latest-mac.yml` (from macOS), and `Code-by-wire Setup X.Y.Z.exe` +
+     `.blockmap` + `latest.yml` (from Windows). An empty or partial asset list
+     means an upload step didn't run — read the relevant `build` job log.
+     (`isLatest` isn't valid on `gh release view` — use `isDraft`/`isPrerelease`
+     here, or `gh release list --json isLatest` to check which release is latest.)
 4. **Drop the notes in.** Set the draft body from the `X.Y.Z` CHANGELOG section
    so it's ready to read, keeping it a draft:
 
