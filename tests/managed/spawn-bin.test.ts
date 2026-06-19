@@ -18,14 +18,18 @@ function fakePty(): PtyProcess {
   };
 }
 
+const baseDeps = {
+  send: vi.fn(),
+  notifyExit: vi.fn(),
+  onSpawned: vi.fn(),
+  onClosed: vi.fn(),
+};
+
 describe("manager passes the resolved bin to the pty", () => {
   it("spawns the absolute path when bin is set", () => {
     const calls: SpawnOptions[] = [];
     const mgr = createTerminalManager({
-      send: vi.fn(),
-      notifyExit: vi.fn(),
-      onSpawned: vi.fn(),
-      onClosed: vi.fn(),
+      ...baseDeps,
       createPty: (o) => {
         calls.push(o);
         return fakePty();
@@ -40,5 +44,28 @@ describe("manager passes the resolved bin to the pty", () => {
       bin: "/real/claude",
     });
     expect(calls[0].file).toBe("/real/claude");
+  });
+
+  it("wraps a .cmd bin into cmd.exe on win32", () => {
+    const seen: { file?: string; args?: string[] } = {};
+    const mgr = createTerminalManager({
+      ...baseDeps,
+      platform: "win32",
+      createPty: (o) => {
+        seen.file = o.file;
+        seen.args = o.args;
+        return fakePty();
+      },
+    });
+    mgr.spawn({
+      id: "s1",
+      cwd: "C:\\proj",
+      model: "opus",
+      cols: 80,
+      rows: 24,
+      bin: "C:\\npm\\claude.cmd",
+    });
+    expect(seen.file).toBe("cmd.exe");
+    expect(seen.args?.slice(0, 2)).toEqual(["/c", "C:\\npm\\claude.cmd"]);
   });
 });

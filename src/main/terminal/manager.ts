@@ -3,6 +3,7 @@ import { FLOW } from "@shared/terminal";
 import {
   buildClaudeCommand,
   buildResumeCommand,
+  launchForm,
   type ClaudeCommand,
 } from "./command";
 import { createDataBufferer, type DataBufferer } from "./data-bufferer";
@@ -60,6 +61,8 @@ export interface TerminalManagerDeps {
   /** Returns the child env, resolved at spawn time; defaults to the app's `process.env` (whose PATH must
    *  carry `claude`, as under `pnpm dev`). A thunk so a costly PATH probe runs lazily, not at startup. */
   env?: () => NodeJS.ProcessEnv;
+  /** Host platform; injected so the Windows launch shim is unit-testable. Defaults to process.platform. */
+  platform?: NodeJS.Platform;
 }
 
 export interface TerminalManager {
@@ -90,6 +93,7 @@ export function createTerminalManager(
 ): TerminalManager {
   const createPty = deps.createPty;
   const createBufferer = deps.createBufferer ?? createDataBufferer;
+  const platform = deps.platform ?? process.platform;
   const terms = new Map<string, Term>();
 
   // Stand up one pty for `id` running `command` in `cwd`. The body is identical for a fresh spawn and an
@@ -111,9 +115,13 @@ export function createTerminalManager(
     // (no COLORTERM), which is why this only bites the packaged build; dev and real terminals carry it.
     // Force it (not a default) because our WebGL terminal genuinely is 24-bit capable, so the declaration
     // is ours to make, not the launching shell's.
+    const launched = launchForm(
+      { file: command.file, args: command.args },
+      platform,
+    );
     const pty = createPty({
-      file: command.file,
-      args: command.args,
+      file: launched.file,
+      args: launched.args,
       cwd,
       env: { ...(deps.env?.() ?? process.env), COLORTERM: "truecolor" },
       cols,
