@@ -262,38 +262,60 @@ export function createSettingsManager(
     return { wrappedExisting, backupPath };
   }
 
+  // Every wrapper we might have written into appDir, each with its recoverer. A statusLine command "is ours"
+  // when it references one of these paths — the current-platform wrapper, or a leftover from another platform
+  // or an older build (a .sh still referenced on Windows, say). Matched on a slash-normalized, lowercased path
+  // so separator/case differences don't hide our own wrapper.
+  const ownWrappers = [
+    {
+      path: join(appDir, "statusline-wrapper.ps1"),
+      recover: recoverWrappedCommandWin,
+    },
+    {
+      path: join(appDir, "statusline-wrapper.sh"),
+      recover: recoverWrappedCommand,
+    },
+  ];
+  function ownWrapperFor(command: string) {
+    const c = toPosixPath(command).toLowerCase();
+    return ownWrappers.find((w) =>
+      c.includes(toPosixPath(w.path).toLowerCase()),
+    );
+  }
+
   function install(): InstallResult {
     const { raw, parsed } = readSettings(); // single read; throws on a file we can't safely touch
-    const alreadyWrapped = parsed?.statusLine?.command === appCommand;
+    const current = parsed?.statusLine?.command;
 
-    if (alreadyWrapped) {
+    // Wrapped with our current command and an intact record → idempotent: rewrite the wrapper (self-heals a
+    // deleted/stale one) and report the recorded state.
+    if (current === appCommand) {
       const state = readState(); // throws on a corrupt record
       if (state !== null) {
-        writeWrapper(state.wrappedCommand); // rewrite in case the wrapper file was deleted or is stale
+        writeWrapper(state.wrappedCommand);
         return {
           wrappedExisting: state.wrappedExisting,
           backupPath: state.backupPath,
           healed: false,
         };
       }
-      // Wrapped on disk but the record vanished. Re-wrapping as-is would wrap our own wrapper (recursion) and
-      // lose the user's original. Instead recover their command from the wrapper script and reinstall clean:
-      // reconstruct the pre-install settings so freshInstall backs up the original, not the wrapped bytes.
-      const wrapperSrc = readTextOrNull(wrapperPath);
-      const recovered =
-        wrapperSrc === null
-          ? null
-          : (isWin ? recoverWrappedCommandWin : recoverWrappedCommand)(
-              wrapperSrc,
-            );
+    }
+
+    // The statusLine points at one of OUR wrappers — our current command with a vanished record, or a wrapper
+    // from another platform / an older build. Re-wrapping as-is would bury the user's real command behind our
+    // own wrapper path (and on Windows a .sh path hands the prompt to cmd's file association). Recover their
+    // original from the wrapper the command points at and reinstall clean, so freshInstall backs up the
+    // original, not the wrapped bytes.
+    const own =
+      typeof current === "string" ? ownWrapperFor(current) : undefined;
+    if (own) {
+      const wrapperSrc = readTextOrNull(own.path);
+      const recovered = wrapperSrc === null ? null : own.recover(wrapperSrc);
       const statusLine =
         recovered !== null
           ? { type: "command", command: recovered }
           : undefined;
-      const healedSettings: ClaudeSettings = {
-        ...parsed,
-        statusLine,
-      };
+      const healedSettings: ClaudeSettings = { ...parsed, statusLine };
       const healedRaw = JSON.stringify(healedSettings, null, 2) + "\n";
       return { ...freshInstall(healedRaw, healedSettings), healed: true };
     }

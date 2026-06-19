@@ -9,9 +9,11 @@ import {
   chmodSync,
   symlinkSync,
   lstatSync,
+  mkdirSync,
 } from "node:fs";
 import { join } from "node:path";
 import { createSettingsManager } from "../../src/main/settings/manager";
+import { wrapperScript } from "../../src/main/settings/wrapper";
 import { recoverWrappedCommandWin } from "../../src/main/settings/wrapper-win";
 import { tempHomes } from "../helpers/temp-home";
 
@@ -797,5 +799,71 @@ describe("install — win32 platform selection", () => {
       JSON.parse(readFileSync(join(dir, "settings.json"), "utf8")).statusLine
         .command,
     ).toBe("mine");
+  });
+});
+
+// A statusLine left pointing at a code-by-wire wrapper from a different platform/older build (e.g. a POSIX
+// .sh wrapper still referenced on a Windows box) must not be treated as the user's own command and wrapped
+// again — that buries it behind cmd.exe /c "<...>wrapper.sh" and loses the real original.
+describe("install — does not re-wrap a foreign code-by-wire wrapper", () => {
+  function seedForeignShWrapper(dir: string, wrappedCommand: string | null) {
+    const appDir = join(dir, ".code-by-wire");
+    mkdirSync(appDir, { recursive: true });
+    const shPath = join(appDir, "statusline-wrapper.sh");
+    writeFileSync(shPath, wrapperScript({ wrappedCommand }));
+    writeFileSync(
+      join(dir, "settings.json"),
+      JSON.stringify(
+        { statusLine: { type: "command", command: `"${shPath}"` } },
+        null,
+        2,
+      ),
+    );
+    return appDir;
+  }
+
+  it("recovers the real original from a foreign .sh wrapper on win32", () => {
+    const dir = makeWinHome();
+    const appDir = seedForeignShWrapper(dir, "my-real-statusline --json");
+    const mgr = createSettingsManager({
+      claudeDir: dir,
+      now: () => NOW,
+      platform: "win32",
+    });
+
+    const res = mgr.install();
+
+    expect(res.healed).toBe(true);
+    const ps1 = readFileSync(join(appDir, "statusline-wrapper.ps1"), "utf8");
+    expect(ps1).not.toContain("statusline-wrapper.sh"); // not re-wrapping our own wrapper
+    expect(recoverWrappedCommandWin(ps1)).toBe("my-real-statusline --json");
+    expect(
+      JSON.parse(readFileSync(join(appDir, "state.json"), "utf8"))
+        .wrappedCommand,
+    ).toBe("my-real-statusline --json");
+    expect(
+      JSON.parse(readFileSync(join(dir, "settings.json"), "utf8")).statusLine
+        .command,
+    ).toMatch(/powershell.*statusline-wrapper\.ps1/i);
+  });
+
+  it("treats a foreign capture-only .sh wrapper as no original on win32", () => {
+    const dir = makeWinHome();
+    const appDir = seedForeignShWrapper(dir, null);
+    const mgr = createSettingsManager({
+      claudeDir: dir,
+      now: () => NOW,
+      platform: "win32",
+    });
+
+    mgr.install();
+
+    const ps1 = readFileSync(join(appDir, "statusline-wrapper.ps1"), "utf8");
+    expect(ps1).not.toContain("statusline-wrapper.sh");
+    expect(recoverWrappedCommandWin(ps1)).toBeNull(); // capture-only → no call-through
+    expect(
+      JSON.parse(readFileSync(join(appDir, "state.json"), "utf8"))
+        .wrappedCommand,
+    ).toBeNull();
   });
 });
