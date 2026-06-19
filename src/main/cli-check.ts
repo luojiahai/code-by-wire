@@ -7,19 +7,20 @@ import {
   type CliProbeInput,
 } from "./cli-status";
 import { installMethodForPath, resolveClaudeBinary } from "./cli-resolve";
+import { launchForm } from "./terminal/command";
 import type { AppSettingsStore } from "./app-settings";
 
 const execFileAsync = promisify(execFile);
 
-/** Node 24 refuses to execFile a .cmd/.bat on Windows without shell:true (CVE-2024-27980). A real .exe
- *  runs directly. Pure + tested so the platform rule isn't re-derived per call site. */
-export function execOptionsForBinary(
-  path: string,
-  platform: NodeJS.Platform,
-): { shell: boolean } {
-  const isShim = /\.(cmd|bat|ps1)$/i.test(path);
-  return { shell: platform === "win32" && isShim };
-}
+/** The execFile seam the probes call through; injected in tests to record the invocation without spawning. */
+export type ProbeExec = (
+  file: string,
+  args: string[],
+  opts: { encoding: "utf8"; timeout: number },
+) => Promise<{ stdout: string }>;
+
+const realExec: ProbeExec = (file, args, opts) =>
+  execFileAsync(file, args, opts);
 
 /** Map a failed `claude --version` to a probe status from the child-process error `code`: a spawn
  *  failure (ENOENT) means the binary isn't really there; anything else (non-zero exit, timeout → null)
@@ -34,15 +35,28 @@ export function classifyAuthError(code: unknown): CliProbeInput["auth"] {
   return code === 1 ? { status: "loggedOut" } : { status: "unknown" };
 }
 
-async function runVersion(path: string): Promise<CliProbeInput["version"]> {
+/** Probe `<bin> --version`. The binary is invoked through launchForm — the single authority on how to run a
+ *  resolved path on this platform — so a Windows .cmd/.bat shim goes through cmd.exe and a .ps1 through
+ *  powershell, with the shim path passed as a discrete argument that execFile quotes. This is why we never
+ *  pass `shell:true`: that concatenates the path into a shell command line unquoted, so a space in the path
+ *  (e.g. `C:\Users\First Last\…\claude.cmd`) splits it and a working CLI reads as broken. Exported with an
+ *  injectable exec/platform so the invocation is unit-tested without spawning. */
+export async function runVersion(
+  path: string,
+  exec: ProbeExec = realExec,
+  platform: NodeJS.Platform = process.platform,
+): Promise<CliProbeInput["version"]> {
+  const { file, args } = launchForm(
+    { file: path, args: ["--version"] },
+    platform,
+  );
   try {
-    const { stdout } = await execFileAsync(path, ["--version"], {
+    const { stdout } = await exec(file, args, {
       encoding: "utf8",
       // Generous: a first exec of a Node CLI can be slow (cold cache, AV scan, a network-mounted
       // ~/.local), and a timeout here classifies as "failed" → unknown → spawning blocked, locking out a
       // CLI that actually works. The check is async, so a long wait never stalls the main process.
       timeout: 10_000,
-      ...execOptionsForBinary(path, process.platform),
     });
     return { status: "ok", raw: stdout };
   } catch (err) {
@@ -50,13 +64,18 @@ async function runVersion(path: string): Promise<CliProbeInput["version"]> {
   }
 }
 
-async function runAuth(path: string): Promise<CliProbeInput["auth"]> {
+/** Probe `<bin> auth status`, invoking the binary the same way runVersion does (launchForm, no shell). */
+export async function runAuth(
+  path: string,
+  exec: ProbeExec = realExec,
+  platform: NodeJS.Platform = process.platform,
+): Promise<CliProbeInput["auth"]> {
+  const { file, args } = launchForm(
+    { file: path, args: ["auth", "status"] },
+    platform,
+  );
   try {
-    await execFileAsync(path, ["auth", "status"], {
-      encoding: "utf8",
-      timeout: 5_000,
-      ...execOptionsForBinary(path, process.platform),
-    });
+    await exec(file, args, { encoding: "utf8", timeout: 5_000 });
     return { status: "ok" }; // exit 0 → logged in
   } catch (err) {
     return classifyAuthError((err as { code?: unknown }).code);
