@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Windows (x64) support: a downloadable NSIS installer, plus parity for spawning,
+  adopting, live telemetry, and CLI detection.
+
 ## [0.1.6] - 2026-06-18
 
 ### Added
