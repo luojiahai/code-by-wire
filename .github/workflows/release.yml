@@ -100,4 +100,9 @@ jobs:
           if (-not ($assets | Where-Object { $_.Extension -eq '.exe' })) {
             throw "No Windows installer (.exe) was produced in release/"
           }
+          # latest.yml is the electron-updater auto-update manifest; without it a published release
+          # silently breaks in-app updates, so fail loudly rather than upload a half-broken release.
+          if (-not ($assets | Where-Object { $_.Name -eq 'latest.yml' })) {
+            throw "No latest.yml (auto-update manifest) was produced in release/"
+          }
           gh release upload "$env:GITHUB_REF_NAME" --clobber @($assets.FullName)
