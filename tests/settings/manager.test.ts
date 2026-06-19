@@ -800,6 +800,25 @@ describe("install — win32 platform selection", () => {
         .command,
     ).toBe("mine");
   });
+
+  it("uninstall removes a leftover foreign-platform wrapper too", () => {
+    const dir = makeWinHome();
+    const mgr = createSettingsManager({
+      claudeDir: dir,
+      now: () => NOW,
+      platform: "win32",
+    });
+    mgr.install();
+    const appDir = join(dir, ".code-by-wire");
+    // A stale .sh from an earlier POSIX install on the same shared ~/.claude. uninstall must remove
+    // every code-by-wire wrapper, not just the current platform's, or the foreign one is orphaned.
+    writeFileSync(join(appDir, "statusline-wrapper.sh"), "#!/bin/sh\n");
+
+    mgr.uninstall();
+
+    expect(existsSync(join(appDir, "statusline-wrapper.ps1"))).toBe(false);
+    expect(existsSync(join(appDir, "statusline-wrapper.sh"))).toBe(false);
+  });
 });
 
 // A statusLine left pointing at a code-by-wire wrapper from a different platform/older build (e.g. a POSIX

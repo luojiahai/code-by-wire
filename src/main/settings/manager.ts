@@ -349,9 +349,10 @@ export function createSettingsManager(
       chmodSync(settingsPath, statSync(state.backupPath).mode & 0o777); // ...and its original permissions
     }
 
-    // Our own artifacts go too — the wrapper script and any captured side-channel files. Best-effort:
+    // Our own artifacts go too — every wrapper we might have written (the current platform's and any
+    // leftover from another platform / an older build) and the captured side-channel files. Best-effort:
     // a failure here must not block restoring the user's settings, which already succeeded above.
-    rmSync(wrapperPath, { force: true });
+    for (const w of ownWrappers) rmSync(w.path, { force: true });
     rmSync(join(appDir, "statusline"), { recursive: true, force: true });
     rmSync(statePath, { force: true });
   }
