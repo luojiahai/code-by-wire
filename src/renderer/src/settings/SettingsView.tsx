@@ -98,7 +98,17 @@ export function SettingsView({
       <OverlayScroll className="min-w-0 flex-1">
         <div className="mx-auto flex max-w-[640px] flex-col gap-5 px-8 py-7">
           {section === "system" && (
+            // Remount System when the values its useState initializers read change, so a recheck can't
+            // leave the remedy's install-tab default or the binary-override prefill stale. kind +
+            // installMethod pick the default tab; source + path prefill the override. A no-op recheck
+            // keeps the same tuple, so the instance (and any typed path) survives. Mirrors the keying the
+            // old CliStatusModal carried before this view absorbed it.
             <SystemSection
+              key={
+                cliStatus
+                  ? `${cliStatus.kind}:${cliStatus.installMethod}:${cliStatus.source}:${cliStatus.path ?? ""}`
+                  : "pending"
+              }
               cliStatus={cliStatus}
               checking={checking}
               onRecheck={onRecheck}
