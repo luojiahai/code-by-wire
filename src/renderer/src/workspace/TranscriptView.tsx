@@ -3,6 +3,7 @@ import type { SessionState } from "@shared/types";
 import type { TranscriptEvent } from "@shared/transcript";
 import type { DocState } from "./use-transcript";
 import { EventItem } from "./events";
+import type { DispatchDrill } from "./drill-index";
 
 /**
  * The shared event feed: a bottom-sticky list of rendered transcript events. Both the Session
@@ -13,9 +14,11 @@ import { EventItem } from "./events";
 export function TranscriptFeed({
   events,
   footer,
+  dispatchDrill,
 }: {
   events: TranscriptEvent[];
   footer?: ReactNode;
+  dispatchDrill?: DispatchDrill;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const countRef = useRef(0);
@@ -27,7 +30,7 @@ export function TranscriptFeed({
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-5">
       {events.map((e, i) => (
-        <EventItem key={i} event={e} />
+        <EventItem key={i} event={e} dispatchDrill={dispatchDrill} />
       ))}
       {footer}
       <div ref={bottomRef} />
@@ -45,11 +48,13 @@ export function TranscriptView({
   project,
   state,
   readOnly,
+  dispatchDrill,
 }: {
   doc: DocState;
   project: string;
   state: SessionState;
   readOnly: boolean;
+  dispatchDrill?: DispatchDrill;
 }) {
   if (doc === null) {
     return (
@@ -71,6 +76,7 @@ export function TranscriptView({
       )}
       <TranscriptFeed
         events={doc?.events ?? []}
+        dispatchDrill={dispatchDrill}
         footer={
           state === "waiting" ? (
             <div className="rounded-lg border border-accent/40 bg-accent/[0.08] p-3">

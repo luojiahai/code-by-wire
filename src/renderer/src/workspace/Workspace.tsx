@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   Session,
   Account,
@@ -13,6 +13,7 @@ import { useTranscript, type DocState } from "./use-transcript";
 import { ContextPanel } from "./panels/ContextPanel";
 import { StructureDock } from "./panels/StructureDock";
 import { SubagentDrill, type DrillCrumb } from "./SubagentDrill";
+import { indexByDispatch, type DispatchDrill } from "./drill-index";
 import { ShellDrill } from "./ShellDrill";
 import { useSubagentTranscript } from "./use-subagent-transcript";
 import { useShells } from "./use-shells";
@@ -125,6 +126,27 @@ function WorkspaceBody({
   // Terminal ⇄ Transcript toggle. Each is a no-op until something of its kind is drilled.
   const subagentDoc = useSubagentTranscript(s.id, activeAgentId);
   const shellOutput = useShellOutput(s.id, activeShellId);
+  // Resolve an inline dispatch by its tool_use_id against the session's full nested forest, rebuilt each
+  // poll. A dispatch is drillable iff it's a key; clicking PUSHES the resolved subagent (deep), unlike a
+  // lane click which resets to depth 1.
+  const dispatchIndex = useMemo(
+    () => indexByDispatch(doc?.subagents ?? []),
+    [doc],
+  );
+  const dispatchDrill: DispatchDrill = useMemo(
+    () => ({
+      drillableIds: new Set(dispatchIndex.keys()),
+      onDrill: (toolUseId) => {
+        const node = dispatchIndex.get(toolUseId);
+        if (node)
+          setDrill((d) => [
+            ...d,
+            { kind: "subagent", agentId: node.id, label: node.type },
+          ]);
+      },
+    }),
+    [dispatchIndex],
+  );
   return (
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -136,6 +158,7 @@ function WorkspaceBody({
             shellOutput={shellOutput}
             drill={drill}
             onNavigate={(depth) => setDrill((d) => d.slice(0, depth))}
+            dispatchDrill={dispatchDrill}
           />
         </div>
         <StructureDock
@@ -191,6 +214,7 @@ function CenterView({
   shellOutput,
   drill,
   onNavigate,
+  dispatchDrill,
 }: {
   session: Session;
   doc: DocState;
@@ -198,8 +222,16 @@ function CenterView({
   shellOutput: ShellOutputState;
   drill: DrillCrumb[];
   onNavigate: (depth: number) => void;
+  dispatchDrill: DispatchDrill;
 }) {
   const top = drill[drill.length - 1];
+  // The full subagent path, so the breadcrumb shows Session › A › B … instead of just the top.
+  const subagentCrumbs = drill
+    .filter(
+      (c): c is Extract<DrillCrumb, { kind: "subagent" }> =>
+        c.kind === "subagent",
+    )
+    .map((c) => ({ agentId: c.agentId, label: c.label }));
   const drilledView =
     top?.kind === "shell" ? (
       <ShellDrill
@@ -209,14 +241,23 @@ function CenterView({
       />
     ) : top?.kind === "subagent" ? (
       <SubagentDrill
-        crumbs={[{ agentId: top.agentId, label: top.label }]}
+        crumbs={subagentCrumbs}
         onNavigate={onNavigate}
         doc={subagentDoc}
+        dispatchDrill={dispatchDrill}
       />
     ) : null;
 
   if (s.management === "observed")
-    return drilledView ?? <RenderedTranscript session={s} doc={doc} />;
+    return (
+      drilledView ?? (
+        <RenderedTranscript
+          session={s}
+          doc={doc}
+          dispatchDrill={dispatchDrill}
+        />
+      )
+    );
   return (
     <ManagedCenter
       session={s}
@@ -226,6 +267,7 @@ function CenterView({
       drilledKey={
         top ? (top.kind === "shell" ? top.shellId : top.agentId) : undefined
       }
+      dispatchDrill={dispatchDrill}
     />
   );
 }
@@ -240,12 +282,14 @@ function ManagedCenter({
   drilledView,
   drilled,
   drilledKey,
+  dispatchDrill,
 }: {
   session: Session;
   doc: DocState;
   drilledView: React.ReactNode;
   drilled: boolean;
   drilledKey?: string;
+  dispatchDrill: DispatchDrill;
 }) {
   const [tab, setTab] = useState<CenterTab>("terminal");
   useEffect(() => {
@@ -262,7 +306,11 @@ function ManagedCenter({
         ) : drilled ? (
           drilledView
         ) : (
-          <RenderedTranscript session={s} doc={doc} />
+          <RenderedTranscript
+            session={s}
+            doc={doc}
+            dispatchDrill={dispatchDrill}
+          />
         )}
       </div>
     </div>
@@ -273,9 +321,11 @@ function ManagedCenter({
 function RenderedTranscript({
   session: s,
   doc,
+  dispatchDrill,
 }: {
   session: Session;
   doc: DocState;
+  dispatchDrill?: DispatchDrill;
 }) {
   return (
     <OverlayScroll className="h-full">
@@ -284,6 +334,7 @@ function RenderedTranscript({
         project={s.project}
         state={s.state}
         readOnly={s.management === "observed"}
+        dispatchDrill={dispatchDrill}
       />
     </OverlayScroll>
   );

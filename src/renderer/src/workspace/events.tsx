@@ -2,9 +2,16 @@ import type { ReactNode } from "react";
 import type { DiffHunk, TranscriptEvent } from "@shared/transcript";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import type { DispatchDrill } from "./drill-index";
 
 /** Render one transcript event. The switch is exhaustive over TranscriptEvent's kinds. */
-export function EventItem({ event }: { event: TranscriptEvent }) {
+export function EventItem({
+  event,
+  dispatchDrill,
+}: {
+  event: TranscriptEvent;
+  dispatchDrill?: DispatchDrill;
+}) {
   switch (event.kind) {
     case "user":
       return <Bubble role="user">{event.text}</Bubble>;
@@ -16,13 +23,19 @@ export function EventItem({ event }: { event: TranscriptEvent }) {
       return <ToolCall name={event.name} input={event.input} />;
     case "diff":
       return <Diff tool={event.tool} file={event.file} hunk={event.hunk} />;
-    case "subagent":
+    case "subagent": {
+      const canDrill =
+        dispatchDrill?.drillableIds.has(event.toolUseId) ?? false;
       return (
         <SubagentDispatch
           agentType={event.agentType}
           description={event.description}
+          onDrill={
+            canDrill ? () => dispatchDrill!.onDrill(event.toolUseId) : undefined
+          }
         />
       );
+    }
   }
 }
 
@@ -119,12 +132,16 @@ function Diff({
 function SubagentDispatch({
   agentType,
   description,
+  onDrill,
 }: {
   agentType: string;
   description: string;
+  onDrill?: () => void;
 }) {
-  return (
-    <div className="ml-8 flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-[11px]">
+  const base =
+    "ml-8 flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-[11px]";
+  const body = (
+    <>
       <Icon
         name="git-branch"
         size={13}
@@ -135,6 +152,27 @@ function SubagentDispatch({
       {description && (
         <span className="truncate text-fg-faint">— {description}</span>
       )}
-    </div>
+      {onDrill && (
+        <Icon
+          name="chevron-right"
+          size={13}
+          className="ml-auto shrink-0 text-fg-faint"
+        />
+      )}
+    </>
+  );
+  if (!onDrill) return <div className={base}>{body}</div>;
+  return (
+    <button
+      type="button"
+      onClick={onDrill}
+      aria-label={`Drill into ${agentType} subagent`}
+      className={cx(
+        base,
+        "w-full text-left transition-colors hover:border-primary/50 hover:bg-primary/[0.10]",
+      )}
+    >
+      {body}
+    </button>
   );
 }
