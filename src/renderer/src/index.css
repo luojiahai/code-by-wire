@@ -61,6 +61,14 @@
   --color-data-3: #646c77; /* Cache read / Cached */
   --color-data-4: #474e58; /* dimmest — Cache write */
 
+  /* Model identity colors (Aurora) — one fixed hue per known family, reused everywhere a model appears
+     (By model bars, daily stack-by-model, By session). Off the danger/waiting/working state hues so a
+     model swatch never reads as a state lamp; an unknown model falls to --color-data-1 (white/mono). */
+  --color-model-fable: #8b8cf6; /* periwinkle */
+  --color-model-opus: #4cc9e8; /* cyan */
+  --color-model-sonnet: #4ad6a8; /* mint */
+  --color-model-haiku: #e7799f; /* rose */
+
   /* Type — Saira Semi Condensed placards/labels, Inter for UI/body, JetBrains Mono for all telemetry
      and identifiers. The "* Variable" names are the bundled @fontsource-variable builds (Inter, mono);
      Saira Semi Condensed is static. Plain names stay as a fallback for a locally-installed static font. */

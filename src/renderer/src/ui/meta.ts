@@ -1,5 +1,9 @@
 import type { SessionState } from "@shared/types";
-import { isKnownModelString, type Family } from "@shared/models";
+import {
+  isKnownModelString,
+  normalizeModelId,
+  type Family,
+} from "@shared/models";
 
 export interface StateMeta {
   label: string;
@@ -98,34 +102,54 @@ export const COST_SEGMENT_COLORS = [
   "var(--color-data-4)", // Cache write — dimmest
 ] as const;
 
+/** The Overview's kind palette: input and output carry color (the fresh-token split is the meaningful
+ *  part of a usage chart), cache greys back. Deliberately distinct from COST_SEGMENT_COLORS — the cockpit's
+ *  all-mono ramp — so the cockpit token panel stays monochrome while the analytics view reads in color. */
+export const OVERVIEW_KIND_COLORS = [
+  "var(--color-primary)", // Input — blue
+  "var(--color-violet)", // Output — violet
+  "var(--color-data-3)", // Cache read — grey
+  "var(--color-data-4)", // Cache write — grey
+] as const;
+
 export const TOKEN_SEGMENT_COLORS = [
   "var(--color-data-1)", // Input
   "var(--color-data-2)", // Output
   "var(--color-data-3)", // Cached
 ] as const;
 
-/** The per-model breakdown's donut + legend palette (#111), cycled by row index. Distinct hues so adjacent
- *  models read apart, deliberately led off violet (not sky) so the brand accent never doubles as a data
- *  color; CSS var strings so a retone stays in index.css. More models than colors wraps — fine for a legend
- *  read top-down against its donut. */
-export const MODEL_SEGMENT_COLORS = [
-  "var(--color-violet)",
-  "var(--color-working)",
-  "var(--color-accent)",
-  "var(--color-ok)",
-  "var(--color-steel)",
-  "var(--color-danger)",
-] as const;
+/** Model identity colors (Aurora): one fixed hue per known family, looked up BY family — not cycled by row
+ *  index — so a model reads the same color everywhere it appears (By model, daily stack-by-model, By
+ *  session). Chosen off the danger/waiting/working state hues so a swatch never reads as a state lamp; the
+ *  tokens live in index.css. */
+export const MODEL_FAMILY_COLORS: Record<Family, string> = {
+  fable: "var(--color-model-fable)",
+  opus: "var(--color-model-opus)",
+  sonnet: "var(--color-model-sonnet)",
+  haiku: "var(--color-model-haiku)",
+};
+
+/** Any model the breakdown can't place — null, or a raw string matching no known family — stays
+ *  white/mono, so identity color is reserved for the recognized families. */
+export const MODEL_OTHER_COLOR = "var(--color-data-1)";
+
+/** The identity color for a raw model id: its family's fixed hue when recognized, else the neutral
+ *  "other" tone. Drives the By-model bars, the daily stack-by-model, and the By-session model swatch. */
+export function modelColorOf(raw: string | null): string {
+  return raw && isKnownModelString(raw)
+    ? MODEL_FAMILY_COLORS[normalizeModelId(raw)]
+    : MODEL_OTHER_COLOR;
+}
 
 /** The contributions calendar's intensity ramp (#115), indexed by intensityLevel's 0..4 output: level 0 is
- *  the empty-day track; 1–4 climb the monochrome magnitude ramp (dimmest → brightest), so the heatmap reads
- *  as data, not affordance — hue stays reserved for live state. CSS var strings so a retone stays in index.css. */
+ *  the empty-day track; 1–4 climb an engaged-blue heat (faint → full via color-mix opacity). The Overview's
+ *  one spot of accent — activity-over-time gets the single splash of color. Tokens stay in index.css. */
 export const CALENDAR_RAMP = [
   "var(--color-ink-850)", // 0 — no activity
-  "var(--color-data-4)", // 1
-  "var(--color-data-3)", // 2
-  "var(--color-data-2)", // 3
-  "var(--color-data-1)", // 4 — peak
+  "color-mix(in srgb, var(--color-primary) 28%, transparent)", // 1
+  "color-mix(in srgb, var(--color-primary) 52%, transparent)", // 2
+  "color-mix(in srgb, var(--color-primary) 76%, transparent)", // 3
+  "var(--color-primary)", // 4 — peak
 ] as const;
 
 /** A session's model label: the family name, plus the real resolved id in parens when we have one.

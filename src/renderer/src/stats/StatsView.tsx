@@ -43,11 +43,7 @@ import {
   StackedBar,
   type DayColumn,
 } from "../ui/charts";
-import {
-  MODEL_SEGMENT_COLORS,
-  COST_SEGMENT_COLORS,
-  CALENDAR_RAMP,
-} from "../ui/meta";
+import { OVERVIEW_KIND_COLORS, modelColorOf, CALENDAR_RAMP } from "../ui/meta";
 import {
   calendarGrid,
   intensityThresholds,
@@ -605,14 +601,14 @@ function KpiStrip({
   // only, so drop the two cache segments — then the bar composition matches the number above it.
   const kindSegments = includeCache
     ? [
-        { value: totals.inputTokens, color: COST_SEGMENT_COLORS[0] },
-        { value: totals.outputTokens, color: COST_SEGMENT_COLORS[1] },
-        { value: totals.cacheReadTokens, color: COST_SEGMENT_COLORS[2] },
-        { value: totals.cacheCreationTokens, color: COST_SEGMENT_COLORS[3] },
+        { value: totals.inputTokens, color: OVERVIEW_KIND_COLORS[0] },
+        { value: totals.outputTokens, color: OVERVIEW_KIND_COLORS[1] },
+        { value: totals.cacheReadTokens, color: OVERVIEW_KIND_COLORS[2] },
+        { value: totals.cacheCreationTokens, color: OVERVIEW_KIND_COLORS[3] },
       ]
     : [
-        { value: totals.inputTokens, color: COST_SEGMENT_COLORS[0] },
-        { value: totals.outputTokens, color: COST_SEGMENT_COLORS[1] },
+        { value: totals.inputTokens, color: OVERVIEW_KIND_COLORS[0] },
+        { value: totals.outputTokens, color: OVERVIEW_KIND_COLORS[1] },
       ];
   const tokenTotal = includeCache
     ? totals.inputTokens +
@@ -632,7 +628,7 @@ function KpiStrip({
         <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[9px] text-fg-faint">
           {KIND_LABELS.slice(0, kindSegments.length).map((label, i) => (
             <span key={label} className="flex items-center gap-1">
-              <Swatch color={COST_SEGMENT_COLORS[i]} />
+              <Swatch color={OVERVIEW_KIND_COLORS[i]} />
               {label}
             </span>
           ))}
@@ -690,7 +686,7 @@ type StackBy = "kind" | "model";
 const STACK_LABELS: Record<StackBy, string> = { kind: "Kind", model: "Model" };
 const STACK_OPTS = Object.entries(STACK_LABELS) as [StackBy, string][];
 
-/** The by-kind segment labels, paired by index with COST_SEGMENT_COLORS (input/output/cache-read/
+/** The by-kind segment labels, paired by index with OVERVIEW_KIND_COLORS (input/output/cache-read/
  *  cache-write). One source for the legend, the tooltip, and the stack order. */
 const KIND_LABELS = ["Input", "Output", "Cache read", "Cache write"] as const;
 
@@ -737,15 +733,15 @@ function DailyUsage({
   // Model series: the snapshot's byModel order (tokens desc), each paired by store index to a cycled color,
   // so the hue matches the By-model panel's cache-on assignment. Drop any model that never lands on a
   // rendered day: in the all-time view byModel can carry a model whose turns are all unknown-time (ts=0),
-  // which daily excludes — without this it would sit in the legend with no bar. Pairing the color before the
-  // filter keeps the survivors' hues aligned with the By-model panel (it indexes by the same store order).
+  // which daily excludes — without this it would sit in the legend with no bar. Color keys off the model
+  // family (modelColorOf), so a model's hue matches the By-model panel and stays put as the set changes.
   const presentModels = new Set<string>();
   for (const d of days)
     for (const e of d.byModel) presentModels.add(modelKey(e.modelRaw));
   const series = byModel
-    .map((r, i) => ({
+    .map((r) => ({
       modelRaw: r.modelRaw,
-      color: MODEL_SEGMENT_COLORS[i % MODEL_SEGMENT_COLORS.length],
+      color: modelColorOf(r.modelRaw),
     }))
     .filter((s) => presentModels.has(modelKey(s.modelRaw)));
 
@@ -761,10 +757,10 @@ function DailyUsage({
       ? {
           key: d.day,
           segments: [
-            { value: d.inputTokens, color: COST_SEGMENT_COLORS[0] },
-            { value: d.outputTokens, color: COST_SEGMENT_COLORS[1] },
-            { value: d.cacheReadTokens, color: COST_SEGMENT_COLORS[2] },
-            { value: d.cacheCreationTokens, color: COST_SEGMENT_COLORS[3] },
+            { value: d.inputTokens, color: OVERVIEW_KIND_COLORS[0] },
+            { value: d.outputTokens, color: OVERVIEW_KIND_COLORS[1] },
+            { value: d.cacheReadTokens, color: OVERVIEW_KIND_COLORS[2] },
+            { value: d.cacheCreationTokens, color: OVERVIEW_KIND_COLORS[3] },
           ],
         }
       : {
@@ -789,7 +785,7 @@ function DailyUsage({
     stackBy === "kind"
       ? KIND_LABELS.map((label, i) => ({
           label,
-          color: COST_SEGMENT_COLORS[i],
+          color: OVERVIEW_KIND_COLORS[i],
         }))
       : series.map((s) => ({
           label: s.modelRaw ?? "Unknown",
@@ -809,22 +805,22 @@ function DailyUsage({
             {
               label: "Input",
               value: d.inputTokens,
-              color: COST_SEGMENT_COLORS[0],
+              color: OVERVIEW_KIND_COLORS[0],
             },
             {
               label: "Output",
               value: d.outputTokens,
-              color: COST_SEGMENT_COLORS[1],
+              color: OVERVIEW_KIND_COLORS[1],
             },
             {
               label: "Cache read",
               value: d.cacheReadTokens,
-              color: COST_SEGMENT_COLORS[2],
+              color: OVERVIEW_KIND_COLORS[2],
             },
             {
               label: "Cache write",
               value: d.cacheCreationTokens,
-              color: COST_SEGMENT_COLORS[3],
+              color: OVERVIEW_KIND_COLORS[3],
             },
           ].filter((r) => r.value > 0)
         : series
@@ -963,8 +959,9 @@ function ByModel({
   // Skip on a window with no tokens at all, judged on the full total so flipping the toggle never makes the
   // whole panel vanish; at worst the donut hides on a pure-cache window in exclude mode (below).
   if (!rows.some((r) => r.totalTokens > 0)) return null;
-  // Re-rank by the displayed metric so the table reads biggest-first and the donut colors pair to it; ties
-  // break by raw id for stability. Color is assigned after the sort so it tracks the row, not the model.
+  // Re-rank by the displayed metric so the table reads biggest-first; ties break by raw id for stability.
+  // Each row takes its model's fixed identity color (the same hue it carries everywhere else), so the
+  // bars are a legend you only learn once.
   const ranked = rows
     .map((r) => ({ ...r, tokens: tokensOf(r, includeCache) }))
     .sort(
@@ -972,9 +969,9 @@ function ByModel({
         b.tokens - a.tokens ||
         (a.modelRaw ?? "").localeCompare(b.modelRaw ?? ""),
     )
-    .map((r, i) => ({
+    .map((r) => ({
       ...r,
-      color: COST_SEGMENT_COLORS[i % COST_SEGMENT_COLORS.length],
+      color: modelColorOf(r.modelRaw),
     }));
   const max = Math.max(...ranked.map((r) => r.tokens), 1);
   return (
@@ -1259,8 +1256,11 @@ function BySession({
                 </span>
               </td>
               <td className="py-1 pr-3">
-                <span className="block truncate font-mono text-fg-muted">
-                  {r.modelRaw ?? "Unknown"}
+                <span className="flex min-w-0 items-center gap-2">
+                  <Swatch color={modelColorOf(r.modelRaw)} />
+                  <span className="truncate font-mono text-fg-muted">
+                    {r.modelRaw ?? "Unknown"}
+                  </span>
                 </span>
               </td>
               <td className="py-1 pl-2 text-right tabular-nums text-fg-muted">
