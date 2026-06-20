@@ -188,7 +188,7 @@ function SystemSection({
     <>
       <Header
         title="System"
-        lede="code-by-wire reads sessions through the Claude Code CLI and your local transcripts. This is the engine. Keep it green."
+        lede="Code-by-wire reads sessions through the Claude Code CLI and your local transcripts. This is the engine. Keep it green."
       />
       <Card title="Claude Code CLI">
         <div className="flex items-start gap-3 border-b border-ink-850 px-4 py-3.5">
@@ -487,7 +487,7 @@ function AccountSection({ account }: { account: Account | null }) {
     <>
       <Header
         title="Account"
-        lede="Who code-by-wire reads usage for. Identity comes from ~/.claude; rate limits ride the live status capture."
+        lede="Who Code-by-wire reads usage for. Identity comes from ~/.claude; rate limits ride the live status capture."
       />
       <Card title="Identity">
         <Row label="Signed in" desc="Read from ~/.claude">
@@ -567,7 +567,7 @@ function AboutSection() {
   return (
     <>
       <Header title="About" />
-      <Card title="code-by-wire">
+      <Card title="Code-by-wire">
         <div className="flex flex-col gap-3 px-4 py-4">
           <Wordmark />
           <p className="max-w-[54ch] text-[12.5px] leading-relaxed text-fg-muted">

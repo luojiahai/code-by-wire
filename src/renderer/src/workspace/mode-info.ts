@@ -15,13 +15,13 @@ export const MODE_INFO: Record<Management, ModeInfo> = {
     kind: "managed",
     label: "Managed",
     blurb:
-      "Spawned and driven by code-by-wire. You can send input, interrupt it, and end it from here.",
+      "Spawned and driven by Code-by-wire. You can send input, interrupt it, and end it from here.",
   },
   observed: {
     kind: "observed",
     label: "Observed",
     blurb:
-      "Running in another terminal or machine. code-by-wire mirrors its transcript read-only. You can't type in. Adopt it to take the wheel.",
+      "Running in another terminal or machine. Code-by-wire mirrors its transcript read-only. You can't type in. Adopt it to take the wheel.",
   },
 };
 

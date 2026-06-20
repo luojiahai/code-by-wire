@@ -11,7 +11,7 @@ describe("MODE_INFO", () => {
   });
 
   it("carries a non-empty blurb for each mode", () => {
-    expect(MODE_INFO.managed.blurb).toMatch(/driven by code-by-wire/);
+    expect(MODE_INFO.managed.blurb).toMatch(/driven by Code-by-wire/);
     expect(MODE_INFO.observed.blurb).toMatch(/read-only/);
   });
 
