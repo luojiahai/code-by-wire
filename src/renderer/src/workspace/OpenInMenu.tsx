@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Icon } from "../ui/icons";
 import { OPEN_IN_ITEMS } from "./open-in-items";
 
-/** The header's "Open in" dropdown. The trigger toggles a grouped menu of open targets. Every item is a
+/** The header's "Open in" dropdown. The trigger toggles a flat menu of open targets. Every item is a
  *  disabled placeholder for now (its tooltip says so); wiring lands later. The menu closes on an outside
  *  click or Escape. */
 export function OpenInMenu() {
