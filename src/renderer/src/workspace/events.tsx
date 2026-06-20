@@ -24,15 +24,17 @@ export function EventItem({
     case "diff":
       return <Diff tool={event.tool} file={event.file} hunk={event.hunk} />;
     case "subagent": {
-      const canDrill =
-        dispatchDrill?.drillableIds.has(event.toolUseId) ?? false;
+      // Local const so the membership check narrows dispatchDrill into the click closure (no `!`).
+      const dd = dispatchDrill;
+      const onDrill =
+        dd && dd.index.has(event.toolUseId)
+          ? () => dd.onDrill(event.toolUseId)
+          : undefined;
       return (
         <SubagentDispatch
           agentType={event.agentType}
           description={event.description}
-          onDrill={
-            canDrill ? () => dispatchDrill!.onDrill(event.toolUseId) : undefined
-          }
+          onDrill={onDrill}
         />
       );
     }

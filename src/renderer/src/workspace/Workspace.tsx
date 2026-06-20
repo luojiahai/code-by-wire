@@ -135,7 +135,7 @@ function WorkspaceBody({
   );
   const dispatchDrill: DispatchDrill = useMemo(
     () => ({
-      drillableIds: new Set(dispatchIndex.keys()),
+      index: dispatchIndex,
       onDrill: (toolUseId) => {
         const node = dispatchIndex.get(toolUseId);
         if (node)
