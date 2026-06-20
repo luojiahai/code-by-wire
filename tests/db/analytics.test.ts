@@ -1339,7 +1339,6 @@ describe("readBreakdowns", () => {
     const b = readBreakdowns(db);
     expect(b.byModel).toEqual(readByModel(db));
     expect(b.byProject).toEqual(readByProject(db));
-    expect(b.byBranch).toEqual(readByBranch(db));
     expect(b.bySession).toEqual(readBySession(db));
   });
 
@@ -1369,9 +1368,6 @@ describe("readBreakdowns", () => {
     expect(b.byProject).toEqual(
       readByProject(db, { sinceMs: 5000, untilMs: null }),
     );
-    expect(b.byBranch).toEqual(
-      readByBranch(db, { sinceMs: 5000, untilMs: null }),
-    );
     expect(b.bySession).toEqual(
       readBySession(db, { sinceMs: 5000, untilMs: null }),
     );
@@ -1388,7 +1384,6 @@ describe("readBreakdowns", () => {
     const b = readBreakdowns(db);
     expect(sum(b.byModel)).toBeCloseTo(total);
     expect(sum(b.byProject)).toBeCloseTo(total);
-    expect(sum(b.byBranch)).toBeCloseTo(total);
     expect(total).toBeCloseTo(11);
   });
 
@@ -1398,7 +1393,6 @@ describe("readBreakdowns", () => {
     expect(readBreakdowns(db)).toEqual({
       byModel: [],
       byProject: [],
-      byBranch: [],
       bySession: [],
     });
   });

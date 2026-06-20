@@ -717,11 +717,12 @@ export function readBySession(
 }
 
 /**
- * All three per-dimension breakdowns from ONE finest-grain scan, folded three ways. The poll path
+ * The per-dimension breakdowns, with byModel and byProject folded from ONE finest-grain scan. The poll path
  * (stats:read) calls this once instead of running a separate GROUP BY per breakdown: byModel folds the scan
- * by raw id, byProject by cwd, byBranch by cwd+branch. Every fold is lossless — token sums are additive and
- * equivApiValue is linear in tokens — so each breakdown is identical to its standalone readByX and still
- * reconciles with the grand total.
+ * by raw id, byProject by cwd. Every fold is lossless — token sums are additive and equivApiValue is linear
+ * in tokens — so each breakdown is identical to its standalone readByX and still reconciles with the grand
+ * total. (The per-branch breakdown still folds the same way via readByBranch; it just isn't carried on the
+ * poll snapshot, since no view reads it.)
  */
 export function readBreakdowns(
   db: SqliteDb,
@@ -731,7 +732,6 @@ export function readBreakdowns(
   return {
     byModel: foldModels(rows),
     byProject: foldProjects(rows),
-    byBranch: foldBranches(rows),
     // The session cut needs the session grain plus per-session span/count aggregates the dims scan above
     // can't express, so it runs its own GROUP BY rather than folding `rows`.
     bySession: readBySession(db, win),

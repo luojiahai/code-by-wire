@@ -162,18 +162,16 @@ export interface ScanProgress {
 }
 
 /**
- * The three per-dimension breakdowns a Stats poll carries, all scoped to the same range as the totals and
+ * The per-dimension breakdowns a Stats poll carries, all scoped to the same range as the totals and
  * ordered by tokens descending. Each is empty when there is no store, the scan errors, or the window holds
- * no turns. Grouped into one shape so the store can fold all three from a single scan (readBreakdowns) and
- * the snapshot, that reader, and the empty fallback can never disagree on the field set.
+ * no turns. Grouped into one shape so the store can fold byModel and byProject from a single scan
+ * (readBreakdowns) and the snapshot, that reader, and the empty fallback can never disagree on the field set.
  */
 export interface StatsBreakdowns {
   /** The per-model breakdown (#111). */
   byModel: StatsByModel[];
   /** The per-project breakdown (#112), keyed on the full cwd. */
   byProject: StatsByProject[];
-  /** The per-branch breakdown (#112), keyed on cwd + branch. */
-  byBranch: StatsByBranch[];
   /** The per-Session table rows (#113), one per session, ordered by last activity descending. */
   bySession: StatsBySession[];
 }
@@ -181,7 +179,7 @@ export interface StatsBreakdowns {
 /** Empty breakdowns: the per-read error fallback (main) and the building block for emptySnapshot, so the
  *  "serve none" shape lives in one place. */
 export function emptyBreakdowns(): StatsBreakdowns {
-  return { byModel: [], byProject: [], byBranch: [], bySession: [] };
+  return { byModel: [], byProject: [], bySession: [] };
 }
 
 /** One Stats poll: the totals as they stand, how far the scan has gotten, whether the store holds any turn

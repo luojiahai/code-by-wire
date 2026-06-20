@@ -323,7 +323,6 @@ describe("registerIpc stats:read", () => {
       hasAnyTurns: false,
       byModel: [],
       byProject: [],
-      byBranch: [],
       bySession: [],
       daily: [],
       calendar: [],
@@ -434,7 +433,7 @@ describe("registerIpc stats:read", () => {
     expect(week[0].equivApiValueUsd).toBeCloseTo(5);
   });
 
-  it("returns per-project and per-branch breakdowns scoped to the requested range", () => {
+  it("returns per-project breakdowns scoped to the requested range", () => {
     const home = makeHome();
     mkdirSync(join(home, "projects"), { recursive: true }); // empty: the seeds survive the scan
 
@@ -488,14 +487,11 @@ describe("registerIpc stats:read", () => {
       "alpha",
       "beta",
     ]);
-    expect(all.byBranch.map((r) => r.branch).sort()).toEqual(["dev", "main"]);
 
     const week = snapFor("7d");
     expect(week.byProject).toHaveLength(1); // beta is 100 days old, out of the window
     expect(week.byProject[0].project).toBe("alpha");
     expect(week.byProject[0].equivApiValueUsd).toBeCloseTo(5);
-    expect(week.byBranch).toHaveLength(1);
-    expect(week.byBranch[0].branch).toBe("main");
   });
 
   it("returns a per-session breakdown scoped to the requested range", () => {
