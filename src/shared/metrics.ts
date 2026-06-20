@@ -18,11 +18,18 @@ export interface GitInfo {
   dirty: boolean;
 }
 
+/** The branch's pull request, from `gh`. null when there's no PR or gh is unavailable. */
+export interface PrInfo {
+  number: number;
+  url: string;
+}
+
 /** The expensive, per-selected-session metrics, computed lazily off the main thread of the overview. Any
  *  field is null when its source is absent (no repo, no completed request, no voice/remote config). */
 export interface SessionMetrics {
   tokenSpeed: TokenSpeed | null;
   git: GitInfo | null;
+  pr?: PrInfo | null;
   voiceEnabled: boolean | null;
   remoteControl: boolean | null;
 }
