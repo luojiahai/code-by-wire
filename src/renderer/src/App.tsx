@@ -284,7 +284,6 @@ export function App() {
     <div className="app-bg flex h-screen flex-col text-fg">
       <GlobalHeader
         cliStatus={cliStatus}
-        onOpenSystem={showSystem}
         onOpenSettings={() => setSelectedId(SETTINGS_ID)}
         settingsActive={isSettings}
       />
