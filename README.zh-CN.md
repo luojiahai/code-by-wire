@@ -10,13 +10,16 @@
 **本地 Claude Code 的驾驶舱。**
 
 Claude Code 一边工作，一边把丰富的轨迹写进 `.claude` 目录：每一个回合、每一个 token、每一次工具
-调用、实时花费、上下文窗口。可 CLI 几乎什么都不给你看。Code-by-wire 读取这份轨迹，把它变成
-一块实时仪表盘。你机器上的每个会话都集中到一处：实时状态、完整记录、一个可驱动或随时接管的
-内嵌终端，以及终端从不展示给你的遥测。一块面板，取代十几个终端窗口。
+调用、实时花费、上下文窗口。可 CLI 几乎什么都不给你看。
+
+Code-by-wire 读取这份轨迹，把它变成一块实时仪表盘。你机器上的每个会话都集中到一处：实时状态、
+完整记录、一个可驱动或随时接管的内嵌终端，以及终端从不展示给你的遥测。一块面板，取代十几个终端
+窗口。
 
 ![Code-by-wire](docs/assets/cbw-demo.gif)
 
-**[下载 macOS 版（Apple Silicon）](https://github.com/luojiahai/code-by-wire/releases/latest)** · **[下载 Windows 版（x64）](https://github.com/luojiahai/code-by-wire/releases/latest)**
+**[下载 macOS 版（Apple Silicon）](https://github.com/luojiahai/code-by-wire/releases/latest)**\
+**[下载 Windows 版（x64）](https://github.com/luojiahai/code-by-wire/releases/latest)**
 
 ## 你能得到什么
 

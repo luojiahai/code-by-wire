@@ -11,14 +11,17 @@ English | [简体中文](README.zh-CN.md)
 
 Claude Code writes a rich trail to the `.claude` directory as it works: every
 turn, every token, every tool call, the running cost, the context window. The
-CLI shows you almost none of it. Code-by-wire reads that trail and turns it into
-one live dashboard. Every session on your machine in one place, with live state,
-the full transcript, an embedded terminal to drive or take over, and the
-telemetry the terminal hides. One pane instead of a dozen terminal windows.
+CLI shows you almost none of it.
+
+Code-by-wire reads that trail and turns it into one live dashboard. Every
+session on your machine in one place, with live state, the full transcript, an
+embedded terminal to drive or take over, and the telemetry the terminal hides.
+One pane instead of a dozen terminal windows.
 
 ![Code-by-wire](docs/assets/cbw-demo.gif)
 
-**[Download for macOS (Apple Silicon)](https://github.com/luojiahai/code-by-wire/releases/latest)** · **[Download for Windows (x64)](https://github.com/luojiahai/code-by-wire/releases/latest)**
+**[Download for macOS (Apple Silicon)](https://github.com/luojiahai/code-by-wire/releases/latest)**\
+**[Download for Windows (x64)](https://github.com/luojiahai/code-by-wire/releases/latest)**
 
 ## What you get
 
