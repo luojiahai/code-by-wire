@@ -4,7 +4,7 @@ import { costBreakdown } from "@shared/models";
 import { formatUsd, formatTokensShort, costDisplay } from "@shared/format";
 import { StackedBar } from "../../ui/charts";
 import { Swatch } from "../../ui/atoms";
-import { COST_SEGMENT_COLORS } from "../../ui/meta";
+import { KIND_SEGMENT_COLORS } from "../../ui/meta";
 import { PanelSection, PanelHeading } from "./chrome";
 
 const TOKENS_INFO =
@@ -47,25 +47,25 @@ export function TokensPanel({
           label: "Input",
           tokens: usage.inputTokens,
           usd: b.input,
-          color: COST_SEGMENT_COLORS[0],
+          color: KIND_SEGMENT_COLORS[0],
         },
         {
           label: "Output",
           tokens: usage.outputTokens,
           usd: b.output,
-          color: COST_SEGMENT_COLORS[1],
+          color: KIND_SEGMENT_COLORS[1],
         },
         {
           label: "Cache read",
           tokens: usage.cacheReadTokens,
           usd: b.cacheRead,
-          color: COST_SEGMENT_COLORS[2],
+          color: KIND_SEGMENT_COLORS[2],
         },
         {
           label: "Cache write",
           tokens: usage.cacheCreationTokens,
           usd: b.cacheWrite,
-          color: COST_SEGMENT_COLORS[3],
+          color: KIND_SEGMENT_COLORS[3],
         },
       ],
       cacheSavings: b.cacheSavings,

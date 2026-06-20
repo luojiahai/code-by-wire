@@ -90,32 +90,15 @@ export function ctxColor(pct: number): string {
 }
 
 /**
- * The cost/token breakdown palette: a monochrome magnitude ramp (Instrument discipline — charts read as
- * data, never affordances, so hue is reserved for live state). Light → deep by token kind, with a dimmest
- * tail for cache-write. Used by the cost donut + legend and the token stacked bar + legend, so each diagram
- * and its legend always agree. CSS var strings so a retone stays in index.css.
+ * The token-kind breakdown palette, shared by the Overview breakdowns and the cockpit's Tokens panel so
+ * the two read the same: input and output carry color (the fresh-token split is the meaningful part of a
+ * usage chart), cache greys back. CSS var strings so a retone stays in index.css.
  */
-export const COST_SEGMENT_COLORS = [
-  "var(--color-data-1)", // Input — lightest
-  "var(--color-data-2)", // Output
-  "var(--color-data-3)", // Cache read
-  "var(--color-data-4)", // Cache write — dimmest
-] as const;
-
-/** The Overview's kind palette: input and output carry color (the fresh-token split is the meaningful
- *  part of a usage chart), cache greys back. Deliberately distinct from COST_SEGMENT_COLORS — the cockpit's
- *  all-mono ramp — so the cockpit token panel stays monochrome while the analytics view reads in color. */
-export const OVERVIEW_KIND_COLORS = [
+export const KIND_SEGMENT_COLORS = [
   "var(--color-primary)", // Input — blue
   "var(--color-violet)", // Output — violet
   "var(--color-data-3)", // Cache read — grey
-  "var(--color-data-4)", // Cache write — grey
-] as const;
-
-export const TOKEN_SEGMENT_COLORS = [
-  "var(--color-data-1)", // Input
-  "var(--color-data-2)", // Output
-  "var(--color-data-3)", // Cached
+  "var(--color-data-4)", // Cache write — grey (dimmest)
 ] as const;
 
 /** Model identity colors (Aurora): one fixed hue per known family, looked up BY family — not cycled by row

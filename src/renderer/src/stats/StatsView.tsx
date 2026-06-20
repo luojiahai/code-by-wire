@@ -43,7 +43,7 @@ import {
   StackedBar,
   type DayColumn,
 } from "../ui/charts";
-import { OVERVIEW_KIND_COLORS, modelColorOf, CALENDAR_RAMP } from "../ui/meta";
+import { KIND_SEGMENT_COLORS, modelColorOf, CALENDAR_RAMP } from "../ui/meta";
 import {
   calendarGrid,
   intensityThresholds,
@@ -602,14 +602,14 @@ function KpiStrip({
   // only, so drop the two cache segments — then the bar composition matches the number above it.
   const kindSegments = includeCache
     ? [
-        { value: totals.inputTokens, color: OVERVIEW_KIND_COLORS[0] },
-        { value: totals.outputTokens, color: OVERVIEW_KIND_COLORS[1] },
-        { value: totals.cacheReadTokens, color: OVERVIEW_KIND_COLORS[2] },
-        { value: totals.cacheCreationTokens, color: OVERVIEW_KIND_COLORS[3] },
+        { value: totals.inputTokens, color: KIND_SEGMENT_COLORS[0] },
+        { value: totals.outputTokens, color: KIND_SEGMENT_COLORS[1] },
+        { value: totals.cacheReadTokens, color: KIND_SEGMENT_COLORS[2] },
+        { value: totals.cacheCreationTokens, color: KIND_SEGMENT_COLORS[3] },
       ]
     : [
-        { value: totals.inputTokens, color: OVERVIEW_KIND_COLORS[0] },
-        { value: totals.outputTokens, color: OVERVIEW_KIND_COLORS[1] },
+        { value: totals.inputTokens, color: KIND_SEGMENT_COLORS[0] },
+        { value: totals.outputTokens, color: KIND_SEGMENT_COLORS[1] },
       ];
   const tokenTotal = includeCache
     ? totals.inputTokens +
@@ -629,7 +629,7 @@ function KpiStrip({
         <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[9px] text-fg-faint">
           {KIND_LABELS.slice(0, kindSegments.length).map((label, i) => (
             <span key={label} className="flex items-center gap-1">
-              <Swatch color={OVERVIEW_KIND_COLORS[i]} />
+              <Swatch color={KIND_SEGMENT_COLORS[i]} />
               {label}
             </span>
           ))}
@@ -687,7 +687,7 @@ type StackBy = "kind" | "model";
 const STACK_LABELS: Record<StackBy, string> = { kind: "Kind", model: "Model" };
 const STACK_OPTS = Object.entries(STACK_LABELS) as [StackBy, string][];
 
-/** The by-kind segment labels, paired by index with OVERVIEW_KIND_COLORS (input/output/cache-read/
+/** The by-kind segment labels, paired by index with KIND_SEGMENT_COLORS (input/output/cache-read/
  *  cache-write). One source for the legend, the tooltip, and the stack order. */
 const KIND_LABELS = ["Input", "Output", "Cache read", "Cache write"] as const;
 
@@ -744,7 +744,7 @@ function DailyUsage({
       .map((value, idx) => ({
         label: KIND_LABELS[idx],
         value,
-        color: OVERVIEW_KIND_COLORS[idx],
+        color: KIND_SEGMENT_COLORS[idx],
       }));
 
   // Model series: the snapshot's byModel order (tokens desc), each paired by store index to a cycled color,
@@ -800,7 +800,7 @@ function DailyUsage({
     stackBy === "kind"
       ? KIND_LABELS.slice(0, kindCount).map((label, i) => ({
           label,
-          color: OVERVIEW_KIND_COLORS[i],
+          color: KIND_SEGMENT_COLORS[i],
         }))
       : series.map((s) => ({
           label: s.modelRaw ?? "Unknown",
