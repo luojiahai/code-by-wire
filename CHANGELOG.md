@@ -6,7 +6,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-06-19
+## [0.1.7] - 2026-06-20
 
 ### Added
 
@@ -173,8 +173,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/luojiahai/code-by-wire/compare/v0.1.6...v0.2.0
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/luojiahai/code-by-wire/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/luojiahai/code-by-wire/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/luojiahai/code-by-wire/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/luojiahai/code-by-wire/compare/v0.1.3...v0.1.4
