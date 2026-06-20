@@ -19,14 +19,14 @@ describe("readPr", () => {
 
   it("fetches once, then serves the parsed PR from cache within the TTL", async () => {
     let calls = 0;
-    _setPrRunner(async () => {
+    _setPrRunner(() => {
       calls++;
-      return JSON.stringify({
+      return Promise.resolve(JSON.stringify({
         number: 166,
         url: "https://github.com/o/r/pull/166",
-      });
+      }));
     });
-    let clock = 1000;
+    const clock = 1000;
     const now = (): number => clock;
 
     expect(readPr("/repo", "main", now)).toBeNull(); // cold: kicks the fetch
@@ -42,9 +42,9 @@ describe("readPr", () => {
 
   it("refreshes after the TTL, serving the stale value meanwhile", async () => {
     let calls = 0;
-    _setPrRunner(async () => {
+    _setPrRunner(() => {
       calls++;
-      return JSON.stringify({ number: calls, url: "u" });
+      return Promise.resolve(JSON.stringify({ number: calls, url: "u" }));
     });
     let clock = 1000;
     const now = (): number => clock;
@@ -61,7 +61,7 @@ describe("readPr", () => {
   });
 
   it("caches null when gh fails or there is no PR", async () => {
-    _setPrRunner(async () => null);
+    _setPrRunner(() => Promise.resolve(null));
     expect(readPr("/repo", "main")).toBeNull();
     await flush();
     expect(readPr("/repo", "main")).toBeNull();
@@ -88,7 +88,7 @@ describe("readPr", () => {
   it("nulls a previously-cached PR when a later refresh rejects", async () => {
     let clock = 1000;
     const now = (): number => clock;
-    _setPrRunner(async () => JSON.stringify({ number: 1, url: "u" }));
+    _setPrRunner(() => Promise.resolve(JSON.stringify({ number: 1, url: "u" })));
     expect(readPr("/repo", "main", now)).toBeNull();
     await flush();
     expect(readPr("/repo", "main", now)).toEqual({ number: 1, url: "u" });

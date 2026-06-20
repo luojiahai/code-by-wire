@@ -10,7 +10,7 @@ const makeHome = tempHomes("cbw-metrics-");
 
 beforeEach(() => {
   _resetPrCache();
-  _setPrRunner(async () => null); // never spawn gh in tests
+  _setPrRunner(() => Promise.resolve(null)); // never spawn gh in tests
 });
 
 function git(cwd: string, ...args: string[]): void {
