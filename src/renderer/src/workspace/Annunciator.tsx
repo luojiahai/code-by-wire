@@ -1,6 +1,6 @@
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { Session } from "@shared/types";
-import type { GitInfo } from "@shared/metrics";
+import type { GitInfo, PrInfo } from "@shared/metrics";
 import { formatClock } from "@shared/format";
 import { cx } from "../ui/atoms";
 import { modelLabel, STATE_META } from "../ui/meta";
@@ -8,16 +8,19 @@ import { MODE_INFO } from "./mode-info";
 
 /**
  * The workspace header's instrument strip — the cockpit's annunciator. Two status lamps (State, Link)
- * carry live LEDs, then a seam, then the identity readouts (Model · Effort, Repo, Clock). Context and
- * spend deliberately stay out: they live in the telemetry sidebar, and the bar must not echo a gauge
- * sitting right beside it. Color appears only on the lamps, where it encodes state.
+ * carry live LEDs, then a seam, then the identity readouts (Model · Effort, Git, Clock). The Git cell is
+ * identity only — `repo · branch · PR #n`; the diff/sync numbers live in its hover tooltip. Context and
+ * spend deliberately stay out: they live in the telemetry sidebar. Color appears only on the state lamps
+ * and the one amber PR link, where it marks an action.
  */
 export function Annunciator({
   session: s,
   git,
+  pr,
 }: {
   session: Session;
   git?: GitInfo | null;
+  pr?: PrInfo | null;
 }) {
   const state = STATE_META[s.state];
   const pulses = s.state === "working" || s.state === "waiting";
@@ -29,12 +32,9 @@ export function Annunciator({
     s.modelDisplayName,
     { compact: true, known: managed },
   );
-  const branch = git?.branch ?? s.branch ?? "—";
-  const gitTitle = git
-    ? `${git.branch} · +${git.insertions} −${git.deletions} · ${git.dirty ? "dirty" : "clean"}`
-    : s.branch
-      ? `${s.project} · ${s.branch}`
-      : s.project;
+  const repo = s.project;
+  const branch = git?.branch ?? s.branch;
+  const ident = branch ? `${repo} · ${branch}` : repo;
   const clock = s.sessionClockMs != null ? formatClock(s.sessionClockMs) : null;
   return (
     <div className="mt-2 flex items-stretch overflow-hidden rounded-md border border-ink-800 bg-well shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
@@ -58,26 +58,55 @@ export function Annunciator({
         {model}
         {s.effortLevel && <span className="text-fg"> · {s.effortLevel}</span>}
       </Cell>
-      <Cell label="Git" grow={2.4} truncate title={gitTitle}>
-        <span className="text-fg">{branch}</span>
-        {git && (git.insertions || git.deletions) ? (
-          <>
-            {" "}
-            <span className="text-ok">+{git.insertions}</span>{" "}
-            <span className="text-danger">−{git.deletions}</span>
-          </>
-        ) : null}
-        {git?.ahead ? (
-          <span className="text-fg-muted"> ↑{git.ahead}</span>
-        ) : null}
+      <Cell label="Git" grow={2.4} raw tooltip={git ? gitTip(git) : undefined}>
+        <span className="flex min-w-0 items-center">
+          <span className="min-w-0 truncate text-fg">{ident}</span>
+          {pr ? (
+            <span className="shrink-0 whitespace-nowrap text-fg-muted">
+              {" · PR "}
+              <button
+                type="button"
+                onClick={() => {
+                  void window.api.openExternal(pr.url);
+                }}
+                className="text-accent underline underline-offset-2 hover:text-accent-bright"
+              >
+                #{pr.number}
+              </button>
+            </span>
+          ) : null}
+        </span>
       </Cell>
       <Cell label="Clock">{clock ?? "—"}</Cell>
     </div>
   );
 }
 
+/** The Git cell's hover readout: the demoted git numbers. Ahead/behind (monochrome) only when there's an
+ *  upstream; insert (green) / delete (red) always. */
+function gitTip(git: GitInfo): ReactNode {
+  const sync =
+    git.ahead != null && git.behind != null ? (
+      <>
+        <span className="text-fg">↑{git.ahead}</span>{" "}
+        <span className="text-fg-muted">↓{git.behind}</span>
+        {" · "}
+      </>
+    ) : null;
+  return (
+    <span className="font-mono">
+      {sync}
+      <span className="text-ok">+{git.insertions}</span>{" "}
+      <span className="text-danger">−{git.deletions}</span>
+    </span>
+  );
+}
+
 /** One annunciator cell: a Saira placard label over a mono readout. `led` adds a status lamp before the
- *  value (pulsing for live states); `seam` draws the divider between the status lamps and the readouts. */
+ *  value (pulsing for live states); `seam` draws the divider between the status lamps and the readouts.
+ *  `tooltip` shows a custom hover popover (for color the native `title` can't carry); `raw` drops the
+ *  default value wrapper so the cell lays out its own value (the Git cell truncates its identity and pins
+ *  its PR). */
 function Cell({
   label,
   led,
@@ -85,7 +114,8 @@ function Cell({
   valueClass,
   grow,
   seam,
-  truncate,
+  raw,
+  tooltip,
   title,
   children,
 }: {
@@ -95,16 +125,20 @@ function Cell({
   valueClass?: string;
   grow?: number;
   seam?: boolean;
-  truncate?: boolean;
+  raw?: boolean;
+  tooltip?: ReactNode;
   title?: string;
   children: ReactNode;
 }) {
+  const [hover, setHover] = useState(false);
   return (
     <div
-      title={title}
+      title={tooltip ? undefined : title}
+      onMouseEnter={tooltip ? () => setHover(true) : undefined}
+      onMouseLeave={tooltip ? () => setHover(false) : undefined}
       style={{ flex: grow ?? 1 }}
       className={cx(
-        "flex min-w-0 flex-col gap-[3px] border-r border-ink-850 px-3 py-1.5 last:border-r-0",
+        "relative flex min-w-0 flex-col gap-[3px] border-r border-ink-850 px-3 py-1.5 last:border-r-0",
         seam && "border-l border-ink-800",
       )}
     >
@@ -126,10 +160,13 @@ function Cell({
             )}
           />
         )}
-        <span className={cx("min-w-0", truncate && "truncate")}>
-          {children}
-        </span>
+        {raw ? children : <span className="min-w-0">{children}</span>}
       </span>
+      {tooltip && hover && (
+        <div className="pointer-events-none absolute left-2 top-full z-20 mt-1 whitespace-nowrap rounded-md border border-ink-800 bg-ink-900 px-2 py-1.5 text-[11px] shadow-lg">
+          {tooltip}
+        </div>
+      )}
     </div>
   );
 }

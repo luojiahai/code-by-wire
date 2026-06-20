@@ -53,7 +53,7 @@ export function Workspace({
           </div>
           <HeaderActions session={s} canSpawn={canSpawn} onAdopt={onAdopt} />
         </div>
-        <Annunciator session={s} git={metrics?.git} />
+        <Annunciator session={s} git={metrics?.git} pr={metrics?.pr} />
       </header>
 
       <div className="min-h-0 flex-1">
