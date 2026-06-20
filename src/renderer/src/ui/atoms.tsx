@@ -42,32 +42,34 @@ export function Dot({
   );
 }
 
-/** The session ROW indicator: a monochrome state icon in a recessed tile. Shape = state (via STATE_ICON),
- *  tone = management (managed muted, observed faint). Working spins; Waiting carries a single static amber
- *  corner dot. The tile self-stretches so it spans the title and the project line. Color lives in the group
- *  headers' Dot, not here. */
+/** The session ROW indicator: a compact monochrome state icon. Shape = state (via STATE_ICON), tone =
+ *  management (managed muted, observed faint) — or brightened to fg when the row is selected. Working
+ *  spins; Waiting carries a single static amber corner dot. Top-aligned so it sits with the title, not
+ *  centered across both lines. Color lives in the group headers' Dot, never here. */
 export function SessionTile({
   state,
   management,
+  selected,
 }: {
   state: SessionState;
   management: Management;
+  selected?: boolean;
 }) {
   return (
     <span
       title={glyphTitle(state, management)}
-      className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink-950"
+      className="relative mt-px flex h-4 w-4 shrink-0 items-center justify-center"
     >
       <Icon
         name={STATE_ICON[state]}
-        size={18}
+        size={15}
         className={cx(
-          glyphTone(management),
+          selected ? "text-fg" : glyphTone(management),
           glyphSpins(state) && "animate-spin",
         )}
       />
       {state === "waiting" && (
-        <span className="absolute -right-[3px] -top-[3px] h-[9px] w-[9px] rounded-full bg-accent ring-2 ring-ink-900" />
+        <span className="absolute -right-[3px] -top-[3px] h-[7px] w-[7px] rounded-full bg-accent ring-2 ring-ink-925" />
       )}
     </span>
   );

@@ -46,7 +46,6 @@ export function App() {
   // session to leave it.
   const [selectedId, setSelectedId] = useState<string | null>(OVERVIEW_ID);
   const [creating, setCreating] = useState(false);
-  const [query, setQuery] = useState("");
 
   // Sessions and account come from one overview read, so apply them together — a stale or failed
   // half can't leave the list and the account disagreeing.
@@ -241,10 +240,9 @@ export function App() {
       ? (all.find((s) => s.id === selectedId) ?? null)
       : null;
 
-  // The selection follows the unfiltered list, not the rail's `query` — filtering the rail must never
-  // yank the open session away. Re-home only when the list first arrives, the open session vanishes, or
-  // the list empties. Keyed on the id list so it can't loop on a fresh `all` each render; setting the
-  // same id is a no-op.
+  // Re-home the selection only when the list first arrives, the open session vanishes, or the list
+  // empties. Keyed on the id list so it can't loop on a fresh `all` each render; setting the same id is
+  // a no-op.
   const ids = useMemo(() => all.map((s) => s.id).join(","), [all]);
   useEffect(() => {
     if (all.length === 0) {
@@ -276,8 +274,6 @@ export function App() {
           selectedId={selectedId}
           onSelect={setSelectedId}
           onNew={() => setCreating(true)}
-          query={query}
-          onQuery={setQuery}
           account={account}
           canSpawn={spawnGate(cliStatus).canSpawn}
         />
