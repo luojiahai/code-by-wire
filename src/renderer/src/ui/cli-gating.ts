@@ -6,14 +6,13 @@ export interface SpawnGate {
 }
 
 /** notFound/unknown genuinely can't spawn; everything else (incl. the pending null) may, with the
- *  footer warning carrying the caveat for outdated/loggedOut. */
+ *  Sys lamp and caution banner carrying the caveat for outdated/loggedOut. */
 export function spawnGate(status: CliStatus | null): SpawnGate {
   if (!status) return { canSpawn: true, reason: null };
   if (status.kind === "notFound" || status.kind === "unknown") {
     return {
       canSpawn: false,
-      reason:
-        "Claude Code CLI isn't usable — see the status at the bottom of the rail.",
+      reason: "Claude Code CLI isn't usable — see Sys status in the title bar.",
     };
   }
   return { canSpawn: true, reason: null };
