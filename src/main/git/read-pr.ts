@@ -78,6 +78,7 @@ export function readPr(
         entry.fetching = false;
       })
       .catch(() => {
+        entry.value = null;
         entry.expiry = now() + TTL_MS;
         entry.fetching = false;
       });

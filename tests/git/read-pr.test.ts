@@ -84,4 +84,19 @@ describe("readPr", () => {
     await flush();
     expect(readPr("/repo", "main")).toEqual({ number: 7, url: "u" });
   });
+
+  it("nulls a previously-cached PR when a later refresh rejects", async () => {
+    let clock = 1000;
+    const now = (): number => clock;
+    _setPrRunner(async () => JSON.stringify({ number: 1, url: "u" }));
+    expect(readPr("/repo", "main", now)).toBeNull();
+    await flush();
+    expect(readPr("/repo", "main", now)).toEqual({ number: 1, url: "u" });
+
+    _setPrRunner(() => Promise.reject(new Error("gh blew up")));
+    clock += 60_001; // past the TTL → next read kicks a refresh that rejects
+    expect(readPr("/repo", "main", now)).toEqual({ number: 1, url: "u" }); // stale served meanwhile
+    await flush();
+    expect(readPr("/repo", "main", now)).toBeNull(); // rejection cached null
+  });
 });
