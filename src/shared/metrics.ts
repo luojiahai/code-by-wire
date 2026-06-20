@@ -16,6 +16,9 @@ export interface GitInfo {
   behind: number | null;
   sha: string | null;
   dirty: boolean;
+  /** The `origin` remote as a browsable https URL (the Git popover's Repository link), or null when there
+   *  is no origin or it can't be normalized. */
+  remoteUrl: string | null;
 }
 
 /** The branch's pull request, from `gh`. null when there's no PR or gh is unavailable. */

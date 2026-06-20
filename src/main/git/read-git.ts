@@ -85,7 +85,11 @@ export function normalizeRemoteUrl(raw: string | null): string | null {
   // ssh:// and http(s):// parse as URLs; git:// and file:// fall through to null.
   try {
     const u = new URL(trimmed);
-    if (u.protocol === "ssh:" || u.protocol === "http:" || u.protocol === "https:") {
+    if (
+      u.protocol === "ssh:" ||
+      u.protocol === "http:" ||
+      u.protocol === "https:"
+    ) {
       const path = stripGit(u.pathname).replace(/^\/+/, "");
       if (!u.hostname || !path) return null;
       return `https://${u.hostname}/${path}`;
@@ -166,6 +170,9 @@ export function readGit(cwd: string): GitInfo | null {
       behind = b;
     }
   }
+  const remoteUrl = normalizeRemoteUrl(
+    git(cwd, ["remote", "get-url", "origin"]),
+  );
   const value: GitInfo = {
     branch,
     insertions: unstaged.insertions + staged.insertions,
@@ -174,6 +181,7 @@ export function readGit(cwd: string): GitInfo | null {
     behind,
     sha: sha || null,
     dirty: porcelain !== null && porcelain.length > 0,
+    remoteUrl,
   };
   cache.set(cwd, { gitDir, token, expiry: now + TTL_MS, value });
   return value;

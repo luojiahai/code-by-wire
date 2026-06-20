@@ -3,9 +3,9 @@ import { normalizeRemoteUrl } from "../../src/main/git/read-git";
 
 describe("normalizeRemoteUrl", () => {
   it("converts scp-style SSH to https and strips .git", () => {
-    expect(normalizeRemoteUrl("git@github.com:luojiahai/code-by-wire.git")).toBe(
-      "https://github.com/luojiahai/code-by-wire",
-    );
+    expect(
+      normalizeRemoteUrl("git@github.com:luojiahai/code-by-wire.git"),
+    ).toBe("https://github.com/luojiahai/code-by-wire");
   });
   it("converts an ssh:// URL to https", () => {
     expect(

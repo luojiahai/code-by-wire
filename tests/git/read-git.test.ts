@@ -58,4 +58,22 @@ describe("readGit", () => {
     writeFileSync(join(dir, "a.txt"), "one\ntwo\n"); // unstaged edit; doesn't touch .git/HEAD or .git/index
     expect(readGit(dir)!.dirty).toBe(false); // cached: HEAD/index mtime unchanged, within the 5s TTL
   });
+
+  it("normalizes the origin remote to a browsable https url", () => {
+    const dir = initRepo();
+    git(
+      dir,
+      "remote",
+      "add",
+      "origin",
+      "git@github.com:luojiahai/code-by-wire.git",
+    );
+    expect(readGit(dir)!.remoteUrl).toBe(
+      "https://github.com/luojiahai/code-by-wire",
+    );
+  });
+
+  it("reports a null remote when there is no origin", () => {
+    expect(readGit(initRepo())!.remoteUrl).toBeNull();
+  });
 });
