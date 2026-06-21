@@ -228,7 +228,7 @@ export function BarSeries({
         {ticks.map((t) => (
           <span
             key={t}
-            className="absolute right-0 translate-y-[calc(-50%_+_1.5px)] text-[9px] leading-none tabular-nums text-fg-faint"
+            className="absolute right-0 translate-y-[calc(-50%_+_6px)] text-[9px] leading-none tabular-nums text-fg-faint"
             style={{ bottom: `${(t / axisMax) * 100}%` }}
           >
             {formatTick(t)}
