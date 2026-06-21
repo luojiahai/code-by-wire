@@ -25,7 +25,7 @@ import {
   stitchSnapshots,
   toBackgroundShell,
 } from "./shells";
-import { resolveAdoptTarget } from "./adopt-target";
+import { resolveAdoptTarget, resolveSessionCwd } from "./adopt-target";
 import { computeTokenSpeed, SPEED_WINDOW_MS } from "./transcript-speed";
 import { firstTranscriptCwd } from "./transcript";
 import { readGit } from "../../git/read-git";
@@ -259,6 +259,7 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
     }),
     resolveAdoptTarget: (id) =>
       resolveAdoptTarget({ claudeDir, isPidAlive, id }),
+    resolveSessionCwd: (id) => resolveSessionCwd({ claudeDir, id }),
     readTranscript: (id, sinceMtimeMs) => {
       try {
         const resolved = resolveTranscript(id);

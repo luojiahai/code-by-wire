@@ -38,7 +38,7 @@ export interface CandidateDeps {
  * masquerade as an empty home, which downstream prunes the whole index. Let those propagate so the
  * sync aborts and leaves the existing rows intact.
  */
-function readRoot(dir: string): string[] {
+export function readRoot(dir: string): string[] {
   try {
     return readdirSync(dir);
   } catch (err) {

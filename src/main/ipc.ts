@@ -200,7 +200,7 @@ export function registerIpc({
   ipcMain.handle(IPC.openIn, (_e, id: string, target: OpenInTarget) =>
     openInTarget(
       {
-        resolveCwd: (sid) => provider.resolveAdoptTarget(sid)?.cwd ?? null,
+        resolveCwd: (sid) => provider.resolveSessionCwd(sid),
         statDir: isDirectory,
         shell,
       },

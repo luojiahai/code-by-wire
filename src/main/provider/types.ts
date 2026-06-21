@@ -53,4 +53,8 @@ export interface Provider {
   /** Resolve whether a session is still owned by a live process (the liveness re-check behind Adopt's
    *  Ended-only state gate) and the working directory to resume it in. Null when nothing resolves a cwd. */
   resolveAdoptTarget(id: string): { alive: boolean; cwd: string } | null;
+  /** Resolve just a session's working directory, for actions that only need the folder (Open in).
+   *  Cheaper than resolveAdoptTarget: no liveness probe, and a targeted transcript lookup rather than a
+   *  full index. Null when no cwd resolves. */
+  resolveSessionCwd(id: string): string | null;
 }

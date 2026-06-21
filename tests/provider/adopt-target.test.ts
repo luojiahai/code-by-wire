@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolveAdoptTarget } from "../../src/main/provider/claude/adopt-target";
+import {
+  resolveAdoptTarget,
+  resolveSessionCwd,
+} from "../../src/main/provider/claude/adopt-target";
 import { tempHomes } from "../helpers/temp-home";
 
 const makeHome = tempHomes("cbw-adopt-");
@@ -97,5 +100,38 @@ describe("resolveAdoptTarget", () => {
         id: "ghost",
       }),
     ).toBeNull();
+  });
+});
+
+describe("resolveSessionCwd", () => {
+  it("returns the registry cwd when present, without touching the transcript", () => {
+    const home = makeHome();
+    writeSessionFile(home, {
+      pid: 100,
+      sessionId: "live-1",
+      cwd: "/w/live",
+      updatedAt: 5,
+    });
+    expect(resolveSessionCwd({ claudeDir: home, id: "live-1" })).toBe(
+      "/w/live",
+    );
+  });
+
+  it("recovers cwd from the transcript for a reaped Ended session", () => {
+    const home = makeHome();
+    writeTranscript(
+      home,
+      "-w-app",
+      "ended-1",
+      '{"type":"user","cwd":"/w/app","message":{"content":"hi"}}\n',
+    );
+    expect(resolveSessionCwd({ claudeDir: home, id: "ended-1" })).toBe(
+      "/w/app",
+    );
+  });
+
+  it("returns null when no registry entry and no transcript hold a cwd", () => {
+    const home = makeHome();
+    expect(resolveSessionCwd({ claudeDir: home, id: "ghost" })).toBeNull();
   });
 });
