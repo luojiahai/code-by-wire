@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { ipcMain, shell, clipboard } from "electron";
 import { IPC, type OverviewData, type StatsRead } from "@shared/ipc";
 import type { Provider } from "./provider/types";
 import type { SqliteDb } from "./db/driver";
@@ -50,6 +50,7 @@ import {
   localDayKey,
 } from "@shared/stats";
 import { syncSessions } from "./sync";
+import { isHttpUrl } from "./open-external";
 
 export interface IpcDeps {
   db: SqliteDb;
@@ -186,6 +187,12 @@ export function registerIpc({
   ipcMain.handle(IPC.readMetrics, (_e, id: string, sinceMtimeMs?: number) =>
     provider.readMetrics(id, sinceMtimeMs),
   );
+  ipcMain.handle(IPC.openExternal, (_e, url: string) => {
+    if (isHttpUrl(url)) void shell.openExternal(url);
+  });
+  ipcMain.handle(IPC.clipboardWriteText, (_e, text: string) => {
+    clipboard.writeText(text);
+  });
 
   // Slice 2 lifecycle: the Stats view polls this while open. Each call runs ONE bounded, incremental scan
   // step (the event loop breathes between calls, so pty output and IPC stay responsive) and returns the

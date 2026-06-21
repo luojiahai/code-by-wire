@@ -70,8 +70,9 @@ export function StructureDock({
     return (
       <DockTally
         tasks={tasks}
-        turnCount={turns.length}
         stats={stats}
+        shellCount={shells.length}
+        turnCount={turns.length}
         onExpand={() => setCollapsed(false)}
       />
     );
@@ -158,17 +159,19 @@ function DockTabBar({
   );
 }
 
-/** The collapsed dock: a thin, full-width button summarizing tasks, turns, and subagents, clickable to
- *  expand. Carries the same `lg` width gate as the expanded dock. */
+/** The collapsed dock: a thin, full-width button summarizing tasks, subagents, shells, and turns — the
+ *  expanded dock's tab order. Clickable to expand. Carries the same `lg` width gate as the expanded dock. */
 function DockTally({
   tasks,
-  turnCount,
   stats,
+  shellCount,
+  turnCount,
   onExpand,
 }: {
   tasks: Task[];
-  turnCount: number;
   stats: SubagentStats;
+  shellCount: number;
+  turnCount: number;
   onExpand: () => void;
 }) {
   const tasksDone = tasks.filter((t) => t.status === "completed").length;
@@ -188,11 +191,12 @@ function DockTally({
         <span>
           {tasksDone}/{tasks.length} tasks
         </span>
-        <span>{turnCount} turns</span>
         <span>
           {stats.total} subagents
           {stats.working > 0 ? ` · ${stats.working} working` : ""}
         </span>
+        <span>{shellCount} shells</span>
+        <span>{turnCount} turns</span>
       </span>
     </button>
   );

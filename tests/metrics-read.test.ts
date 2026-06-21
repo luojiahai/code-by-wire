@@ -1,11 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClaudeProvider } from "../src/main/provider/claude";
+import { _setPrRunner, _resetPrCache } from "../src/main/git/read-pr";
 import { tempHomes } from "./helpers/temp-home";
 
 const makeHome = tempHomes("cbw-metrics-");
+
+beforeEach(() => {
+  _resetPrCache();
+  _setPrRunner(() => Promise.resolve(null)); // never spawn gh in tests
+});
 
 function git(cwd: string, ...args: string[]): void {
   execFileSync("git", args, {
@@ -107,6 +113,27 @@ describe("provider.readMetrics", () => {
     expect(r.metrics.tokenSpeed?.outputTps).toBeCloseTo(100, 5);
     expect(r.metrics.git?.branch).toBe("main");
     expect(typeof r.mtimeMs).toBe("number");
+  });
+
+  it("only asks gh for a PR when the glance found a browsable remote", () => {
+    let calls = 0;
+    _setPrRunner(() => {
+      calls++;
+      return Promise.resolve(null);
+    });
+
+    // No origin: a remote-less repo can't have a PR, so gh is never spawned.
+    const bare = scaffold();
+    createClaudeProvider({ claudeDir: bare.claudeDir }).readMetrics(bare.id);
+    expect(calls).toBe(0);
+
+    // With an origin the glance carries a browsable remoteUrl, so the PR lookup fires.
+    const withRemote = scaffold();
+    git(withRemote.repo, "remote", "add", "origin", "git@github.com:o/r.git");
+    createClaudeProvider({
+      claudeDir: withRemote.claudeDir,
+    }).readMetrics(withRemote.id);
+    expect(calls).toBe(1);
   });
 
   it("skips the recompute when the change token is unchanged", () => {

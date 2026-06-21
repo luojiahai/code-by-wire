@@ -362,7 +362,7 @@ function CommandRow({ cmd, note }: { cmd: string; note?: string }) {
         </code>
         <button
           type="button"
-          onClick={() => void navigator.clipboard.writeText(cmd)}
+          onClick={() => void window.api.clipboardWriteText(cmd)}
           className="shrink-0 text-[12px] text-fg-faint transition-colors hover:text-fg"
         >
           copy

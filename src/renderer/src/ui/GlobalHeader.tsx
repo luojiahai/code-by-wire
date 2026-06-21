@@ -7,45 +7,30 @@ import { useFullscreen } from "./use-fullscreen";
 import { HEADER_HEIGHT_PX, headerLeftPaddingPx } from "@shared/chrome";
 import { isMacPlatform } from "@shared/platform";
 
-// The Sys lamp's dot hue, from the reserved status palette: green ok, amber warn, red error, slate pre-check.
-const DOT_CLASS: Record<FooterView["dot"], string> = {
-  ok: "bg-working",
+// The master-caution badge hue, shown on the Settings gear only when the CLI trips: amber warn, red error.
+const BADGE_CLASS: Partial<Record<FooterView["dot"], string>> = {
   warn: "bg-accent",
   error: "bg-danger",
-  idle: "bg-ink-600",
-};
-
-// The lamp's border/text tone tracks CLI state: quiet when healthy, lit amber/red when it needs attention —
-// a master-caution annunciator that stays dark until a system trips.
-const LAMP_CLASS: Record<FooterView["dot"], string> = {
-  ok: "border-ink-800 text-fg-faint hover:border-ink-700 hover:text-fg-muted",
-  warn: "border-accent/50 text-accent hover:border-accent",
-  error: "border-danger/50 text-danger hover:border-danger",
-  idle: "border-ink-800 text-fg-faint",
 };
 
 /**
  * The frameless app's title bar: a draggable strip carrying the wordmark (anchored top-left) and the
- * Sys master-caution lamp (anchored top-right). On macOS the wordmark sits past the native traffic
- * lights when windowed; in fullscreen the lights are gone, so its left inset drops and it slides into
- * the corner (see `headerLeftPaddingPx`). The `title-bar` class counter-zooms so the bar holds a fixed
- * physical size while the rest of the window zooms — otherwise web zoom shrinks the bar under the
- * OS-drawn traffic lights, which don't zoom, and they hang off it. Off macOS there are no traffic
- * lights, so the bar zooms with everything else and never insets. The empty remainder stays draggable;
- * the lamp opts back out (`no-drag`) so it stays clickable.
+ * Settings gear (anchored top-right). On macOS the wordmark sits past the native traffic lights when
+ * windowed; in fullscreen the lights are gone, so its left inset drops and it slides into the corner
+ * (see `headerLeftPaddingPx`). The `title-bar` class counter-zooms so the bar holds a fixed physical
+ * size while the rest of the window zooms. The empty remainder stays draggable; the gear opts back out
+ * (`no-drag`) so it stays clickable.
  *
- * The Sys lamp is the new home for Claude Code CLI health — dim when the CLI is ready, lit amber/red
- * when it's outdated, logged out, or missing. Clicking it opens the CLI status detail.
+ * Claude Code CLI health rides on the gear as a master-caution badge: dark when the CLI is ready, an
+ * amber/red pulsing dot when it's outdated, logged out, or missing. Clicking opens Settings, where the
+ * System / CLI status detail lives; the tooltip carries the status text.
  */
 export function GlobalHeader({
   cliStatus,
-  onOpenSystem,
   onOpenSettings,
   settingsActive,
 }: {
   cliStatus: CliStatus | null;
-  /** The Sys lamp jumps to Settings → System (the CLI status home). */
-  onOpenSystem: () => void;
   onOpenSettings: () => void;
   settingsActive: boolean;
 }) {
@@ -70,40 +55,25 @@ export function GlobalHeader({
       <div className="no-drag ml-auto flex items-center gap-2">
         <button
           type="button"
-          onClick={onOpenSystem}
-          aria-label="Claude Code status"
-          title={
-            v.version
-              ? `Claude Code v${v.version} · ${v.statusLabel}`
-              : `Claude Code · ${v.statusLabel}`
-          }
-          className={cx(
-            "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-display text-[10px] font-semibold uppercase tracking-wider transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
-            LAMP_CLASS[v.dot],
-          )}
-        >
-          <span
-            className={cx(
-              "h-1.5 w-1.5 rounded-full",
-              DOT_CLASS[v.dot],
-              trips && "animate-pulse-soft",
-            )}
-          />
-          Sys
-        </button>
-        <button
-          type="button"
           onClick={onOpenSettings}
           aria-label="Settings"
-          title="Settings"
+          title={trips ? `Settings · ${v.statusLabel}` : "Settings"}
           className={cx(
-            "inline-flex items-center justify-center rounded-md border p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
+            "relative inline-flex items-center justify-center rounded-md border p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40",
             settingsActive
               ? "border-ink-700 bg-ink-900 text-fg"
               : "border-ink-800 text-fg-faint hover:border-ink-700 hover:text-fg-muted",
           )}
         >
           <Icon name="settings" size={15} />
+          {trips && (
+            <span
+              className={cx(
+                "absolute -right-1 -top-1 h-2 w-2 rounded-full ring-2 ring-ink-925 animate-pulse-soft",
+                BADGE_CLASS[v.dot],
+              )}
+            />
+          )}
         </button>
       </div>
     </header>

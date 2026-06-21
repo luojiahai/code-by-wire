@@ -150,12 +150,12 @@ function SessionRow({
       aria-pressed={selected}
       aria-label={`Open ${s.title}`}
       className={cx(
-        // Flat rows: a 2px left rail carries selection (primary when open, transparent otherwise so
-        // there's no width shift), with a quiet hover fill. No bordered card boxes.
-        "block w-full rounded-md border-l-2 px-2.5 py-2 text-left transition-colors",
+        // Raised-card selection: a full softened-teal border over a faint teal fill, no leading rail.
+        // The unselected border stays transparent (1px on all sides) so there's no width shift.
+        "block w-full rounded-md border px-2.5 py-2 text-left transition-colors",
         selected
-          ? "border-l-primary bg-primary/[0.05]"
-          : "border-l-transparent hover:bg-ink-900",
+          ? "border-primary/50 bg-primary/[0.05]"
+          : "border-transparent hover:bg-ink-900",
       )}
     >
       <div className="flex items-start gap-2.5">

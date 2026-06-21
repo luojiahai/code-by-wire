@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   Session,
   Account,
@@ -6,6 +6,7 @@ import type {
   BackgroundShell,
 } from "@shared/types";
 import { Icon } from "../ui/icons";
+import { useCopyFlash } from "../ui/use-copy-flash";
 import { Tabs } from "../ui/Tabs";
 import { TranscriptView } from "./TranscriptView";
 import { TerminalView } from "../terminal/TerminalView";
@@ -53,7 +54,7 @@ export function Workspace({
           </div>
           <HeaderActions session={s} canSpawn={canSpawn} onAdopt={onAdopt} />
         </div>
-        <Annunciator session={s} git={metrics?.git} />
+        <Annunciator session={s} git={metrics?.git} pr={metrics?.pr} />
       </header>
 
       <div className="min-h-0 flex-1">
@@ -72,19 +73,7 @@ export function Workspace({
  *  beat. The full id goes to the clipboard. Lives in the header so the rail needn't carry a Session row. */
 function SessionIdChip({ id }: { id: string }) {
   const short = id.length > 12 ? `${id.slice(0, 4)}…${id.slice(-4)}` : id;
-  const [copied, setCopied] = useState(false);
-  const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  useEffect(() => () => clearTimeout(resetTimer.current), []);
-  function copy() {
-    void navigator.clipboard?.writeText(id);
-    setCopied(true);
-    // Restart the timer each copy so a quick second click keeps the check glyph for its full beat
-    // instead of the first timer flipping it back early; the effect above clears it on unmount.
-    clearTimeout(resetTimer.current);
-    resetTimer.current = setTimeout(() => setCopied(false), 1200);
-  }
+  const { copied, copy } = useCopyFlash(id);
   return (
     <button
       type="button"

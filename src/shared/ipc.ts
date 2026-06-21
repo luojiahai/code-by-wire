@@ -28,6 +28,8 @@ export const IPC = {
   recheckCli: "cli:recheck",
   setClaudeBinPath: "cli:setBinPath",
   resetAnalytics: "analytics:reset",
+  openExternal: "shell:openExternal",
+  clipboardWriteText: "clipboard:writeText",
 } as const;
 
 /** The index-only slice: the indexed session list from one SQLite read. The SQLite index holds no
@@ -123,6 +125,11 @@ export interface IpcApi {
    *  from the transcripts on disk. Resolves `{ ok: false }` when no analytics store is wired or the clear
    *  fails; never rejects. */
   resetAnalytics(): Promise<{ ok: boolean }>;
+  /** Open an http(s) URL in the user's default browser (the Git cell's PR link). Non-http(s) URLs are
+   *  ignored by the main handler. */
+  openExternal(url: string): Promise<void>;
+  /** Copy text to the system clipboard (the Git popover's branch / commit copy buttons). */
+  clipboardWriteText(text: string): Promise<void>;
 }
 
 /** Everything exposed on `window.api`: the request/response surface plus the Managed-terminal surface. */

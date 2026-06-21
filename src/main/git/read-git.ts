@@ -65,6 +65,41 @@ export function joinGitDir(
   return pathOps.isAbsolute(gitDir) ? gitDir : pathOps.join(cwd, gitDir);
 }
 
+/** Normalize a `git remote` URL into a browsable https URL, or null when it can't be. Handles the three
+ *  common forms: scp-style SSH (`git@host:owner/repo(.git)`), `ssh://[user@]host[:port]/owner/repo(.git)`,
+ *  and `http(s)://host/owner/repo(.git)`. Best-effort and host-agnostic: the ssh port is dropped (the web
+ *  serves over https), a trailing `.git` is stripped, and anything else (git://, file://, empty) is null. */
+export function normalizeRemoteUrl(raw: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const stripGit = (s: string): string => s.replace(/\.git$/, "");
+
+  // scp-style: user@host:owner/repo.git — no scheme, a colon between host and path.
+  const scp = /^[^@/]+@([^:/]+):(.+)$/.exec(trimmed);
+  if (scp) {
+    const path = stripGit(scp[2].replace(/^\/+/, ""));
+    return path ? `https://${scp[1]}/${path}` : null;
+  }
+
+  // ssh:// and http(s):// parse as URLs; git:// and file:// fall through to null.
+  try {
+    const u = new URL(trimmed);
+    if (
+      u.protocol === "ssh:" ||
+      u.protocol === "http:" ||
+      u.protocol === "https:"
+    ) {
+      const path = stripGit(u.pathname).replace(/^\/+/, "");
+      if (!u.hostname || !path) return null;
+      return `https://${u.hostname}/${path}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve the absolute .git dir for `cwd`, or null when `cwd` isn't a work tree (a bare repo or the
  *  .git dir itself counts as "no glance"). Two spawns, run only on first sight or after the TTL. */
 function resolveGitDir(cwd: string): string | null {
@@ -135,6 +170,9 @@ export function readGit(cwd: string): GitInfo | null {
       behind = b;
     }
   }
+  const remoteUrl = normalizeRemoteUrl(
+    git(cwd, ["remote", "get-url", "origin"]),
+  );
   const value: GitInfo = {
     branch,
     insertions: unstaged.insertions + staged.insertions,
@@ -143,6 +181,7 @@ export function readGit(cwd: string): GitInfo | null {
     behind,
     sha: sha || null,
     dirty: porcelain !== null && porcelain.length > 0,
+    remoteUrl,
   };
   cache.set(cwd, { gitDir, token, expiry: now + TTL_MS, value });
   return value;

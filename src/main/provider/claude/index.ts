@@ -29,11 +29,13 @@ import { resolveAdoptTarget } from "./adopt-target";
 import { computeTokenSpeed, SPEED_WINDOW_MS } from "./transcript-speed";
 import { firstTranscriptCwd } from "./transcript";
 import { readGit } from "../../git/read-git";
+import { readPr } from "../../git/read-pr";
 import { readVoiceEnabled } from "../../settings/voice";
 import { readRemoteControl } from "../../settings/remote-control";
 import type {
   GitInfo,
   MetricsRead,
+  PrInfo,
   SessionMetrics,
   TokenSpeed,
 } from "@shared/metrics";
@@ -77,10 +79,17 @@ function gitTokenStr(git: GitInfo | null): string {
     : "nogit";
 }
 
+/** The PR portion of the metrics change token: the PR number, or 'nopr'. Folded into metricsToken so the
+ *  Git cell re-renders the poll after a background `gh` fetch resolves. */
+function prTokenStr(pr: PrInfo | null): string {
+  return pr ? `pr:${pr.number}` : "nopr";
+}
+
 /** The lazy metric sources read before the change token: the git glance, voice flag, and remote-control
  *  flag. git/voice are null off a repo-less cwd. */
 interface MetricsSources {
   git: GitInfo | null;
+  pr: PrInfo | null;
   voice: boolean | null;
   remote: boolean | null;
 }
@@ -93,8 +102,13 @@ function readSources(
   claudeDir: string,
   id: string,
 ): MetricsSources {
+  const git = cwd ? readGit(cwd) : null;
   return {
-    git: cwd ? readGit(cwd) : null,
+    git,
+    // Only ask gh for a PR when the glance found a browsable remote. A remote-less repo can't have a PR,
+    // so this skips a guaranteed-failing `gh pr view` spawn on every poll. A non-null remoteUrl means
+    // origin resolved to an http/ssh host where gh might find one (gh auto-detects the host from it).
+    pr: cwd && git && git.remoteUrl ? readPr(cwd, git.branch) : null,
     voice: cwd ? readVoiceEnabled(cwd, claudeDir) : null,
     remote: readRemoteControl(claudeDir, id),
   };
@@ -102,7 +116,9 @@ function readSources(
 
 /** The composite change token: transcript mtime plus every source that should re-trigger a recompute. */
 function metricsToken(mtimeMs: number, s: MetricsSources): number {
-  return hashToken(`${mtimeMs}|${gitTokenStr(s.git)}|${s.voice}|${s.remote}`);
+  return hashToken(
+    `${mtimeMs}|${gitTokenStr(s.git)}|${prTokenStr(s.pr)}|${s.voice}|${s.remote}`,
+  );
 }
 
 /** Assemble the lazy SessionMetrics from the precomputed token speed and the already-read sources. */
@@ -113,6 +129,7 @@ function buildMetrics(
   return {
     tokenSpeed,
     git: s.git,
+    pr: s.pr,
     voiceEnabled: s.voice,
     remoteControl: s.remote,
   };
