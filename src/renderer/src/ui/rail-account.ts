@@ -19,12 +19,43 @@ export type RailAccountView =
       plan: string;
       gauges: RailGauge[];
     }
-  | { mode: "api"; baseUrl: string; plan: string };
+  | { mode: "api"; label: string; plan: string };
 
 function planLabel(billingMode: Account["billingMode"]): string {
   if (billingMode === "subscription") return "Claude · subscription";
   if (billingMode === "api") return "Claude · API";
   return "Claude";
+}
+
+/** Cloud-provider keys to display names. Only the well-known three are curated; other keys (mantle,
+ *  anthropic_aws) fall back to a title-cased label. */
+const FRIENDLY_PROVIDER: Record<string, string> = {
+  bedrock: "AWS Bedrock",
+  vertex: "Google Vertex",
+  foundry: "Microsoft Foundry",
+};
+
+/** A display name for a cloud-provider key: the curated name, else the key title-cased
+ *  (mantle -> "Mantle", anthropic_aws -> "Anthropic Aws"). */
+function friendlyProvider(provider: string): string {
+  return (
+    FRIENDLY_PROVIDER[provider] ??
+    provider
+      .split(/[_-]/)
+      .filter(Boolean)
+      .map((w) => w[0].toUpperCase() + w.slice(1))
+      .join(" ")
+  );
+}
+
+/** The api plan line. Name the upstream provider only when there's also a host to contrast it with (a
+ *  Portkey-style gateway). A cloud provider (provider, no host) or a direct account (host, no provider)
+ *  both read plainly as "Claude · API". */
+function apiPlanLabel(
+  host: string | null,
+  provider: string | undefined,
+): string {
+  return host && provider ? `Claude · API · via ${provider}` : "Claude · API";
 }
 
 function gauge(label: string, limit: RateLimit, now: number): RailGauge {
@@ -88,11 +119,16 @@ export function railAccountModel(
     };
   }
 
-  if (account.billingMode === "api" && account.apiBaseUrl) {
+  if (
+    account.billingMode === "api" &&
+    (account.apiBaseUrl || account.apiProvider)
+  ) {
+    const host = account.apiBaseUrl ? bareHost(account.apiBaseUrl) : null;
+    const label = host ?? friendlyProvider(account.apiProvider!);
     return {
       mode: "api",
-      baseUrl: bareHost(account.apiBaseUrl),
-      plan: planLabel(account.billingMode),
+      label,
+      plan: apiPlanLabel(host, account.apiProvider),
     };
   }
 

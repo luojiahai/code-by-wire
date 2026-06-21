@@ -533,9 +533,7 @@ function AccountSection({ account }: { account: Account | null }) {
       {model?.mode === "api" && (
         <Card title="Endpoint">
           <Row label="Gateway" desc="API billing endpoint">
-            <span className="font-mono text-[12px] text-fg">
-              {model.baseUrl}
-            </span>
+            <span className="font-mono text-[12px] text-fg">{model.label}</span>
           </Row>
         </Card>
       )}

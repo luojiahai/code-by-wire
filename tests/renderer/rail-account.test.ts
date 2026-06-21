@@ -62,48 +62,85 @@ describe("railAccountModel — subscription", () => {
 });
 
 describe("railAccountModel — api", () => {
-  it("builds the api view from base URL and plan, ignoring auth and provider", () => {
+  it("names the upstream provider when a gateway has both a host and a provider", () => {
     const acc: Account = {
       billingMode: "api",
       apiBaseUrl: "https://api.portkey.ai",
       apiAuthMethod: "token",
-      apiProvider: "bedrock-use1-nonprod",
+      apiProvider: "openai-prod",
     };
-    // auth method and provider are intentionally no longer surfaced in the rail
+    // auth method stays unrendered; provider now shows in the plan line
     expect(railAccountModel(acc, NOW)).toEqual({
       mode: "api",
-      baseUrl: "api.portkey.ai",
-      plan: "Claude · API",
+      label: "api.portkey.ai",
+      plan: "Claude · API · via openai-prod",
     });
   });
 
-  it("renders base URL and plan with no extra rows", () => {
+  it("renders a plain host with no via suffix when there's no provider", () => {
     const acc: Account = {
       billingMode: "api",
       apiBaseUrl: "https://api.portkey.ai",
     };
     expect(railAccountModel(acc, NOW)).toEqual({
       mode: "api",
-      baseUrl: "api.portkey.ai",
+      label: "api.portkey.ai",
       plan: "Claude · API",
     });
   });
 
-  it("returns null for api billing with no base URL configured", () => {
+  it("renders an Anthropic-direct account as the host with the plain plan", () => {
+    const acc: Account = {
+      billingMode: "api",
+      apiBaseUrl: "https://api.anthropic.com",
+      anthropicDirect: true,
+    };
+    expect(railAccountModel(acc, NOW)).toEqual({
+      mode: "api",
+      label: "api.anthropic.com",
+      plan: "Claude · API",
+    });
+  });
+
+  it.each([
+    ["bedrock", "AWS Bedrock"],
+    ["vertex", "Google Vertex"],
+    ["foundry", "Microsoft Foundry"],
+  ])(
+    "renders the friendly name for the %s cloud provider",
+    (provider, label) => {
+      const acc: Account = { billingMode: "api", apiProvider: provider };
+      expect(railAccountModel(acc, NOW)).toEqual({
+        mode: "api",
+        label,
+        plan: "Claude · API",
+      });
+    },
+  );
+
+  it.each([
+    ["mantle", "Mantle"],
+    ["anthropic_aws", "Anthropic Aws"],
+  ])("title-cases an uncurated cloud provider key (%s)", (provider, label) => {
+    const acc: Account = { billingMode: "api", apiProvider: provider };
+    expect(railAccountModel(acc, NOW)).toMatchObject({ mode: "api", label });
+  });
+
+  it("returns null for api billing with neither a host nor a provider", () => {
     expect(
       railAccountModel({ billingMode: "api", email: "a@b.com" }, NOW),
     ).toBeNull();
   });
 
   it("strips the scheme and a trailing slash, preserving host/port/path", () => {
-    const host = (apiBaseUrl: string): string | undefined => {
+    const label = (apiBaseUrl: string): string | undefined => {
       const v = railAccountModel({ billingMode: "api", apiBaseUrl }, NOW);
-      return v && v.mode === "api" ? v.baseUrl : undefined;
+      return v && v.mode === "api" ? v.label : undefined;
     };
-    expect(host("https://api.portkey.ai")).toBe("api.portkey.ai");
-    expect(host("http://localhost:8080")).toBe("localhost:8080");
-    expect(host("https://gw.example.com/v1/")).toBe("gw.example.com/v1");
-    expect(host("api.direct.example")).toBe("api.direct.example");
+    expect(label("https://api.portkey.ai")).toBe("api.portkey.ai");
+    expect(label("http://localhost:8080")).toBe("localhost:8080");
+    expect(label("https://gw.example.com/v1/")).toBe("gw.example.com/v1");
+    expect(label("api.direct.example")).toBe("api.direct.example");
   });
 });
 
