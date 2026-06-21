@@ -77,10 +77,13 @@ export function ObservedTerminal({
             {fork.busy ? "Forking…" : "Fork"}
           </button>
         </div>
-        {(adopt.error || fork.error) && (
-          <span className="text-[11px] text-danger">
-            {adopt.error ?? fork.error}
-          </span>
+        {/* Each action owns its own error line, so a stale Adopt failure never masks a fresh Fork one
+            (and vice versa) when both buttons are present on an Ended session. */}
+        {adopt.error && (
+          <span className="text-[11px] text-danger">{adopt.error}</span>
+        )}
+        {fork.error && (
+          <span className="text-[11px] text-danger">{fork.error}</span>
         )}
         <span className="text-[11px] text-fg-faint">
           {ended
