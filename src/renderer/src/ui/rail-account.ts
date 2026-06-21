@@ -93,11 +93,12 @@ export function maskEmail(email: string): string {
  *
  * - subscription: the 5h and weekly windows (each with a reset countdown) and the login email. Returns null when there's neither an email nor a window
  *   (ADR-0001 graceful degradation).
- * - api: the configured endpoint as a bare host. Requires a base URL; an api account without one has
- *   nothing to surface.
+ * - api: the endpoint as a bare host, or a friendly cloud-provider name when there's no host. Requires a
+ *   base URL or a provider; an api account with neither has nothing to surface. A gateway that names its
+ *   upstream provider gets a "via {provider}" plan line.
  *
- * Anything else (an 'unknown' account, or 'api' with no base URL) returns null, so the block disappears
- * rather than show a window-less subscription or mislabel gateway billing with a stale email.
+ * Anything else (an 'unknown' account, or 'api' with neither a base URL nor a provider) returns null, so the
+ * block disappears rather than show a window-less subscription or mislabel gateway billing with a stale email.
  */
 export function railAccountModel(
   account: Account | null,
