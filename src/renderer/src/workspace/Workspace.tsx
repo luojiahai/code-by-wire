@@ -184,6 +184,7 @@ function WorkspaceBody({
           model={s.model}
           liveCostUsd={s.liveCostUsd}
           billingMode={account?.billingMode}
+          anthropicDirect={account?.anthropicDirect}
         />
         <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
       </OverlayScroll>

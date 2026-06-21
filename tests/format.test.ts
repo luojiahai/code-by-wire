@@ -62,17 +62,36 @@ describe("formatResetCountdown", () => {
 });
 
 describe("costDisplay", () => {
-  it("labels an API account as real spend (no tilde)", () => {
+  it("labels a live Anthropic-direct API account as real spend (no tilde)", () => {
     expect(
       costDisplay({
         liveCostUsd: 0.5,
         equivApiValueUsd: 9,
         billingMode: "api",
+        anthropicDirect: true,
       }),
-    ).toEqual({
-      text: "$0.50",
-      equivalent: false,
-    });
+    ).toEqual({ text: "$0.50", equivalent: false });
+  });
+
+  it("keeps the tilde for a live gateway/cloud API account (not anthropicDirect)", () => {
+    expect(
+      costDisplay({
+        liveCostUsd: 0.5,
+        equivApiValueUsd: 9,
+        billingMode: "api",
+        anthropicDirect: false,
+      }),
+    ).toEqual({ text: "~$0.50", equivalent: true });
+  });
+
+  it("keeps the tilde for a direct account before its live cost arrives", () => {
+    expect(
+      costDisplay({
+        equivApiValueUsd: 6.42,
+        billingMode: "api",
+        anthropicDirect: true,
+      }),
+    ).toEqual({ text: "~$6.42", equivalent: true });
   });
 
   it("labels a subscription as an equivalent value (tilde)", () => {

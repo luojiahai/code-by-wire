@@ -81,20 +81,25 @@ export function formatClock(ms: number): string {
 }
 
 /**
- * The per-row cost figure plus whether it's an equivalent value (gets a leading ~ and "Equivalent API
- * value" framing) or real spend. Real spend (no ~) is shown only when we have Claude's own live figure
- * AND the account bills per API call; everything else is an estimate — the transcript-computed Equivalent
- * API value, a subscription's equivalent cost, or any figure before the account has resolved — so it gets
- * the ~. A computed fallback on an API account is therefore framed as equivalent, not as exact spend.
+ * The per-row cost figure plus whether it's an equivalent value (leading ~, "Equivalent API value" framing)
+ * or real spend. Real spend (no ~) shows only when we have Claude's own live figure AND the account is
+ * Anthropic-direct API billing — the only case where the locally-computed, Anthropic-priced number is the
+ * user's actual bill. A gateway or cloud account, a subscription, or any figure before the account resolves
+ * is an estimate of the upstream cost, so it keeps the ~.
  */
 export function costDisplay(opts: {
   liveCostUsd?: number;
   equivApiValueUsd: number;
   billingMode?: "subscription" | "api" | "unknown";
+  anthropicDirect?: boolean;
 }): { text: string; equivalent: boolean } {
   const live = opts.liveCostUsd != null;
   const value = live ? opts.liveCostUsd! : opts.equivApiValueUsd;
-  const equivalent = !(live && opts.billingMode === "api");
+  const equivalent = !(
+    live &&
+    opts.billingMode === "api" &&
+    opts.anthropicDirect === true
+  );
   return { text: (equivalent ? "~" : "") + formatUsd(value), equivalent };
 }
 
