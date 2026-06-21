@@ -51,7 +51,7 @@ import {
   intensityLevel,
   monthLabelCols,
 } from "../ui/contributions-geom";
-import { Swatch, Bar } from "../ui/atoms";
+import { Swatch } from "../ui/atoms";
 import { InfoButton } from "../ui/InfoButton";
 import {
   sortSessions,
@@ -946,6 +946,9 @@ type BreakdownRow = {
   color: string;
 };
 
+/** Display cap shared by the By model and By project panels: rows past the top N roll into a "+N more" note. */
+const TOP_BREAKDOWN_ROWS = 7;
+
 /** The shared ranked-breakdown panel behind By model and By project (#111/#112): a titled table of entities,
  *  biggest first, each a row of name + Tokens + Equivalent API value with a full-width bar beneath. The two
  *  callers differ only in props: model rows carry a per-model swatch (`showSwatch`); project rows cap to the
@@ -1080,16 +1083,21 @@ function ByModel({
       color: modelColorOf(r.modelRaw),
     }));
   return (
-    <Breakdown title="By model" nameLabel="Model" rows={ranked} showSwatch />
+    <Breakdown
+      title="By model"
+      nameLabel="Model"
+      rows={ranked}
+      showSwatch
+      cap={TOP_BREAKDOWN_ROWS}
+      capNoun="model"
+    />
   );
 }
 
-/** Display cap for the By-project panel: projects past the top N roll into a "+N more" note. */
-const TOP_PROJECTS = 5;
-
-/** The per-project breakdown (#112). Top projects as horizontal bars with tokens and Equivalent API value,
- *  keyed on the full cwd so two repos that share a basename stay separate. Ranks by the displayed Tokens
- *  metric, so order follows the page's Include-cache toggle; capped to the top N with a "+N more" note. */
+/** The per-project breakdown (#112): top projects as full-width bars with tokens and Equivalent API value,
+ *  keyed on the full cwd so two repos that share a basename stay separate (the cwd rides along as the row's
+ *  hover title). Ranks by the displayed Tokens metric, so order follows the page's Include-cache toggle;
+ *  capped to the top N with a "+N more" note. Rendering is delegated to the shared `Breakdown`. */
 function ByProject({
   rows,
   includeCache,
@@ -1098,81 +1106,29 @@ function ByProject({
   includeCache: boolean;
 }) {
   if (!rows.some((r) => r.totalTokens > 0)) return null;
-  const ranked = rows
+  const ranked: BreakdownRow[] = rows
     .slice()
     .sort(
       (a, b) =>
         tokensOf(b, includeCache) - tokensOf(a, includeCache) ||
         a.cwd.localeCompare(b.cwd),
-    );
-  const top = ranked.slice(0, TOP_PROJECTS);
-  // Bars size on the displayed metric; the denominator is the largest shown value. A zero denominator (a
-  // pure cache window in exclude mode) yields empty bars rather than a divide-by-zero.
-  const max = Math.max(...top.map((r) => tokensOf(r, includeCache)));
-  const rest = ranked.length - top.length;
+    )
+    .map((r) => ({
+      key: r.cwd,
+      label: r.project,
+      title: r.cwd,
+      tokens: tokensOf(r, includeCache),
+      equivApiValueUsd: r.equivApiValueUsd,
+      color: "var(--color-data-1)",
+    }));
   return (
-    <StatsPanel title="By project">
-      <table className="w-full table-fixed text-[12px]">
-        <colgroup>
-          <col className="w-[58%]" />
-          <col className="w-[21%]" />
-          <col className="w-[21%]" />
-        </colgroup>
-        <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-fg-faint">
-            <th
-              scope="col"
-              className="whitespace-nowrap pb-1.5 text-left font-normal"
-            >
-              Project
-            </th>
-            <th
-              scope="col"
-              className="whitespace-nowrap pb-1.5 text-right font-normal"
-            >
-              Tokens
-            </th>
-            <th
-              scope="col"
-              className="whitespace-nowrap pb-1.5 text-right font-normal"
-            >
-              Equiv. value
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {top.map((r) => (
-            <tr key={r.cwd} className="border-t border-ink-850">
-              <td className="py-1.5 pr-3 align-middle">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <span className="truncate text-fg" title={r.cwd}>
-                    {r.project}
-                  </span>
-                  <Bar
-                    pct={max > 0 ? (tokensOf(r, includeCache) / max) * 100 : 0}
-                    fill="bg-[var(--color-data-1)]"
-                    className="w-full"
-                  />
-                </div>
-              </td>
-              <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
-                {formatTokensShort(tokensOf(r, includeCache))}
-              </td>
-              <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
-                {r.equivApiValueUsd == null
-                  ? "n/a"
-                  : formatUsd(r.equivApiValueUsd)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {rest > 0 && (
-        <p className="mt-2 text-[11px] text-fg-faint">
-          +{rest} more {rest === 1 ? "project" : "projects"}
-        </p>
-      )}
-    </StatsPanel>
+    <Breakdown
+      title="By project"
+      nameLabel="Project"
+      rows={ranked}
+      cap={TOP_BREAKDOWN_ROWS}
+      capNoun="project"
+    />
   );
 }
 
