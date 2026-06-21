@@ -178,7 +178,7 @@ export function StatsView() {
     <OverlayScroll className="h-full min-w-0 flex-1 bg-ink-950 text-fg">
       <div className="mx-auto flex max-w-[1100px] flex-col gap-4 px-6 py-6">
         <header className="flex items-center justify-between">
-          <h1 className="font-display text-xl font-semibold tracking-tight text-fg">
+          <h1 className="font-display text-[17px] font-semibold tracking-tight text-fg">
             Usage
           </h1>
           <div className="flex items-center gap-2">
@@ -670,7 +670,7 @@ function KpiCard({
 }) {
   return (
     <div className="flex flex-col border-r border-ink-850 px-4 py-3.5 last:border-r-0">
-      <div className="font-display text-[9.5px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+      <div className="font-display text-[8.5px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {label}
       </div>
       <div className="mt-1.5 font-mono text-[25px] font-medium leading-none tracking-tight tabular-nums text-fg">
@@ -1344,7 +1344,7 @@ function StatsPanel({
   return (
     <section className="rounded-xl border border-ink-800 bg-ink-925 p-4">
       <header className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="font-display text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+        <h2 className="font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
           {title}
         </h2>
         {right}

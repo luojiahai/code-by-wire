@@ -62,7 +62,7 @@ export const RailPanel = memo(function RailPanel({
       {view !== null && (
         <span
           className={cx(
-            "pointer-events-none absolute right-3 top-3 flex items-center gap-0.5 font-display text-[9px] font-semibold uppercase tracking-[0.1em] transition-colors",
+            "pointer-events-none absolute right-3 top-3 flex items-center gap-0.5 font-display text-[8px] font-semibold uppercase tracking-[0.1em] transition-colors",
             active ? "text-primary" : "text-fg-faint group-hover:text-fg-muted",
           )}
         >
@@ -134,7 +134,7 @@ export const RailPanel = memo(function RailPanel({
               <div className="mt-2.5 flex flex-col gap-2">
                 {view.gauges.map((g) => (
                   <div key={g.label} className="flex items-center gap-2.5">
-                    <span className="w-9 shrink-0 font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+                    <span className="w-9 shrink-0 font-display text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
                       {g.label}
                     </span>
                     <Bar

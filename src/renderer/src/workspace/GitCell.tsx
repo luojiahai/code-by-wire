@@ -140,7 +140,7 @@ export function GitCell({
               }}
               className="z-50 rounded-lg border border-ink-700 bg-ink-900 p-2.5 shadow-xl"
             >
-              <div className="mb-2 px-1 font-display text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+              <div className="mb-2 px-1 font-display text-[8px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
                 Git detail
               </div>
               <Row label="Repository">

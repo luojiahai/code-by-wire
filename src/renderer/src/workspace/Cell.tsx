@@ -35,7 +35,7 @@ export function Cell({
         seam && "border-l border-ink-800",
       )}
     >
-      <span className="font-display text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+      <span className="font-display text-[8px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {label}
       </span>
       <span
