@@ -24,7 +24,7 @@ import { TokenSpeedPanel } from "./panels/TokenSpeedPanel";
 import { useTasks } from "./use-tasks";
 import { useMetrics, type MetricsState } from "./use-metrics";
 import { HeaderActions } from "./HeaderActions";
-import { DormantTerminal } from "./DormantTerminal";
+import { ObservedTerminal } from "./ObservedTerminal";
 import { Annunciator } from "./Annunciator";
 import { OverlayScroll } from "../ui/OverlayScroll";
 
@@ -214,9 +214,9 @@ function WorkspaceBody({
 
 type CenterTab = "terminal" | "transcript";
 
-/** The center column's live view, dispatched by management kind. A non-empty drill-stack renders the
- *  drilled Subagent or Shell surface in place of the Session transcript. Observed = read-only transcript;
- *  Managed gets the Terminal ⇄ Transcript toggle. */
+/** The center column's live view. Every session gets the Terminal ⇄ Transcript tabs; the Terminal tab is
+ *  the live xterm for a running Managed session, else the ObservedTerminal panel (Fork always, Adopt once
+ *  Ended). A non-empty drill-stack renders the drilled Subagent or Shell surface in the Transcript slot. */
 function CenterView({
   session: s,
   doc,
@@ -270,49 +270,29 @@ function CenterView({
       : top.agentId
     : undefined;
 
-  // Ended sessions keep the Terminal tab — now a dark dormant canvas offering Adopt + Fork — but default
-  // to Transcript. Checked BEFORE management so a just-exited Managed session (which re-derives Observed)
-  // also lands here, not in the live-terminal branch with its dead "[process exited]" scrollback.
-  if (s.state === "ended")
-    return (
-      <TabbedCenter
-        session={s}
-        doc={doc}
-        defaultTab="transcript"
-        terminalSlot={
-          <DormantTerminal
+  // Every session gets the Terminal ⇄ Transcript tabs. The Terminal slot is the live in-app xterm only for
+  // a Managed session that's still running; otherwise — an Observed session running in another terminal, or
+  // any Ended session (including a just-exited Managed one that re-derives Observed) — it's the
+  // ObservedTerminal panel: Fork is always offered, Adopt only once the session has Ended. Managed-live
+  // opens on the Terminal tab; everything else opens on Transcript (its read-only conversation leads).
+  const hasLiveTerminal = s.management === "managed" && s.state !== "ended";
+  return (
+    <TabbedCenter
+      session={s}
+      doc={doc}
+      defaultTab={hasLiveTerminal ? "terminal" : "transcript"}
+      terminalSlot={
+        hasLiveTerminal ? (
+          <TerminalView sessionId={s.id} />
+        ) : (
+          <ObservedTerminal
             session={s}
             canSpawn={canSpawn}
             onAdopt={onAdopt}
             onFork={onFork}
           />
-        }
-        drilledView={drilledView}
-        drilled={drilled}
-        drilledKey={drilledKey}
-        dispatchDrill={dispatchDrill}
-      />
-    );
-
-  // Live Observed: read-only transcript, no tab bar. Fork is still reachable from the header.
-  if (s.management === "observed")
-    return (
-      drilledView ?? (
-        <RenderedTranscript
-          session={s}
-          doc={doc}
-          dispatchDrill={dispatchDrill}
-        />
-      )
-    );
-
-  // Live Managed: the live terminal (default) plus the transcript the CLI is writing.
-  return (
-    <TabbedCenter
-      session={s}
-      doc={doc}
-      defaultTab="terminal"
-      terminalSlot={<TerminalView sessionId={s.id} />}
+        )
+      }
       drilledView={drilledView}
       drilled={drilled}
       drilledKey={drilledKey}
@@ -322,9 +302,9 @@ function CenterView({
 }
 
 /** A two-tab center (Terminal ⇄ Transcript). `terminalSlot` is whatever the Terminal tab shows — the live
- *  xterm for a Managed session, or the dark DormantTerminal hero for an Ended one — and `defaultTab` sets
- *  which tab opens first (Terminal for Managed, Transcript for Ended). Toggling away only detaches the
- *  terminal slot; toggling back restores it. Drilling a lane or shell auto-selects the Transcript tab. */
+ *  xterm for a running Managed session, or the ObservedTerminal panel otherwise — and `defaultTab` sets
+ *  which tab opens first (Terminal for a live Managed session, else Transcript). Toggling away only detaches
+ *  the terminal slot; toggling back restores it. Drilling a lane or shell auto-selects the Transcript tab. */
 function TabbedCenter({
   session: s,
   doc,

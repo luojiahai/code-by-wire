@@ -6,9 +6,9 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { OpenInMenu } from "./OpenInMenu";
 import { useResumeAction } from "./resume-action";
 
-/** The header's right-side action cluster. Fork shows on every session; Adopt joins it (and leads) only
- *  when an Observed session has ended. Open in is always present; Interrupt and End ship disabled until
- *  their plumbing lands. Status chips live on the header's second line, not here, so this row is actions. */
+/** The header's right-side action cluster: Adopt + Fork + End session, then Open in last. Fork shows on
+ *  every session; Adopt joins it (and leads) only when an Observed session has ended. End session ships
+ *  disabled until its plumbing lands. Status chips live on the header's second line, not here. */
 export function HeaderActions({
   session: s,
   canSpawn,
@@ -79,7 +79,7 @@ export function HeaderActions({
         onClick={fork.request}
         disabled={fork.busy || !canSpawn}
         title={cliTitle}
-        className="inline-flex items-center gap-1.5 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-1 text-[12px] font-semibold text-fg-muted ring-1 ring-ink-700/40 transition-colors enabled:hover:border-ink-600 enabled:hover:text-fg disabled:opacity-40"
+        className="inline-flex items-center gap-1.5 rounded-md border border-ink-800 bg-ink-900 px-2.5 py-1 text-[12px] text-fg-muted transition-colors enabled:hover:border-ink-700 enabled:hover:text-fg focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:opacity-40"
       >
         <Icon name="git-branch" size={13} />
         {fork.busy ? "Forking…" : "Fork"}
@@ -94,16 +94,13 @@ export function HeaderActions({
         />
       )}
 
-      <Divider />
-
-      <OpenInMenu sessionId={s.id} />
-
-      <Divider />
-
-      <ComingSoonButton icon="pause">Interrupt</ComingSoonButton>
       <ComingSoonButton icon="square" tone="danger">
         End session
       </ComingSoonButton>
+
+      <Divider />
+
+      <OpenInMenu sessionId={s.id} />
     </div>
   );
 }
