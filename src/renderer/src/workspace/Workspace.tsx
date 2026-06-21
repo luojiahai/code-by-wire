@@ -325,6 +325,13 @@ function TabbedCenter({
   dispatchDrill: DispatchDrill;
 }) {
   const [tab, setTab] = useState<CenterTab>(defaultTab);
+  // Follow the live terminal when it stands up in place. Adopt resumes this same id, so Workspace never
+  // remounts and `tab` keeps its seeded value, but defaultTab flips to "terminal" once the pty is live.
+  // Switch only toward "terminal": a session ending (defaultTab back to "transcript") shouldn't yank the
+  // user off the terminal they were watching, and a manual tab choice on a live session stays put.
+  useEffect(() => {
+    if (defaultTab === "terminal") setTab("terminal");
+  }, [defaultTab]);
   useEffect(() => {
     if (drilledKey) setTab("transcript");
   }, [drilledKey]);
