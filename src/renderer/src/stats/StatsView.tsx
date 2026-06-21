@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -50,7 +51,7 @@ import {
   intensityLevel,
   monthLabelCols,
 } from "../ui/contributions-geom";
-import { Swatch, Bar } from "../ui/atoms";
+import { Swatch } from "../ui/atoms";
 import { InfoButton } from "../ui/InfoButton";
 import {
   sortSessions,
@@ -933,107 +934,46 @@ function CacheToggle({
   );
 }
 
-/** The per-model breakdown (#111): a donut sized by each model's token share beside a table of tokens and
- *  Equivalent API value per raw model id. The page-level "Include cache" pill (in the header) picks the
- *  token metric (via the shared `tokensOf`) for both the donut and the Tokens column together, so the
- *  donut share always matches the visible numbers. Default on (all four kinds), so a cache-heavy model can
- *  dominate the donut. Cost is unaffected; it always reflects every token at its rate. An unrecognized id
- *  shows n/a cost while its tokens still count; a turn with no recorded model rows as "Unknown". Color is
- *  paired onto each row so the donut and the table legend read off one source, no zip-by-index that could
- *  drift if rows reorder. */
-function ByModel({
-  rows,
-  includeCache,
-}: {
-  rows: StatsByModel[];
-  includeCache: boolean;
-}) {
-  // Skip on a window with no tokens at all, judged on the full total so flipping the toggle never makes the
-  // whole panel vanish; at worst the donut hides on a pure-cache window in exclude mode (below).
-  if (!rows.some((r) => r.totalTokens > 0)) return null;
-  // Re-rank by the displayed metric so the table reads biggest-first; ties break by raw id for stability.
-  // Each row takes its model's fixed identity color (the same hue it carries everywhere else), so the
-  // bars are a legend you only learn once.
-  const ranked = rows
-    .map((r) => ({ ...r, tokens: tokensOf(r, includeCache) }))
-    .sort(
-      (a, b) =>
-        b.tokens - a.tokens ||
-        (a.modelRaw ?? "").localeCompare(b.modelRaw ?? ""),
-    )
-    .map((r) => ({
-      ...r,
-      color: modelColorOf(r.modelRaw),
-    }));
-  const max = Math.max(...ranked.map((r) => r.tokens), 1);
-  return (
-    <StatsPanel title="By model">
-      <div className="flex flex-col gap-3.5">
-        {/* Key on the raw id (unique per GROUP BY row); the null "Unknown" bucket gets a NUL sentinel a
-            real model id can never be, so it can't collide with a model whose raw string is "unknown". */}
-        {ranked.map((r) => (
-          <div
-            key={r.modelRaw ?? "\u0000"}
-            className="grid grid-cols-[1fr_auto_auto] items-center gap-x-3 gap-y-1.5"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <Swatch color={r.color} />
-              <span className="truncate text-[12.5px] text-fg">
-                {r.modelRaw ?? "Unknown"}
-              </span>
-            </span>
-            <span className="font-mono text-[11.5px] tabular-nums text-fg-muted">
-              {formatTokensShort(r.tokens)}
-            </span>
-            <span className="w-16 text-right font-mono text-[11.5px] tabular-nums text-fg">
-              {r.equivApiValueUsd == null
-                ? "n/a"
-                : formatUsd(r.equivApiValueUsd)}
-            </span>
-            <div className="col-span-3 h-[5px] overflow-hidden rounded-full bg-ink-850">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${(r.tokens / max) * 100}%`,
-                  background: r.color,
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </StatsPanel>
-  );
-}
+/** One row of a Breakdown panel: an entity with its displayed-metric tokens, Equivalent API value, and the
+ *  color its bar (and optional swatch) take. The caller ranks the rows and assigns colors; the panel slices
+ *  to `cap`, sizes bars against the largest displayed value, and renders the header and "+N more" note. */
+type BreakdownRow = {
+  key: string;
+  label: string;
+  title?: string;
+  tokens: number;
+  equivApiValueUsd: number | null;
+  color: string;
+};
 
-/** Display cap for the By-project panel: projects past the top N roll into a "+N more" note. */
-const TOP_PROJECTS = 5;
+/** Display cap shared by the By model and By project panels: rows past the top N roll into a "+N more" note. */
+const TOP_BREAKDOWN_ROWS = 7;
 
-/** The per-project breakdown (#112). Top projects as horizontal bars with tokens and Equivalent API value,
- *  keyed on the full cwd so two repos that share a basename stay separate. Ranks by the displayed Tokens
- *  metric, so order follows the page's Include-cache toggle; capped to the top N with a "+N more" note. */
-function ByProject({
+/** The shared ranked-breakdown panel behind By model and By project (#111/#112): a titled table of entities,
+ *  biggest first, each a row of name + Tokens + Equivalent API value with a full-width bar beneath. The two
+ *  callers differ only in props: model rows carry a per-model swatch (`showSwatch`); both cap to `cap.n` rows
+ *  with a "+N more {cap.noun}s" note. The count and its noun ride in one object so a cap can't be set without
+ *  the note that discloses it. Bars size against the largest DISPLAYED row, so a cap changes the denominator;
+ *  an all-zero window yields empty bars rather than a divide-by-zero. The bar is built inline (not the `Bar`
+ *  atom) because its color is a dynamic CSS value, not a Tailwind class. */
+function Breakdown({
+  title,
+  nameLabel,
   rows,
-  includeCache,
+  showSwatch = false,
+  cap,
 }: {
-  rows: StatsByProject[];
-  includeCache: boolean;
+  title: string;
+  nameLabel: string;
+  rows: BreakdownRow[];
+  showSwatch?: boolean;
+  cap: { n: number; noun: string };
 }) {
-  if (!rows.some((r) => r.totalTokens > 0)) return null;
-  const ranked = rows
-    .slice()
-    .sort(
-      (a, b) =>
-        tokensOf(b, includeCache) - tokensOf(a, includeCache) ||
-        a.cwd.localeCompare(b.cwd),
-    );
-  const top = ranked.slice(0, TOP_PROJECTS);
-  // Bars size on the displayed metric; the denominator is the largest shown value. A zero denominator (a
-  // pure cache window in exclude mode) yields empty bars rather than a divide-by-zero.
-  const max = Math.max(...top.map((r) => tokensOf(r, includeCache)));
-  const rest = ranked.length - top.length;
+  const shown = rows.slice(0, cap.n);
+  const max = Math.max(...shown.map((r) => r.tokens), 0);
+  const rest = rows.length - shown.length;
   return (
-    <StatsPanel title="By project">
+    <StatsPanel title={title}>
       <table className="w-full table-fixed text-[12px]">
         <colgroup>
           <col className="w-[58%]" />
@@ -1046,7 +986,7 @@ function ByProject({
               scope="col"
               className="whitespace-nowrap pb-1.5 text-left font-normal"
             >
-              Project
+              {nameLabel}
             </th>
             <th
               scope="col"
@@ -1063,38 +1003,129 @@ function ByProject({
           </tr>
         </thead>
         <tbody>
-          {top.map((r) => (
-            <tr key={r.cwd} className="border-t border-ink-850">
-              <td className="py-1.5 pr-3 align-middle">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <span className="truncate text-fg" title={r.cwd}>
-                    {r.project}
+          {shown.map((r, i) => (
+            <Fragment key={r.key}>
+              <tr className={i === 0 ? "" : "border-t border-ink-850"}>
+                <td className="pt-2 pr-3 align-middle">
+                  <span className="flex min-w-0 items-center gap-2">
+                    {showSwatch && <Swatch color={r.color} />}
+                    <span className="truncate text-fg" title={r.title}>
+                      {r.label}
+                    </span>
                   </span>
-                  <Bar
-                    pct={max > 0 ? (tokensOf(r, includeCache) / max) * 100 : 0}
-                    fill="bg-[var(--color-data-1)]"
-                    className="w-full"
-                  />
-                </div>
-              </td>
-              <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
-                {formatTokensShort(tokensOf(r, includeCache))}
-              </td>
-              <td className="py-1.5 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
-                {r.equivApiValueUsd == null
-                  ? "n/a"
-                  : formatUsd(r.equivApiValueUsd)}
-              </td>
-            </tr>
+                </td>
+                <td className="pt-2 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
+                  {formatTokensShort(r.tokens)}
+                </td>
+                <td className="pt-2 pl-2 text-right align-middle font-mono tabular-nums text-fg">
+                  {r.equivApiValueUsd == null
+                    ? "n/a"
+                    : formatUsd(r.equivApiValueUsd)}
+                </td>
+              </tr>
+              <tr>
+                <td colSpan={3} className="pb-2 pt-1.5">
+                  <div className="h-[5px] overflow-hidden rounded-full bg-ink-850">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${max > 0 ? (r.tokens / max) * 100 : 0}%`,
+                        background: r.color,
+                      }}
+                    />
+                  </div>
+                </td>
+              </tr>
+            </Fragment>
           ))}
         </tbody>
       </table>
       {rest > 0 && (
         <p className="mt-2 text-[11px] text-fg-faint">
-          +{rest} more {rest === 1 ? "project" : "projects"}
+          +{rest} more {rest === 1 ? cap.noun : `${cap.noun}s`}
         </p>
       )}
     </StatsPanel>
+  );
+}
+
+/** The per-model breakdown (#111): a ranked list of raw model ids with their tokens and Equivalent API value,
+ *  each a full-width bar in the model's fixed identity color (the same hue it carries everywhere else, so the
+ *  bars are a legend you learn once). The page-level "Include cache" pill picks the token metric via the shared
+ *  `tokensOf`, and the bars re-rank to match. An unrecognized id shows n/a cost while its tokens still count; a
+ *  turn with no recorded model rows as "Unknown". Rendering is delegated to the shared `Breakdown`. */
+function ByModel({
+  rows,
+  includeCache,
+}: {
+  rows: StatsByModel[];
+  includeCache: boolean;
+}) {
+  // Skip on a window with no tokens at all, judged on the full total so flipping the toggle never makes the
+  // whole panel vanish.
+  if (!rows.some((r) => r.totalTokens > 0)) return null;
+  // Re-rank by the displayed metric so the list reads biggest-first; ties break by raw id for stability. Key
+  // on the raw id (unique per GROUP BY row); the null "Unknown" bucket gets a NUL sentinel a real model id can
+  // never be, so it can't collide with a model whose raw string is literally "unknown".
+  const ranked: BreakdownRow[] = rows
+    .map((r) => ({ ...r, tokens: tokensOf(r, includeCache) }))
+    .sort(
+      (a, b) =>
+        b.tokens - a.tokens ||
+        (a.modelRaw ?? "").localeCompare(b.modelRaw ?? ""),
+    )
+    .map((r) => ({
+      key: r.modelRaw ?? "\u0000",
+      label: r.modelRaw ?? "Unknown",
+      tokens: r.tokens,
+      equivApiValueUsd: r.equivApiValueUsd,
+      color: modelColorOf(r.modelRaw),
+    }));
+  return (
+    <Breakdown
+      title="By model"
+      nameLabel="Model"
+      rows={ranked}
+      showSwatch
+      cap={{ n: TOP_BREAKDOWN_ROWS, noun: "model" }}
+    />
+  );
+}
+
+/** The per-project breakdown (#112): top projects as full-width bars with tokens and Equivalent API value,
+ *  keyed on the full cwd so two repos that share a basename stay separate (the cwd rides along as the row's
+ *  hover title). Ranks by the displayed Tokens metric, so order follows the page's Include-cache toggle;
+ *  capped to the top N with a "+N more" note. Rendering is delegated to the shared `Breakdown`. */
+function ByProject({
+  rows,
+  includeCache,
+}: {
+  rows: StatsByProject[];
+  includeCache: boolean;
+}) {
+  if (!rows.some((r) => r.totalTokens > 0)) return null;
+  const ranked: BreakdownRow[] = rows
+    .slice()
+    .sort(
+      (a, b) =>
+        tokensOf(b, includeCache) - tokensOf(a, includeCache) ||
+        a.cwd.localeCompare(b.cwd),
+    )
+    .map((r) => ({
+      key: r.cwd,
+      label: r.project,
+      title: r.cwd,
+      tokens: tokensOf(r, includeCache),
+      equivApiValueUsd: r.equivApiValueUsd,
+      color: "var(--color-data-1)",
+    }));
+  return (
+    <Breakdown
+      title="By project"
+      nameLabel="Project"
+      rows={ranked}
+      cap={{ n: TOP_BREAKDOWN_ROWS, noun: "project" }}
+    />
   );
 }
 
