@@ -229,6 +229,65 @@ describe("deriveAccount — api billing", () => {
       version: "2.0.14",
     });
   });
+
+  it("flags an Anthropic-direct account (synthesized default, no provider)", () => {
+    const api = {
+      baseUrl: "https://api.anthropic.com",
+      authMethod: "apiKey" as const,
+    };
+    expect(
+      deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, api),
+    ).toEqual({
+      billingMode: "api",
+      apiBaseUrl: "https://api.anthropic.com",
+      apiAuthMethod: "apiKey",
+      anthropicDirect: true,
+    });
+  });
+
+  it("classifies a cloud provider as api with a provider and no host", () => {
+    expect(
+      deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
+        provider: "bedrock",
+      }),
+    ).toEqual({ billingMode: "api", apiProvider: "bedrock" });
+  });
+
+  it("is not direct when a provider is set even on an anthropic host", () => {
+    const acc = deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
+      baseUrl: "https://api.anthropic.com",
+      authMethod: "apiKey",
+      provider: "portkey-thing",
+    });
+    expect(acc?.anthropicDirect).toBeUndefined();
+  });
+
+  it("is not direct for a lookalike host (no anthropic.com spoofing)", () => {
+    const acc = deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
+      baseUrl: "https://evil-anthropic.com",
+      authMethod: "apiKey",
+    });
+    expect(acc?.anthropicDirect).toBeUndefined();
+  });
+
+  it("is direct for an anthropic host with an uppercase scheme", () => {
+    const acc = deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
+      baseUrl: "HTTPS://api.anthropic.com",
+      authMethod: "token",
+    });
+    expect(acc?.anthropicDirect).toBe(true);
+  });
+
+  it("is not direct on an anthropic host when no credential was detected", () => {
+    const acc = deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
+      baseUrl: "https://api.anthropic.com",
+    });
+    expect(acc).toEqual({
+      billingMode: "api",
+      apiBaseUrl: "https://api.anthropic.com",
+    });
+    expect(acc?.anthropicDirect).toBeUndefined();
+  });
 });
 
 describe("overlaySessions", () => {

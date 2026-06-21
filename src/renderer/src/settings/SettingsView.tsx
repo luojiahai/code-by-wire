@@ -490,9 +490,23 @@ function Req({ state, label }: { state: ReqState; label: string }) {
   );
 }
 
+/** The billing row's label/description for an `api` account. A host with an upstream provider is a gateway;
+ *  a provider with no host is a cloud routing; a host alone is the direct endpoint. */
+function apiBillingRow(account: Account | null): {
+  label: string;
+  desc: string;
+} {
+  if (account?.apiBaseUrl && account.apiProvider)
+    return { label: "Gateway", desc: "API billing gateway" };
+  if (account?.apiProvider)
+    return { label: "Provider", desc: "Cloud API provider" };
+  return { label: "Endpoint", desc: "Direct API endpoint" };
+}
+
 function AccountSection({ account }: { account: Account | null }) {
   const model = railAccountModel(account, Date.now());
   const plan = model?.plan ?? "Claude";
+  const billing = apiBillingRow(account);
   return (
     <>
       <Header
@@ -531,11 +545,9 @@ function AccountSection({ account }: { account: Account | null }) {
       )}
 
       {model?.mode === "api" && (
-        <Card title="Endpoint">
-          <Row label="Gateway" desc="API billing endpoint">
-            <span className="font-mono text-[12px] text-fg">
-              {model.baseUrl}
-            </span>
+        <Card title="API billing">
+          <Row label={billing.label} desc={billing.desc}>
+            <span className="font-mono text-[12px] text-fg">{model.label}</span>
           </Row>
         </Card>
       )}

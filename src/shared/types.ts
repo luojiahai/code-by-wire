@@ -181,10 +181,10 @@ export interface RateLimit {
   resetsAt: number;
 }
 
-/** The app-wide account, derived from the freshest statusLine capture. Billing mode is detected from
- *  rate-limit presence (ADR-0001): a capture carrying rate_limits is a subscription; one without is
- *  `unknown` (absence is not proof of API billing). `api` stays in the union, since the domain defines it
- *  and costDisplay's real-spend branch keys on it, but the live inference never asserts it. */
+/** The app-wide account, derived from the freshest statusLine capture plus the configured ApiConfig.
+ *  Billing mode is decided in deriveAccount (ADR-0001): a capture carrying rate_limits is a subscription;
+ *  with no such evidence, a configured API endpoint or cloud provider resolves to `api`; otherwise
+ *  `unknown`. */
 export interface Account {
   billingMode: "subscription" | "api" | "unknown";
   /** Present only for a subscription; otherwise no account rate limits. */
@@ -197,25 +197,33 @@ export interface Account {
   version?: string;
   /** Logged-in account email, read from ~/.claude.json by the ipc layer (not derived from samples). */
   email?: string;
-  /** API-billing endpoint from settings.json env. Present only when billingMode is 'api' — a base URL is
-   *  configured AND no capture ever carried rate_limits (no subscription evidence). The renderer shows it
-   *  as a bare host. */
+  /** API endpoint host for an `api` account — a configured base URL or the synthesized api.anthropic.com
+   *  direct default. Absent for a cloud provider (Bedrock/Vertex/etc.). The renderer shows it as a bare host. */
   apiBaseUrl?: string;
   /** How the API endpoint authenticates — present only alongside apiBaseUrl when an auth env var is set. */
   apiAuthMethod?: "token" | "apiKey";
-  /** Upstream provider behind the gateway (e.g. a Portkey x-portkey-provider value). Present only when set. */
+  /** Upstream provider for `api` billing: a Portkey x-portkey-provider value, or a cloud-provider key
+   *  (bedrock/vertex/foundry/mantle/anthropic_aws). Present only when set. */
   apiProvider?: string;
+  /** True only for Anthropic-direct billing: the endpoint host is anthropic.com (or a subdomain), an auth
+   *  credential was detected, AND no upstream provider is set. Drives costDisplay's real-spend framing.
+   *  Optional and defaults falsy, so a gateway or cloud account (local cost is an estimate of the upstream
+   *  bill), or a bare base URL with no detected credential, keeps the ~ . */
+  anthropicDirect?: boolean;
 }
 
 /** API-billing identity read from settings.json env (by the main process), then fed to deriveAccount as the
- *  endpoint to surface when no subscription evidence exists. Present only when a base URL is configured. */
+ *  endpoint/provider to surface when no subscription evidence exists. */
 export interface ApiConfig {
-  /** The configured endpoint, from ANTHROPIC_BASE_URL. The renderer strips the scheme for display. */
-  baseUrl: string;
-  /** How the gateway authenticates — an auth token vs an API key. Omitted when neither env var is set. */
+  /** The configured endpoint: ANTHROPIC_BASE_URL, or a synthesized https://api.anthropic.com for the
+   *  key-only direct case. Absent for a cloud provider (Bedrock/Vertex/etc.), which carries no endpoint.
+   *  The renderer strips the scheme for display. */
+  baseUrl?: string;
+  /** How the endpoint authenticates — an auth token vs an API key. Omitted for cloud providers (their
+   *  credentials live outside ANTHROPIC_* env) and when neither auth var is set. */
   authMethod?: "token" | "apiKey";
-  /** Upstream provider from the x-portkey-provider entry of ANTHROPIC_CUSTOM_HEADERS, '@' stripped.
-   *  Omitted when the header is absent. */
+  /** Upstream provider: a Portkey x-portkey-provider value, or a cloud-provider key
+   *  (bedrock/vertex/foundry/mantle/anthropic_aws). Omitted when none applies. */
   provider?: string;
 }
 

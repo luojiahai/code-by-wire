@@ -19,12 +19,43 @@ export type RailAccountView =
       plan: string;
       gauges: RailGauge[];
     }
-  | { mode: "api"; baseUrl: string; plan: string };
+  | { mode: "api"; label: string; plan: string };
 
 function planLabel(billingMode: Account["billingMode"]): string {
   if (billingMode === "subscription") return "Claude · subscription";
   if (billingMode === "api") return "Claude · API";
   return "Claude";
+}
+
+/** Cloud-provider keys to display names. Only the well-known three are curated; other keys (mantle,
+ *  anthropic_aws) fall back to a title-cased label. */
+const FRIENDLY_PROVIDER: Record<string, string> = {
+  bedrock: "AWS Bedrock",
+  vertex: "Google Vertex",
+  foundry: "Microsoft Foundry",
+};
+
+/** A display name for a cloud-provider key: the curated name, else the key title-cased
+ *  (mantle -> "Mantle", anthropic_aws -> "Anthropic Aws"). */
+function friendlyProvider(provider: string): string {
+  return (
+    FRIENDLY_PROVIDER[provider] ??
+    provider
+      .split(/[_-]/)
+      .filter(Boolean)
+      .map((w) => w[0].toUpperCase() + w.slice(1))
+      .join(" ")
+  );
+}
+
+/** The api plan line. Name the upstream provider only when there's also a host to contrast it with (a
+ *  Portkey-style gateway). A cloud provider (provider, no host) or a direct account (host, no provider)
+ *  both read plainly as "Claude · API". */
+function apiPlanLabel(
+  host: string | null,
+  provider: string | undefined,
+): string {
+  return host && provider ? `Claude · API · via ${provider}` : "Claude · API";
 }
 
 function gauge(label: string, limit: RateLimit, now: number): RailGauge {
@@ -38,7 +69,7 @@ function gauge(label: string, limit: RateLimit, now: number): RailGauge {
 /** The base URL as a bare host for display: a leading http(s):// scheme and a single trailing slash
  *  stripped, host/port/path preserved. A value with no recognizable scheme is shown verbatim. */
 function bareHost(url: string): string {
-  return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  return url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 }
 
 /**
@@ -62,11 +93,12 @@ export function maskEmail(email: string): string {
  *
  * - subscription: the 5h and weekly windows (each with a reset countdown) and the login email. Returns null when there's neither an email nor a window
  *   (ADR-0001 graceful degradation).
- * - api: the configured endpoint as a bare host. Requires a base URL; an api account without one has
- *   nothing to surface.
+ * - api: the endpoint as a bare host, or a friendly cloud-provider name when there's no host. Requires a
+ *   base URL or a provider; an api account with neither has nothing to surface. A gateway that names its
+ *   upstream provider gets a "via {provider}" plan line.
  *
- * Anything else (an 'unknown' account, or 'api' with no base URL) returns null, so the block disappears
- * rather than show a window-less subscription or mislabel gateway billing with a stale email.
+ * Anything else (an 'unknown' account, or 'api' with neither a base URL nor a provider) returns null, so the
+ * block disappears rather than show a window-less subscription or mislabel gateway billing with a stale email.
  */
 export function railAccountModel(
   account: Account | null,
@@ -88,11 +120,16 @@ export function railAccountModel(
     };
   }
 
-  if (account.billingMode === "api" && account.apiBaseUrl) {
+  if (
+    account.billingMode === "api" &&
+    (account.apiBaseUrl || account.apiProvider)
+  ) {
+    const host = account.apiBaseUrl ? bareHost(account.apiBaseUrl) : null;
+    const label = host ?? friendlyProvider(account.apiProvider!);
     return {
       mode: "api",
-      baseUrl: bareHost(account.apiBaseUrl),
-      plan: planLabel(account.billingMode),
+      label,
+      plan: apiPlanLabel(host, account.apiProvider),
     };
   }
 

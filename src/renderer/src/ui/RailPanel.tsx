@@ -89,7 +89,7 @@ export const RailPanel = memo(function RailPanel({
         ) : view.mode === "api" ? (
           <>
             <div className="truncate pr-20 font-mono text-[12.5px] font-medium text-fg">
-              {view.baseUrl}
+              {view.label}
             </div>
             <div className="mt-0.5 text-[11px] text-fg-faint">{view.plan}</div>
           </>

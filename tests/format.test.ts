@@ -62,17 +62,48 @@ describe("formatResetCountdown", () => {
 });
 
 describe("costDisplay", () => {
-  it("labels an API account as real spend (no tilde)", () => {
+  it("labels a live Anthropic-direct API account as real spend (no tilde)", () => {
+    expect(
+      costDisplay({
+        liveCostUsd: 0.5,
+        equivApiValueUsd: 9,
+        billingMode: "api",
+        anthropicDirect: true,
+      }),
+    ).toEqual({ text: "$0.50", equivalent: false });
+  });
+
+  it("keeps the tilde for a live gateway/cloud API account (not anthropicDirect)", () => {
+    expect(
+      costDisplay({
+        liveCostUsd: 0.5,
+        equivApiValueUsd: 9,
+        billingMode: "api",
+        anthropicDirect: false,
+      }),
+    ).toEqual({ text: "~$0.50", equivalent: true });
+  });
+
+  // The real production value for a gateway/cloud account is an absent anthropicDirect, not false —
+  // deriveAccount only ever sets it to true. The strict `=== true` gate must treat undefined as not-direct.
+  it("keeps the tilde for a live api account with anthropicDirect omitted", () => {
     expect(
       costDisplay({
         liveCostUsd: 0.5,
         equivApiValueUsd: 9,
         billingMode: "api",
       }),
-    ).toEqual({
-      text: "$0.50",
-      equivalent: false,
-    });
+    ).toEqual({ text: "~$0.50", equivalent: true });
+  });
+
+  it("keeps the tilde for a direct account before its live cost arrives", () => {
+    expect(
+      costDisplay({
+        equivApiValueUsd: 6.42,
+        billingMode: "api",
+        anthropicDirect: true,
+      }),
+    ).toEqual({ text: "~$6.42", equivalent: true });
   });
 
   it("labels a subscription as an equivalent value (tilde)", () => {

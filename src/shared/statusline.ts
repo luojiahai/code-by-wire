@@ -67,6 +67,18 @@ export function freshestBySession(
   return byId;
 }
 
+/** True when `url`'s host is anthropic.com or a *.anthropic.com subdomain. Scheme-tolerant (the synthesized
+ *  default carries one; a hand-set ANTHROPIC_BASE_URL may not) and spoof-safe — the leading-dot match
+ *  rejects lookalikes like evil-anthropic.com. Undefined (a cloud provider, no endpoint) is not direct. */
+function isAnthropicHost(url: string | undefined): boolean {
+  if (!url) return false;
+  const host = url
+    .replace(/^https?:\/\//i, "")
+    .split(/[/:?#]/)[0]
+    .toLowerCase();
+  return host === "anthropic.com" || host.endsWith(".anthropic.com");
+}
+
 /** A rate-limit window only if its reset is still ahead. A window that has already reset can't be
  *  described by a past capture, so it's dropped rather than shown with a stale "% used · resets now". */
 function liveWindow(
@@ -88,9 +100,10 @@ function liveWindow(
  * - unknown: no live window AND no API endpoint to surface. Reached when every window has expired (a
  *   dormant subscriber — still a subscriber, just idle), or when no capture carries rate_limits and no base
  *   URL is configured. The block disappears rather than show a window-less 'subscription'.
- * - api: ONLY when no capture ever carried rate_limits (no subscription evidence at all) and `apiConfig`
- *   has a base URL. A capture with rate_limits — even all-expired — is proof of a subscription, so a dormant
- *   subscriber is NEVER relabeled API billing just because a base URL happens to be configured.
+ * - api: when no capture ever carried rate_limits (no subscription evidence) and `apiConfig` is present —
+ *   a base URL (configured or the synthesized direct default) or a cloud provider. `anthropicDirect` is set
+ *   when the host is anthropic.com with no upstream provider. A capture with rate_limits — even all-expired —
+ *   is proof of a subscription, so a dormant subscriber is NEVER relabeled API billing.
  *
  * Returns null when there's no recent statusLine data at all (the UI reads null as "no bars").
  */
@@ -140,9 +153,18 @@ export function deriveAccount(
     // falls to 'unknown' instead, so its cost never mislabels as 'Actual API spend'.
     let acc: Account;
     if (!withLimits && apiConfig) {
-      acc = { billingMode: "api", apiBaseUrl: apiConfig.baseUrl };
+      acc = { billingMode: "api" };
+      if (apiConfig.baseUrl) acc.apiBaseUrl = apiConfig.baseUrl;
       if (apiConfig.authMethod) acc.apiAuthMethod = apiConfig.authMethod;
       if (apiConfig.provider) acc.apiProvider = apiConfig.provider;
+      // Real-spend framing is a strong claim, so assert direct billing only when a credential was actually
+      // detected — a bare anthropic.com base URL with no auth env stays an estimate (keeps the ~).
+      if (
+        isAnthropicHost(apiConfig.baseUrl) &&
+        apiConfig.authMethod &&
+        !apiConfig.provider
+      )
+        acc.anthropicDirect = true;
     } else {
       acc = { billingMode: "unknown" };
     }

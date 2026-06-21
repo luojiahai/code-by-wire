@@ -21,11 +21,13 @@ export function TokensPanel({
   model,
   liveCostUsd,
   billingMode,
+  anthropicDirect,
 }: {
   usage: Usage;
   model: Family;
   liveCostUsd?: number;
   billingMode?: "subscription" | "api" | "unknown";
+  anthropicDirect?: boolean;
 }) {
   const { headline, total, rows, cacheSavings } = useMemo(() => {
     const b = costBreakdown(usage, model);
@@ -34,6 +36,7 @@ export function TokensPanel({
         liveCostUsd,
         equivApiValueUsd: b.total,
         billingMode,
+        anthropicDirect,
       }),
       total:
         usage.inputTokens +
@@ -70,7 +73,7 @@ export function TokensPanel({
       ],
       cacheSavings: b.cacheSavings,
     };
-  }, [usage, model, liveCostUsd, billingMode]);
+  }, [usage, model, liveCostUsd, billingMode, anthropicDirect]);
   return (
     <PanelSection>
       <PanelHeading

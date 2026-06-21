@@ -43,9 +43,94 @@ describe("readApiConfig", () => {
     });
   });
 
-  it("returns null when no base URL is configured, even with other env keys", () => {
+  it("synthesizes the api.anthropic.com default for a token with no base URL", () => {
     const claudeDir = writeSettings({ env: { ANTHROPIC_AUTH_TOKEN: "tok" } });
+    expect(readApiConfig(claudeDir)).toEqual({
+      baseUrl: "https://api.anthropic.com",
+      authMethod: "token",
+    });
+  });
+
+  it("synthesizes the api.anthropic.com default for an API key with no base URL", () => {
+    const claudeDir = writeSettings({ env: { ANTHROPIC_API_KEY: "sk-xxx" } });
+    expect(readApiConfig(claudeDir)).toEqual({
+      baseUrl: "https://api.anthropic.com",
+      authMethod: "apiKey",
+    });
+  });
+
+  it("returns null when env has only unrelated keys (no key, token, URL, or cloud flag)", () => {
+    const claudeDir = writeSettings({ env: { SOME_OTHER: "x" } });
     expect(readApiConfig(claudeDir)).toBeNull();
+  });
+
+  it.each(["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"])(
+    "ignores a whitespace-only %s (not a real credential)",
+    (key) => {
+      const claudeDir = writeSettings({ env: { [key]: "   " } });
+      expect(readApiConfig(claudeDir)).toBeNull();
+    },
+  );
+
+  it.each([
+    ["CLAUDE_CODE_USE_BEDROCK", "bedrock"],
+    ["CLAUDE_CODE_USE_VERTEX", "vertex"],
+    ["CLAUDE_CODE_USE_FOUNDRY", "foundry"],
+    ["CLAUDE_CODE_USE_MANTLE", "mantle"],
+    ["CLAUDE_CODE_USE_ANTHROPIC_AWS", "anthropic_aws"],
+  ])("detects %s as a cloud provider with no host", (flag, provider) => {
+    const claudeDir = writeSettings({ env: { [flag]: "1" } });
+    expect(readApiConfig(claudeDir)).toEqual({ provider });
+  });
+
+  it.each(["true", "yes", "on", "ON", "True"])(
+    "treats the flag value %s as enabled",
+    (val) => {
+      const claudeDir = writeSettings({
+        env: { CLAUDE_CODE_USE_BEDROCK: val },
+      });
+      expect(readApiConfig(claudeDir)).toEqual({ provider: "bedrock" });
+    },
+  );
+
+  it.each(["0", "false", "no", ""])(
+    "treats the flag value %s as disabled",
+    (val) => {
+      const claudeDir = writeSettings({
+        env: { CLAUDE_CODE_USE_BEDROCK: val, ANTHROPIC_API_KEY: "sk-x" },
+      });
+      // falls through to the key-only direct case
+      expect(readApiConfig(claudeDir)).toEqual({
+        baseUrl: "https://api.anthropic.com",
+        authMethod: "apiKey",
+      });
+    },
+  );
+
+  it("coerces a JSON boolean or number flag the way Claude Code would", () => {
+    expect(
+      readApiConfig(writeSettings({ env: { CLAUDE_CODE_USE_BEDROCK: true } })),
+    ).toEqual({ provider: "bedrock" });
+    expect(
+      readApiConfig(writeSettings({ env: { CLAUDE_CODE_USE_VERTEX: 1 } })),
+    ).toEqual({ provider: "vertex" });
+    // A JSON `false`/`0` is disabled and, with nothing else, yields null.
+    expect(
+      readApiConfig(writeSettings({ env: { CLAUDE_CODE_USE_BEDROCK: false } })),
+    ).toBeNull();
+    expect(
+      readApiConfig(writeSettings({ env: { CLAUDE_CODE_USE_BEDROCK: 0 } })),
+    ).toBeNull();
+  });
+
+  it("lets a cloud flag win over an also-present base URL", () => {
+    const claudeDir = writeSettings({
+      env: {
+        CLAUDE_CODE_USE_VERTEX: "1",
+        ANTHROPIC_BASE_URL: "https://ignored.example.com",
+      },
+    });
+    expect(readApiConfig(claudeDir)).toEqual({ provider: "vertex" });
   });
 
   it("returns null when settings.json is absent", () => {
