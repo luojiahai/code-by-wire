@@ -74,11 +74,11 @@
   --color-model-sonnet: #b37bd9; /* orchid */
   --color-model-haiku: #db7fa4; /* rose */
 
-  /* Type — Instrument Sans placards/labels, Inter for UI/body, JetBrains Mono for all telemetry
-     and identifiers. The "* Variable" names are the bundled @fontsource-variable builds; the plain
-     name stays as a fallback for a locally-installed static font. */
-  --font-display:
-    "Instrument Sans Variable", "Instrument Sans", system-ui, sans-serif;
+  /* Type — Inter for UI/body AND placards/labels (display reuses the sans face; the label/body
+     hierarchy comes from case, tracking, weight, and color, not a separate font), JetBrains Mono for
+     all telemetry and identifiers. The "* Variable" names are the bundled @fontsource-variable builds;
+     the plain name stays as a fallback for a locally-installed static font. */
+  --font-display: var(--font-sans);
   --font-sans:
     "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
