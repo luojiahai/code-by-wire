@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { OPEN_IN_FAILED_MESSAGE, type OpenInTarget } from "@shared/ipc";
 import { Icon } from "../ui/icons";
-import { OPEN_IN_ITEMS } from "./open-in-items";
+import { openInItems } from "./open-in-items";
 
 /** The header's "Open in" dropdown. The trigger toggles a flat menu of open targets; each item opens the
  *  session's working directory in that target (the path is resolved in the main process from `sessionId`).
@@ -13,6 +13,7 @@ export function OpenInMenu({ sessionId }: { sessionId: string }) {
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const items = openInItems(window.api.platform);
 
   useEffect(() => {
     if (!open) return;
@@ -70,7 +71,7 @@ export function OpenInMenu({ sessionId }: { sessionId: string }) {
           role="menu"
           className="absolute right-0 top-full z-30 mt-1.5 w-56 rounded-lg border border-ink-700 bg-ink-900 p-1.5 shadow-xl"
         >
-          {OPEN_IN_ITEMS.map((item) => (
+          {items.map((item) => (
             <button
               key={item.key}
               type="button"
