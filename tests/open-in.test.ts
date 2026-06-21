@@ -53,6 +53,19 @@ describe("openInTarget", () => {
       "finder",
     );
     expect(shell.openPath).not.toHaveBeenCalled();
+    expect(shell.openExternal).not.toHaveBeenCalled();
+    expect(res.ok).toBe(false);
+  });
+
+  it("fails without calling shell when no cwd resolves (vscode target)", async () => {
+    const shell = makeShell();
+    const res = await openInTarget(
+      { resolveCwd: () => null, statDir: isDir, shell },
+      "s1",
+      "vscode",
+    );
+    expect(shell.openExternal).not.toHaveBeenCalled();
+    expect(shell.openPath).not.toHaveBeenCalled();
     expect(res.ok).toBe(false);
   });
 
@@ -64,6 +77,7 @@ describe("openInTarget", () => {
       "vscode",
     );
     expect(shell.openExternal).not.toHaveBeenCalled();
+    expect(shell.openPath).not.toHaveBeenCalled();
     expect(res.ok).toBe(false);
   });
 
