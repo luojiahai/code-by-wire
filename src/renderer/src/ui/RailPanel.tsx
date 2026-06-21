@@ -8,7 +8,7 @@ import { OVERVIEW_ID } from "../stats/sentinel";
 
 /**
  * The rail's pinned identity panel: an account card that opens Overview (subscription email + plan +
- * 5h/Weekly gauges, an api endpoint host, or — with no account — a bare Overview label). Replaces the old
+ * 5h/7d gauges, an api endpoint host, or — with no account — a bare Overview label). Replaces the old
  * RailAccount block and the separate pinned Overview button. CLI status no longer lives in the rail — it
  * moved to the Sys master-caution lamp in the title bar (GlobalHeader).
  *
@@ -62,7 +62,7 @@ export const RailPanel = memo(function RailPanel({
       {view !== null && (
         <span
           className={cx(
-            "pointer-events-none absolute right-3 top-3 flex items-center gap-0.5 font-display text-[9px] font-semibold uppercase tracking-[0.12em] transition-colors",
+            "pointer-events-none absolute right-3 top-3 flex items-center gap-0.5 font-display text-[8px] font-semibold uppercase tracking-[0.1em] transition-colors",
             active ? "text-primary" : "text-fg-faint group-hover:text-fg-muted",
           )}
         >
@@ -134,7 +134,7 @@ export const RailPanel = memo(function RailPanel({
               <div className="mt-2.5 flex flex-col gap-2">
                 {view.gauges.map((g) => (
                   <div key={g.label} className="flex items-center gap-2.5">
-                    <span className="w-9 shrink-0 font-display text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
+                    <span className="w-6 shrink-0 font-display text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
                       {g.label}
                     </span>
                     <Bar

@@ -74,16 +74,20 @@
   --color-model-sonnet: #b37bd9; /* orchid */
   --color-model-haiku: #db7fa4; /* rose */
 
-  /* Type — Saira Semi Condensed placards/labels, Inter for UI/body, JetBrains Mono for all telemetry
-     and identifiers. The "* Variable" names are the bundled @fontsource-variable builds (Inter, mono);
-     Saira Semi Condensed is static. Plain names stay as a fallback for a locally-installed static font. */
-  --font-display: "Saira Semi Condensed", system-ui, sans-serif;
+  /* Type — Inter for UI/body AND placards/labels (display reuses the sans face; the label/body
+     hierarchy comes from case, tracking, weight, and color, not a separate font), Cascadia Mono for
+     the wordmark, JetBrains Mono for all telemetry and identifiers. The "* Variable" names are the
+     bundled @fontsource-variable builds; the plain name stays as a fallback for a locally-installed
+     static font. */
+  --font-display: var(--font-sans);
   --font-sans:
     "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
   --font-mono:
     "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo,
     Consolas, monospace;
+  --font-brand:
+    "Cascadia Mono Variable", "Cascadia Mono", ui-monospace, monospace;
 }
 
 html,

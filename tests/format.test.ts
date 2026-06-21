@@ -7,6 +7,7 @@ import {
   formatTokens,
   formatDuration,
   formatTokensShort,
+  formatTokensAxis,
   formatTps,
   formatClock,
   formatMonthShort,
@@ -184,6 +185,20 @@ describe("formatTokensShort", () => {
     expect(formatTokensShort(2_480_000)).toBe("2.48M");
     expect(formatTokensShort(950)).toBe("950");
     expect(formatTokensShort(0)).toBe("0");
+  });
+});
+
+describe("formatTokensAxis", () => {
+  it("trims trailing-zero decimals so round axis ticks read clean", () => {
+    expect(formatTokensAxis(125_000_000)).toBe("125M");
+    expect(formatTokensAxis(250_000_000)).toBe("250M");
+    expect(formatTokensAxis(12_500_000)).toBe("12.5M");
+    expect(formatTokensAxis(1_250_000)).toBe("1.25M");
+    expect(formatTokensAxis(2_480_000)).toBe("2.48M");
+    expect(formatTokensAxis(5_000)).toBe("5k");
+    expect(formatTokensAxis(128_400)).toBe("128.4k");
+    expect(formatTokensAxis(950)).toBe("950");
+    expect(formatTokensAxis(0)).toBe("0");
   });
 });
 

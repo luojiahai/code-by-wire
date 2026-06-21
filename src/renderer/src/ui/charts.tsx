@@ -219,14 +219,16 @@ export function BarSeries({
   const axisMax = niceAxisMax(dataMax);
   const ticks = axisTicks(axisMax);
 
+  // pt-2 on the chart row reserves headroom for the top Y-axis tick label: it's centered on the top
+  // gridline, so it half-overflows the plot's top edge and would otherwise crowd the panel title above.
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 pt-2">
       {/* Y-axis labels, bottom-aligned to their tick fraction. */}
       <div className="relative h-40 w-12 shrink-0">
         {ticks.map((t) => (
           <span
             key={t}
-            className="absolute right-0 -translate-y-1/2 text-[9px] tabular-nums text-fg-faint"
+            className="absolute right-0 translate-y-[calc(-50%_+_5px)] text-[9px] leading-none tabular-nums text-fg-faint"
             style={{ bottom: `${(t / axisMax) * 100}%` }}
           >
             {formatTick(t)}

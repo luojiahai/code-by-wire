@@ -67,6 +67,18 @@ export function formatTokensShort(n: number): string {
   return String(Math.round(n));
 }
 
+/** Like formatTokensShort but for a chart axis tick: trailing-zero decimals are trimmed, so a round tick
+ *  reads "125M" not "125.00M" while a fractional one keeps the digits it needs ("12.5M", "2.48M"). The trim
+ *  only touches a toFixed string (which always carries a decimal point), so it never eats a significant
+ *  trailing zero like the one in "250". Non-finite or ≤0 → "0". */
+export function formatTokensAxis(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "0";
+  const trim = (s: string): string => s.replace(/\.?0+$/, "");
+  if (n >= 1_000_000) return trim((n / 1_000_000).toFixed(2)) + "M";
+  if (n >= 1000) return trim((n / 1000).toFixed(1)) + "k";
+  return String(Math.round(n));
+}
+
 /** A token throughput like "86.4 t/s" / "1.3k t/s". Non-finite or ≤0 → "0 t/s". */
 export function formatTps(tps: number): string {
   if (!Number.isFinite(tps) || tps <= 0) return "0 t/s";

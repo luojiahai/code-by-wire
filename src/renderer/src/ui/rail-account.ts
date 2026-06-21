@@ -109,7 +109,7 @@ export function railAccountModel(
   if (account.billingMode === "subscription") {
     const gauges: RailGauge[] = [];
     if (account.fiveHour) gauges.push(gauge("5h", account.fiveHour, now));
-    if (account.sevenDay) gauges.push(gauge("Weekly", account.sevenDay, now));
+    if (account.sevenDay) gauges.push(gauge("7d", account.sevenDay, now));
     const email = account.email ?? null;
     if (!email && gauges.length === 0) return null; // subscription with nothing live to show (windows all expired)
     return {

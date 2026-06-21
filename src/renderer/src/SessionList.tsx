@@ -55,7 +55,7 @@ export function SessionList({
               : "Claude Code CLI isn't usable — open Sys status in the title bar."
           }
           className={cx(
-            "inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border font-display text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors",
+            "inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border font-display text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors",
             canSpawn
               ? "border-ink-700 bg-ink-900 text-fg hover:border-ink-600 hover:bg-ink-850"
               : "cursor-not-allowed border-ink-800 bg-ink-900 text-fg-faint",
@@ -101,7 +101,7 @@ export function SessionList({
                       !endedCollapsed && "rotate-90",
                     )}
                   />
-                  <span className="font-display text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-faint">
+                  <span className="font-display text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
                     {STATE_META.ended.label}
                   </span>
                   <span className="font-mono text-[10px] text-fg-faint">

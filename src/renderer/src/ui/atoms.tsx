@@ -113,7 +113,7 @@ export function Bar({
 export function Wordmark() {
   return (
     <span className="inline-flex shrink-0 items-baseline gap-2">
-      <span className="font-display text-[15px] font-semibold tracking-tight text-fg">
+      <span className="font-brand text-xs font-semibold uppercase text-fg">
         Code-by-<span className="text-primary">wire</span>
       </span>
       {/* A quiet build badge: mono, faint, a notch smaller — it rides the brand, never competes. */}

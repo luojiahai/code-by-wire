@@ -19,7 +19,7 @@ describe("railAccountModel — subscription", () => {
     expect(railAccountModel({ billingMode: "unknown" }, NOW)).toBeNull();
   });
 
-  it("builds identity, plan label and 5h + weekly gauges", () => {
+  it("builds identity, plan label and 5h + 7d gauges", () => {
     const acc: Account = {
       billingMode: "subscription",
       email: "a@b.com",
@@ -32,7 +32,7 @@ describe("railAccountModel — subscription", () => {
       plan: "Claude · subscription",
       gauges: [
         { label: "5h", pct: 42, reset: "2h 14m" },
-        { label: "Weekly", pct: 18, reset: "5d" },
+        { label: "7d", pct: 18, reset: "5d" },
       ],
     });
   });
@@ -45,7 +45,7 @@ describe("railAccountModel — subscription", () => {
     expect(railAccountModel(acc, NOW)).toMatchObject({
       mode: "subscription",
       email: null,
-      gauges: [{ label: "Weekly" }],
+      gauges: [{ label: "7d" }],
     });
   });
 

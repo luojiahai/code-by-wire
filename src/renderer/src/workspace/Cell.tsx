@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cx } from "../ui/atoms";
 
-/** One annunciator cell: a Saira placard label over a mono readout. `led` adds a status lamp before the
+/** One annunciator cell: an Inter placard label over a mono readout. `led` adds a status lamp before the
  *  value (pulsing for live states); `seam` draws the divider between the status lamps and the readouts;
  *  `raw` drops the default value wrapper so the cell lays out its own value (the Git cell renders its own
  *  trigger + popover). */
@@ -35,7 +35,7 @@ export function Cell({
         seam && "border-l border-ink-800",
       )}
     >
-      <span className="font-display text-[9px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
+      <span className="font-display text-[8px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {label}
       </span>
       <span
