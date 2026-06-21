@@ -1,12 +1,15 @@
 import { useEffect, useId, useRef, useState } from "react";
+import type { OpenInTarget } from "@shared/ipc";
 import { Icon } from "../ui/icons";
 import { OPEN_IN_ITEMS } from "./open-in-items";
 
-/** The header's "Open in" dropdown. The trigger toggles a flat menu of open targets. Every item is a
- *  disabled placeholder for now (its tooltip says so); wiring lands later. The menu closes on an outside
- *  click or Escape. */
-export function OpenInMenu() {
+/** The header's "Open in" dropdown. The trigger toggles a flat menu of open targets; each item opens the
+ *  session's working directory in that target (the path is resolved in the main process from `sessionId`).
+ *  The menu closes on a successful open, an outside click, or Escape. A failed open keeps the menu open and
+ *  shows an inline error. */
+export function OpenInMenu({ sessionId }: { sessionId: string }) {
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
@@ -26,6 +29,17 @@ export function OpenInMenu() {
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  // Drop a stale error whenever the menu closes, so reopening starts clean.
+  useEffect(() => {
+    if (!open) setError(null);
+  }, [open]);
+
+  async function handleOpen(target: OpenInTarget) {
+    const res = await window.api.openIn(sessionId, target);
+    if (res.ok) setOpen(false);
+    else setError(res.error ?? "Couldn't open.");
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -51,14 +65,16 @@ export function OpenInMenu() {
               key={item.key}
               type="button"
               role="menuitem"
-              disabled
-              title="Coming soon"
-              className="flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left text-[12px] text-fg-muted opacity-40"
+              onClick={() => void handleOpen(item.key)}
+              className="flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-ink-800 hover:text-fg focus-visible:outline-none focus-visible:bg-ink-800"
             >
               <Icon name={item.icon} size={13} />
               {item.label}
             </button>
           ))}
+          {error && (
+            <p className="mt-1 px-2 py-1 text-[11px] text-danger">{error}</p>
+          )}
         </div>
       )}
     </div>

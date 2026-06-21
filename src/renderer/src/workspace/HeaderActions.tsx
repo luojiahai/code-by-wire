@@ -5,8 +5,8 @@ import { Icon, type IconName } from "../ui/icons";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { OpenInMenu } from "./OpenInMenu";
 
-/** The header's right-side action cluster. Adopt — the one wired action — leads when an observed session
- *  has ended; the rest (Open in, Interrupt, End) ship disabled until their plumbing lands. Status chips
+/** The header's right-side action cluster. Adopt (shown only when an observed session has ended) and
+ *  Open in are the wired actions; Interrupt and End ship disabled until their plumbing lands. Status chips
  *  live on the header's second line, not here, so this row is purely actions. */
 export function HeaderActions({
   session: s,
@@ -95,7 +95,7 @@ export function HeaderActions({
         </>
       )}
 
-      <OpenInMenu />
+      <OpenInMenu sessionId={s.id} />
 
       <Divider />
 

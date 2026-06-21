@@ -9,7 +9,7 @@ describe("OPEN_IN_ITEMS", () => {
   it("has valid icons and labels", () => {
     expect(OPEN_IN_ITEMS).toEqual([
       { key: "vscode", label: "VSCode", icon: "code" },
-      { key: "finder", label: "Reveal in Finder", icon: "folder-open" },
+      { key: "finder", label: "Open in Finder", icon: "folder-open" },
     ]);
   });
 });
