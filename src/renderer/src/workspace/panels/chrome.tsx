@@ -37,7 +37,7 @@ export function PanelHeading({
 }) {
   if (!info && !right) {
     return (
-      <h2 className="font-display text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-faint">
+      <h2 className="font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {children}
       </h2>
     );
@@ -46,7 +46,7 @@ export function PanelHeading({
   return (
     <div className="relative flex items-center justify-between gap-2">
       <span className="flex items-center gap-1.5">
-        <h2 className="font-display text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-faint">
+        <h2 className="font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
           {children}
         </h2>
         {info && (

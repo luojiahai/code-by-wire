@@ -101,7 +101,7 @@ export function SessionList({
                       !endedCollapsed && "rotate-90",
                     )}
                   />
-                  <span className="font-display text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-faint">
+                  <span className="font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
                     {STATE_META.ended.label}
                   </span>
                   <span className="font-mono text-[10px] text-fg-faint">
