@@ -255,7 +255,9 @@ export function App() {
 
   // End a running Managed session: mark it ending (the optimistic overlay flips it to Ended at once) and
   // fire the existing fire-and-forget kill. No await and no result to handle — kill is best-effort on the
-  // pty we own; the overlay plus the next sync reconcile the row to its real Ended/Observed state.
+  // pty we own; the overlay plus the next sync reconcile the row to its real Ended/Observed state. Unlike
+  // adopting, onExit does NOT clear the override (no dropEnding): a killed row reads Ended anyway, so a stale
+  // id is inert; pruneEnding drops it once discovery indexes the row.
   function endSession(id: string): void {
     setEnding((prev) => new Set(prev).add(id));
     window.api.terminal.kill(id);
