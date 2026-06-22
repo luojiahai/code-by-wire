@@ -15,3 +15,7 @@ release/
 # Superpowers plugin state and generated docs: local only, never tracked
 .superpowers/
 docs/superpowers/
+
+# Agent scratch state and generated decks: local only, never tracked
+.agents/
+docs/deck/
