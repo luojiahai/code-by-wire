@@ -1,4 +1,24 @@
 import { useEffect, useRef, useState } from "react";
+import type { Session } from "@shared/types";
+
+/**
+ * A session can be Adopted (resumed under its own id) only once it's an Observed session that has Ended:
+ * you can't take the wheel of a process that's still running, and a just-exited Managed session reads
+ * Managed until the next sync re-derives it Observed. Both resume surfaces gate the Adopt button on this,
+ * so it lives here single-sourced — two hand-rolled copies drifted once already.
+ */
+export function canAdoptSession(s: Session): boolean {
+  return s.management === "observed" && s.state === "ended";
+}
+
+/**
+ * A session that never recorded a real model (only '<synthetic>' turns — usually one that errored at
+ * startup) has no valid model to resume, so `claude --resume`/`--fork-session` will 400. Both surfaces
+ * route the first click through a warning modal when this is true.
+ */
+export function isModelUnknown(s: Session): boolean {
+  return s.modelId == null && s.modelRaw == null;
+}
 
 export interface ResumeAction {
   busy: boolean;

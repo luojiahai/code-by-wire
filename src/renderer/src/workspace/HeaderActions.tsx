@@ -2,9 +2,13 @@ import { type ReactNode } from "react";
 import type { Session } from "@shared/types";
 import { cx } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
-import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { OpenInMenu } from "./OpenInMenu";
-import { useResumeAction } from "./resume-action";
+import {
+  useResumeAction,
+  canAdoptSession,
+  isModelUnknown,
+} from "./resume-action";
+import { ResumeButton } from "./ResumeButton";
 
 /** The header's right-side action cluster: Adopt + Fork + End session, then Open in last. Fork shows on
  *  every session; Adopt joins it (and leads) only when an Observed session has ended. End session ships
@@ -22,10 +26,8 @@ export function HeaderActions({
   onAdopt: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
 }) {
-  const canAdopt = s.management === "observed" && s.state === "ended";
-  // A session that never recorded a real model (only '<synthetic>' turns — usually one that errored at
-  // startup) has no valid model to resume, so `claude --resume` will 400. Don't block: warn first.
-  const modelUnknown = s.modelId == null && s.modelRaw == null;
+  const canAdopt = canAdoptSession(s);
+  const modelUnknown = isModelUnknown(s);
 
   const adopt = useResumeAction({
     run: () => onAdopt(s.id),
@@ -38,24 +40,9 @@ export function HeaderActions({
     armed: true, // Fork shows on every session; Workspace is keyed by id, so a switch remounts and resets
   });
 
-  const cliTitle = canSpawn
-    ? undefined
-    : "Claude Code CLI isn't usable — see Sys status in the title bar.";
-  // Both Adopt (`claude --resume`) and Fork (`--fork-session`) read this session's transcript; a session
-  // that never wrote one (a spawn that died before its first turn) would die on the CLI's "No conversation
-  // found". Block both until it has a saved conversation. Two wordings because Adopt shows only on an
-  // Ended session, where "send a message first" wouldn't apply, while Fork shows on live sessions too.
-  const adoptTitle = !canSpawn
-    ? cliTitle
-    : s.resumable
-      ? undefined
-      : "Nothing to adopt — this session never saved a conversation.";
-  const forkTitle = !canSpawn
-    ? cliTitle
-    : s.resumable
-      ? undefined
-      : "Nothing to fork yet — send a message in this session first.";
-
+  // The gate + tooltip + no-model confirm live in ResumeButton, single-sourced so the two surfaces can't
+  // disagree. This row owns only layout: each action's inline error sits before its button (the cluster
+  // reads left-to-right), and the chip styling differs from the hero's.
   return (
     <div className="flex shrink-0 items-center gap-2">
       {canAdopt && (
@@ -63,50 +50,28 @@ export function HeaderActions({
           {adopt.error && (
             <span className="text-[11px] text-danger">{adopt.error}</span>
           )}
-          <button
-            type="button"
-            onClick={adopt.request}
-            disabled={adopt.busy || !canSpawn || !s.resumable}
-            title={adoptTitle}
+          <ResumeButton
+            kind="adopt"
+            action={adopt}
+            canSpawn={canSpawn}
+            resumable={s.resumable}
+            iconSize={13}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[12px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
-          >
-            <Icon name="git-pull-request-arrow" size={13} />
-            {adopt.busy ? "Adopting…" : "Adopt"}
-          </button>
-          {adopt.confirmOpen && (
-            <ConfirmDialog
-              title="Resume a session with no recorded model?"
-              body="This session never recorded a model — it likely errored before its first turn — so resuming it may fail with a model error. Continue anyway?"
-              confirmLabel="Resume anyway"
-              onCancel={adopt.confirmNo}
-              onConfirm={adopt.confirmYes}
-            />
-          )}
+          />
         </>
       )}
 
       {fork.error && (
         <span className="text-[11px] text-danger">{fork.error}</span>
       )}
-      <button
-        type="button"
-        onClick={fork.request}
-        disabled={fork.busy || !canSpawn || !s.resumable}
-        title={forkTitle}
+      <ResumeButton
+        kind="fork"
+        action={fork}
+        canSpawn={canSpawn}
+        resumable={s.resumable}
+        iconSize={13}
         className="inline-flex items-center gap-1.5 rounded-md border border-ink-800 bg-ink-900 px-2.5 py-1 text-[12px] text-fg-muted transition-colors enabled:hover:border-ink-700 enabled:hover:text-fg focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:opacity-40"
-      >
-        <Icon name="git-branch" size={13} />
-        {fork.busy ? "Forking…" : "Fork"}
-      </button>
-      {fork.confirmOpen && (
-        <ConfirmDialog
-          title="Fork a session with no recorded model?"
-          body="This session never recorded a model — it likely errored before its first turn — so forking it may fail with a model error. Continue anyway?"
-          confirmLabel="Fork anyway"
-          onCancel={fork.confirmNo}
-          onConfirm={fork.confirmYes}
-        />
-      )}
+      />
 
       <ComingSoonButton icon="square" tone="danger">
         End session
