@@ -48,7 +48,10 @@ jobs:
           - os: macos-14
             platform: mac
             arch: arm64
-          - os: macos-13
+          # x64 cross-compiles on the Apple Silicon runner: GitHub's Intel (macos-13) runners are
+          # scarce/slow and on the deprecation path, so we build x64 on macos-14 with an arch-aware
+          # native rebuild (see the rebuild step) instead of depending on Intel-runner availability.
+          - os: macos-14
             platform: mac
             arch: x64
           - os: windows-latest
@@ -66,7 +69,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm rebuild:native
+      # Rebuild native modules for the TARGET arch, not the host's — the macOS x64 leg cross-compiles
+      # on the arm64 runner. Call electron-rebuild directly: `pnpm run rebuild:native -- --arch x64`
+      # forwards a literal `--` that electron-rebuild ignores, silently leaving arm64 binaries inside
+      # the x64 app (which then crashes on load). Module list mirrors the rebuild:native script.
+      - run: pnpm exec electron-rebuild -f -w better-sqlite3,node-pty --arch ${{ matrix.arch }}
       - run: pnpm build
 
       # ---- macOS: sign + notarize + upload ----
