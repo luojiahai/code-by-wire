@@ -6,6 +6,7 @@ import {
   mergeManaged,
   applyAdopting,
   pruneAdopting,
+  dropAdopting,
   renameManaged,
   renameAdopting,
 } from "@shared/managed";
@@ -173,12 +174,7 @@ export function App() {
       setDrafts((ds) =>
         ds.map((d) => (d.id === id ? { ...d, state: "ended" } : d)),
       );
-      setAdopting((prev) => {
-        if (!prev.has(id)) return prev;
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
+      setAdopting((prev) => dropAdopting(prev, id));
     });
   }, []);
 
@@ -216,6 +212,13 @@ export function App() {
     // the old "[process exited]" scrollback), so a re-adopt starts on a fresh terminal.
     terminalStore.dispose(id);
     terminalStore.create(id);
+    // Mark adopting BEFORE the await, not after. A resume that fails synchronously in main — a bad cwd
+    // makes the manager fire the pty exit before this IPC even resolves — sends its exit while we're still
+    // awaiting. Adding the override after the await would race that exit: its cleanup (onExit → dropAdopting)
+    // runs while the id isn't in the set yet (a no-op), then we'd add an override nothing ever clears,
+    // wedging the row at a phantom Managed/Working. Adding it first means a racing exit finds it and clears
+    // it; the catch below clears it for a refused/errored adopt that never spawned a pty.
+    setAdopting((prev) => new Set(prev).add(id));
     try {
       const result = await window.api.terminal.adopt({
         id,
@@ -229,10 +232,10 @@ export function App() {
             : "Could not resume this session.",
         );
       }
-      setAdopting((prev) => new Set(prev).add(id));
       setSelectedId(id);
     } catch (e) {
       terminalStore.dispose(id); // adopt refused or failed → nothing will feed this handle; don't leak it
+      setAdopting((prev) => dropAdopting(prev, id)); // and drop the optimistic override we set above
       throw e;
     }
   }

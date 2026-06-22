@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { Session } from "../../src/shared/types";
-import { applyAdopting, pruneAdopting } from "../../src/shared/managed";
+import {
+  applyAdopting,
+  pruneAdopting,
+  dropAdopting,
+} from "../../src/shared/managed";
 
 const s = (id: string, over: Partial<Session> = {}): Session => ({
   id,
@@ -90,5 +94,18 @@ describe("pruneAdopting", () => {
         s("a", { management: "managed", state: "idle" }),
       ]),
     ).toBe(adopting);
+  });
+});
+
+describe("dropAdopting", () => {
+  it("drops the override for the given id, leaving the rest", () => {
+    const next = dropAdopting(new Set(["a", "b"]), "a");
+    expect(next.has("a")).toBe(false);
+    expect(next.has("b")).toBe(true);
+  });
+
+  it("returns the same Set reference when the id wasn't adopting", () => {
+    const adopting = new Set(["a"]);
+    expect(dropAdopting(adopting, "b")).toBe(adopting);
   });
 });

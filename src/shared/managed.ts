@@ -80,6 +80,20 @@ export function pruneAdopting(
 }
 
 /**
+ * Drop a single adopt override by id — a resume that died (its pty exited) or was refused reverts to its
+ * real (Ended/Observed) row instead of lying Managed. The same immutable-edit idiom as pruneAdopting and
+ * renameAdopting, single-sourced here so the same-reference-when-unchanged contract (lets React skip the
+ * update) can't drift across the call sites that clear an override. Returns the same Set reference when
+ * `id` wasn't adopting.
+ */
+export function dropAdopting(adopting: Set<string>, id: string): Set<string> {
+  if (!adopting.has(id)) return adopting;
+  const next = new Set(adopting);
+  next.delete(id);
+  return next;
+}
+
+/**
  * Apply the optimistic Adopt override. An id the user adopted this run, before the next sync relabels it,
  * is forced to Managed (and Ended → Working) so the workspace flips from the read-only Transcript to the
  * live terminal in the same beat. Unlike a draft, the row already exists, so this overrides in place. App
