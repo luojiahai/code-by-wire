@@ -1,6 +1,6 @@
 ![Code-by-wire — the cockpit for local Claude Code](docs/assets/cbw-hero.png)
 
-# <img src="docs/assets/logo.svg" alt="" height="64" align="middle"> Code-by-wire
+<h1><img src="docs/assets/logo.svg" alt="" height="64" align="middle">&nbsp;Code-by-wire</h1>
 
 English | [简体中文](README.zh-CN.md)
 
