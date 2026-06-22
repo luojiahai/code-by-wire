@@ -114,3 +114,34 @@ export function applyAdopting(
       : s,
   );
 }
+
+/**
+ * Apply the optimistic End override. An id the user ended this run, before the next sync relabels it, is
+ * forced to Ended so the header swaps the End button out for Adopt and the workspace flips to the read-only
+ * Transcript in the same beat. Management is left as-is: the row reads Managed + Ended briefly (exactly like
+ * a just-exited Adopt), which keeps Adopt disabled until the next sync re-derives it Observed. App clears the
+ * id once discovery reports it Ended (see pruneEnding). Returns the same array reference when nothing is ending.
+ */
+export function applyEnding(
+  sessions: Session[],
+  ending: Set<string>,
+): Session[] {
+  if (ending.size === 0) return sessions;
+  return sessions.map((s) => (ending.has(s.id) ? { ...s, state: "ended" } : s));
+}
+
+/**
+ * Which End overrides discovery has caught up on, so App can drop them. An override is done once the real row
+ * reads Ended: the killed pty's exit dropped its managed-registry entry, so the next sync re-derives the row
+ * Ended (and Observed). Holding the override until then bridges the window where the just-killed pid still
+ * reads alive for a tick. Returns the same Set reference when nothing settled, so React can skip the update.
+ */
+export function pruneEnding(
+  ending: Set<string>,
+  sessions: Session[],
+): Set<string> {
+  if (ending.size === 0) return ending;
+  const next = new Set(ending);
+  for (const s of sessions) if (s.state === "ended") next.delete(s.id);
+  return next.size === ending.size ? ending : next;
+}
