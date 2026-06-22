@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import type { Session } from "@shared/types";
 
 /**
- * A session can be Adopted (resumed under its own id) only once it's an Observed session that has Ended:
- * you can't take the wheel of a process that's still running, and a just-exited Managed session reads
- * Managed until the next sync re-derives it Observed. Both resume surfaces gate the Adopt button on this,
- * so it lives here single-sourced — two hand-rolled copies drifted once already.
+ * Whether Adopt (resume under this session's own id) is available *right now*. Both resume surfaces show
+ * the Adopt button on every Ended session but gate its *enabled* state on this: you can't take the wheel of
+ * a process that's still running, and a just-exited Managed session reads Managed until the next sync
+ * re-derives it Observed — so Adopt sits disabled across that brief window rather than vanishing. Single-
+ * sourced here so the two surfaces can't drift (two hand-rolled copies did once already).
  */
 export function canAdoptSession(s: Session): boolean {
   return s.management === "observed" && s.state === "ended";

@@ -11,7 +11,8 @@ import {
 import { ResumeButton } from "./ResumeButton";
 
 /** The header's right-side action cluster: Adopt + Fork + End session, then Open in last. Fork shows on
- *  every session; Adopt joins it (and leads) only when an Observed session has ended. End session ships
+ *  every session; Adopt joins it (and leads) on every Ended session — disabled while a just-exited Managed
+ *  one still reads Managed, then enabling once the next sync re-derives it Observed. End session ships
  *  disabled until its plumbing lands. Status chips live on the header's second line, not here. */
 export function HeaderActions({
   session: s,
@@ -26,13 +27,14 @@ export function HeaderActions({
   onAdopt: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
 }) {
+  const ended = s.state === "ended";
   const canAdopt = canAdoptSession(s);
   const modelUnknown = isModelUnknown(s);
 
   const adopt = useResumeAction({
     run: () => onAdopt(s.id),
     modelUnknown,
-    armed: canAdopt, // re-arm cleanup when an Observed session resumes then ends again
+    armed: ended, // re-arm cleanup when Adopt unmounts — i.e. when the session leaves Ended (a resume took)
   });
   const fork = useResumeAction({
     run: () => onFork(s),
@@ -45,7 +47,7 @@ export function HeaderActions({
   // reads left-to-right), and the chip styling differs from the hero's.
   return (
     <div className="flex shrink-0 items-center gap-2">
-      {canAdopt && (
+      {ended && (
         <>
           {adopt.error && (
             <span className="text-[11px] text-danger">{adopt.error}</span>
@@ -55,6 +57,7 @@ export function HeaderActions({
             action={adopt}
             canSpawn={canSpawn}
             resumable={s.resumable}
+            available={canAdopt}
             iconSize={13}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[12px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
           />
