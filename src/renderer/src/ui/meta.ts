@@ -152,7 +152,11 @@ export function modelLabel(
   // Managed session ran the picked alias). Otherwise the family is just the normalize fallback, so say
   // "Unknown" rather than guessing — e.g. an Ended session that errored before any real turn.
   if (!raw && opts?.known === false) return "Unknown";
-  const label = FAMILY_LABEL[family];
+  // With a recognized raw id present, read the family off the id rather than the passed `family`: the live
+  // statusLine modelId is the freshest signal and outruns the transcript-derived family after a mid-session
+  // /model switch (Sonnet → Opus updates the capture before an Opus turn lands), so trusting `family` here
+  // would show the stale name beside the fresh id. Only when there's no raw at all does `family` decide.
+  const label = FAMILY_LABEL[raw ? normalizeModelId(raw) : family];
   if (opts?.compact || !raw) return label;
   return `${label} (${raw})`;
 }

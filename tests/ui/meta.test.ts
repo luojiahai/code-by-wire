@@ -49,6 +49,14 @@ describe("modelLabel", () => {
       "Opus",
     );
   });
+  it("follows the live raw id's family when it outruns the stale transcript family", () => {
+    // After /model switches Sonnet → Opus, the live statusLine modelId becomes the Opus id before the
+    // transcript records an Opus turn, so the passed family is still "sonnet". The label must read the
+    // family off the live id, not the stale family — else it shows "Sonnet (claude-opus-4-8)".
+    expect(
+      modelLabel("sonnet", "claude-opus-4-8", "Opus 4.8 (1M context)"),
+    ).toBe("Opus (claude-opus-4-8)");
+  });
   it("shows the real id, not Unknown, even when not vouched for, if a raw exists", () => {
     expect(
       modelLabel("sonnet", "global.anthropic.claude-sonnet-4-6", undefined, {
