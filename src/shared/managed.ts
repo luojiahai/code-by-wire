@@ -58,6 +58,28 @@ export function renameAdopting(
 }
 
 /**
+ * Which adopt overrides discovery has caught up on, so App can drop them. An override is done only once
+ * the real row reads BOTH Managed AND no longer Ended. Management flips to Managed the instant the app's
+ * pty spawns (the in-memory managed registry), but the session's on-disk live pid lags until
+ * `claude --resume` boots and writes its registry file — so a just-adopted row briefly reads Managed +
+ * Ended. Dropping the override then bounces the row back to the Ended section until the live pid lands
+ * (the visible ended → working → ended → idle flicker). Holding it until state leaves Ended keeps the row
+ * Working across that gap. A resume that dies never reaches a non-Ended Managed row; the pty-exit path
+ * clears its override instead. Returns the same Set reference when nothing settled, so React can skip the
+ * state update.
+ */
+export function pruneAdopting(
+  adopting: Set<string>,
+  sessions: Session[],
+): Set<string> {
+  if (adopting.size === 0) return adopting;
+  const next = new Set(adopting);
+  for (const s of sessions)
+    if (s.management === "managed" && s.state !== "ended") next.delete(s.id);
+  return next.size === adopting.size ? adopting : next;
+}
+
+/**
  * Apply the optimistic Adopt override. An id the user adopted this run, before the next sync relabels it,
  * is forced to Managed (and Ended → Working) so the workspace flips from the read-only Transcript to the
  * live terminal in the same beat. Unlike a draft, the row already exists, so this overrides in place. App

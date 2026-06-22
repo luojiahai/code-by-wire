@@ -5,6 +5,7 @@ import type { OverviewData } from "@shared/ipc";
 import {
   mergeManaged,
   applyAdopting,
+  pruneAdopting,
   renameManaged,
   renameAdopting,
 } from "@shared/managed";
@@ -139,16 +140,11 @@ export function App() {
     setDrafts((ds) => ds.filter((d) => !sessions.some((s) => s.id === d.id)));
   }, [sessions]);
 
-  // Drop an adopting override once discovery has relabeled its id Managed — the real row now carries the
-  // live state, so the optimistic overlay is done.
+  // Drop an adopting override once discovery has caught up — the real row reads Managed AND no longer
+  // Ended, so the optimistic overlay is done. Holding it until state leaves Ended bridges the boot window
+  // where `claude --resume`'s pid hasn't landed yet (managed but still derives Ended); see pruneAdopting.
   useEffect(() => {
-    setAdopting((prev) => {
-      if (prev.size === 0) return prev;
-      const next = new Set(prev);
-      for (const session of sessions)
-        if (session.management === "managed") next.delete(session.id);
-      return next.size === prev.size ? prev : next;
-    });
+    setAdopting((prev) => pruneAdopting(prev, sessions));
   }, [sessions]);
 
   // Follow a /clear rotation: the live pty kept running but Claude rotated its session id from `from` to
