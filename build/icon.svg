@@ -1,24 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#202022"/>
-      <stop offset="1" stop-color="#161617"/>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#33d6c2"/>
+      <stop offset="1" stop-color="#0c8074"/>
     </linearGradient>
-    <radialGradient id="washTop" cx="0.78" cy="-0.12" r="0.9">
-      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.12"/>
-      <stop offset="0.6" stop-color="#38bdf8" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="washBottom" cx="-0.06" cy="1.12" r="0.9">
-      <stop offset="0" stop-color="#f0a93b" stop-opacity="0.07"/>
-      <stop offset="0.55" stop-color="#f0a93b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="teal" cx="0.35" cy="0.3" r="0.8">
-      <stop offset="0" stop-color="#5ee6d3"/>
-      <stop offset="1" stop-color="#2dd4bf"/>
-    </radialGradient>
-    <radialGradient id="amber" cx="0.35" cy="0.3" r="0.8">
-      <stop offset="0" stop-color="#f7c065"/>
-      <stop offset="1" stop-color="#f0a93b"/>
+    <radialGradient id="hl" cx="0.26" cy="0.2" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="0.7" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
     <clipPath id="tileClip">
       <rect x="100" y="100" width="824" height="824" rx="185"/>
@@ -27,14 +15,10 @@
 
   <g clip-path="url(#tileClip)">
     <rect x="100" y="100" width="824" height="824" fill="url(#tile)"/>
-    <rect x="100" y="100" width="824" height="824" fill="url(#washTop)"/>
-    <rect x="100" y="100" width="824" height="824" fill="url(#washBottom)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#hl)"/>
   </g>
-  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#3a3a3b" stroke-width="3"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#5ee6d3" stroke-opacity="0.22" stroke-width="3"/>
 
-  <rect x="372" y="497" width="280" height="30" rx="15" fill="#38bdf8"/>
-  <circle cx="372" cy="512" r="120" fill="#2dd4bf" opacity="0.10"/>
-  <circle cx="652" cy="512" r="120" fill="#f0a93b" opacity="0.10"/>
-  <circle cx="372" cy="512" r="82" fill="url(#teal)" stroke="rgba(45,212,191,0.45)" stroke-width="2"/>
-  <circle cx="652" cy="512" r="82" fill="url(#amber)" stroke="rgba(240,169,59,0.5)" stroke-width="2"/>
+  <path d="M310 372 L483 512 L310 652" fill="none" stroke="#06564e" stroke-width="82" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="549" y="611" width="206" height="82" rx="41" fill="#ffffff"/>
 </svg>
