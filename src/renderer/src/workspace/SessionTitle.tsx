@@ -22,11 +22,15 @@ export function SessionTitle({
   const inputRef = useRef<HTMLInputElement>(null);
   // Set for the lifetime of one Esc-cancel so the blur it triggers doesn't also save.
   const cancelledRef = useRef(false);
+  // Synchronous mirror of `editing` so the unmount flush below can tell a still-pending edit from one a
+  // blur already committed, without waiting for the `editing` state to re-render.
+  const editingRef = useRef(false);
 
   // Seed the draft from the current title each time the editor opens, so a rename that landed via a
   // background sync is what the user edits, not a stale draft.
   function open(): void {
     setDraft(s.title);
+    editingRef.current = true;
     setEditing(true);
   }
   useEffect(() => {
@@ -37,6 +41,8 @@ export function SessionTitle({
   }, [editing]);
 
   function commit(): void {
+    if (!editingRef.current) return; // already committed — don't let a later unmount flush re-run it
+    editingRef.current = false;
     setEditing(false);
     if (cancelledRef.current) {
       cancelledRef.current = false;
@@ -48,10 +54,19 @@ export function SessionTitle({
       onRename(s.id, trimmed.length > 0 ? trimmed : null);
   }
 
+  // Switching sessions unmounts this component (Workspace is keyed by session id) while the input may
+  // still be open. React fires no onBlur on unmount, so a pending edit would vanish — flush it here. The
+  // ref tracks the latest commit so the cleanup saves the current draft, not a stale closure; commit()
+  // no-ops once editingRef has cleared, so a normal Enter/blur that already saved isn't run twice.
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  useEffect(() => () => commitRef.current(), []);
+
   if (editing) {
     return (
       <input
         ref={inputRef}
+        aria-label="Rename session"
         value={draft}
         maxLength={MAX_SESSION_TITLE_LEN}
         onChange={(e) => setDraft(e.target.value)}
