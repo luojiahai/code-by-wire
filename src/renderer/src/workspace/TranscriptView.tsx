@@ -41,8 +41,8 @@ export function TranscriptFeed({
 /**
  * A session's rendered transcript: the shared event feed plus the Session-specific chrome — a
  * prominent Waiting banner. The polling lives in useTranscript (lifted so the context panel and dock
- * share one doc); this is a pure renderer of the doc it's handed. The read-only signal for an Observed
- * session is the corner tag overlaid by RenderedTranscript, not chrome owned here.
+ * share one doc); this is a pure renderer of the doc it's handed. An Observed (read-only) session
+ * carries no persistent on-screen marker; `readOnly` only varies the empty-state copy.
  */
 export function TranscriptView({
   doc,
