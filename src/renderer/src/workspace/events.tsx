@@ -128,7 +128,7 @@ function ToolCall({ tool, onOpen }: { tool: ToolEvent; onOpen?: () => void }) {
         ? "no output"
         : `${tool.outputLines} line${tool.outputLines === 1 ? "" : "s"}`;
   const base =
-    "ml-8 flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-[11px]";
+    "ml-8 max-w-[85%] flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-[11px]";
   const body = (
     <>
       <Icon
@@ -168,7 +168,7 @@ function ToolCall({ tool, onOpen }: { tool: ToolEvent; onOpen?: () => void }) {
  *  without it the row is a plain, non-interactive line (the subagent drill view). */
 function DiffRow({ diff, onOpen }: { diff: DiffEvent; onOpen?: () => void }) {
   const base =
-    "ml-8 flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-[11px]";
+    "ml-8 max-w-[85%] flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-[11px]";
   const body = (
     <>
       <Icon
@@ -213,7 +213,7 @@ function SubagentDispatch({
   onDrill?: () => void;
 }) {
   const base =
-    "ml-8 flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-[11px]";
+    "ml-8 max-w-[85%] flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-[11px]";
   const body = (
     <>
       <Icon
