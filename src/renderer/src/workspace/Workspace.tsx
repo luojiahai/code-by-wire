@@ -269,7 +269,10 @@ function CenterView({
     .map((c) => ({ agentId: c.agentId, label: c.label }));
   const drilledView =
     top?.kind === "shell" ? (
+      // Keyed by shell id so switching shells remounts the drill: CommandBlock's expand state and the
+      // log scroll reset instead of bleeding from the previous shell.
       <ShellDrill
+        key={top.shellId}
         shell={shell}
         label={top.label}
         now={now}
