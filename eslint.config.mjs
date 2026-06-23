@@ -1,3 +1,5 @@
+import path from "node:path";
+import { includeIgnoreFile } from "@eslint/compat";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -5,9 +7,14 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import prettier from "eslint-config-prettier";
 import globals from "globals";
 
+const gitignorePath = path.resolve(import.meta.dirname, ".gitignore");
+
 export default tseslint.config(
-  // Build output and generated dirs are never linted.
-  { ignores: ["out/**", "dist/**", "release/**"] },
+  // Source the ignore list straight from .gitignore so lint never touches build
+  // output (out/, dist/, release/) or local-only scratch (.agents/, .superpowers/,
+  // docs/superpowers/, docs/deck/, vendored skills). Prettier already reads
+  // .gitignore by default; this keeps ESLint in lockstep with it.
+  includeIgnoreFile(gitignorePath),
 
   // Base recommended JS rules.
   js.configs.recommended,
