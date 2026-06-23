@@ -9,15 +9,24 @@ export function ShellLog({
 }: {
   output: ShellOutput | null | undefined;
 }) {
-  // null = read and the shell has no captured output; undefined = the first poll is still in flight.
-  // Both render a faint centered line rather than the log surface, so the banner below never has to
-  // guess a source (the old `output?.source` mislabelled the in-flight state as "snapshot").
-  if (output == null)
+  // undefined = the first poll is still in flight; null = the shell captured no output. The header above
+  // already carries the command + status, so the null case is a calm note, not a dead end.
+  if (output === undefined)
     return (
       <div className="flex h-full items-center justify-center text-[12px] text-fg-faint">
-        {output === null
-          ? "No output captured for this shell."
-          : "Reading output…"}
+        Reading output…
+      </div>
+    );
+  if (output === null)
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+        <div className="text-[18px] text-ink-700" aria-hidden>
+          ⌁
+        </div>
+        <div className="text-[12px] text-fg-muted">No output</div>
+        <div className="text-[11px] text-fg-faint">
+          Command produced no stdout or stderr.
+        </div>
       </div>
     );
   const trunc = truncLabel(output.truncatedBytes);
