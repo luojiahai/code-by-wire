@@ -88,14 +88,16 @@ function Thinking({ text }: { text: string }) {
 
 function ToolCall({ name, input }: { name: string; input: string }) {
   return (
-    <div className="ml-8 flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-[11px]">
+    <div className="ml-8 flex items-start gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-[11px]">
       <Icon
         name="terminal"
         size={13}
-        className="shrink-0 text-primary-bright"
+        className="mt-px shrink-0 text-primary-bright"
       />
       <span className="shrink-0 text-primary-bright">{name}</span>
-      <span className="truncate text-fg-faint">{input}</span>
+      <span className="min-w-0 whitespace-pre-wrap break-words text-fg-faint">
+        {input}
+      </span>
     </div>
   );
 }
@@ -141,7 +143,7 @@ function SubagentDispatch({
   onDrill?: () => void;
 }) {
   const base =
-    "ml-8 flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-[11px]";
+    "ml-8 flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-[11px]";
   const body = (
     <>
       <Icon
@@ -152,7 +154,9 @@ function SubagentDispatch({
       <span className="shrink-0 text-primary-bright">Subagent</span>
       <span className="font-mono text-fg">{agentType}</span>
       {description && (
-        <span className="truncate text-fg-faint">— {description}</span>
+        <span className="min-w-0 whitespace-pre-wrap break-words text-fg-faint">
+          — {description}
+        </span>
       )}
       {onDrill && (
         <Icon

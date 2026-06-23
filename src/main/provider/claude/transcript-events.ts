@@ -22,7 +22,8 @@ function lines(s: unknown): string[] {
   return typeof s === "string" && s.length ? s.split("\n") : [];
 }
 
-/** A short, human label for a tool call's input: the most telling field, else compact JSON. */
+/** A human label for a tool call's input: the most telling field, else its JSON. Rendered in full and
+ *  wrapped by the transcript feed, so it isn't capped here. */
 function summarizeInput(input: Record<string, unknown>): string {
   for (const key of [
     "command",
@@ -37,8 +38,7 @@ function summarizeInput(input: Record<string, unknown>): string {
     if (typeof v === "string" && v.trim()) return v;
   }
   try {
-    const json = JSON.stringify(input);
-    return json.length > 200 ? json.slice(0, 199) + "…" : json;
+    return JSON.stringify(input);
   } catch {
     return "";
   }
