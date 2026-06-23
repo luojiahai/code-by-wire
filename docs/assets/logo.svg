@@ -12,6 +12,6 @@
   <rect x="10" y="10" width="200" height="200" rx="46" fill="url(#tile)"/>
   <rect x="10" y="10" width="200" height="200" rx="46" fill="url(#hl)"/>
   <rect x="11.5" y="11.5" width="197" height="197" rx="44.5" fill="none" stroke="#5ee6d3" stroke-opacity="0.22" stroke-width="3"/>
-  <path d="M62 76 L104 110 L62 144" fill="none" stroke="#06564e" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="120" y="134" width="50" height="20" rx="10" fill="#ffffff"/>
+  <path d="M59.5 65.8 L97.4 103.7 L59.5 141.6" fill="none" stroke="#06564e" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="100" y="144" width="70" height="20" rx="10" fill="#ffffff"/>
 </svg>
