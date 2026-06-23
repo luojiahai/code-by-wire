@@ -158,8 +158,13 @@ export interface IpcApi {
    *  Both overview() and refresh() also carry the override, since it is applied in overviewNow(). */
   renameSession(id: string, title: string | null): Promise<OverviewData>;
   /** Fetch one tool call's full command + output on demand (the tool turn's detail modal). Not polled;
-   *  a one-shot read keyed by the tool_use id. */
-  getToolResult(id: string, toolUseId: string): Promise<ToolResultDetail>;
+   *  a one-shot read keyed by the tool_use id. `agentId` reads the call from that subagent's own
+   *  transcript file instead of the session transcript (the drilled Subagent view). */
+  getToolResult(
+    id: string,
+    toolUseId: string,
+    agentId?: string,
+  ): Promise<ToolResultDetail>;
 }
 
 /** Everything exposed on `window.api`: the request/response surface plus the Managed-terminal surface. */

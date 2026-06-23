@@ -25,8 +25,8 @@ const api: AppApi = {
     ipcRenderer.invoke(IPC.renameSession, id, title),
   readTranscript: (id, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readTranscript, id, sinceMtimeMs),
-  getToolResult: (id, toolUseId) =>
-    ipcRenderer.invoke(IPC.getToolResult, id, toolUseId),
+  getToolResult: (id, toolUseId, agentId) =>
+    ipcRenderer.invoke(IPC.getToolResult, id, toolUseId, agentId),
   readSubagentTranscript: (id, agentId, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readSubagentTranscript, id, agentId, sinceMtimeMs),
   readTasks: (id, sinceMtimeMs) =>

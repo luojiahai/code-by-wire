@@ -2,6 +2,7 @@ import { Center, TranscriptFeed } from "./TranscriptView";
 import type { DocState } from "./use-transcript";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import type { DispatchDrill } from "./drill-index";
+import { useTranscriptModals } from "./use-transcript-modals";
 
 /** One level of the drill path: which subagent, and the label shown in the breadcrumb (its type). */
 export type SubagentCrumb = { agentId: string; label: string };
@@ -23,13 +24,18 @@ export function SubagentDrill({
   onNavigate,
   doc,
   dispatchDrill,
+  sessionId,
 }: {
   crumbs: SubagentCrumb[];
   onNavigate: (depth: number) => void;
   doc: DocState;
   dispatchDrill?: DispatchDrill;
+  sessionId: string;
 }) {
   const current = crumbs[crumbs.length - 1];
+  // Open-state for this subagent's detail modals. agentId is the current crumb, so a tool's full output
+  // is fetched from this subagent's own transcript file.
+  const { onOpen, modals } = useTranscriptModals(sessionId, current.agentId);
   return (
     <div className="flex h-full flex-col">
       <Breadcrumb crumbs={crumbs} onNavigate={onNavigate} />
@@ -41,9 +47,11 @@ export function SubagentDrill({
             key={current.agentId}
             events={doc?.events ?? []}
             dispatchDrill={dispatchDrill}
+            onOpen={onOpen}
           />
         )}
       </OverlayScroll>
+      {modals}
     </div>
   );
 }

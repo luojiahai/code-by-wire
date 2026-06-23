@@ -50,10 +50,12 @@ function OutLine({ text }: { text: string }) {
  *  fetched on open via getToolResult. No output cap — the body scrolls. */
 export function ToolResultModal({
   sessionId,
+  agentId,
   tool,
   onClose,
 }: {
   sessionId: string;
+  agentId?: string;
   tool: ToolEvent;
   onClose: () => void;
 }) {
@@ -63,7 +65,7 @@ export function ToolResultModal({
     let live = true;
     setState({ phase: "loading" });
     window.api
-      .getToolResult(sessionId, tool.toolUseId)
+      .getToolResult(sessionId, tool.toolUseId, agentId)
       .then((r) => {
         if (!live) return;
         setState(r.found ? { phase: "ready", detail: r } : { phase: "error" });
@@ -74,7 +76,7 @@ export function ToolResultModal({
     return () => {
       live = false;
     };
-  }, [sessionId, tool.toolUseId]);
+  }, [sessionId, agentId, tool.toolUseId]);
 
   const status = STATUS_LABEL[tool.status];
   const command = state.phase === "ready" ? state.detail.command : tool.input;

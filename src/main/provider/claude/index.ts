@@ -297,11 +297,22 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
         return { status: "error" };
       }
     },
-    getToolResult: (id, toolUseId) => {
+    getToolResult: (id, toolUseId, agentId) => {
       try {
-        const resolved = resolveTranscript(id);
-        if (!resolved) return { found: false };
-        const jsonl = readTextOrNull(resolved.path);
+        // With agentId, the call lives in that subagent's own file (mirror readSubagentTranscript's
+        // resolution: a cached session path, or a cold resolve, then subagentFileFor). Without it, the
+        // session transcript. A real agentId can't contain a path separator — reject one that does
+        // rather than let the filename escape the subagents dir.
+        let path: string | undefined;
+        if (agentId !== undefined) {
+          if (/[/\\]/.test(agentId)) return { found: false };
+          const base = pathById.get(id) ?? resolveTranscript(id)?.path;
+          path = base ? subagentFileFor(base, agentId) : undefined;
+        } else {
+          path = resolveTranscript(id)?.path;
+        }
+        if (path === undefined) return { found: false };
+        const jsonl = readTextOrNull(path);
         if (jsonl === null) return { found: false };
         return extractToolResult(parseJsonlRows(jsonl), toolUseId);
       } catch {
