@@ -54,9 +54,13 @@ export function Annunciator({
       <Cell label="Model" grow={2} seam raw title={model}>
         <span className="min-w-0 truncate">{model}</span>
       </Cell>
-      <Cell label="Effort">{s.effortLevel ?? "—"}</Cell>
+      <Cell label="Effort" grow={0.5}>
+        {s.effortLevel ?? "—"}
+      </Cell>
       <GitCell session={s} git={git} pr={pr} />
-      <Cell label="Clock">{clock ?? "—"}</Cell>
+      <Cell label="Clock" grow={0.5}>
+        {clock ?? "—"}
+      </Cell>
     </div>
   );
 }
