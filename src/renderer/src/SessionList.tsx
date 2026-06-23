@@ -3,7 +3,7 @@ import type { Session, Account } from "@shared/types";
 import { RailPanel } from "./ui/RailPanel";
 import { railSections } from "@shared/overview";
 import { formatRelativeTime } from "@shared/format";
-import { cx, SessionTile } from "./ui/atoms";
+import { cx, focusRing, focusRingInset, SessionTile } from "./ui/atoms";
 import { OverlayScroll } from "./ui/OverlayScroll";
 import { Icon } from "./ui/icons";
 import { STATE_META, ctxTone, isContextHigh } from "./ui/meta";
@@ -56,6 +56,7 @@ export function SessionList({
           }
           className={cx(
             "inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border font-display text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors",
+            focusRing,
             canSpawn
               ? "border-ink-700 bg-ink-900 text-fg hover:border-ink-600 hover:bg-ink-850"
               : "cursor-not-allowed border-ink-800 bg-ink-900 text-fg-faint",
@@ -91,7 +92,10 @@ export function SessionList({
                   type="button"
                   onClick={() => setEndedCollapsed((v) => !v)}
                   aria-expanded={!endedCollapsed}
-                  className="sticky top-0 z-10 flex w-full items-center gap-2 border-y border-ink-850 bg-ink-925 px-3.5 py-2 text-left transition-colors hover:bg-ink-900"
+                  className={cx(
+                    "sticky top-0 z-10 flex w-full items-center gap-2 border-y border-ink-850 bg-ink-925 px-3.5 py-2 text-left transition-colors hover:bg-ink-900",
+                    focusRing,
+                  )}
                 >
                   <Icon
                     name="chevron-right"
@@ -153,6 +157,7 @@ function SessionRow({
         // Raised-card selection: a full softened-teal border over a faint teal fill, no leading rail.
         // The unselected border stays transparent (1px on all sides) so there's no width shift.
         "block w-full rounded-md border px-2.5 py-2 text-left transition-colors",
+        focusRingInset,
         selected
           ? "border-primary/50 bg-primary/[0.05]"
           : "border-transparent hover:bg-ink-900",

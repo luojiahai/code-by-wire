@@ -6,7 +6,7 @@ import {
   formatTokens,
 } from "@shared/format";
 import { spanPct } from "../../ui/charts-geom";
-import { cx } from "../../ui/atoms";
+import { cx, focusRingInset } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { FAMILY_LABEL } from "../../ui/meta";
 import { EmptyState } from "./chrome";
@@ -129,7 +129,10 @@ function SubagentLane({
         type="button"
         onClick={() => onDrill(agent)}
         aria-label={`Drill into ${agent.type} subagent`}
-        className="relative flex w-full items-center gap-2 px-2 py-1 text-left"
+        className={cx(
+          "relative flex w-full items-center gap-2 px-2 py-1 text-left",
+          focusRingInset,
+        )}
       >
         <span
           className={cx(
@@ -140,7 +143,7 @@ function SubagentLane({
           {meta.char}
         </span>
         {tag && (
-          <span className="shrink-0 rounded bg-ink-850 px-1 py-px font-mono text-[9px] text-fg-faint">
+          <span className="shrink-0 rounded bg-ink-800 px-1 py-px font-mono text-[9px] text-fg-faint">
             {tag}
           </span>
         )}
@@ -264,7 +267,10 @@ function GroupHeader({
       type="button"
       onClick={onToggle}
       aria-expanded={!collapsed}
-      className="flex w-full items-center gap-2 rounded-sm border-b border-ink-850 py-1 pl-2 pr-1.5 text-left font-mono text-[10px] tabular-nums transition-colors hover:bg-ink-900"
+      className={cx(
+        "flex w-full items-center gap-2 rounded-sm border-b border-ink-850 py-1 pl-2 pr-1.5 text-left font-mono text-[10px] tabular-nums transition-colors hover:bg-ink-900",
+        focusRingInset,
+      )}
     >
       <Icon
         name="chevron-right"
