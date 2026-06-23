@@ -160,7 +160,12 @@ function WorkspaceBody({
         if (node)
           setDrill((d) => [
             ...d,
-            { kind: "subagent", agentId: node.id, label: node.type },
+            {
+              kind: "subagent",
+              agentId: node.id,
+              type: node.type,
+              description: node.description,
+            },
           ]);
       },
     }),
@@ -194,7 +199,12 @@ function WorkspaceBody({
           activeShellId={activeShellId}
           onDrill={(agent: Subagent) =>
             setDrill([
-              { kind: "subagent", agentId: agent.id, label: agent.type },
+              {
+                kind: "subagent",
+                agentId: agent.id,
+                type: agent.type,
+                description: agent.description,
+              },
             ])
           }
           onDrillShell={(shell: BackgroundShell) =>
@@ -266,7 +276,11 @@ function CenterView({
       (c): c is Extract<DrillCrumb, { kind: "subagent" }> =>
         c.kind === "subagent",
     )
-    .map((c) => ({ agentId: c.agentId, label: c.label }));
+    .map((c) => ({
+      agentId: c.agentId,
+      type: c.type,
+      description: c.description,
+    }));
   const drilledView =
     top?.kind === "shell" ? (
       // Keyed by shell id so switching shells remounts the drill: CommandBlock's expand state and the

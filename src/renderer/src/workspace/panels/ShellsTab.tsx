@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import type { BackgroundShell } from "@shared/types";
 import { formatDuration, formatRelativeTime } from "@shared/format";
-import { cx } from "../../ui/atoms";
+import { cx, focusRingInset } from "../../ui/atoms";
 import { EmptyState } from "./chrome";
 import { shellGlyph } from "./shell-view";
 
@@ -45,8 +45,9 @@ function ShellRow({
       onClick={() => onDrill(shell)}
       aria-label={`Open log for ${shell.command}`}
       className={cx(
-        "flex w-full items-center gap-2 rounded-sm border-b border-ink-850 px-2 py-1.5 text-left transition-colors hover:bg-ink-900",
-        active && "bg-ink-900 ring-1 ring-inset ring-accent",
+        "flex w-full items-center gap-2 rounded-sm border-b border-ink-850 px-2 py-1.5 text-left transition-colors",
+        focusRingInset,
+        active ? "bg-ink-850" : "hover:bg-ink-900",
       )}
     >
       <span
@@ -59,7 +60,7 @@ function ShellRow({
         {glyph.char}
       </span>
       <span
-        className="min-w-0 flex-1 truncate font-mono text-[12px]"
+        className="min-w-0 flex-1 truncate text-[12px]"
         title={
           shell.description
             ? `${shell.description}  ${shell.command}`

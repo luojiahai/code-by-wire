@@ -1,4 +1,4 @@
-import { cx } from "./atoms";
+import { cx, focusRing } from "./atoms";
 import { Icon, type IconName } from "./icons";
 
 /** One tab in a {@link Tabs} bar. */
@@ -68,6 +68,7 @@ export function Tabs<T extends string>({
             aria-pressed={active}
             className={cx(
               "inline-flex items-center gap-1.5 text-[12px] transition-colors",
+              focusRing,
               look.base,
               active ? look.active : look.idle,
             )}

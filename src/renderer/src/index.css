@@ -110,6 +110,16 @@ body {
   color: var(--color-fg);
 }
 
+/* Suppress the platform focus ring globally. Chromium draws the `:focus-visible` outline in the OS system
+   accent color, which on some machines lands as an off-brand amber on any control that hasn't replaced it.
+   Killing it here (rather than recoloring) also keeps focus boxes off the containers that get focused
+   programmatically: scroll regions, modal panels, the terminal. The visible indicator comes back as a
+   brand-teal box-shadow ring on the controls that need one, via `focusRing` / `focusRingInset` in ui/atoms.
+   Keyboard focus stays readable on those, and any new interactive control should carry one. */
+:focus-visible {
+  outline: none;
+}
+
 /* The live heartbeat on Working / Waiting status dots. */
 @keyframes pulse-soft {
   0%,

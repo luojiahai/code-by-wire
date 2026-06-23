@@ -1,20 +1,33 @@
 import { Center, TranscriptFeed } from "./TranscriptView";
 import type { DocState } from "./use-transcript";
+import { cx, focusRing } from "../ui/atoms";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import type { DispatchDrill } from "./drill-index";
 import { useTranscriptModals } from "./use-transcript-modals";
 
-/** One level of the drill path: which subagent, and the label shown in the breadcrumb (its type). */
-export type SubagentCrumb = { agentId: string; label: string };
+/** One level of the drill path: which subagent, plus the type and (optional) description its crumb shows. */
+export type SubagentCrumb = {
+  agentId: string;
+  type: string;
+  description?: string;
+};
 
 /** One level of the drill path. A subagent crumb drills its transcript; a shell crumb drills its log. */
 export type DrillCrumb =
-  | { kind: "subagent"; agentId: string; label: string }
+  | { kind: "subagent"; agentId: string; type: string; description?: string }
   | { kind: "shell"; shellId: string; label: string };
 
+/** The current crumb's label: "Subagent (<type>): <description>", or just "Subagent (<type>)" when the
+ *  dispatch carried no description. Ancestor crumbs stay terse (the bare type) so the path reads compact. */
+function subagentCrumbLabel(crumb: SubagentCrumb): string {
+  return crumb.description
+    ? `Subagent (${crumb.type}): ${crumb.description}`
+    : `Subagent (${crumb.type})`;
+}
+
 /**
- * The drilled-in Subagent surface: a breadcrumb (Session › … › <type>) above the
- * shared event feed. A pure renderer of the `doc` it's handed — the subagent poll is lifted to
+ * The drilled-in Subagent surface: a breadcrumb (Session › … › Subagent (<type>): <description>) above
+ * the shared event feed. A pure renderer of the `doc` it's handed — the subagent poll is lifted to
  * WorkspaceBody so it survives the Managed tab toggle. Always read-only — a Subagent is never drivable,
  * even drilled from a Managed Session. The feed is keyed on the current agent id so re-drilling remounts
  * to a fresh tail while same-agent polls preserve scroll.
@@ -70,24 +83,41 @@ function Breadcrumb({
       <button
         type="button"
         onClick={() => onNavigate(0)}
-        className="inline-flex items-center gap-1 text-fg-muted transition-colors hover:text-fg"
+        className={cx(
+          "inline-flex shrink-0 items-center gap-1 rounded-sm text-fg-muted transition-colors hover:text-fg",
+          focusRing,
+        )}
       >
         <span aria-hidden>←</span> Session
       </button>
       {crumbs.map((c, i) => {
         const last = i === crumbs.length - 1;
         return (
-          <span key={c.agentId} className="flex items-center gap-2">
-            <span className="text-ink-700">›</span>
+          <span
+            key={c.agentId}
+            className={cx(
+              "flex items-center gap-2",
+              last ? "min-w-0 flex-1" : "shrink-0",
+            )}
+          >
+            <span className="shrink-0 text-ink-700">›</span>
             {last ? (
-              <span className="font-semibold text-fg">{c.label}</span>
+              <span
+                className="min-w-0 flex-1 truncate font-semibold text-fg"
+                title={subagentCrumbLabel(c)}
+              >
+                {subagentCrumbLabel(c)}
+              </span>
             ) : (
               <button
                 type="button"
                 onClick={() => onNavigate(i + 1)}
-                className="text-fg-muted transition-colors hover:text-fg"
+                className={cx(
+                  "shrink-0 rounded-sm text-fg-muted transition-colors hover:text-fg",
+                  focusRing,
+                )}
               >
-                {c.label}
+                {c.type}
               </button>
             )}
           </span>

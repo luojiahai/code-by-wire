@@ -1,3 +1,4 @@
+import { cx, focusRing } from "./atoms";
 import { ModalShell } from "./ModalShell";
 
 /** A minimal confirm/cancel modal, gating a risky action behind an explicit choice. Built on ModalShell
@@ -21,10 +22,13 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  // The filled confirm button already wears a static `ring-1 ring-{tone}/40` as its border, so a faint
+  // focus ring on top would blend in. On `:focus-visible` brighten that ring to a full-opacity 2px in the
+  // button's own tone, so keyboard focus reads clearly without mixing in a second color.
   const confirmClass =
     tone === "danger"
-      ? "rounded-md bg-danger px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-danger/40 transition-colors hover:bg-danger/90"
-      : "rounded-md bg-primary px-3 py-1.5 text-[13px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors hover:bg-primary-bright";
+      ? "rounded-md bg-danger px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-danger/40 transition-colors hover:bg-danger/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
+      : "rounded-md bg-primary px-3 py-1.5 text-[13px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors hover:bg-primary-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
   return (
     <ModalShell
       labelledBy="confirm-title"
@@ -39,7 +43,10 @@ export function ConfirmDialog({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md px-3 py-1.5 text-[13px] text-fg-muted transition-colors hover:text-fg"
+          className={cx(
+            "rounded-md px-3 py-1.5 text-[13px] text-fg-muted transition-colors hover:text-fg",
+            focusRing,
+          )}
         >
           {cancelLabel}
         </button>
