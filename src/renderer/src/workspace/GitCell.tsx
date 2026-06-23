@@ -97,7 +97,7 @@ export function GitCell({
   }, [open, place]);
 
   return (
-    <Cell label="Git" raw>
+    <Cell label="Git" grow={1.5} raw>
       {interactive ? (
         <button
           ref={triggerRef}
