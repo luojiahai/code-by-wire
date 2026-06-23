@@ -139,6 +139,12 @@ function WorkspaceBody({
   // Terminal ⇄ Transcript toggle. Each is a no-op until something of its kind is drilled.
   const subagentDoc = useSubagentTranscript(s.id, activeAgentId);
   const shellOutput = useShellOutput(s.id, activeShellId);
+  // The live BackgroundShell behind the drilled id, re-resolved each poll so the header's status/exit/
+  // duration stay fresh while drilled (a running shell flips to completed on its own). undefined when
+  // nothing is drilled, or when the shell was reaped from the list.
+  const activeShell = activeShellId
+    ? shells?.find((sh) => sh.id === activeShellId)
+    : undefined;
   // Resolve an inline dispatch by its tool_use_id against the session's full nested forest, rebuilt each
   // poll. A dispatch is drillable iff it's a key; clicking PUSHES the resolved subagent (deep), unlike a
   // lane click which resets to depth 1.
@@ -169,6 +175,8 @@ function WorkspaceBody({
             doc={doc}
             subagentDoc={subagentDoc}
             shellOutput={shellOutput}
+            shell={activeShell}
+            now={now}
             drill={drill}
             onNavigate={(depth) => setDrill((d) => d.slice(0, depth))}
             dispatchDrill={dispatchDrill}
@@ -229,6 +237,8 @@ function CenterView({
   doc,
   subagentDoc,
   shellOutput,
+  shell,
+  now,
   drill,
   onNavigate,
   dispatchDrill,
@@ -240,6 +250,8 @@ function CenterView({
   doc: DocState;
   subagentDoc: DocState;
   shellOutput: ShellOutputState;
+  shell: BackgroundShell | undefined;
+  now: number;
   drill: DrillCrumb[];
   onNavigate: (depth: number) => void;
   dispatchDrill: DispatchDrill;
@@ -257,8 +269,13 @@ function CenterView({
     .map((c) => ({ agentId: c.agentId, label: c.label }));
   const drilledView =
     top?.kind === "shell" ? (
+      // Keyed by shell id so switching shells remounts the drill: CommandBlock's expand state and the
+      // log scroll reset instead of bleeding from the previous shell.
       <ShellDrill
+        key={top.shellId}
+        shell={shell}
         label={top.label}
+        now={now}
         onBack={() => onNavigate(0)}
         output={shellOutput}
       />
