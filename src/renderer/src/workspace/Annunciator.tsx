@@ -37,6 +37,7 @@ export function Annunciator({
     <div className="mt-2 flex items-stretch overflow-hidden rounded-md border border-ink-800 bg-well shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
       <Cell
         label="State"
+        grow={0.75}
         led={state.dot}
         ledPulse={pulses}
         valueClass={state.text}
@@ -45,6 +46,7 @@ export function Annunciator({
       </Cell>
       <Cell
         label="Link"
+        grow={0.75}
         led={managed ? "bg-primary" : "bg-idle"}
         valueClass={managed ? "text-primary" : "text-fg-muted"}
         title={mode.blurb}
