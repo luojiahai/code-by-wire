@@ -4,6 +4,9 @@ import {
   shellGlyph,
   truncLabel,
   ansiClass,
+  shellStatusPill,
+  triggerLabel,
+  shellMetaSegments,
 } from "../../src/renderer/src/workspace/panels/shell-view";
 
 describe("shellGlyph", () => {
@@ -55,5 +58,76 @@ describe("ansiClass", () => {
   });
   it("falls back to the base token when no bright variant exists", () => {
     expect(ansiClass("green", true)).toBe("text-ok");
+  });
+});
+
+describe("shellStatusPill", () => {
+  it("running is a pulsing blue dot", () => {
+    expect(shellStatusPill({ status: "running" })).toEqual({
+      glyph: "●",
+      label: "running",
+      tone: "text-working-bright",
+    });
+  });
+  it("completed with exit 0 is a green check", () => {
+    expect(shellStatusPill({ status: "completed", exitCode: 0 })).toEqual({
+      glyph: "✓",
+      label: "completed",
+      tone: "text-ok",
+    });
+  });
+  it("completed with a non-zero exit reads failed in red", () => {
+    expect(shellStatusPill({ status: "completed", exitCode: 1 })).toEqual({
+      glyph: "✕",
+      label: "failed",
+      tone: "text-danger",
+    });
+  });
+  it("killed is a grey square", () => {
+    expect(shellStatusPill({ status: "killed" })).toEqual({
+      glyph: "■",
+      label: "killed",
+      tone: "text-fg-faint",
+    });
+  });
+});
+
+describe("triggerLabel", () => {
+  it("maps each trigger to its human string", () => {
+    expect(triggerLabel("explicit")).toBe("run in background");
+    expect(triggerLabel("auto")).toBe("auto-backgrounded");
+    expect(triggerLabel("user")).toBe("Ctrl-B");
+  });
+});
+
+describe("shellMetaSegments", () => {
+  it("a clean completed shell: exit, duration, trigger", () => {
+    expect(
+      shellMetaSegments(
+        {
+          status: "completed",
+          exitCode: 0,
+          durationMs: 0,
+          trigger: "explicit",
+        },
+        1000,
+      ),
+    ).toEqual(["exit 0", "0s", "run in background"]);
+  });
+  it("a failed shell keeps the non-zero exit and duration", () => {
+    expect(
+      shellMetaSegments(
+        { status: "completed", exitCode: 1, durationMs: 2400, trigger: "auto" },
+        1000,
+      ),
+    ).toEqual(["exit 1", "2s", "auto-backgrounded"]);
+  });
+  it("a running shell shows elapsed from now and drops exit/duration", () => {
+    expect(
+      shellMetaSegments(
+        { status: "running", startMs: 82_000, trigger: "explicit" },
+        100_000,
+      ),
+    ).toEqual(["elapsed 18s", "run in background"]);
   });
 });
