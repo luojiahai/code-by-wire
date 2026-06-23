@@ -19,6 +19,7 @@ export type IconName =
   | "copy"
   | "eye"
   | "eye-off"
+  | "folder"
   | "folder-open"
   | "github"
   | "git-branch"
