@@ -110,6 +110,15 @@ body {
   color: var(--color-fg);
 }
 
+/* Suppress the platform focus ring globally. Chromium draws the `:focus-visible` outline in the OS system
+   accent color, which on some machines lands as an off-brand amber on any control that hasn't replaced it.
+   The app supplies its own teal ring (the `focus-visible:ring-*` box-shadow, unaffected by this) on the
+   controls that want a keyboard-focus indicator, so the bare UA outline only ever leaked through on the
+   list and nav buttons that don't style focus. Dropping it everywhere keeps those clean. */
+:focus-visible {
+  outline: none;
+}
+
 /* The live heartbeat on Working / Waiting status dots. */
 @keyframes pulse-soft {
   0%,
