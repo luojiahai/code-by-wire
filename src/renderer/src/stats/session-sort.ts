@@ -1,7 +1,8 @@
-import { tokensOf, type StatsBySession } from "@shared/stats";
+import { tokensOf, equivOf, type StatsBySession } from "@shared/stats";
 
-/** The per-Session table's sortable columns. `tokens` follows the page's cache toggle; `cost` is the
- *  Equivalent API value column (n/a rows sort below every real figure). */
+/** The per-Session table's sortable columns. `tokens` and `cost` both follow the page's "Include cache"
+ *  toggle (via tokensOf / equivOf), so each sorts on the figure shown; `cost` is the Equivalent API value
+ *  column (n/a rows sort below every real figure). */
 export type SessionSortKey =
   | "session"
   | "model"
@@ -32,9 +33,10 @@ export function defaultDirFor(key: SessionSortKey): SortDir {
 
 /**
  * Sort the per-Session rows by the chosen column and direction, returning a NEW array (never mutating the
- * store's order). The tokens column reads the same fresh-vs-total figure the page's "Include cache" toggle
- * shows, so the sort key always matches the visible number. A null cost or model sorts as the smallest
- * value, so n/a rows cluster at the bottom in descending order rather than scattering. Every comparison
+ * store's order). The tokens and cost columns read the same fresh-vs-total figure the page's "Include cache"
+ * toggle shows (via tokensOf / equivOf), so the sort key always matches the visible number. A null cost or
+ * model sorts as the smallest value, so n/a rows cluster at the bottom in descending order rather than
+ * scattering. Every comparison
  * falls back to sessionId — kept ascending regardless of direction — so equal rows hold a stable order and
  * don't reshuffle when you flip direction.
  */
@@ -62,8 +64,11 @@ export function sortSessions(
       case "tokens":
         return tokensOf(a, includeCache) - tokensOf(b, includeCache);
       case "cost":
-        // -1 sentinel keeps n/a (null) below every real figure, including a real $0.
-        return (a.equivApiValueUsd ?? -1) - (b.equivApiValueUsd ?? -1);
+        // Sort on the same fresh-vs-total figure the cell shows (equivOf under the page cache pill), so the
+        // order matches the visible number. -1 sentinel keeps n/a (null) below every real figure, even a $0.
+        return (
+          (equivOf(a, includeCache) ?? -1) - (equivOf(b, includeCache) ?? -1)
+        );
     }
   };
   return [...rows].sort((a, b) => {
