@@ -18,7 +18,7 @@ export function TurnsTab({
 }) {
   if (turns.length === 0) return <EmptyState>No turns yet.</EmptyState>;
   return (
-    <div className="py-1">
+    <div className="py-1" role="list">
       {turns.map((t) => (
         <DockRow
           key={t.index}

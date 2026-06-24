@@ -3,7 +3,7 @@ import type { Subagent } from "@shared/types";
 import {
   formatDuration,
   formatRelativeTime,
-  formatTokens,
+  formatTokensShort,
 } from "@shared/format";
 import { spanPct } from "../../ui/charts-geom";
 import { cx, focusRingInset } from "../../ui/atoms";
@@ -116,11 +116,11 @@ function SubagentLane({
       }
       trailing={
         <MetricRack>
-          <MetricCell width="w-9">
+          <MetricCell width="w-10">
             {agent.model ? FAMILY_LABEL[agent.model] : "—"}
           </MetricCell>
-          <MetricCell width="w-16" tone="text-fg-muted" unit="tokens">
-            {formatTokens(agent.tokens)}
+          <MetricCell width="w-16" tone="text-fg-muted" unit="tok">
+            {formatTokensShort(agent.tokens)}
           </MetricCell>
           <MetricCell
             width="w-14"
@@ -259,7 +259,7 @@ function SubagentGroupLanes({
           style={{ left: `${nowPct}%` }}
         />
       )}
-      <div>
+      <div role="list">
         {group.agents.map((a) => (
           <SubagentLane
             key={a.id}

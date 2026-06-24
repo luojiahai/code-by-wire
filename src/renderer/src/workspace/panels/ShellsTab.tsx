@@ -96,7 +96,7 @@ export function ShellsTab({
   if (shells.length === 0)
     return <EmptyState>No background shells.</EmptyState>;
   return (
-    <div className="py-1">
+    <div className="py-1" role="list">
       {shells.map((s) => (
         <ShellRow
           key={s.id}

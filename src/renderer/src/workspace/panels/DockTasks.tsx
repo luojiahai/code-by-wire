@@ -24,14 +24,13 @@ const SUBJECT_TONE: Record<Task["status"], string> = {
 };
 
 /**
- * The Structure dock's Tasks tab: the session's task list with status glyph and, for blocked tasks, a
- * dependency count in the metric rack (the blockers list shows on hover). Completion reads from the row
- * glyphs — no separate summary line.
+ * The Structure dock's Tasks tab: the session's task list with a status glyph and, for blocked tasks, the
+ * blocking task IDs in the metric rack. Completion reads from the row glyphs, so there's no summary line.
  */
 export function DockTasks({ tasks }: { tasks: Task[] }) {
   if (tasks.length === 0) return <EmptyState>No tasks yet.</EmptyState>;
   return (
-    <div className="py-1">
+    <div className="py-1" role="list">
       {tasks.map((t) => {
         const blockers = t.blockedBy ?? [];
         return (
@@ -51,9 +50,7 @@ export function DockTasks({ tasks }: { tasks: Task[] }) {
             trailing={
               blockers.length > 0 ? (
                 <MetricRack>
-                  <MetricCell title={`blocked by ${blockers.join(", ")}`}>
-                    blocked·{blockers.length}
-                  </MetricCell>
+                  <MetricCell>blocked·{blockers.join(",")}</MetricCell>
                 </MetricRack>
               ) : undefined
             }
