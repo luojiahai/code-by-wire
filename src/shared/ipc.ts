@@ -5,6 +5,8 @@ import type {
   Task,
   BackgroundShell,
   ShellOutput,
+  WorkflowRunSummary,
+  WorkflowRun,
 } from "./types";
 import type {
   TranscriptRead,
@@ -25,6 +27,9 @@ export const IPC = {
   readTasks: "tasks:read",
   readShells: "shells:read",
   readShellOutput: "shellOutput:read",
+  readWorkflows: "workflows:read",
+  readWorkflowRun: "workflowRun:read",
+  readWorkflowAgentTranscript: "workflowAgentTranscript:read",
   readMetrics: "metrics:read",
   fullscreen: "window:fullscreen",
   modelDefaults: "model:defaults",
@@ -71,6 +76,18 @@ export type ShellsRead =
  *  Polled only while a shell is open (gated like the subagent read). */
 export type ShellOutputRead =
   | { status: "changed"; mtimeMs: number; output: ShellOutput }
+  | ReadSettled;
+
+/** The result of a workflows list read: the session's runs with a change token, or a settled outcome.
+ *  Mirrors TaskRead. The list carries only run summaries; the full run is read separately. */
+export type WorkflowsRead =
+  | { status: "changed"; mtimeMs: number; runs: WorkflowRunSummary[] }
+  | ReadSettled;
+
+/** The result of a single workflow-run read (the drill surface): the full run with a change token, or a
+ *  settled outcome. */
+export type WorkflowRunRead =
+  | { status: "changed"; mtimeMs: number; run: WorkflowRun }
   | ReadSettled;
 
 /** The result of a Stats poll: a fresh snapshot with a change token the renderer echoes back as `since`,

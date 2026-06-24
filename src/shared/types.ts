@@ -238,3 +238,70 @@ export interface ProviderCapabilities {
   hasRateLimits: boolean;
   hasSubagents: boolean;
 }
+
+/** A workflow run as listed in the dock — the run record's header fields, no phases/agents/result. */
+export interface WorkflowRunSummary {
+  /** The run id, e.g. "wf_41c7fd16-c8a"; names the record file and the agents dir. */
+  runId: string;
+  workflowName: string;
+  /** Passthrough of the record's status; "completed" | "running" | "failed" in practice. */
+  status: "running" | "completed" | "failed" | string;
+  /** The args string the run was invoked with (e.g. "xhigh"), when present. */
+  args?: string;
+  agentCount: number;
+  totalTokens: number;
+  totalToolCalls: number;
+  durationMs: number;
+  /** Run start (epoch ms), from the record's startTime. */
+  startMs: number;
+  phaseCount: number;
+  /** Default model family, normalized from the raw record string. Absent when none recorded. */
+  defaultModel?: Family;
+}
+
+export type WorkflowPhaseStatus = "pending" | "running" | "done";
+
+/** One phase with its derived status and agent tallies. */
+export interface WorkflowPhase {
+  index: number;
+  title: string;
+  detail?: string;
+  status: WorkflowPhaseStatus;
+  agentsTotal: number;
+  agentsDone: number;
+}
+
+/** One agent in a run, projected from a workflowProgress `workflow_agent` entry. */
+export interface WorkflowAgent {
+  /** agentId; maps to subagents/workflows/<runId>/agent-<id>.jsonl. */
+  id: string;
+  index: number;
+  label: string;
+  phaseIndex: number;
+  phaseTitle: string;
+  /** Normalized model family; absent until the agent reports one. */
+  model?: Family;
+  /** Passthrough state; "queued" | "running" | "done" | "failed" in practice. */
+  state: "queued" | "running" | "done" | "failed" | string;
+  /** epoch ms; absent when the record carried none. */
+  queuedMs?: number;
+  startMs?: number;
+  lastProgressMs?: number;
+  durationMs: number;
+  tokens: number;
+  toolCalls: number;
+  lastToolName?: string;
+  lastToolSummary?: string;
+  promptPreview?: string;
+  resultPreview?: string;
+}
+
+/** A full run for the drill surface: the summary plus phases (with derived status), agents, and output. */
+export interface WorkflowRun extends WorkflowRunSummary {
+  phases: WorkflowPhase[];
+  agents: WorkflowAgent[];
+  summary?: string;
+  logs: string[];
+  /** The run's result, shape defined by the workflow itself. Rendered generically. */
+  result?: unknown;
+}
