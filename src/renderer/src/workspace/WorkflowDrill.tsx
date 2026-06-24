@@ -55,7 +55,7 @@ export function WorkflowDrill({
   name: string;
   onBack: () => void;
   selectedAgentId?: string;
-  onSelectAgent: (id: string) => void;
+  onSelectAgent: (id: string | undefined) => void;
   agentDoc: DocState;
 }) {
   return (

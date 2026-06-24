@@ -296,7 +296,7 @@ function CenterView({
   shell: BackgroundShell | undefined;
   workflowRun: WorkflowRunState;
   selectedWorkflowAgentId: string | undefined;
-  onSelectWorkflowAgent: (id: string) => void;
+  onSelectWorkflowAgent: (id: string | undefined) => void;
   workflowAgentDoc: DocState;
   now: number;
   drill: DrillCrumb[];

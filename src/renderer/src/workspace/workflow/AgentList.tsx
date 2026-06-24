@@ -99,7 +99,7 @@ function PhaseGroup({
   agents: WorkflowAgent[];
   bounds: { start: number; end: number };
   selectedAgentId?: string;
-  onSelectAgent: (id: string) => void;
+  onSelectAgent: (id: string | undefined) => void;
 }) {
   return (
     <div>
@@ -122,8 +122,9 @@ function PhaseGroup({
   );
 }
 
-/** The master pane: agents grouped by phase, each row carrying a micro-timeline bar on a shared axis so
- *  the streaming overlap survives in the list. Clicking a row selects the agent (detail pane in Task 9). */
+/** The master pane: a Result entry plus agents grouped by phase, each row carrying a micro-timeline bar on
+ *  a shared axis so the streaming overlap survives in the list. Selecting Result (or clicking it to clear
+ *  the agent) swaps the detail pane back to the run result; selecting an agent shows its transcript. */
 export function AgentList({
   run,
   selectedAgentId,
@@ -131,11 +132,24 @@ export function AgentList({
 }: {
   run: WorkflowRun;
   selectedAgentId?: string;
-  onSelectAgent: (id: string) => void;
+  onSelectAgent: (id: string | undefined) => void;
 }) {
   const bounds = runBounds(run.agents);
   return (
     <div className="py-1">
+      <button
+        type="button"
+        onClick={() => onSelectAgent(undefined)}
+        className={cx(
+          "flex w-full items-center px-3 py-1.5 text-left text-[11px] font-semibold text-fg transition-colors",
+          focusRingInset,
+          selectedAgentId === undefined
+            ? "bg-ink-850 shadow-[inset_2px_0_0] shadow-fg-muted"
+            : "hover:bg-ink-900",
+        )}
+      >
+        Result
+      </button>
       {run.phases.map((p) => {
         const agents = run.agents.filter((a) => a.phaseIndex === p.index);
         if (agents.length === 0) return null;
