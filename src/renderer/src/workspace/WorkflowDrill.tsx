@@ -11,22 +11,29 @@ import type { DocState } from "./use-transcript";
 /** Tri-state run, from useWorkflowRun: undefined = loading, null = absent, a run once read. */
 type RunState = WorkflowRun | null | undefined;
 
-/** The breadcrumb back to the session transcript. */
+/** The drill path back to the session transcript, matching the Subagent/Shell breadcrumb: a "← Session"
+ *  root that pops back, then the current "Workflow: <name>" crumb. */
 function WorkflowCrumb({ name, onBack }: { name: string; onBack: () => void }) {
+  const crumb = `Workflow: ${name}`;
   return (
-    <div className="flex shrink-0 items-center gap-1.5 border-b border-ink-800 px-3 py-1.5 text-[11px]">
+    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-4 py-2 text-[11px]">
       <button
         type="button"
         onClick={onBack}
         className={cx(
-          "rounded text-fg-faint transition-colors hover:text-fg",
+          "inline-flex shrink-0 items-center gap-1 rounded-sm text-fg-muted transition-colors hover:text-fg",
           focusRing,
         )}
       >
-        Session
+        <span aria-hidden>←</span> Session
       </button>
-      <span className="text-fg-faint">›</span>
-      <span className="truncate text-fg-muted">{name}</span>
+      <span className="shrink-0 text-ink-700">›</span>
+      <span
+        className="min-w-0 flex-1 truncate font-semibold text-fg"
+        title={crumb}
+      >
+        {crumb}
+      </span>
     </div>
   );
 }
