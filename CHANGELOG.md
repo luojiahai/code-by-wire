@@ -6,6 +6,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-06-24
+
+### Added
+
+- Tool turns in the transcript render as compact status rows. Click to open the full command and output in a modal; edit turns open as a compact diff row that launches the same diff modal, with the full path and a copy button in a dedicated file bar.
+- Subagent transcripts are now clickable from a parent session, using the same tool and edit detail modals.
+- Daily usage buckets in the Overview are priced: total, per-kind, and per-model costs show in each bar, with the equivalent API value in the tooltip.
+- The by-session table now shows the session name and a copiable session ID.
+- Shell drill-in gains a status header, the shell description in the breadcrumb, and a calmer no-output note when the shell produced nothing.
+
+### Changed
+
+- Transcript avatars switched from initials to icons — circle-user for the human, sparkles for the assistant — with accessible speaker labels.
+- Dock tabs (Turns, Tasks, Shells, Subagents) rebuilt on shared dock-row primitives: hairline rows, a mono metric rack with dimmed units, and flat Gantt fill for the subagent timeline.
+- Shell rows now lead with the description; the exit code cell is dropped.
+- Subagent type and description appear in the drill-in breadcrumb.
+- Annunciator cells rebalanced: model and effort split into separate cells; git is wider, effort and clock are narrower.
+- Dropped the read-only corner tag from the transcript header.
+
+### Fixed
+
+- Teal keyboard-focus ring restored on controls that had reverted to the OS accent color.
+- Shell drill-in remounts when the active shell changes.
+- Shell header status is now tied to its own row, not the last one in the list.
+- Diff and tool-result copy buttons are disabled when there is nothing to copy and flash "Copied" on success.
+- Transcript tool turns constrained to the message box width.
+- Daily-usage cost readout calculation and by-session naming corrected.
+- New session button is full-width and padded to match session rows.
+
 ## [0.1.12] - 2026-06-23
 
 ### Added
@@ -325,7 +354,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.12...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.13...HEAD
+[0.1.13]: https://github.com/luojiahai/code-by-wire/compare/v0.1.12...v0.1.13
 [0.1.12]: https://github.com/luojiahai/code-by-wire/compare/v0.1.11...v0.1.12
 [0.1.11]: https://github.com/luojiahai/code-by-wire/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/luojiahai/code-by-wire/compare/v0.1.9...v0.1.10
