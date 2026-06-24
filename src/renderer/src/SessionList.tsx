@@ -44,7 +44,7 @@ export function SessionList({
         selectedId={selectedId}
         onSelect={onSelect}
       />
-      <div className="shrink-0 p-3">
+      <div className="shrink-0 px-2 py-3">
         <button
           type="button"
           onClick={onNew}
