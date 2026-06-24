@@ -76,14 +76,15 @@ function Bubble({
   return (
     <div className={cx("flex gap-2.5", user && "flex-row-reverse")}>
       <div
+        title={user ? "You" : "Claude"}
         className={cx(
-          "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold",
+          "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
           user
             ? "bg-ink-900 text-fg-muted"
             : "bg-primary/15 text-primary-bright",
         )}
       >
-        {user ? "You" : "C"}
+        <Icon name={user ? "circle-user" : "sparkles"} size={14} />
       </div>
       <div
         className={cx(

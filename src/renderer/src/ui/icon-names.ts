@@ -36,6 +36,7 @@ export type IconName =
   | "rotate-ccw"
   | "search"
   | "settings"
+  | "sparkles"
   | "square"
   | "square-dashed-mouse-pointer"
   | "square-terminal"
