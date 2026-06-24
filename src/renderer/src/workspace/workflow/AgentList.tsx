@@ -41,7 +41,7 @@ function AgentRow({
   const dotTone = running
     ? "bg-primary animate-pulse-soft"
     : agent.state === "done"
-      ? "bg-primary"
+      ? "bg-primary-deep"
       : agent.state === "queued"
         ? "bg-ink-600"
         : "bg-fg-muted";
@@ -73,7 +73,7 @@ function AgentRow({
               running
                 ? "bg-primary animate-pulse-soft"
                 : agent.state === "done"
-                  ? "bg-primary"
+                  ? "bg-primary-deep"
                   : "bg-fg-muted",
             )}
             style={{ left: `${leftPct}%`, width: `${widthPct}%` }}

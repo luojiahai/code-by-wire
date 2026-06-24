@@ -1,8 +1,8 @@
 import type { WorkflowPhase } from "@shared/types";
 import { cx } from "../../ui/atoms";
 
-/** One phase segment, lit in the brand teal once it has work: done is a solid teal bar, the running
- *  phase fills teal and pulses (the fill proportional to its agents finished), pending stays dim. */
+/** One phase segment, lit in teal once it has work: done is a solid deep-teal bar, the running phase
+ *  fills in the brighter brand teal and pulses (fill proportional to agents finished), pending is dim. */
 function Segment({ phase }: { phase: WorkflowPhase }) {
   const { status, agentsDone, agentsTotal } = phase;
   const fillPct =
@@ -12,7 +12,7 @@ function Segment({ phase }: { phase: WorkflowPhase }) {
       className={cx(
         "relative h-2 flex-1 overflow-hidden rounded-full",
         status === "done"
-          ? "bg-primary"
+          ? "bg-primary-deep"
           : status === "running"
             ? "bg-ink-700"
             : "bg-ink-850",
