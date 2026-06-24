@@ -12,8 +12,11 @@ export function WorkflowHeader({ run }: { run: WorkflowRun }) {
       </span>
       <span
         className={cx(
-          "rounded border border-ink-700 px-1.5 py-0.5 text-[10px] text-fg-muted",
-          running && "animate-pulse-soft border-primary text-primary",
+          "rounded border px-1.5 py-0.5 text-[10px]",
+          run.status === "running" || run.status === "completed"
+            ? "border-primary text-primary"
+            : "border-ink-700 text-fg-muted",
+          running && "animate-pulse-soft",
         )}
       >
         {run.status}
