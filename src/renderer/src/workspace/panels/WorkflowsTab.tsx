@@ -1,7 +1,8 @@
 import type { WorkflowRunSummary } from "@shared/types";
-import { formatDuration, formatRelativeTime } from "@shared/format";
+import { formatRelativeTime } from "@shared/format";
 import { cx, focusRingInset } from "../../ui/atoms";
 import { EmptyState } from "./chrome";
+import { RunStats } from "../workflow/RunStats";
 
 /** A run's status glyph + tone. Running pulses; failed and completed are tone-only (state by tone, not color). */
 function runGlyph(status: string): {
@@ -15,8 +16,8 @@ function runGlyph(status: string): {
   return { char: "✓", tone: "text-fg-muted", pulse: false };
 }
 
-/** One workflow run as a compact, clickable row: status glyph, name, agent/token tallies, duration, and a
- *  relative start. Clicking drills into the run surface in the center pane. */
+/** One workflow run as a compact, clickable row: status glyph, name, the run stats (agents/tokens/
+ *  duration/tools), and a relative start. Clicking drills into the run surface in the center pane. */
 function WorkflowRow({
   run,
   active,
@@ -56,15 +57,7 @@ function WorkflowRow({
         <span className="text-fg">{run.workflowName}</span>
         {run.args ? <span className="text-fg-faint"> {run.args}</span> : null}
       </span>
-      <span className="shrink-0 font-mono text-[10px] tabular-nums text-fg-muted">
-        {run.agentCount} ag
-      </span>
-      <span className="shrink-0 font-mono text-[10px] tabular-nums text-fg-faint">
-        {Math.round(run.totalTokens / 1000)}k
-      </span>
-      <span className="shrink-0 font-mono text-[10px] tabular-nums text-fg-muted">
-        {formatDuration(run.durationMs)}
-      </span>
+      <RunStats run={run} />
       {run.startMs > 0 && (
         <span className="shrink-0 font-mono text-[10px] tabular-nums text-fg-faint">
           {formatRelativeTime(run.startMs, now)}

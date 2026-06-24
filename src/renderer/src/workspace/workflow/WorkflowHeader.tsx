@@ -1,18 +1,8 @@
 import type { WorkflowRun } from "@shared/types";
-import { formatDuration } from "@shared/format";
 import { cx } from "../../ui/atoms";
+import { RunStats } from "./RunStats";
 
-/** One stat cell in the run header. */
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <span className="font-mono text-[11px] tabular-nums text-fg-faint">
-      <span className="text-fg-muted">{value}</span>
-      {label ? ` ${label}` : ""}
-    </span>
-  );
-}
-
-/** The workflow run's header row: name, status badge, args, and the headline tallies. */
+/** The workflow run's header row: name, status badge, args, and the headline stats. */
 export function WorkflowHeader({ run }: { run: WorkflowRun }) {
   const running = run.status === "running";
   return (
@@ -34,10 +24,7 @@ export function WorkflowHeader({ run }: { run: WorkflowRun }) {
         </span>
       ) : null}
       <span className="flex-1" />
-      <Stat value={String(run.agentCount)} label="agents" />
-      <Stat value={`${Math.round(run.totalTokens / 1000)}k`} label="tok" />
-      <Stat value={formatDuration(run.durationMs)} label="" />
-      <Stat value={String(run.totalToolCalls)} label="tools" />
+      <RunStats run={run} />
     </div>
   );
 }
