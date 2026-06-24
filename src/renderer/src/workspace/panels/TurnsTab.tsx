@@ -34,7 +34,10 @@ export function TurnsTab({
           }
           trailing={
             <MetricRack>
-              <MetricCell width="w-14" unit="tools">
+              <MetricCell
+                width="w-14"
+                unit={t.toolCount === 1 ? "tool" : "tools"}
+              >
                 {t.toolCount}
               </MetricCell>
               <MetricCell width="w-12" tone="text-fg-muted">

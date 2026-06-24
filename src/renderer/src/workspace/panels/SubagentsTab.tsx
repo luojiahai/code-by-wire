@@ -321,8 +321,7 @@ function SubagentGroupBand({
  * assistant turn is its own band on its own time window, coloured by status; lone serial dispatches pool
  * into a trailing "Individual" band on a shared axis. A band auto-collapses once it finishes with no
  * failures; a live band or one with a failure stays open. Clicking a header overrides that until the band
- * flips live to done. A running / done / failed tally and a group count sit above. Shows an empty state
- * until the session spawns a subagent.
+ * flips live to done. Shows an empty state until the session spawns a subagent.
  */
 export function SubagentsTab({
   subagents,
