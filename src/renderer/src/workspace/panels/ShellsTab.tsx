@@ -1,28 +1,13 @@
-import { type ReactNode } from "react";
 import type { BackgroundShell } from "@shared/types";
 import { formatDuration, formatRelativeTime } from "@shared/format";
-import { cx, focusRingInset } from "../../ui/atoms";
+import { cx } from "../../ui/atoms";
 import { EmptyState } from "./chrome";
 import { shellGlyph } from "./shell-view";
+import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
 
-/** A right-aligned mono metric cell in a shell row. */
-function MetaCell({
-  children,
-  tone = "text-fg-faint",
-}: {
-  children: ReactNode;
-  tone?: string;
-}) {
-  return (
-    <span className={cx("shrink-0 font-mono text-[10px] tabular-nums", tone)}>
-      {children}
-    </span>
-  );
-}
-
-/** One background shell as a compact, clickable one-line row: status glyph, command, duration, and a
- *  source-agnostic relative start. The exit code lives on the drill-in; the glyph carries pass/fail here.
- *  Clicking drills into the full log in the center pane. */
+/** One background shell as a compact, clickable row: status glyph, command, duration, and a relative
+ *  start. The exit code lives on the drill-in; the glyph carries pass/fail here. Clicking drills into the
+ *  full log in the center pane. */
 function ShellRow({
   shell,
   active,
@@ -40,25 +25,35 @@ function ShellRow({
       ? now - shell.startMs
       : (shell.durationMs ?? 0);
   return (
-    <button
-      type="button"
+    <DockRow
+      active={active}
       onClick={() => onDrill(shell)}
       aria-label={`Open log for ${shell.command}`}
-      className={cx(
-        "flex w-full items-center gap-2 rounded-sm border-b border-ink-850 px-2 py-1.5 text-left transition-colors",
-        focusRingInset,
-        active ? "bg-ink-850" : "hover:bg-ink-900",
-      )}
+      leading={
+        <span
+          className={cx(
+            DOCK_GUTTER,
+            "shrink-0 text-center font-mono text-[11px]",
+            glyph.tone,
+            shell.status === "running" && "animate-pulse-soft",
+          )}
+        >
+          {glyph.char}
+        </span>
+      }
+      trailing={
+        <MetricRack>
+          <MetricCell width="w-14" tone="text-fg-muted">
+            {formatDuration(elapsed)}
+          </MetricCell>
+          {shell.startMs !== undefined && (
+            <MetricCell width="w-12">
+              {formatRelativeTime(shell.startMs, now)}
+            </MetricCell>
+          )}
+        </MetricRack>
+      }
     >
-      <span
-        className={cx(
-          "w-3 shrink-0 text-center font-mono text-[11px]",
-          glyph.tone,
-          shell.status === "running" && "animate-pulse-soft",
-        )}
-      >
-        {glyph.char}
-      </span>
       <span
         className="min-w-0 flex-1 truncate text-[12px]"
         title={
@@ -76,11 +71,7 @@ function ShellRow({
           <span className="text-fg">{shell.command}</span>
         )}
       </span>
-      <MetaCell tone="text-fg-muted">{formatDuration(elapsed)}</MetaCell>
-      {shell.startMs !== undefined && (
-        <MetaCell>{formatRelativeTime(shell.startMs, now)}</MetaCell>
-      )}
-    </button>
+    </DockRow>
   );
 }
 
