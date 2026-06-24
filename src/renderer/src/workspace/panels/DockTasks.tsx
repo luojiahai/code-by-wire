@@ -1,6 +1,7 @@
 import type { Task } from "@shared/types";
 import { cx } from "../../ui/atoms";
 import { EmptyState } from "./chrome";
+import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
 
 /** Glyph + tone per task status, reusing the app's palette (no new color tokens). */
 const GLYPH: Record<Task["status"], string> = {
@@ -23,44 +24,49 @@ const SUBJECT_TONE: Record<Task["status"], string> = {
 };
 
 /**
- * The Structure dock's Tasks tab panel: the session's task list with status and blockedBy dependencies,
- * plus a slim done/total summary. Self-pads to match the dock's other tab panels.
+ * The Structure dock's Tasks tab: the session's task list with status glyph and, for blocked tasks, a
+ * dependency count in the metric rack (the blockers list shows on hover). Completion reads from the row
+ * glyphs — no separate summary line.
  */
 export function DockTasks({ tasks }: { tasks: Task[] }) {
   if (tasks.length === 0) return <EmptyState>No tasks yet.</EmptyState>;
-  const done = tasks.filter((t) => t.status === "completed").length;
   return (
-    <div className="space-y-2 px-4 py-3">
-      <p className="font-mono text-[10px] tabular-nums text-fg-faint">
-        {done}/{tasks.length} done
-      </p>
-      <ul className="space-y-1">
-        {tasks.map((t) => (
-          <li key={t.id} className="flex items-baseline gap-2">
-            <span
-              className={cx(
-                "shrink-0 font-mono text-[11px]",
-                GLYPH_TONE[t.status],
-              )}
-            >
-              {GLYPH[t.status]}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p
-                className={cx("truncate text-[12px]", SUBJECT_TONE[t.status])}
-                title={t.subject}
+    <div className="py-1">
+      {tasks.map((t) => {
+        const blockers = t.blockedBy ?? [];
+        return (
+          <DockRow
+            key={t.id}
+            leading={
+              <span
+                className={cx(
+                  DOCK_GUTTER,
+                  "shrink-0 text-center font-mono text-[11px]",
+                  GLYPH_TONE[t.status],
+                )}
               >
-                {t.subject}
-              </p>
-              {t.blockedBy && t.blockedBy.length > 0 && (
-                <p className="text-[10px] text-fg-faint">
-                  blocked by {t.blockedBy.join(", ")}
-                </p>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+                {GLYPH[t.status]}
+              </span>
+            }
+            trailing={
+              blockers.length > 0 ? (
+                <MetricRack>
+                  <MetricCell title={`blocked by ${blockers.join(", ")}`}>
+                    blocked·{blockers.length}
+                  </MetricCell>
+                </MetricRack>
+              ) : undefined
+            }
+          >
+            <span
+              className={cx("min-w-0 flex-1 truncate text-[12px]", SUBJECT_TONE[t.status])}
+              title={t.subject}
+            >
+              {t.subject}
+            </span>
+          </DockRow>
+        );
+      })}
     </div>
   );
 }
