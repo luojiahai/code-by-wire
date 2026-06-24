@@ -64,11 +64,13 @@ function ShellRow({
       >
         {shell.description ? (
           <>
-            <span className="text-fg">{shell.description}</span>{" "}
-            <span className="text-fg-faint">{shell.command}</span>
+            <span className="text-fg">{shell.description}</span>
+            <span className="ml-2 font-mono text-[11px] text-fg-faint">
+              {shell.command}
+            </span>
           </>
         ) : (
-          <span className="text-fg">{shell.command}</span>
+          <span className="font-mono text-[11px] text-fg">{shell.command}</span>
         )}
       </span>
     </DockRow>
