@@ -305,6 +305,8 @@ function CenterView({
         run={workflowRun}
         name={top.name}
         onBack={() => onNavigate(0)}
+        selectedAgentId={undefined}
+        onSelectAgent={() => {}}
       />
     ) : top?.kind === "shell" ? (
       // Keyed by shell id so switching shells remounts the drill: CommandBlock's expand state and the

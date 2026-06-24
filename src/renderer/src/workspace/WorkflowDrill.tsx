@@ -1,6 +1,7 @@
 import type { WorkflowRun } from "@shared/types";
 import { cx, focusRing } from "../ui/atoms";
 import { OverlayScroll } from "../ui/OverlayScroll";
+import { AgentList } from "./workflow/AgentList";
 import { PhaseStrip } from "./workflow/PhaseStrip";
 import { WorkflowHeader } from "./workflow/WorkflowHeader";
 import { RunResult } from "./workflow/RunResult";
@@ -37,10 +38,14 @@ export function WorkflowDrill({
   run,
   name,
   onBack,
+  selectedAgentId,
+  onSelectAgent,
 }: {
   run: RunState;
   name: string;
   onBack: () => void;
+  selectedAgentId?: string;
+  onSelectAgent: (id: string) => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -55,9 +60,18 @@ export function WorkflowDrill({
         <div className="flex min-h-0 flex-1 flex-col">
           <WorkflowHeader run={run} />
           <PhaseStrip phases={run.phases} />
-          <OverlayScroll className="min-h-0 flex-1 border-t border-ink-850">
-            <RunResult run={run} />
-          </OverlayScroll>
+          <div className="flex min-h-0 flex-1 border-t border-ink-850">
+            <OverlayScroll className="min-h-0 w-80 shrink-0 border-r border-ink-850">
+              <AgentList
+                run={run}
+                selectedAgentId={selectedAgentId}
+                onSelectAgent={onSelectAgent}
+              />
+            </OverlayScroll>
+            <OverlayScroll className="min-h-0 flex-1">
+              <RunResult run={run} />
+            </OverlayScroll>
+          </div>
         </div>
       )}
     </div>
