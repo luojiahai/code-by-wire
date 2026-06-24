@@ -220,6 +220,26 @@ describe("analytics store", () => {
     expect(readTotals(db).equivApiValueUsd).toBeCloseTo(5);
   });
 
+  it("computes a fresh Equivalent API value that prices only input + output", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    // opus: input $5/M, output $25/M, cacheRead $0.5/M, cacheWrite $6.25/M.
+    upsertTurns(db, [
+      turn({
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 1_000_000,
+          cacheReadTokens: 1_000_000,
+          cacheCreationTokens: 1_000_000,
+        },
+      }),
+    ]);
+    const t = readTotals(db);
+    expect(t.equivApiValueUsd).toBeCloseTo(36.75); // 5 + 25 + 0.5 + 6.25 (all kinds)
+    expect(t.equivApiValueFreshUsd).toBeCloseTo(30); // 5 + 25, cache excluded
+  });
+
   it("scopes totals to turns at or after the since bound (inclusive at the edge)", () => {
     const db = openTestDb();
     migrateAnalytics(db);

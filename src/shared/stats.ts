@@ -14,6 +14,9 @@ export interface StatsTotals {
   cacheReadTokens: number;
   cacheCreationTokens: number;
   equivApiValueUsd: number;
+  /** Equivalent API value pricing only the fresh tokens (input + output rates), the figure shown when the
+   *  page's "Include cache" pill is off — the cost mirror of the fresh token subset. */
+  equivApiValueFreshUsd: number;
 }
 
 /** All-zero totals. One definition for the three places that need it: the empty store, the
@@ -27,6 +30,7 @@ export function emptyTotals(): StatsTotals {
     cacheReadTokens: 0,
     cacheCreationTokens: 0,
     equivApiValueUsd: 0,
+    equivApiValueFreshUsd: 0,
   };
 }
 

@@ -303,12 +303,18 @@ export function readTotals(
     .get(...bind) as TotalsRow;
 
   // Cost is summed per raw model id over the recognized models, single-sourced through the same
-  // groupByModel/modelRowCost the per-model breakdown uses — so the headline total and the breakdown rows
-  // reconcile by construction. An unrecognized id contributes nothing here; its tokens still count above.
-  const equivApiValueUsd = groupByModel(db, win).reduce(
-    (acc, m) => acc + (modelRowCost(m) ?? 0),
-    0,
-  );
+  // groupByModel/modelRowCostBreakdown the per-model breakdown uses — so the headline total and the
+  // breakdown rows reconcile by construction. The fresh figure prices only input + output (the subset the
+  // page cache pill shows when off); an unrecognized id contributes nothing to either.
+  let equivApiValueUsd = 0;
+  let equivApiValueFreshUsd = 0;
+  for (const m of groupByModel(db, win)) {
+    const b = modelRowCostBreakdown(m);
+    if (b != null) {
+      equivApiValueUsd += b.total;
+      equivApiValueFreshUsd += b.input + b.output;
+    }
+  }
 
   return {
     sessions: t.sessions,
@@ -318,6 +324,7 @@ export function readTotals(
     cacheReadTokens: t.cache_read_tokens,
     cacheCreationTokens: t.cache_creation_tokens,
     equivApiValueUsd,
+    equivApiValueFreshUsd,
   };
 }
 
