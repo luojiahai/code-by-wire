@@ -83,7 +83,7 @@ export function createUpdater(deps: {
       return state;
     },
     download: async () => {
-      if (!deps.isPackaged || state.phase.kind === "downloading") return;
+      if (!deps.isPackaged || state.phase.kind !== "available") return;
       try {
         await autoUpdater.downloadUpdate();
       } catch (err) {
@@ -91,7 +91,8 @@ export function createUpdater(deps: {
       }
     },
     quitAndInstall: () => {
-      if (deps.isPackaged) autoUpdater.quitAndInstall();
+      if (deps.isPackaged && state.phase.kind === "downloaded")
+        autoUpdater.quitAndInstall();
     },
   };
 }

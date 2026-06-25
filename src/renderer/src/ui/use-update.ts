@@ -14,9 +14,16 @@ export function useUpdate(): UpdateControls {
   const [autoCheck, setAutoCheck] = useState(true);
 
   useEffect(() => {
-    void window.api.getUpdateState().then(setState);
+    let pushReceived = false;
+    const unsub = window.api.onUpdateState((s) => {
+      pushReceived = true;
+      setState(s);
+    });
+    void window.api.getUpdateState().then((s) => {
+      if (!pushReceived) setState(s);
+    });
     void window.api.getAutoCheckUpdates().then(setAutoCheck);
-    return window.api.onUpdateState(setState);
+    return unsub;
   }, []);
 
   return {
