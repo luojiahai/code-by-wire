@@ -12,9 +12,9 @@ export function num(v: unknown): number {
 /** The cache-creation token split from an assistant `usage` block: the authoritative total
  *  (`cache_creation_input_tokens`) divided into the 5-minute and 1-hour ephemeral buckets
  *  (`cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_tokens`). When the `cache_creation`
- *  sub-object is absent — older transcripts, non-Claude sources — the whole total is attributed to 5m, so
- *  `fiveM + oneH === total` always holds. Lives here in the claude/ dir where no-unsafe-* is downgraded:
- *  it consumes `any` transcript JSON by design. */
+ *  sub-object is absent (older transcripts, non-Claude sources), or its fields don't sum to the total,
+ *  the whole total is attributed to 5m so `fiveM + oneH === total` always holds. Lives here in the
+ *  claude/ dir where no-unsafe-* is downgraded: it consumes `any` transcript JSON by design. */
 export function cacheCreationSplit(usage: unknown): {
   total: number;
   fiveM: number;
@@ -28,11 +28,9 @@ export function cacheCreationSplit(usage: unknown): {
   const cc = u.cache_creation;
   if (cc && typeof cc === "object") {
     const c = cc as Record<string, unknown>;
-    return {
-      total,
-      fiveM: num(c.ephemeral_5m_input_tokens),
-      oneH: num(c.ephemeral_1h_input_tokens),
-    };
+    const fiveM = num(c.ephemeral_5m_input_tokens);
+    const oneH = num(c.ephemeral_1h_input_tokens);
+    if (fiveM + oneH === total) return { total, fiveM, oneH };
   }
   return { total, fiveM: total, oneH: 0 };
 }

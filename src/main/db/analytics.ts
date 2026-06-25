@@ -28,12 +28,12 @@ import { transaction, type SqliteDb } from "./driver";
  * That delete is the single exception to "never lose history on a bump": slice 2 re-keys an id-less
  * turn's surrogate from the parsed-row index to the absolute line number (so an incremental, mid-file
  * parse keys it the same way a full parse does), and the only coherent way to switch schemes is to let
- * the next scan rebuild `turns` from disk. It's a deliberate, related migration — not the unrelated
- * churn the durability rule guards against — and the chunked backfill repopulates within seconds.
+ * the next scan rebuild `turns` from disk. It's a deliberate, related migration (not the unrelated
+ * churn the durability rule guards against) and the chunked backfill repopulates within seconds.
  *
  * Critically the delete is scoped to exactly the v1 -> v2 step (`from === 1`), NOT every upgrade: it
  * must never re-run on a future bump, or a later schema change would silently re-wipe a v2+ user's
- * durable history — the precise durability violation this file guards against.
+ * durable history, the precise durability violation this file guards against.
  */
 const ANALYTICS_SCHEMA_VERSION = 3;
 
@@ -89,8 +89,12 @@ export function migrateAnalytics(db: SqliteDb): void {
     );
 
   // The v1 → v2 one-time wipe (id-less surrogate re-key), scoped to exactly `from === 1` so a later bump
-  // never re-wipes a v2+ user's durable history.
-  if (from === 1) db.exec("DELETE FROM turns");
+  // never re-wipes a v2+ user's durable history. Clear processed_files too so the next scan re-ingests
+  // everything rather than treating already-mtime-matched files as done.
+  if (from === 1) {
+    db.exec("DELETE FROM turns");
+    db.exec("DELETE FROM processed_files");
+  }
 
   // Upgrading a store that already held turns (v2+): seed the all-5m fallback so existing rows price their
   // cache writes immediately (5m + 1h == total holds), then clear the high-water marks so the next scan

@@ -16,7 +16,7 @@ import { PricingModal } from "./PricingModal";
 import { Icon } from "../../ui/icons";
 
 const TOKENS_INFO =
-  "This session's tokens by kind — fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes — with each kind's Equivalent API value. Cached tokens are replayed context, far cheaper than fresh input. Shows real spend instead when the account bills per API call.";
+  "This session's tokens by kind: fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes, each paired with its Equivalent API value. Cached tokens are replayed context, far cheaper than fresh input. Shows real spend instead when the account bills per API call.";
 
 const POPOVER =
   "absolute left-0 top-full z-20 mt-1 w-52 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-left text-[11px] leading-snug text-fg-muted shadow-lg";

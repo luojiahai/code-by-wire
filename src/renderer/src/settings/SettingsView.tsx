@@ -587,7 +587,7 @@ function PricingSection({
     <>
       <Header
         title="Pricing"
-        lede="The $/1M rates used to value usage. Edits apply everywhere — the session panels and the usage overview — including past sessions, since cost is computed from stored tokens at display time."
+        lede="The $/1M rates used to value usage. Edits apply to all views including past sessions, since cost is computed from stored tokens at display time."
       />
       <Card title="Model pricing">
         <div className="px-4 py-4">

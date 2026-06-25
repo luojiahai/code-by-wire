@@ -22,9 +22,9 @@ const COLUMNS: { field: keyof ModelPricing; label: string }[] = [
 const PRICING_DOCS = "https://platform.claude.com/docs/en/about-claude/pricing";
 
 /** The shared pricing table: one row per family, the five rate columns, each cell editable. An edited cell
- *  reads teal and exposes a reset ↺; "Reset all to defaults" clears every override. The editor is fully
- *  controlled by `overrides` — it calls `onChange` with the next full overrides object on every commit, and
- *  the caller persists. `highlightFamily` tints one model row (the session's model in the modal). */
+ *  reads teal and exposes a reset ↺; "Reset all to defaults" clears every override. Fully controlled by
+ *  `overrides`: calls `onChange` with the next full overrides object on every commit, and the caller
+ *  persists. `highlightFamily` tints one model row (the session's model in the modal). */
 export function PricingEditor({
   overrides,
   onChange,
@@ -151,7 +151,7 @@ function PriceCell({
   }, [value]);
   const commit = (): void => {
     const n = Number(text);
-    if (Number.isFinite(n) && n >= 0 && n !== value) onCommit(n);
+    if (Number.isFinite(n) && n > 0 && n !== value) onCommit(n);
     else setText(String(value));
   };
   return (
