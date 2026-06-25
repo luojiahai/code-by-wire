@@ -4,7 +4,7 @@ import type { UpdateControls } from "../settings/SoftwareUpdateCard";
 
 const INITIAL: UpdateState = {
   currentVersion: "",
-  phase: { kind: "idle" },
+  phase: { kind: "unsupported" },
 };
 
 /** Reads the initial update state + auto-check preference, subscribes to update-state pushes, and
