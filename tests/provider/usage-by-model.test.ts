@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, utimesSync } from "node:fs";
 import { join } from "node:path";
-import { summarize } from "../../src/main/provider/claude/discover";
+import {
+  summarize,
+  listCandidates,
+} from "../../src/main/provider/claude/discover";
 import type { SessionCandidate } from "@shared/types";
 import {
   extractTurns,
@@ -219,5 +222,41 @@ describe("reconciliation with the analytics scan", () => {
         m.usage.cacheCreationTokens;
       expect(overviewByRaw[m.modelRaw as string]).toBe(total);
     }
+  });
+});
+
+describe("listCandidates folds the subagents-dir mtime into the reparse trigger", () => {
+  it("a newer subagent file advances the candidate's transcriptMtimeMs", () => {
+    const home = makeHome();
+    const path = writeMain(home, "-work-proj", "sess-7", [
+      assistant("m1", "claude-opus-4-8", 10),
+    ]);
+    // Main transcript is older; the subagent file is newer.
+    const oldMs = 1_700_000_000_000;
+    const newMs = 1_700_000_500_000;
+    utimesSync(path, new Date(oldMs), new Date(oldMs));
+    writeSubagent(home, "-work-proj", "sess-7", "aaa", [
+      assistant("s1", "claude-sonnet-4-6", 5),
+    ]);
+    const subFile = join(
+      home,
+      "projects",
+      "-work-proj",
+      "sess-7",
+      "subagents",
+      "agent-aaa.jsonl",
+    );
+    utimesSync(subFile, new Date(newMs), new Date(newMs));
+
+    const cands = listCandidates({
+      claudeDir: home,
+      isPidAlive: () => false,
+      now: newMs + 1000,
+      recentWindowMs: 7 * 24 * 60 * 60 * 1000,
+    });
+    const c = cands.find((x) => x.id === "sess-7");
+    expect(c).toBeDefined();
+    // The trigger reflects the newer subagent mtime, not the older main transcript mtime.
+    expect(c!.transcriptMtimeMs).toBeCloseTo(newMs, -2);
   });
 });

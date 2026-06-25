@@ -7,6 +7,7 @@ import type {
 } from "@shared/types";
 import { normalizeModelId } from "@shared/models";
 import { usageByModelFor } from "./usage-by-model";
+import { subagentsDirFor, subagentsNewestMtime } from "./subagents";
 import { projectFromCwd } from "../../project-name";
 import {
   parseTranscript,
@@ -188,7 +189,14 @@ export function listCandidates({
       status: raw?.status,
       cwd: raw?.cwd ?? "",
       transcriptPath: t?.path,
-      transcriptMtimeMs: t?.mtimeMs ?? 0,
+      // The reparse trigger spans the main transcript AND its subagent transcripts: a subagent appends to
+      // its own file without touching the parent, so without folding its newest mtime here a subagent-only
+      // burst would leave usageByModel stale until the parent next moved. subagentsNewestMtime is a cheap
+      // readdir+stat (0 when there's no subagents dir), preserving the gentle-poll cost model; the expensive
+      // re-read happens only in summarize, only when this token advances. Mirrors readTranscript's token.
+      transcriptMtimeMs: t
+        ? Math.max(t.mtimeMs, subagentsNewestMtime(subagentsDirFor(t.path)))
+        : 0,
       updatedAt: raw?.updatedAt,
     });
   }
