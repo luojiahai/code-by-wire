@@ -31,9 +31,9 @@ mac:
     - target: dmg
 dmg:
   # Force ${arch} into the filename. electron-builder's default drops it for x64, so the Intel dmg
-  # would ship as ...-${version}.dmg with no arch label next to the ...-arm64.dmg — distinct enough
-  # not to clobber, but confusing for a four-target release. Make both arches explicit.
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  # would ship as Code-by-wire.dmg with no arch label next to Code-by-wire-arm64.dmg — distinct
+  # enough not to clobber, but confusing for a four-target release. Make both arches explicit.
+  artifactName: ${productName}-${arch}.${ext}
   title: ${productName} ${version}
 win:
   # icon.png is a hard-cornered full-bleed square so macOS Tahoe can mask it to a squircle; Windows
@@ -47,7 +47,7 @@ nsis:
   # sees the other and both fall back to the default ...-Setup-${version}.exe — identical names
   # that clobber each other on upload and collide in latest.yml (electron-updater can't tell the
   # arches apart). Force the arch into the filename so the two installers stay distinct.
-  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
+  artifactName: ${productName}-Setup-${arch}.${ext}
   oneClick: true
   perMachine: false
   deleteAppDataOnUninstall: false

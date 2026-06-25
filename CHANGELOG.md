@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-06-25
+
+### Changed
+
+- One-click downloads. Release artifacts are now stable-named, with the version dropped from the filenames (`Code-by-wire-arm64.dmg`, `Code-by-wire-Setup-x64.exe`, and so on), so GitHub's `releases/latest/download/...` URLs always resolve to the newest build. The README swaps its releases-page links for a Download table that links straight to each file, and the Chinese README tracks the same change.
+
 ## [0.1.15] - 2026-06-25
 
 ### Added
@@ -373,7 +379,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.15...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.16...HEAD
+[0.1.16]: https://github.com/luojiahai/code-by-wire/compare/v0.1.15...v0.1.16
 [0.1.15]: https://github.com/luojiahai/code-by-wire/compare/v0.1.14...v0.1.15
 [0.1.14]: https://github.com/luojiahai/code-by-wire/compare/v0.1.13...v0.1.14
 [0.1.13]: https://github.com/luojiahai/code-by-wire/compare/v0.1.12...v0.1.13
