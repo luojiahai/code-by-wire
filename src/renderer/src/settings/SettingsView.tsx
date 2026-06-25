@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import type { CliStatus } from "@shared/cli-status";
 import type { Account } from "@shared/types";
+import type { PricingOverrides } from "@shared/models";
 import { SoftwareUpdateCard, type UpdateControls } from "./SoftwareUpdateCard";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import { Icon } from "../ui/icons";
@@ -55,6 +56,8 @@ export function SettingsView({
   section: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   update?: UpdateControls;
+  pricingOverrides: PricingOverrides;
+  onPricingChange: (next: PricingOverrides) => void;
 }) {
   const cliDot = footerView(cliStatus).dot;
   const cliTrips = cliDot === "warn" || cliDot === "error";

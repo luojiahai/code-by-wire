@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Family, Usage } from "@shared/types";
-import { costBreakdown } from "@shared/models";
+import { costBreakdown, type PricingOverrides } from "@shared/models";
 import { formatUsd, formatTokensShort, costDisplay } from "@shared/format";
 import { StackedBar } from "../../ui/charts";
 import { Swatch } from "../../ui/atoms";
@@ -28,6 +28,8 @@ export function TokensPanel({
   liveCostUsd?: number;
   billingMode?: "subscription" | "api" | "unknown";
   anthropicDirect?: boolean;
+  pricingOverrides?: PricingOverrides;
+  onPricingChange?: (next: PricingOverrides) => void;
 }) {
   const { headline, total, rows, cacheSavings } = useMemo(() => {
     const b = costBreakdown(usage, model);
