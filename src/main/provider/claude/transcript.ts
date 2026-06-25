@@ -4,7 +4,7 @@ import { normalizeModelId, type Family } from "@shared/models";
 import type { Usage } from "@shared/types";
 import { contextTotal } from "@shared/context";
 import { promptLabel } from "./command-envelope";
-import { num, userText } from "./transcript-row";
+import { num, userText, cacheCreationSplit } from "./transcript-row";
 import { createTailTracker } from "./transcript-tail";
 
 export interface TranscriptSummary {
@@ -152,6 +152,8 @@ export function parseTranscript(
   let outputTokens = 0;
   let cacheReadTokens = 0;
   let cacheCreationTokens = 0;
+  let cacheCreation5mTokens = 0;
+  let cacheCreation1hTokens = 0;
   // Message ids whose usage we've already counted. Claude Code writes one assistant turn across
   // several JSONL lines (one per content block), each repeating the same id and usage; counting
   // per line would multiply the turn's tokens (2x-7x on real transcripts).
@@ -200,8 +202,11 @@ export function parseTranscript(
           if (id) countedTurns.add(id);
           inputTokens += num(usage.input_tokens);
           outputTokens += num(usage.output_tokens);
+          const split = cacheCreationSplit(usage);
           cacheReadTokens += num(usage.cache_read_input_tokens);
-          cacheCreationTokens += num(usage.cache_creation_input_tokens);
+          cacheCreationTokens += split.total;
+          cacheCreation5mTokens += split.fiveM;
+          cacheCreation1hTokens += split.oneH;
         }
       }
       // The waiting signal and current-context split come from the shared tail tracker, one derivation
@@ -264,7 +269,14 @@ export function parseTranscript(
     lastActivityMs,
     createdMs,
     awaitingUser: tail.awaitingUser,
-    usage: { inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens },
+    usage: {
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheCreationTokens,
+      cacheCreation5mTokens,
+      cacheCreation1hTokens,
+    },
     contextTokens: tail.context ? contextTotal(tail.context) : 0,
   };
 }

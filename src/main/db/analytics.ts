@@ -34,7 +34,7 @@ import { transaction, type SqliteDb } from "./driver";
  * must never re-run on a future bump, or a later schema change would silently re-wipe a v2+ user's
  * durable history — the precise durability violation this file guards against.
  */
-const ANALYTICS_SCHEMA_VERSION = 2;
+const ANALYTICS_SCHEMA_VERSION = 3;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -43,33 +43,67 @@ function userVersion(db: SqliteDb): number {
 
 export function migrateAnalytics(db: SqliteDb): void {
   const from = userVersion(db);
-  if (from < ANALYTICS_SCHEMA_VERSION) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS turns (
-        message_id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        ts INTEGER NOT NULL DEFAULT 0,
-        model_raw TEXT,
-        input_tokens INTEGER NOT NULL DEFAULT 0,
-        output_tokens INTEGER NOT NULL DEFAULT 0,
-        cache_read_tokens INTEGER NOT NULL DEFAULT 0,
-        cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
-        cwd TEXT NOT NULL DEFAULT '',
-        project TEXT NOT NULL DEFAULT '',
-        branch TEXT
-      );
-      CREATE INDEX IF NOT EXISTS turns_ts ON turns(ts);
-      CREATE INDEX IF NOT EXISTS turns_session ON turns(session_id);
-      CREATE INDEX IF NOT EXISTS turns_project ON turns(project);
-      CREATE TABLE IF NOT EXISTS processed_files (
-        path TEXT PRIMARY KEY,
-        mtime REAL NOT NULL,
-        lines INTEGER NOT NULL
-      );
-      ${from === 1 ? "DELETE FROM turns;" : ""}
-      PRAGMA user_version = ${ANALYTICS_SCHEMA_VERSION};
-    `);
+  if (from >= ANALYTICS_SCHEMA_VERSION) return;
+
+  // Fresh installs get the columns from CREATE; an existing turns table (v1/v2) keeps its rows and gets
+  // the columns via ALTER below — never DROP, per the durability rule.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS turns (
+      message_id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      ts INTEGER NOT NULL DEFAULT 0,
+      model_raw TEXT,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_creation_5m_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_creation_1h_tokens INTEGER NOT NULL DEFAULT 0,
+      cwd TEXT NOT NULL DEFAULT '',
+      project TEXT NOT NULL DEFAULT '',
+      branch TEXT
+    );
+    CREATE INDEX IF NOT EXISTS turns_ts ON turns(ts);
+    CREATE INDEX IF NOT EXISTS turns_session ON turns(session_id);
+    CREATE INDEX IF NOT EXISTS turns_project ON turns(project);
+    CREATE TABLE IF NOT EXISTS processed_files (
+      path TEXT PRIMARY KEY,
+      mtime REAL NOT NULL,
+      lines INTEGER NOT NULL
+    );
+  `);
+
+  // A pre-existing turns table from an older schema lacks the split columns; add them if missing. (A fresh
+  // install just made the table WITH them, so guard on table_info to avoid a duplicate-column error.)
+  const cols = (
+    db.prepare("PRAGMA table_info(turns)").all() as { name: string }[]
+  ).map((c) => c.name);
+  if (!cols.includes("cache_creation_5m_tokens"))
+    db.exec(
+      "ALTER TABLE turns ADD COLUMN cache_creation_5m_tokens INTEGER NOT NULL DEFAULT 0",
+    );
+  if (!cols.includes("cache_creation_1h_tokens"))
+    db.exec(
+      "ALTER TABLE turns ADD COLUMN cache_creation_1h_tokens INTEGER NOT NULL DEFAULT 0",
+    );
+
+  // The v1 → v2 one-time wipe (id-less surrogate re-key), scoped to exactly `from === 1` so a later bump
+  // never re-wipes a v2+ user's durable history.
+  if (from === 1) db.exec("DELETE FROM turns");
+
+  // Upgrading a store that already held turns (v2+): seed the all-5m fallback so existing rows price their
+  // cache writes immediately (5m + 1h == total holds), then clear the high-water marks so the next scan
+  // re-ingests live transcripts and backfills the REAL split to transcript-retention depth. Orphaned rows
+  // (their transcript gone) keep the all-5m fallback. Scoped to `from >= 2` so it never runs on the v1
+  // wipe (which already emptied turns) or a fresh install (no rows to seed).
+  if (from >= 2) {
+    db.exec(
+      "UPDATE turns SET cache_creation_5m_tokens = cache_creation_tokens WHERE cache_creation_5m_tokens = 0 AND cache_creation_1h_tokens = 0",
+    );
+    db.exec("DELETE FROM processed_files");
   }
+
+  db.exec(`PRAGMA user_version = ${ANALYTICS_SCHEMA_VERSION}`);
 }
 
 /**
@@ -90,9 +124,9 @@ export interface AnalyticsTurn {
 
 const UPSERT_TURN = `
   INSERT INTO turns
-    (message_id, session_id, ts, model_raw, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cwd, project, branch)
+    (message_id, session_id, ts, model_raw, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, cwd, project, branch)
   VALUES
-    (@message_id, @session_id, @ts, @model_raw, @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cwd, @project, @branch)
+    (@message_id, @session_id, @ts, @model_raw, @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @cwd, @project, @branch)
   ON CONFLICT(message_id) DO UPDATE SET
     session_id = excluded.session_id,
     ts = excluded.ts,
@@ -101,6 +135,8 @@ const UPSERT_TURN = `
     output_tokens = excluded.output_tokens,
     cache_read_tokens = excluded.cache_read_tokens,
     cache_creation_tokens = excluded.cache_creation_tokens,
+    cache_creation_5m_tokens = excluded.cache_creation_5m_tokens,
+    cache_creation_1h_tokens = excluded.cache_creation_1h_tokens,
     cwd = excluded.cwd,
     project = excluded.project,
     branch = excluded.branch
@@ -121,6 +157,8 @@ export function upsertTurns(db: SqliteDb, turns: AnalyticsTurn[]): void {
         output_tokens: t.usage.outputTokens,
         cache_read_tokens: t.usage.cacheReadTokens,
         cache_creation_tokens: t.usage.cacheCreationTokens,
+        cache_creation_5m_tokens: t.usage.cacheCreation5mTokens,
+        cache_creation_1h_tokens: t.usage.cacheCreation1hTokens,
         cwd: t.cwd,
         project: t.project,
         branch: t.branch ?? null,
@@ -190,6 +228,8 @@ interface ModelRow {
   output_tokens: number;
   cache_read_tokens: number;
   cache_creation_tokens: number;
+  cache_creation_5m_tokens: number;
+  cache_creation_1h_tokens: number;
 }
 
 /** All-zero totals, re-exported from the shared single source so the no-db fallback here and the
@@ -237,7 +277,9 @@ function groupByModel(db: SqliteDb, win: StatsWindow): ModelRow[] {
          COALESCE(SUM(input_tokens), 0) AS input_tokens,
          COALESCE(SUM(output_tokens), 0) AS output_tokens,
          COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
-         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
+         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
+         COALESCE(SUM(cache_creation_5m_tokens), 0) AS cache_creation_5m_tokens,
+         COALESCE(SUM(cache_creation_1h_tokens), 0) AS cache_creation_1h_tokens
        FROM turns ${where}
        GROUP BY model_raw`,
     )
@@ -256,6 +298,8 @@ function modelRowCostBreakdown(m: ModelRow): CostBreakdown | null {
       outputTokens: m.output_tokens,
       cacheReadTokens: m.cache_read_tokens,
       cacheCreationTokens: m.cache_creation_tokens,
+      cacheCreation5mTokens: m.cache_creation_5m_tokens,
+      cacheCreation1hTokens: m.cache_creation_1h_tokens,
     },
     normalizeModelId(raw),
   );
@@ -366,6 +410,8 @@ function foldModels(rows: ModelRow[]): StatsByModel[] {
         output_tokens: 0,
         cache_read_tokens: 0,
         cache_creation_tokens: 0,
+        cache_creation_5m_tokens: 0,
+        cache_creation_1h_tokens: 0,
       };
       map.set(r.model_raw, m);
     }
@@ -373,6 +419,8 @@ function foldModels(rows: ModelRow[]): StatsByModel[] {
     m.output_tokens += r.output_tokens;
     m.cache_read_tokens += r.cache_read_tokens;
     m.cache_creation_tokens += r.cache_creation_tokens;
+    m.cache_creation_5m_tokens += r.cache_creation_5m_tokens;
+    m.cache_creation_1h_tokens += r.cache_creation_1h_tokens;
   }
   return [...map.values()]
     .map((m): StatsByModel => {
@@ -429,7 +477,9 @@ function groupByDimsAndModel(
          COALESCE(SUM(input_tokens), 0) AS input_tokens,
          COALESCE(SUM(output_tokens), 0) AS output_tokens,
          COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
-         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
+         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
+         COALESCE(SUM(cache_creation_5m_tokens), 0) AS cache_creation_5m_tokens,
+         COALESCE(SUM(cache_creation_1h_tokens), 0) AS cache_creation_1h_tokens
        FROM turns ${where}
        GROUP BY ${cols}, model_raw`,
     )
@@ -618,7 +668,9 @@ function groupBySession(db: SqliteDb, win: StatsWindow): SessionModelRow[] {
          COALESCE(SUM(input_tokens), 0) AS input_tokens,
          COALESCE(SUM(output_tokens), 0) AS output_tokens,
          COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
-         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
+         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
+         COALESCE(SUM(cache_creation_5m_tokens), 0) AS cache_creation_5m_tokens,
+         COALESCE(SUM(cache_creation_1h_tokens), 0) AS cache_creation_1h_tokens
        FROM turns ${where}
        GROUP BY session_id, model_raw`,
     )
@@ -792,7 +844,9 @@ function groupByDayAndModel(db: SqliteDb, win: StatsWindow): DayModelRow[] {
          COALESCE(SUM(input_tokens), 0) AS input_tokens,
          COALESCE(SUM(output_tokens), 0) AS output_tokens,
          COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
-         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens
+         COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
+         COALESCE(SUM(cache_creation_5m_tokens), 0) AS cache_creation_5m_tokens,
+         COALESCE(SUM(cache_creation_1h_tokens), 0) AS cache_creation_1h_tokens
        FROM turns ${where}
        GROUP BY day, model_raw`,
     )

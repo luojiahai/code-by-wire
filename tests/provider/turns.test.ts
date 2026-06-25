@@ -128,6 +128,31 @@ describe("extractTurns", () => {
     expect(new Set(turns.map((t) => t.messageId)).size).toBe(2);
   });
 
+  it("splits cache-creation into 5m and 1h from the cache_creation sub-object", () => {
+    const jsonl = line({
+      type: "assistant",
+      cwd: "/w",
+      timestamp: "2026-06-09T03:00:00.000Z",
+      message: {
+        role: "assistant",
+        id: "msg-cc",
+        model: "claude-opus-4-8",
+        usage: {
+          input_tokens: 1,
+          cache_creation_input_tokens: 100,
+          cache_creation: {
+            ephemeral_5m_input_tokens: 60,
+            ephemeral_1h_input_tokens: 40,
+          },
+        },
+      },
+    });
+    const [t] = extractTurns(jsonl, "sess-1");
+    expect(t.usage.cacheCreationTokens).toBe(100);
+    expect(t.usage.cacheCreation5mTokens).toBe(60);
+    expect(t.usage.cacheCreation1hTokens).toBe(40);
+  });
+
   it("keys an id-less turn on its absolute line, stable across a full vs tail parse", () => {
     // Two id-less assistant turns on lines 0 and 1. Parsing the whole file and parsing only the tail
     // (line 1) with startLine=1 must yield the SAME surrogate for line 1 — that is what lets an

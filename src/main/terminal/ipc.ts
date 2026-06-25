@@ -47,6 +47,8 @@ function draftSession(id: string, cwd: string, model: Family): Session {
       outputTokens: 0,
       cacheReadTokens: 0,
       cacheCreationTokens: 0,
+      cacheCreation5mTokens: 0,
+      cacheCreation1hTokens: 0,
     },
     contextTokens: 0,
   });

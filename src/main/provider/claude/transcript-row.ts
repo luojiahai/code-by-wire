@@ -9,6 +9,34 @@ export function num(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }
 
+/** The cache-creation token split from an assistant `usage` block: the authoritative total
+ *  (`cache_creation_input_tokens`) divided into the 5-minute and 1-hour ephemeral buckets
+ *  (`cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_tokens`). When the `cache_creation`
+ *  sub-object is absent — older transcripts, non-Claude sources — the whole total is attributed to 5m, so
+ *  `fiveM + oneH === total` always holds. Lives here in the claude/ dir where no-unsafe-* is downgraded:
+ *  it consumes `any` transcript JSON by design. */
+export function cacheCreationSplit(usage: unknown): {
+  total: number;
+  fiveM: number;
+  oneH: number;
+} {
+  const u = (usage && typeof usage === "object" ? usage : {}) as Record<
+    string,
+    unknown
+  >;
+  const total = num(u.cache_creation_input_tokens);
+  const cc = u.cache_creation;
+  if (cc && typeof cc === "object") {
+    const c = cc as Record<string, unknown>;
+    return {
+      total,
+      fiveM: num(c.ephemeral_5m_input_tokens),
+      oneH: num(c.ephemeral_1h_input_tokens),
+    };
+  }
+  return { total, fiveM: total, oneH: 0 };
+}
+
 /** The input fields that name a tool call, most-telling first: a shell command, a file path, a search
  *  pattern, a URL, a query, a description. One list so the row's input summary and the modal's command
  *  bar can't disagree on which field identifies a tool. */

@@ -75,6 +75,8 @@ describe("summarize", () => {
       outputTokens: 50,
       cacheReadTokens: 10,
       cacheCreationTokens: 5,
+      cacheCreation5mTokens: 5,
+      cacheCreation1hTokens: 0,
     });
     expect(s.contextTokens).toBe(115); // input (100) + cache-read (10) + cache-creation (5)
   });

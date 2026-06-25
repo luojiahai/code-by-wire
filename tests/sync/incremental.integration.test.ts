@@ -126,6 +126,8 @@ describe("incremental sync (real provider, scratch SQLite)", () => {
       outputTokens: 1000,
       cacheReadTokens: 30000,
       cacheCreationTokens: 2000,
+      cacheCreation5mTokens: 2000,
+      cacheCreation1hTokens: 0,
     });
     expect(byId1["live"].contextWindow).toBe(200_000); // every family defaults to the standard 200K
     expect(byId1["live"].contextPct).toBe(41); // (50000 + 30000 + 2000) / 200000, rounded

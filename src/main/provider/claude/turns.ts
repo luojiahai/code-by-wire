@@ -1,6 +1,7 @@
 import type { AnalyticsTurn } from "../../db/analytics";
 import { projectFromCwd } from "../../project-name";
-import { num, parseJsonlRowsAt } from "./transcript-row";
+import { num, parseJsonlRowsAt, cacheCreationSplit } from "./transcript-row";
+import type { Usage } from "@shared/types";
 
 /** Claude injects '<synthetic>' assistant turns (cancelled / over-limit placeholders) that carry zero
  *  usage. Skipping the whole row here is a deliberate simplification: parseTranscript instead suppresses
@@ -52,12 +53,17 @@ export function extractTurns(
       // exclude ts=0 (no positive bound matches it) but all-time keeps it — see the note there.
       ts: Number.isNaN(tsMs) ? 0 : tsMs,
       modelRaw: typeof model === "string" ? model : undefined,
-      usage: {
-        inputTokens: num(usage.input_tokens),
-        outputTokens: num(usage.output_tokens),
-        cacheReadTokens: num(usage.cache_read_input_tokens),
-        cacheCreationTokens: num(usage.cache_creation_input_tokens),
-      },
+      usage: ((): Usage => {
+        const split = cacheCreationSplit(usage);
+        return {
+          inputTokens: num(usage.input_tokens),
+          outputTokens: num(usage.output_tokens),
+          cacheReadTokens: num(usage.cache_read_input_tokens),
+          cacheCreationTokens: split.total,
+          cacheCreation5mTokens: split.fiveM,
+          cacheCreation1hTokens: split.oneH,
+        };
+      })(),
       cwd,
       project: projectFromCwd(cwd),
       branch: typeof row.gitBranch === "string" ? row.gitBranch : undefined,

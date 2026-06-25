@@ -10,7 +10,12 @@ export interface Usage {
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
+  /** Authoritative cache-creation total (= 5m + 1h), from cache_creation_input_tokens. */
   cacheCreationTokens: number;
+  /** Tokens written into the 5-minute ephemeral cache. */
+  cacheCreation5mTokens: number;
+  /** Tokens written into the 1-hour ephemeral cache. */
+  cacheCreation1hTokens: number;
 }
 
 export interface Task {

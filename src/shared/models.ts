@@ -166,8 +166,8 @@ export function equivApiValue(
     (usage.inputTokens * p.input +
       usage.outputTokens * p.output +
       usage.cacheReadTokens * p.cacheRead +
-      // Task 2 splits this into 5m/1h; until then the whole cache-creation total is the 5m rate.
-      usage.cacheCreationTokens * p.cacheWrite5m) /
+      usage.cacheCreation5mTokens * p.cacheWrite5m +
+      usage.cacheCreation1hTokens * p.cacheWrite1h) /
     1_000_000
   );
 }
@@ -203,10 +203,10 @@ export function costBreakdown(
   const input = (usage.inputTokens * p.input) / 1_000_000;
   const output = (usage.outputTokens * p.output) / 1_000_000;
   const cacheRead = (usage.cacheReadTokens * p.cacheRead) / 1_000_000;
-  // Task 2 splits this off usage.cacheCreation5mTokens / cacheCreation1hTokens; until then the whole
-  // cache-creation total is priced at the 5m rate (so existing numbers are unchanged), 1h is 0.
-  const cacheWrite5m = (usage.cacheCreationTokens * p.cacheWrite5m) / 1_000_000;
-  const cacheWrite1h = 0;
+  const cacheWrite5m =
+    (usage.cacheCreation5mTokens * p.cacheWrite5m) / 1_000_000;
+  const cacheWrite1h =
+    (usage.cacheCreation1hTokens * p.cacheWrite1h) / 1_000_000;
   const cacheWrite = cacheWrite5m + cacheWrite1h;
   const cacheSavings =
     (usage.cacheReadTokens * (p.input - p.cacheRead)) / 1_000_000;

@@ -35,6 +35,8 @@ const snapOf = (c: SessionCandidate): PersistedSession => ({
     outputTokens: 0,
     cacheReadTokens: 0,
     cacheCreationTokens: 0,
+    cacheCreation5mTokens: 0,
+    cacheCreation1hTokens: 0,
   },
   contextTokens: 0,
 });

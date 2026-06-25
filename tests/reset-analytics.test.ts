@@ -55,6 +55,8 @@ const turn = (over: Partial<AnalyticsTurn> = {}): AnalyticsTurn => ({
     outputTokens: 0,
     cacheReadTokens: 0,
     cacheCreationTokens: 0,
+    cacheCreation5mTokens: 0,
+    cacheCreation1hTokens: 0,
   },
   cwd: "/work/proj",
   project: "proj",

@@ -9,7 +9,7 @@ import { isResumable } from "@shared/resumable";
 import { transaction, type SqliteDb } from "./driver";
 
 /** Bump when the schema changes; `migrate` rebuilds the index (a disposable cache) to match. */
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -42,6 +42,8 @@ export function migrate(db: SqliteDb): void {
         output_tokens INTEGER NOT NULL DEFAULT 0,
         cache_read_tokens INTEGER NOT NULL DEFAULT 0,
         cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_creation_5m_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_creation_1h_tokens INTEGER NOT NULL DEFAULT 0,
         context_tokens INTEGER NOT NULL DEFAULT 0
       );
       PRAGMA user_version = ${SCHEMA_VERSION};
@@ -66,6 +68,8 @@ interface Row {
   output_tokens: number;
   cache_read_tokens: number;
   cache_creation_tokens: number;
+  cache_creation_5m_tokens: number;
+  cache_creation_1h_tokens: number;
   context_tokens: number;
 }
 
@@ -88,6 +92,8 @@ function rowToPersisted(r: Row): PersistedSession {
       outputTokens: r.output_tokens,
       cacheReadTokens: r.cache_read_tokens,
       cacheCreationTokens: r.cache_creation_tokens,
+      cacheCreation5mTokens: r.cache_creation_5m_tokens,
+      cacheCreation1hTokens: r.cache_creation_1h_tokens,
     },
     contextTokens: r.context_tokens,
   };
@@ -129,10 +135,10 @@ export function hydrate(p: PersistedSession): Session {
 const UPSERT = `
   INSERT INTO sessions
     (id, title, project, branch, state, management, model, model_raw, last_activity_ms, created_ms, awaiting_user, transcript_mtime_ms,
-     input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, context_tokens)
+     input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, context_tokens)
   VALUES
     (@id, @title, @project, @branch, @state, @management, @model, @model_raw, @last_activity_ms, @created_ms, @awaiting_user, @transcript_mtime_ms,
-     @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @context_tokens)
+     @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @context_tokens)
   ON CONFLICT(id) DO UPDATE SET
     title = excluded.title,
     project = excluded.project,
@@ -153,6 +159,8 @@ const UPSERT = `
     output_tokens = excluded.output_tokens,
     cache_read_tokens = excluded.cache_read_tokens,
     cache_creation_tokens = excluded.cache_creation_tokens,
+    cache_creation_5m_tokens = excluded.cache_creation_5m_tokens,
+    cache_creation_1h_tokens = excluded.cache_creation_1h_tokens,
     context_tokens = excluded.context_tokens
 `;
 
@@ -185,6 +193,8 @@ export function upsertSessions(
         output_tokens: s.usage.outputTokens,
         cache_read_tokens: s.usage.cacheReadTokens,
         cache_creation_tokens: s.usage.cacheCreationTokens,
+        cache_creation_5m_tokens: s.usage.cacheCreation5mTokens,
+        cache_creation_1h_tokens: s.usage.cacheCreation1hTokens,
         context_tokens: s.contextTokens,
       });
     }

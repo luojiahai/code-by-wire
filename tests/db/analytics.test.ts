@@ -19,33 +19,35 @@ import {
   clearAnalytics,
 } from "../../src/main/db/analytics";
 import { openTestDb } from "../helpers/sqlite";
+import { usage as mkUsage } from "../helpers/usage";
+import type { Usage } from "@shared/types";
 
-const turn = (over: Partial<AnalyticsTurn> = {}): AnalyticsTurn => ({
-  messageId: "msg-1",
-  sessionId: "sess-1",
-  ts: 1000,
-  modelRaw: "claude-opus-4-8",
-  usage: {
-    inputTokens: 0,
-    outputTokens: 0,
-    cacheReadTokens: 0,
-    cacheCreationTokens: 0,
-  },
-  cwd: "/work/code-by-wire",
-  project: "code-by-wire",
-  branch: "main",
-  ...over,
-});
+const turn = (
+  over: Partial<Omit<AnalyticsTurn, "usage">> & { usage?: Partial<Usage> } = {},
+): AnalyticsTurn => {
+  const { usage, ...rest } = over;
+  return {
+    messageId: "msg-1",
+    sessionId: "sess-1",
+    ts: 1000,
+    modelRaw: "claude-opus-4-8",
+    usage: mkUsage(usage),
+    cwd: "/work/code-by-wire",
+    project: "code-by-wire",
+    branch: "main",
+    ...rest,
+  };
+};
 
 describe("analytics store", () => {
-  it("migrates to schema v2 and is idempotent", () => {
+  it("migrates to schema v3 and is idempotent", () => {
     const db = openTestDb();
     migrateAnalytics(db);
     migrateAnalytics(db); // second call is a no-op, not an error
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(2);
+    ).toBe(3);
   });
 
   it("creates processed_files and round-trips a high-water mark", () => {
@@ -68,7 +70,7 @@ describe("analytics store", () => {
     migrateAnalytics(db);
     upsertTurns(db, [turn()]);
     upsertProcessedFile(db, "/a.jsonl", 1, 1);
-    migrateAnalytics(db); // already at v2 → the guard skips the block; nothing is wiped
+    migrateAnalytics(db); // already at v3 → the guard skips the block; nothing is wiped
     expect(readTotals(db).turns).toBe(1);
     expect(readProcessedFiles(db).get("/a.jsonl")).toEqual({
       mtime: 1,
@@ -88,16 +90,25 @@ describe("analytics store", () => {
       );
       PRAGMA user_version = 1;
     `);
-    upsertTurns(db, [turn()]);
-    expect(readTotals(db).turns).toBe(1);
+    // Insert via raw SQL matching the old 11-column schema — upsertTurns now binds the new columns
+    // that the manually-created old table lacks, so it would fail.
+    db.exec(
+      `INSERT INTO turns (message_id, session_id, ts, model_raw, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cwd, project, branch)
+       VALUES ('msg-1','sess-1',1000,'claude-opus-4-8',0,0,0,0,'/work/code-by-wire','code-by-wire','main')`,
+    );
+    // Verify the row landed using a direct count (not readTotals — the new query references columns the
+    // pre-migration table lacks).
+    expect(
+      (db.prepare("SELECT COUNT(*) AS n FROM turns").get() as { n: number }).n,
+    ).toBe(1);
 
-    migrateAnalytics(db); // 1 → 2: clears turns so the next scan rebuilds under the new surrogate scheme
+    migrateAnalytics(db); // 1 → 3: clears turns so the next scan rebuilds under the new surrogate scheme
     expect(readTotals(db).turns).toBe(0);
     expect(readProcessedFiles(db).size).toBe(0); // new table exists and is empty
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(2);
+    ).toBe(3);
   });
 
   it("only clears turns on the v1 → v2 step, never on another upgrade (no future-bump re-wipe)", () => {
@@ -114,14 +125,19 @@ describe("analytics store", () => {
       );
       PRAGMA user_version = 0;
     `);
-    upsertTurns(db, [turn()]);
+    // Insert via raw SQL matching the old 11-column schema — upsertTurns now binds the new columns
+    // that the manually-created old table lacks, so it would fail.
+    db.exec(
+      `INSERT INTO turns (message_id, session_id, ts, model_raw, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cwd, project, branch)
+       VALUES ('msg-1','sess-1',1000,'claude-opus-4-8',0,0,0,0,'/work/code-by-wire','code-by-wire','main')`,
+    );
 
-    migrateAnalytics(db); // enters the block (0 < 2) but `from !== 1`, so turns survive
+    migrateAnalytics(db); // enters the block (0 < 3) but `from !== 1`, so turns survive
     expect(readTotals(db).turns).toBe(1);
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(2);
+    ).toBe(3);
   });
 
   it("returns zeroed totals for an empty store", () => {
@@ -396,6 +412,25 @@ describe("analytics store", () => {
     expect(t.turns).toBe(2);
     expect(t.inputTokens).toBe(2_000_000); // unknown model's tokens still counted
     expect(t.equivApiValueUsd).toBeCloseTo(3); // only sonnet ($3/M); the unknown adds nothing
+  });
+
+  it("prices 5m and 1h cache writes at distinct rates and carries both columns", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    // opus: cacheWrite5m $6.25/M, cacheWrite1h $10/M. 1M of each → $6.25 + $10 = $16.25.
+    upsertTurns(db, [
+      turn({
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          cacheCreationTokens: 2_000_000,
+          cacheCreation5mTokens: 1_000_000,
+          cacheCreation1hTokens: 1_000_000,
+        },
+      }),
+    ]);
+    const t = readTotals(db);
+    expect(t.cacheCreationTokens).toBe(2_000_000); // total column intact
+    expect(t.equivApiValueUsd).toBeCloseTo(16.25); // 5m + 1h priced apart
   });
 });
 

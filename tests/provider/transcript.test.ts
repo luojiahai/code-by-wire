@@ -32,6 +32,8 @@ describe("parseTranscript", () => {
       outputTokens: 50,
       cacheReadTokens: 10,
       cacheCreationTokens: 5,
+      cacheCreation5mTokens: 5,
+      cacheCreation1hTokens: 0,
     });
     expect(s.contextTokens).toBe(115); // latest turn: input (100) + cache-read (10) + cache-creation (5)
   });
@@ -328,6 +330,8 @@ describe("parseTranscript", () => {
       outputTokens: 500,
       cacheReadTokens: 14000,
       cacheCreationTokens: 1200,
+      cacheCreation5mTokens: 1200,
+      cacheCreation1hTokens: 0,
     });
     expect(s.contextTokens).toBe(10900); // latest turn only: 1500 + 9000 + 400, not the running sum
   });
@@ -357,6 +361,8 @@ describe("parseTranscript", () => {
       outputTokens: 0,
       cacheReadTokens: 0,
       cacheCreationTokens: 0,
+      cacheCreation5mTokens: 0,
+      cacheCreation1hTokens: 0,
     });
     expect(s.contextTokens).toBe(0);
   });
@@ -408,6 +414,8 @@ describe("parseTranscript", () => {
       outputTokens: 500,
       cacheReadTokens: 14000,
       cacheCreationTokens: 1200,
+      cacheCreation5mTokens: 1200,
+      cacheCreation1hTokens: 0,
     });
     expect(s.contextTokens).toBe(10900); // latest turn (msg_2): 1500 + 9000 + 400
   });
@@ -535,6 +543,8 @@ describe("parseTranscript", () => {
       outputTokens: 100,
       cacheReadTokens: 60000,
       cacheCreationTokens: 2000,
+      cacheCreation5mTokens: 2000,
+      cacheCreation1hTokens: 0,
     });
   });
 

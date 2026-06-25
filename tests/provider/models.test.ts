@@ -75,6 +75,8 @@ describe("equivApiValue", () => {
     outputTokens: 0,
     cacheReadTokens: 0,
     cacheCreationTokens: 0,
+    cacheCreation5mTokens: 0,
+    cacheCreation1hTokens: 0,
     ...over,
   });
 
@@ -91,13 +93,14 @@ describe("equivApiValue", () => {
       equivApiValue(usage({ cacheReadTokens: 1_000_000 }), "opus"),
     ).toBeCloseTo(0.5);
 
-    // Mixed, opus: 100k in, 20k out, 400k cache-read, 10k cache-write.
+    // Mixed, opus: 100k in, 20k out, 400k cache-read, 10k cache-write (all at 5m rate).
     // (100000*5 + 20000*25 + 400000*0.5 + 10000*6.25) / 1e6 = 1.2625
     const mixed = usage({
       inputTokens: 100_000,
       outputTokens: 20_000,
       cacheReadTokens: 400_000,
       cacheCreationTokens: 10_000,
+      cacheCreation5mTokens: 10_000,
     });
     expect(equivApiValue(mixed, "opus")).toBeCloseTo(1.2625);
   });
@@ -109,6 +112,8 @@ describe("costBreakdown", () => {
     outputTokens: 0,
     cacheReadTokens: 0,
     cacheCreationTokens: 0,
+    cacheCreation5mTokens: 0,
+    cacheCreation1hTokens: 0,
     ...over,
   });
 

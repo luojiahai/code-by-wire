@@ -28,6 +28,8 @@ const snap = (over: Partial<PersistedSession> = {}): PersistedSession => ({
     outputTokens: 0,
     cacheReadTokens: 0,
     cacheCreationTokens: 0,
+    cacheCreation5mTokens: 0,
+    cacheCreation1hTokens: 0,
   },
   contextTokens: 0,
   ...over,
@@ -41,7 +43,7 @@ describe("store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(5);
+    ).toBe(6);
   });
 
   it("round-trips a snapshot, coercing missing branch and the awaitingUser flag", () => {
@@ -56,6 +58,8 @@ describe("store", () => {
         outputTokens: 8,
         cacheReadTokens: 9,
         cacheCreationTokens: 10,
+        cacheCreation5mTokens: 10,
+        cacheCreation1hTokens: 0,
       },
       contextTokens: 11,
     });
@@ -83,6 +87,8 @@ describe("store", () => {
       outputTokens: 0,
       cacheReadTokens: 0,
       cacheCreationTokens: 0,
+      cacheCreation5mTokens: 0,
+      cacheCreation1hTokens: 0,
     });
     expect(s.equivApiValueUsd).toBe(0);
     expect(s.model).toBe("sonnet");
@@ -98,6 +104,8 @@ describe("store", () => {
           outputTokens: 20_000,
           cacheReadTokens: 400_000,
           cacheCreationTokens: 10_000,
+          cacheCreation5mTokens: 10_000,
+          cacheCreation1hTokens: 0,
         },
         contextTokens: 100_000,
       }),
