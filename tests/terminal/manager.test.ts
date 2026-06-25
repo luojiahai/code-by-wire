@@ -64,6 +64,7 @@ function recorderFactory() {
     writes: string[];
     resizes: Array<[number, number]>;
     disposed: boolean;
+    wroteAfterDispose: boolean;
   }> = [];
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const create = (_o: { cols: number; rows: number }) => {
@@ -71,10 +72,14 @@ function recorderFactory() {
       writes: [] as string[],
       resizes: [] as Array<[number, number]>,
       disposed: false,
+      wroteAfterDispose: false, // flags a write that lands after dispose (the hazard #11 guards against)
     };
     made.push(rec);
     return {
-      write: (d: string) => rec.writes.push(d),
+      write: (d: string) => {
+        if (rec.disposed) rec.wroteAfterDispose = true;
+        rec.writes.push(d);
+      },
       resize: (c: number, r: number) => rec.resizes.push([c, r]),
       snapshot: () => {
         const data = `SNAP:${rec.writes.join("")}`;
@@ -88,7 +93,16 @@ function recorderFactory() {
   return { create, made };
 }
 
-function harness(over: { statDir?: (cwd: string) => boolean } = {}) {
+function harness(
+  over: {
+    statDir?: (cwd: string) => boolean;
+    createBufferer?: (flush: (d: string) => void) => {
+      add: (d: string) => void;
+      flush: () => void;
+      dispose: () => void;
+    };
+  } = {},
+) {
   const ptys: ReturnType<typeof fakePty>[] = [];
   const recorders = recorderFactory();
   const sent: Array<[string, string]> = [];
@@ -117,7 +131,7 @@ function harness(over: { statDir?: (cwd: string) => boolean } = {}) {
       ptys.push(f);
       return f.proc;
     },
-    createBufferer: passthroughBufferer,
+    createBufferer: over.createBufferer ?? passthroughBufferer,
     createRecorder: recorders.create,
     env: () => ({ PATH: "/usr/bin" }),
     statDir: over.statDir ?? (() => true),
@@ -380,6 +394,36 @@ describe("createTerminalManager", () => {
     expect(h.recorders.made[0].writes).toEqual(["hello"]);
   });
 
+  it("feeds the recorder the coalesced batch, not each raw chunk, and drains it before snapshotting", async () => {
+    // A bufferer that holds output until flush() is called, so we can tell whether the recorder is fed
+    // per raw pty chunk (the old behavior — one full xterm write per chunk during a flood) or the
+    // coalesced batch, and whether snapshot drains the batch first.
+    const manualBufferer = (flush: (d: string) => void) => {
+      let buf = "";
+      return {
+        add: (d: string) => {
+          buf += d;
+        },
+        flush: () => {
+          if (buf) {
+            flush(buf);
+            buf = "";
+          }
+        },
+        dispose: () => {},
+      };
+    };
+    const h = harness({ createBufferer: manualBufferer });
+    h.manager.spawn(REQ);
+    h.ptys[0].emitData("ab");
+    h.ptys[0].emitData("cd");
+    expect(h.recorders.made[0].writes).toEqual([]); // held in the bufferer — not written per raw chunk
+
+    const snap = await h.manager.snapshot("sess-1");
+    expect(h.recorders.made[0].writes).toEqual(["abcd"]); // one coalesced write, drained before serialize
+    expect(snap).toEqual({ data: "SNAP:abcd", offset: 4 });
+  });
+
   it("resizes the recorder so its serialized frame matches the pty grid", () => {
     const h = harness();
     h.manager.spawn(REQ);
@@ -399,6 +443,24 @@ describe("createTerminalManager", () => {
     h.manager.spawn(REQ);
     h.manager.disposeAll();
     expect(h.recorders.made[0].disposed).toBe(true);
+  });
+
+  it("disposeAll kills the pty before disposing its sinks, so a final flush never hits a disposed recorder", () => {
+    const h = harness();
+    h.manager.spawn(REQ);
+    // A pty can emit one last chunk synchronously as it's killed; route it through the manager's onData.
+    const pty = h.ptys[0];
+    pty.proc.kill = () => {
+      pty.state.killed = true;
+      pty.emitData("tail");
+    };
+
+    h.manager.disposeAll();
+
+    expect(pty.state.killed).toBe(true);
+    expect(h.recorders.made[0].disposed).toBe(true);
+    expect(h.recorders.made[0].wroteAfterDispose).toBe(false); // killed before the recorder was disposed
+    expect(h.recorders.made[0].writes).toContain("tail"); // and the final chunk still reached it
   });
 
   it("snapshot returns the recorder's serialization and offset for a live id", async () => {

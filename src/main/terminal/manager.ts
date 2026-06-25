@@ -184,6 +184,10 @@ export function createTerminalManager(
     // It also advances `term.out` and stamps each chunk with that cumulative end offset, matching the
     // recorder's `written` scale so the renderer can dedupe a reattach snapshot against in-flight output.
     const bufferer = createBufferer((data) => {
+      // Feed the recorder the COALESCED batch here, not each raw onData chunk: that's one full xterm parse
+      // per ~5ms window instead of thousands of tiny writes into a second emulator during a flood. The
+      // snapshot drains the bufferer first (see `snapshot`), so it never misses output still in the batch.
+      term.recorder.write(data);
       term.out += data.length;
       deps.send(term.id, data, term.out);
     });
@@ -205,8 +209,7 @@ export function createTerminalManager(
         term.paused = true;
         pty.pause();
       }
-      term.recorder.write(data);
-      bufferer.add(data);
+      bufferer.add(data); // coalesced, then fed to BOTH the recorder and the renderer in the flush above
     });
 
     pty.onExit(({ exitCode }) => {
@@ -298,7 +301,11 @@ export function createTerminalManager(
     ack,
     snapshot: async (id) => {
       const term = terms.get(id);
-      return term ? await term.recorder.snapshot() : null;
+      if (!term) return null;
+      // Drain any batched-but-unflushed output into the recorder (and the renderer) first — the recorder
+      // is fed from the bufferer flush now, so without this the snapshot would miss the last <5ms of output.
+      term.bufferer.flush();
+      return term.recorder.snapshot();
     },
     // We kill the pty synchronously here and in disposeAll — on Windows too, unlike VSCode, which defers
     // an immediate kill on Windows to dodge a ConPTY hang. VSCode can afford the deferral because its
@@ -310,10 +317,13 @@ export function createTerminalManager(
     kill: (id) => terms.get(id)?.pty.kill(),
     disposeAll: () => {
       for (const [id, term] of terms) {
-        term.bufferer.dispose();
-        term.recorder.dispose();
+        // Order matters: delete first so the kill's onExit early-returns (no double dispose), then kill,
+        // THEN dispose the sinks. A pty can flush a final onData synchronously as it's killed, and that
+        // chunk routes through the bufferer into the recorder — both must still be alive when it lands.
         terms.delete(id);
         term.pty.kill();
+        term.bufferer.dispose();
+        term.recorder.dispose();
         deps.onClosed(id); // window closing → the pty dies, so drop its Managed label too
       }
       terms.clear();
