@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import type { CliStatus } from "@shared/cli-status";
 import type { Account } from "@shared/types";
 import type { PricingOverrides } from "@shared/models";
+import { PricingEditor } from "./PricingEditor";
 import { SoftwareUpdateCard, type UpdateControls } from "./SoftwareUpdateCard";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import { Icon } from "../ui/icons";
@@ -14,12 +15,18 @@ import { RateBar } from "../ui/charts";
 import { ctxColor } from "../ui/meta";
 import { remediesFor, INSTALL_TABS } from "../ui/cli-remedies";
 
-export type SettingsSection = "system" | "account" | "appearance" | "about";
+export type SettingsSection =
+  | "system"
+  | "account"
+  | "appearance"
+  | "pricing"
+  | "about";
 
 const NAV: { key: SettingsSection; label: string; icon: IconName }[] = [
   { key: "system", label: "System", icon: "monitor" },
   { key: "account", label: "Account", icon: "circle-user" },
   { key: "appearance", label: "Appearance", icon: "palette" },
+  { key: "pricing", label: "Pricing", icon: "circle-dollar-sign" },
   { key: "about", label: "About", icon: "info" },
 ];
 
@@ -47,6 +54,8 @@ export function SettingsView({
   section,
   onSectionChange,
   update,
+  pricingOverrides,
+  onPricingChange,
 }: {
   cliStatus: CliStatus | null;
   account: Account | null;
@@ -123,6 +132,12 @@ export function SettingsView({
           )}
           {section === "account" && <AccountSection account={account} />}
           {section === "appearance" && <AppearanceSection />}
+          {section === "pricing" && (
+            <PricingSection
+              overrides={pricingOverrides}
+              onChange={onPricingChange}
+            />
+          )}
           {section === "about" && <AboutSection update={update} />}
         </div>
       </OverlayScroll>
@@ -557,6 +572,28 @@ function AccountSection({ account }: { account: Account | null }) {
           </Row>
         </Card>
       )}
+    </>
+  );
+}
+
+function PricingSection({
+  overrides,
+  onChange,
+}: {
+  overrides: PricingOverrides;
+  onChange: (next: PricingOverrides) => void;
+}) {
+  return (
+    <>
+      <Header
+        title="Pricing"
+        lede="The $/1M rates used to value usage. Edits apply everywhere — the session panels and the usage overview — including past sessions, since cost is computed from stored tokens at display time."
+      />
+      <Card title="Model pricing">
+        <div className="px-4 py-4">
+          <PricingEditor overrides={overrides} onChange={onChange} />
+        </div>
+      </Card>
     </>
   );
 }
