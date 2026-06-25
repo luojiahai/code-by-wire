@@ -27,7 +27,7 @@ const baseDeps = {
   createRecorder: () => ({
     write: vi.fn(),
     resize: vi.fn(),
-    snapshot: () => Promise.resolve(""),
+    snapshot: () => Promise.resolve({ data: "", offset: 0 }),
     dispose: vi.fn(),
   }),
 };

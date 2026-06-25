@@ -1,5 +1,5 @@
 import type { Family } from "@shared/models";
-import { FLOW } from "@shared/terminal";
+import { FLOW, type ReattachSnapshot } from "@shared/terminal";
 import {
   buildClaudeCommand,
   buildResumeCommand,
@@ -23,6 +23,10 @@ interface Term {
   recorder: Recorder;
   /** Chars sent to the renderer but not yet acked — the flow-control credit. */
   unacked: number;
+  /** Cumulative output chars sent to the renderer — stamped on each chunk as its end offset so a
+   *  reattaching renderer can dedupe the snapshot against in-flight output. Same scale as the recorder's
+   *  `written` (both count the identical stream), so the snapshot offset and chunk offsets are comparable. */
+  out: number;
   paused: boolean;
 }
 
@@ -61,8 +65,9 @@ export interface ForkSpawn {
 }
 
 export interface TerminalManagerDeps {
-  /** Push a batched output chunk for `id` to the renderer. */
-  send: (id: string, data: string) => void;
+  /** Push a batched output chunk for `id` to the renderer. `offset` is the cumulative count of output
+   *  chars through the end of this chunk, so a reattaching renderer can dedupe a snapshot against it. */
+  send: (id: string, data: string, offset: number) => void;
   /** Tell the renderer a session's process exited. */
   notifyExit: (id: string, exitCode: number) => void;
   /** Record `id` as Managed (the registry's `add`), anchored to its pty's `pid`, so discovery labels it
@@ -109,8 +114,9 @@ export interface TerminalManager {
   kill(id: string): void;
   /** Kill every pty (window closed / app quit) — Managed sessions don't outlive the app. */
   disposeAll(): void;
-  /** Serialize the current screen for `id` (for replay after a window refresh), or null if no live pty. */
-  snapshot(id: string): Promise<string | null>;
+  /** Serialize the current screen for `id` (for replay after a window refresh) with the output offset it
+   *  covers, or null if no live pty. */
+  snapshot(id: string): Promise<ReattachSnapshot | null>;
 }
 
 /**
@@ -146,10 +152,10 @@ export function createTerminalManager(
       // onSpawned never fires and the session is never labelled Managed. Both spawn and adopt funnel
       // through start(), so this guard covers adopt too; its IPC handler has already returned { ok: true },
       // so the message and exit supersede the optimistic "adopting" state.
-      deps.send(
-        id,
-        `\r\n\x1b[31mStarting directory does not exist: ${cwd}\x1b[0m\r\n`,
-      );
+      // No pty/recorder for a failed spawn, so there's no reattach to dedupe against — the offset just
+      // counts this lone message from zero.
+      const msg = `\r\n\x1b[31mStarting directory does not exist: ${cwd}\x1b[0m\r\n`;
+      deps.send(id, msg, msg.length);
       deps.notifyExit(id, 1);
       return;
     }
@@ -175,7 +181,12 @@ export function createTerminalManager(
     });
     // The flush reads `term.id`, not the captured `id`, so a rename re-points output without rewiring the
     // bufferer. Safe to reference `term` before its declaration: the closure only runs once data flows.
-    const bufferer = createBufferer((data) => deps.send(term.id, data));
+    // It also advances `term.out` and stamps each chunk with that cumulative end offset, matching the
+    // recorder's `written` scale so the renderer can dedupe a reattach snapshot against in-flight output.
+    const bufferer = createBufferer((data) => {
+      term.out += data.length;
+      deps.send(term.id, data, term.out);
+    });
     const recorder = deps.createRecorder({ cols, rows });
     const term: Term = {
       id,
@@ -183,6 +194,7 @@ export function createTerminalManager(
       bufferer,
       recorder,
       unacked: 0,
+      out: 0,
       paused: false,
     };
     terms.set(id, term);

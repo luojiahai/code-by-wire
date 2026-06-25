@@ -14,6 +14,7 @@ import {
   type AdoptResult,
   type ForkRequest,
   type ForkResult,
+  type ReattachSnapshot,
 } from "@shared/terminal";
 import { hydrate } from "../db/store";
 import { projectFromCwd } from "../project-name";
@@ -76,9 +77,9 @@ export function registerTerminalIpc({
   resolveBin?: () => string | null;
 }): { rename: (from: string, to: string) => void } {
   const manager = createTerminalManager({
-    send: (id, data) => {
+    send: (id, data, offset) => {
       if (!window.isDestroyed())
-        window.webContents.send(TERMINAL.data, id, data);
+        window.webContents.send(TERMINAL.data, id, data, offset);
     },
     notifyExit: (id, code) => {
       if (!window.isDestroyed())
@@ -171,7 +172,7 @@ export function registerTerminalIpc({
       id: string,
       cols: number,
       rows: number,
-    ): Promise<string | null> => {
+    ): Promise<ReattachSnapshot | null> => {
       manager.resize(id, cols, rows); // size pty + recorder to the renderer's grid before serializing
       return manager.snapshot(id);
     },

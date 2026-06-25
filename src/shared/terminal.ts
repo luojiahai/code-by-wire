@@ -50,6 +50,17 @@ export function newSessionId(): string {
   return crypto.randomUUID();
 }
 
+/**
+ * A screen snapshot for replay after a window refresh. `offset` is the cumulative count of output chars
+ * the snapshot already reflects (its position in the session's output stream). The renderer uses it to
+ * drop the queued live chunks the snapshot already contains, so reattach doesn't render them twice — see
+ * `TerminalApi.onData`, whose per-chunk offset is measured on the same stream.
+ */
+export interface ReattachSnapshot {
+  data: string;
+  offset: number;
+}
+
 export interface SpawnRequest {
   /** The pinned session id, minted by the caller so the renderer can stand up its terminal first. */
   id: string;
@@ -121,14 +132,20 @@ export interface TerminalApi {
   ack(id: string, charCount: number): void;
   kill(id: string): void;
   /** After a window refresh, fetch the current screen for a still-live managed session so the renderer
-   *  can replay it into its fresh xterm. Resolves to the serialized screen, or null if no live pty exists
-   *  for `id` (e.g. the session ended). Resizes the live pty + recorder to (cols, rows) first so the
-   *  serialized frame matches the renderer's grid. */
-  reattach(id: string, cols: number, rows: number): Promise<string | null>;
+   *  can replay it into its fresh xterm. Resolves to the serialized screen plus the output offset it
+   *  covers, or null if no live pty exists for `id` (e.g. the session ended). Resizes the live pty +
+   *  recorder to (cols, rows) first so the serialized frame matches the renderer's grid. */
+  reattach(
+    id: string,
+    cols: number,
+    rows: number,
+  ): Promise<ReattachSnapshot | null>;
   /** Open a native directory picker; resolves to the chosen path, or null if cancelled. */
   pickDirectory(): Promise<string | null>;
-  /** Subscribe to batched output for ANY Managed session (the chunk carries its id). Returns unsubscribe. */
-  onData(cb: (id: string, data: string) => void): () => void;
+  /** Subscribe to batched output for ANY Managed session. The chunk carries its id and `offset`, the
+   *  cumulative count of output chars through the end of this chunk — the renderer uses it to dedupe a
+   *  reattach snapshot against in-flight output. Returns unsubscribe. */
+  onData(cb: (id: string, data: string, offset: number) => void): () => void;
   /** Subscribe to process-exit for ANY Managed session. Returns unsubscribe. */
   onExit(cb: (id: string, exitCode: number) => void): () => void;
   /** Subscribe to a session-id rotation (a `/clear`): the live pty moved from `from` to `to`. The

@@ -13,10 +13,10 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const isNewHandle = !terminalStore.get(sessionId);
     // replayOnCreate only takes effect when create actually makes a NEW handle. App.tsx pre-creates the
-    // handle for spawn/adopt/fork, so for those this returns the existing one and the flag is inert; a
-    // brand-new handle here means we're reattaching to a still-live pty after a window refresh.
+    // handle for spawn/adopt/fork, so for those this returns the existing one with replayPending=false and
+    // the flag is inert; a brand-new handle here means we're reattaching to a still-live pty after a window
+    // refresh, and its replayPending gate (cleared by reattach) is what arms the snapshot replay below.
     const handle = terminalStore.create(sessionId, { replayOnCreate: true });
 
     if (handle.wrapper.parentElement !== container) {
@@ -27,7 +27,6 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
       handle.opened = true;
     }
 
-    let reattachStarted = false;
     const sync = () => {
       // Don't fit/resize against a collapsed or not-yet-laid-out container — measuring a 0-size element
       // yields a 0/NaN grid and a bogus pty resize, and seeds xterm with junk dimensions (VSCode's
@@ -44,10 +43,12 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
       // ResizeObserver re-run it when a collapsed container later gets its real size; otherwise that stale
       // geometry would survive and the prompt would stay unreachable.
       handle.rebuildViewport();
-      // Reattach after a refresh: once we have real dimensions, fetch and replay the screen snapshot once.
-      // The store gated live output at create time, so this lands the snapshot before any live chunk.
-      if (isNewHandle && handle.replayPending && !reattachStarted) {
-        reattachStarted = true;
+      // Reattach after a refresh: once we have real dimensions, fetch and replay the screen snapshot. Gated
+      // on the handle's own replayPending — not a mount-time flag — so a remount re-arms the reattach that a
+      // 0-size first mount deferred (switching to a tab that was collapsed when the window refreshed, or
+      // StrictMode's double-mount). reattach() is idempotent: it no-ops once the gate is open or a fetch is
+      // already in flight, so the repeated sync calls on one mount fetch the snapshot only once.
+      if (handle.replayPending) {
         void terminalStore.reattach(
           sessionId,
           handle.term.cols,

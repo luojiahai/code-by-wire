@@ -6,7 +6,18 @@ describe("createRecorder", () => {
     const r = createRecorder({ cols: 80, rows: 24 });
     r.write("hello world");
     const snap = await r.snapshot();
-    expect(snap).toContain("hello world");
+    expect(snap.data).toContain("hello world");
+    r.dispose();
+  });
+
+  it("reports the cumulative count of written chars as the snapshot offset", async () => {
+    const r = createRecorder({ cols: 80, rows: 24 });
+    r.write("hello"); // 5
+    r.write(" world"); // +6 = 11
+    const snap = await r.snapshot();
+    // The offset is the recorder's position in the output stream — the manager stamps the same scale onto
+    // each chunk it sends, so the renderer can drop the queued chars this snapshot already covers.
+    expect(snap.offset).toBe(11);
     r.dispose();
   });
 
@@ -15,8 +26,8 @@ describe("createRecorder", () => {
     // Switch to the alternate screen (?1049h) the way a TUI does, then draw into it.
     r.write("\x1b[?1049hALT-SCREEN-CONTENT");
     const snap = await r.snapshot();
-    expect(snap).toContain("ALT-SCREEN-CONTENT");
-    expect(snap).toContain("?1049h"); // the alt-screen enable is preserved (modes not excluded)
+    expect(snap.data).toContain("ALT-SCREEN-CONTENT");
+    expect(snap.data).toContain("?1049h"); // the alt-screen enable is preserved (modes not excluded)
     r.dispose();
   });
 
@@ -26,9 +37,9 @@ describe("createRecorder", () => {
     const snap = await a.snapshot();
 
     const b = createRecorder({ cols: 80, rows: 24 });
-    b.write(snap);
+    b.write(snap.data);
     const snapB = await b.snapshot();
-    expect(snapB).toBe(snap); // replaying the snapshot yields the identical serialized state
+    expect(snapB.data).toBe(snap.data); // replaying the snapshot yields the identical serialized state
 
     a.dispose();
     b.dispose();
@@ -40,7 +51,7 @@ describe("createRecorder", () => {
     r.write("x".repeat(20000));
     r.write("\r\nEND-MARKER");
     const snap = await r.snapshot();
-    expect(snap).toContain("END-MARKER");
+    expect(snap.data).toContain("END-MARKER");
     r.dispose();
   });
 });

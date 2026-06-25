@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { FLOW } from "../../src/shared/terminal";
+import { FLOW, type ReattachSnapshot } from "../../src/shared/terminal";
 import {
   createTerminalStore,
   type XtermLike,
@@ -41,7 +41,7 @@ function fakeXterm() {
 }
 
 function harness(isMac = true) {
-  let dataRouter: (id: string, d: string) => void = () => {};
+  let dataRouter: (id: string, d: string, offset: number) => void = () => {};
   let exitRouter: (id: string, c: number) => void = () => {};
   const api = {
     spawn: vi.fn(),
@@ -53,7 +53,7 @@ function harness(isMac = true) {
     kill: vi.fn(),
     pickDirectory: vi.fn(),
     reattach: vi.fn(),
-    onData: (cb: (id: string, d: string) => void) => {
+    onData: (cb: (id: string, d: string, offset: number) => void) => {
       dataRouter = cb;
       return () => {};
     },
@@ -78,11 +78,19 @@ function harness(isMac = true) {
       };
     },
   });
+  // Track a per-id cumulative output offset so route() stamps each chunk the way the manager does. Pass an
+  // explicit `offset` (the chunk's cumulative END position) when a test needs to line chunks up against a
+  // snapshot's coverage; otherwise it auto-advances by the chunk length.
+  const outChars = new Map<string, number>();
   return {
     store,
     api,
     made,
-    route: (id: string, d: string) => dataRouter(id, d),
+    route: (id: string, d: string, offset?: number) => {
+      const end = offset ?? (outChars.get(id) ?? 0) + d.length;
+      outChars.set(id, end);
+      dataRouter(id, d, end);
+    },
     exit: (id: string, c: number) => exitRouter(id, c),
   };
 }
@@ -308,7 +316,8 @@ describe("createTerminalStore", () => {
 
   it("reattach writes the snapshot, then flushes queued output in order, then opens the gate", async () => {
     const h = harness();
-    h.api.reattach.mockResolvedValue("SNAP");
+    // offset 0: the snapshot covers no live output, so both queued chunks replay below it.
+    h.api.reattach.mockResolvedValue({ data: "SNAP", offset: 0 });
     h.store.create("a", { replayOnCreate: true });
     h.route("a", "L1");
     h.route("a", "L2");
@@ -322,6 +331,34 @@ describe("createTerminalStore", () => {
     h.route("a", "live");
     expect(h.made[0].writes.at(-1)?.data).toBe("live");
     expect(h.made[0].writes.at(-1)?.cb).toBeTypeOf("function");
+  });
+
+  it("reattach drops queued output the snapshot already covers, so it isn't rendered twice", async () => {
+    const h = harness();
+    // The pty produced 8 chars; the snapshot reflects the first 6. Two chunks land during the reattach:
+    // "ABCD" ending at offset 6 (entirely inside the snapshot) and "EF" ending at 8 (after it).
+    h.api.reattach.mockResolvedValue({ data: "SNAP", offset: 6 });
+    h.store.create("a", { replayOnCreate: true });
+    h.route("a", "ABCD", 6); // cumulative end offset = 6 → fully covered by the snapshot
+    h.route("a", "EF", 8); // end offset = 8 → produced after the snapshot, must replay
+
+    await h.store.reattach("a", 80, 24);
+
+    // "ABCD" is in the snapshot already, so only "EF" replays — no doubled "ABCD".
+    expect(h.made[0].writes.map((w) => w.data)).toEqual(["SNAP", "EF"]);
+  });
+
+  it("reattach replays only the uncovered tail of a chunk that straddles the snapshot offset", async () => {
+    const h = harness();
+    // One coalesced chunk "ABCDEFGH" spans output chars 1..8; the snapshot covers through char 5, so only
+    // its tail "FGH" (chars 6..8) is new.
+    h.api.reattach.mockResolvedValue({ data: "SNAP", offset: 5 });
+    h.store.create("a", { replayOnCreate: true });
+    h.route("a", "ABCDEFGH", 8);
+
+    await h.store.reattach("a", 80, 24);
+
+    expect(h.made[0].writes.map((w) => w.data)).toEqual(["SNAP", "FGH"]);
   });
 
   it("reattach with no live pty (null snapshot) still flushes the queue and opens the gate", async () => {
@@ -339,16 +376,16 @@ describe("createTerminalStore", () => {
 
   it("reattach survives a /clear rename during the await (snapshot lands on the rotated handle)", async () => {
     const h = harness();
-    let resolveSnap: (s: string) => void = () => {};
+    let resolveSnap: (s: ReattachSnapshot) => void = () => {};
     h.api.reattach.mockReturnValue(
-      new Promise<string>((res) => {
+      new Promise<ReattachSnapshot>((res) => {
         resolveSnap = res;
       }),
     );
     h.store.create("a", { replayOnCreate: true });
     const pending = h.store.reattach("a", 80, 24);
     h.store.rename("a", "b"); // a /clear rotates a->b mid-await
-    resolveSnap("SNAP");
+    resolveSnap({ data: "SNAP", offset: 0 });
     await pending;
 
     expect(h.made[0].writes.map((w) => w.data)).toEqual(["SNAP"]); // same xterm, restored after the rotation
@@ -357,15 +394,17 @@ describe("createTerminalStore", () => {
     expect(h.made[0].writes.at(-1)?.data).toBe("x");
   });
 
-  it("reattach opens the gate and flushes the queue even when api.reattach rejects", async () => {
+  it("reattach swallows an api.reattach rejection: opens the gate and flushes the queue without re-throwing", async () => {
     const h = harness();
     h.api.reattach.mockRejectedValue(new Error("ipc failed"));
     h.store.create("a", { replayOnCreate: true });
     h.route("a", "Q1"); // queued while gate is up, acked immediately
     h.route("a", "Q2");
 
-    // The method re-throws after the finally runs — that's expected. Wrap so we can assert on state.
-    await expect(h.store.reattach("a", 80, 24)).rejects.toThrow("ipc failed");
+    // The sole caller floats this as `void reattach(...)`, so a re-thrown rejection would surface as an
+    // unhandledrejection in the renderer. A transient IPC failure loses the snapshot but must still
+    // recover cleanly: open the gate, flush the queued output, and resolve without throwing.
+    await expect(h.store.reattach("a", 80, 24)).resolves.toBeUndefined();
 
     // No snapshot was written (api.reattach rejected before returning one) — only the queued chunks.
     expect(h.made[0].writes.map((w) => w.data)).toEqual(["Q1", "Q2"]);
@@ -374,5 +413,47 @@ describe("createTerminalStore", () => {
     h.route("a", "live");
     expect(h.made[0].writes.at(-1)?.data).toBe("live");
     expect(h.made[0].writes.at(-1)?.cb).toBeTypeOf("function");
+  });
+
+  it("a second reattach while one is in flight is a no-op: the snapshot is fetched once", async () => {
+    const h = harness();
+    let resolveSnap: (s: ReattachSnapshot) => void = () => {};
+    h.api.reattach.mockReturnValue(
+      new Promise<ReattachSnapshot>((res) => {
+        resolveSnap = res;
+      }),
+    );
+    h.store.create("a", { replayOnCreate: true });
+
+    // The view re-arms reattach off the handle's live replayPending, so a remount (collapsed tab then
+    // switched to it, or StrictMode's double-mount) can call this again while the first fetch is pending.
+    const first = h.store.reattach("a", 80, 24);
+    const second = h.store.reattach("a", 80, 24);
+    expect(h.api.reattach).toHaveBeenCalledTimes(1); // the second bailed — no duplicate snapshot fetch
+
+    resolveSnap({ data: "SNAP", offset: 0 });
+    await Promise.all([first, second]);
+    expect(h.made[0].writes.map((w) => w.data)).toEqual(["SNAP"]); // written exactly once
+  });
+
+  it("queues the exit notice while a reattach is pending so it lands after the snapshot, not before it", async () => {
+    const h = harness();
+    h.api.reattach.mockResolvedValue({ data: "SNAP", offset: 0 });
+    h.store.create("a", { replayOnCreate: true });
+    h.route("a", "L1"); // live output, queued behind the gate
+    h.exit("a", 0); // the pty exits mid-reattach, before the snapshot lands
+
+    // The gate holds the exit notice too — nothing is written to xterm yet.
+    expect(h.made[0].writes).toHaveLength(0);
+
+    await h.store.reattach("a", 80, 24);
+
+    // Restored in stream order: snapshot, then the queued live output, then the exit notice at the end.
+    // Without the gate the notice would have landed first and the snapshot would overwrite it.
+    const data = h.made[0].writes.map((w) => w.data);
+    expect(data[0]).toBe("SNAP");
+    expect(data[1]).toBe("L1");
+    expect(data[2]).toContain("exited");
+    expect(data).toHaveLength(3);
   });
 });

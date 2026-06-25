@@ -76,7 +76,10 @@ function recorderFactory() {
     return {
       write: (d: string) => rec.writes.push(d),
       resize: (c: number, r: number) => rec.resizes.push([c, r]),
-      snapshot: () => Promise.resolve(`SNAP:${rec.writes.join("")}`),
+      snapshot: () => {
+        const data = `SNAP:${rec.writes.join("")}`;
+        return Promise.resolve({ data, offset: rec.writes.join("").length });
+      },
       dispose: () => {
         rec.disposed = true;
       },
@@ -89,6 +92,7 @@ function harness(over: { statDir?: (cwd: string) => boolean } = {}) {
   const ptys: ReturnType<typeof fakePty>[] = [];
   const recorders = recorderFactory();
   const sent: Array<[string, string]> = [];
+  const sentOffsets: Array<[string, number]> = [];
   const exited: Array<[string, number]> = [];
   const spawned: string[] = [];
   const spawnedPids: number[] = [];
@@ -96,7 +100,10 @@ function harness(over: { statDir?: (cwd: string) => boolean } = {}) {
   const closed: string[] = [];
   let nextPid = 1000;
   const manager = createTerminalManager({
-    send: (id, data) => sent.push([id, data]),
+    send: (id, data, offset) => {
+      sent.push([id, data]);
+      sentOffsets.push([id, offset]);
+    },
     notifyExit: (id, code) => exited.push([id, code]),
     onSpawned: (id, pid, model) => {
       spawned.push(id);
@@ -123,6 +130,7 @@ function harness(over: { statDir?: (cwd: string) => boolean } = {}) {
     ptys,
     recorders,
     sent,
+    sentOffsets,
     exited,
     spawned,
     spawnedPids,
@@ -201,6 +209,17 @@ describe("createTerminalManager", () => {
     h.manager.spawn(REQ);
     h.ptys[0].emitData("hello");
     expect(h.sent).toEqual([["sess-1", "hello"]]);
+  });
+
+  it("stamps each sent chunk with its cumulative output end offset, so a reattach can dedupe against it", () => {
+    const h = harness();
+    h.manager.spawn(REQ);
+    h.ptys[0].emitData("abc"); // 3 chars → offset 3
+    h.ptys[0].emitData("de"); // +2 → offset 5
+    expect(h.sentOffsets).toEqual([
+      ["sess-1", 3],
+      ["sess-1", 5],
+    ]);
   });
 
   it("routes write and resize to the right pty", () => {
@@ -382,11 +401,14 @@ describe("createTerminalManager", () => {
     expect(h.recorders.made[0].disposed).toBe(true);
   });
 
-  it("snapshot returns the recorder's serialization for a live id", async () => {
+  it("snapshot returns the recorder's serialization and offset for a live id", async () => {
     const h = harness();
     h.manager.spawn(REQ);
     h.ptys[0].emitData("abc");
-    await expect(h.manager.snapshot("sess-1")).resolves.toBe("SNAP:abc");
+    await expect(h.manager.snapshot("sess-1")).resolves.toEqual({
+      data: "SNAP:abc",
+      offset: 3,
+    });
   });
 
   it("snapshot returns null for an unknown id", async () => {
