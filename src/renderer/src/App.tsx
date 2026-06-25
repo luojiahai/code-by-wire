@@ -29,6 +29,7 @@ import { StatsView } from "./stats/StatsView";
 import { OVERVIEW_ID } from "./stats/sentinel";
 import { SettingsView, type SettingsSection } from "./settings/SettingsView";
 import { SETTINGS_ID } from "./settings/sentinel";
+import { useUpdate } from "./ui/use-update";
 
 /** How often the session list re-syncs in the background, so an open workspace's state (and the
  *  Overview) tracks a session as it moves. Slower than the transcript poll: metadata changes less
@@ -75,6 +76,7 @@ export function App() {
   // session to leave it.
   const [selectedId, setSelectedId] = useState<string | null>(OVERVIEW_ID);
   const [creating, setCreating] = useState(false);
+  const update = useUpdate();
 
   // Sessions and account come from one overview read, so apply them together — a stale or failed
   // half can't leave the list and the account disagreeing.
@@ -391,6 +393,7 @@ export function App() {
         cliStatus={cliStatus}
         onOpenSettings={() => setSelectedId(SETTINGS_ID)}
         settingsActive={isSettings}
+        updatePhase={update.state.phase.kind}
       />
       {showCaution && cliStatus && (
         <CautionBanner status={cliStatus} onOpenSystem={showSystem} />
@@ -414,6 +417,7 @@ export function App() {
               onSetBinPath={(p) => void setClaudeBinPath(p)}
               section={settingsSection}
               onSectionChange={setSettingsSection}
+              update={update}
             />
           ) : isOverview ? (
             <StatsView />
