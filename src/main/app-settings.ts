@@ -7,11 +7,15 @@ export interface AppSettings {
   /** Absolute path to a claude binary, overriding PATH resolution. Works for Finder launches,
    *  unlike the CBW_CLAUDE_BIN env var. */
   claudeBinPath?: string | null;
+  /** Whether to check for app updates on launch. Missing means on; the launch check reads
+   *  `read().autoCheckUpdates ?? true`. */
+  autoCheckUpdates?: boolean;
 }
 
 export interface AppSettingsStore {
   read(): AppSettings;
   setClaudeBinPath(path: string | null): void;
+  setAutoCheckUpdates(enabled: boolean): void;
 }
 
 export interface AppSettingsDeps {
@@ -44,6 +48,9 @@ export function createAppSettingsStore(
     read,
     setClaudeBinPath(path) {
       write({ ...read(), claudeBinPath: path });
+    },
+    setAutoCheckUpdates(enabled) {
+      write({ ...read(), autoCheckUpdates: enabled });
     },
   };
 }

@@ -37,4 +37,22 @@ describe("createAppSettingsStore", () => {
     writeFileSync(join(dir, "settings.json"), "{ not json");
     expect(createAppSettingsStore({ dir }).read()).toEqual({});
   });
+  it("leaves autoCheckUpdates undefined by default (treated as on)", () => {
+    expect(
+      createAppSettingsStore({ dir: tmp() }).read().autoCheckUpdates,
+    ).toBeUndefined();
+  });
+  it("persists autoCheckUpdates=false and reads it back", () => {
+    const dir = tmp();
+    createAppSettingsStore({ dir }).setAutoCheckUpdates(false);
+    expect(createAppSettingsStore({ dir }).read().autoCheckUpdates).toBe(false);
+  });
+  it("keeps the binary override when toggling auto-check", () => {
+    const dir = tmp();
+    const store = createAppSettingsStore({ dir });
+    store.setClaudeBinPath("/custom/claude");
+    store.setAutoCheckUpdates(false);
+    expect(store.read().claudeBinPath).toBe("/custom/claude");
+    expect(store.read().autoCheckUpdates).toBe(false);
+  });
 });
