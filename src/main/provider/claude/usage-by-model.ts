@@ -1,9 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import type { ModelUsage } from "@shared/types";
 import type { AnalyticsTurn } from "../../db/analytics";
 import { extractTurns, foldTurnsByModel } from "./turns";
-import { subagentsDirFor } from "./subagents";
+import { subagentsDirFor, listSubagentFiles } from "./subagents";
 
 /**
  * A session's per-model token breakdown: its main transcript folded with every subagent transcript, each
@@ -21,23 +20,14 @@ export function usageByModelFor(
 ): ModelUsage[] {
   const turns: AnalyticsTurn[] = extractTurns(mainJsonl, sessionId);
   const dir = subagentsDirFor(transcriptPath);
-  let names: string[];
-  try {
-    names = readdirSync(dir);
-  } catch {
-    return foldTurnsByModel(turns); // no subagents dir → main-only breakdown
-  }
-  for (const name of names) {
-    if (!name.startsWith("agent-") || !name.endsWith(".jsonl")) continue;
+  for (const { path, keyPrefix } of listSubagentFiles(dir, sessionId)) {
     let jsonl: string;
     try {
-      jsonl = readFileSync(join(dir, name), "utf8");
+      jsonl = readFileSync(path, "utf8");
     } catch {
       continue; // an unreadable subagent file is skipped, not fatal
     }
-    // keyPrefix mirrors the analytics scan (scan.ts collectScanTargets) so an id-less subagent turn's
-    // surrogate key matches across the two paths — the reconciliation guarantee holds even for id-less turns.
-    turns.push(...extractTurns(jsonl, sessionId, `${sessionId}/${name}`));
+    turns.push(...extractTurns(jsonl, sessionId, keyPrefix));
   }
   return foldTurnsByModel(turns);
 }

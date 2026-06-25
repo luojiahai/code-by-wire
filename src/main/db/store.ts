@@ -132,8 +132,11 @@ export function hydrate(p: PersistedSession): Session {
   // main-thread entry, so the panel still renders main-only until the next re-summarize. The fallback's
   // modelRaw prefers the stored raw id, else the family alias (which isKnownModelString recognizes), so
   // its Equivalent API value equals the pre-change single-model figure.
+  // Fall back to the single-entry main-thread model when usageByModel is absent/empty OR when every
+  // entry has a null modelRaw (turns that recorded no model at all): the fallback's modelRaw is always
+  // a recognized string, so equivApiValueByModel prices it at the family rate rather than returning $0.
   const models: ModelUsage[] =
-    p.usageByModel && p.usageByModel.length
+    p.usageByModel?.length && p.usageByModel.some((mu) => mu.modelRaw !== null)
       ? p.usageByModel
       : [{ modelRaw: p.modelRaw ?? p.model, usage: p.usage }];
   return {

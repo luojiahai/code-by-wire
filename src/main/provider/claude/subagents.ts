@@ -224,6 +224,39 @@ export function subagentsDirFor(transcriptPath: string): string {
   );
 }
 
+/** One agent-*.jsonl entry in a session's subagents dir, ready to read or stat. */
+export interface SubagentFileEntry {
+  name: string;
+  path: string;
+  /** Mirrors the analytics scan's keyPrefix so id-less turn surrogate keys match across both paths. */
+  keyPrefix: string;
+}
+
+/** All `agent-*.jsonl` files in `dir`, with their full paths and analytics keyPrefixes. Returns [] when
+ *  the dir is absent or unreadable. The single filter definition shared by usageByModelFor and
+ *  collectScanTargets so a file-naming change stays in one place. */
+export function listSubagentFiles(
+  dir: string,
+  sessionId: string,
+): SubagentFileEntry[] {
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  const out: SubagentFileEntry[] = [];
+  for (const name of names) {
+    if (!name.startsWith("agent-") || !name.endsWith(".jsonl")) continue;
+    out.push({
+      name,
+      path: join(dir, name),
+      keyPrefix: `${sessionId}/${name}`,
+    });
+  }
+  return out;
+}
+
 /** projects/<proj>/<sid>.jsonl + agentId → that subagent's own transcript file. */
 export function subagentFileFor(
   transcriptPath: string,
@@ -233,9 +266,13 @@ export function subagentFileFor(
 }
 
 /** Newest mtime (ms) among the `agent-*.jsonl` files, or 0 when the dir is absent/empty. The transcript
- *  read folds this into its change token so a running subagent's growth re-triggers a poll. */
+ *  read folds this into its change token so a running subagent's growth re-triggers a poll. Filter
+ *  matches usageByModelFor exactly — other .jsonl files (journal.jsonl, etc.) must not advance the token. */
 export function subagentsNewestMtime(dir: string): number {
-  return newestMtime(dir, (name) => name.endsWith(".jsonl"));
+  return newestMtime(
+    dir,
+    (name) => name.startsWith("agent-") && name.endsWith(".jsonl"),
+  );
 }
 
 /** Read every `agent-<id>.meta.json` + `agent-<id>.jsonl` pair in a subagents dir into reconstruction

@@ -216,8 +216,13 @@ export function summarize(c: SessionCandidate): PersistedSession {
       const jsonl = readFileSync(c.transcriptPath, "utf8");
       t = parseTranscript(jsonl, c.cwd);
       // Same jsonl, no second read: the per-model breakdown shares the file parseTranscript just consumed,
-      // plus the session's subagent transcripts.
-      usageByModel = usageByModelFor(jsonl, c.transcriptPath, c.id);
+      // plus the session's subagent transcripts. Inner try: a usageByModelFor failure must not discard
+      // the already-parsed transcript.
+      try {
+        usageByModel = usageByModelFor(jsonl, c.transcriptPath, c.id);
+      } catch {
+        usageByModel = [];
+      }
     } catch {
       t = null;
       usageByModel = [];

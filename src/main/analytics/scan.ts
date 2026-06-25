@@ -1,5 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, statSync } from "node:fs";
 import { transaction, type SqliteDb } from "../db/driver";
 import {
   upsertTurns,
@@ -7,7 +6,10 @@ import {
   upsertProcessedFile,
 } from "../db/analytics";
 import { indexTranscripts } from "../provider/claude/discover";
-import { subagentsDirFor } from "../provider/claude/subagents";
+import {
+  subagentsDirFor,
+  listSubagentFiles,
+} from "../provider/claude/subagents";
 import { extractTurns } from "../provider/claude/turns";
 import { planFileScan } from "./incremental";
 import type { ScanProgress } from "@shared/stats";
@@ -65,27 +67,17 @@ export function collectScanTargets(claudeDir: string): ScanTarget[] {
   for (const [sessionId, { path, mtimeMs }] of indexTranscripts(claudeDir)) {
     out.push({ path, mtimeMs, sessionId, keyPrefix: sessionId });
     const dir = subagentsDirFor(path);
-    let names: string[];
-    try {
-      names = readdirSync(dir);
-    } catch {
-      continue;
-    }
-    for (const name of names) {
-      if (!name.startsWith("agent-") || !name.endsWith(".jsonl")) continue;
-      const subPath = join(dir, name);
+    for (const { path: subPath, keyPrefix } of listSubagentFiles(
+      dir,
+      sessionId,
+    )) {
       let mtime: number;
       try {
         mtime = statSync(subPath).mtimeMs;
       } catch {
         continue;
       }
-      out.push({
-        path: subPath,
-        mtimeMs: mtime,
-        sessionId,
-        keyPrefix: `${sessionId}/${name}`,
-      });
+      out.push({ path: subPath, mtimeMs: mtime, sessionId, keyPrefix });
     }
   }
   return out;

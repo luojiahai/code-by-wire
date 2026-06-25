@@ -106,10 +106,12 @@ export function viewUsageByModel(
       cost.cacheWrite += c.cacheWrite;
       cost.total += c.total;
       cost.cacheSavings += c.cacheSavings;
-      const family: Family = normalizeModelId(mu.modelRaw ?? undefined);
-      if (overrides && Object.keys(overrides[family] ?? {}).length > 0)
-        anyOverride = true;
     }
+    // Check for overrides unconditionally: an unrecognized model still normalizes to a family, and
+    // a user override for that family should suppress liveCostUsd in the headline even when c is null.
+    const family: Family = normalizeModelId(mu.modelRaw ?? undefined);
+    if (overrides && Object.keys(overrides[family] ?? {}).length > 0)
+      anyOverride = true;
     return {
       modelRaw: mu.modelRaw,
       usage: mu.usage,

@@ -22,7 +22,7 @@ import { PricingModal } from "./PricingModal";
 import { Icon } from "../../ui/icons";
 
 const TOKENS_INFO =
-  "This session's tokens by kind: fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes, each paired with its Equivalent API value. When subagents ran, usage spans models — each is priced at its own rate, with a per-model breakdown one hover away. Shows real spend instead when the account bills per API call.";
+  "This session's tokens by kind: fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes, each paired with its Equivalent API value. When subagents ran, usage spans models, each priced at its own rate, with a per-model breakdown one hover away. Shows real spend instead when the account bills per API call.";
 
 const POPOVER =
   "absolute left-0 top-full z-20 mt-1 w-60 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-left text-[11px] leading-snug text-fg-muted shadow-lg";
@@ -90,13 +90,23 @@ function KindLabel({
 }
 
 /** One model's row in the "by model" list: an identity dot in its family's Aurora hue (the same color the
- *  model wears in the Usage overview), the model name, its total tokens, and ~cost — the same columns as the
- *  kind rows below, so attribution and the combined breakdown read as one rack. The whole row is the
+ *  model wears in the Usage overview), the model name, its total tokens, and ~cost. Shares the same
+ *  columns as the kind rows below, so attribution and the combined breakdown read as one rack. The whole row is the
  *  hover/focus target; its popover carries the full 5-kind breakdown (tokens · ~USD, or n/a for an
- *  unrecognized model) and a subtotal, anchored to the row's left so it stays inside the rail. */
-function ModelRow({ m }: { m: ModelUsageView }) {
+ *  unrecognized model) plus per-kind rates for recognized models, and a subtotal, anchored to the row's
+ *  left so it stays inside the rail. */
+function ModelRow({
+  m,
+  overrides,
+}: {
+  m: ModelUsageView;
+  overrides?: PricingOverrides;
+}) {
   const name = modelLabel(m.modelRaw);
   const tipId = useId();
+  const family = isKnownModelString(m.modelRaw ?? undefined)
+    ? normalizeModelId(m.modelRaw ?? undefined)
+    : null;
   return (
     <div className="group relative">
       <div
@@ -126,7 +136,14 @@ function ModelRow({ m }: { m: ModelUsageView }) {
               key={k.key}
               className="flex items-baseline justify-between gap-3"
             >
-              <span>{k.label}</span>
+              <span>
+                {k.label}
+                {family && (
+                  <span className="block font-mono text-[9.5px] leading-tight text-fg-faint/70">
+                    {kindRateLabel(k, family, overrides)}
+                  </span>
+                )}
+              </span>
               <span className="font-mono tabular-nums text-fg">
                 {formatTokensShort(KIND_TOKENS[k.key](m.usage))}
                 <span className="text-fg-faint">
@@ -151,8 +168,8 @@ function ModelRow({ m }: { m: ModelUsageView }) {
 /**
  * The session's token usage and its cost, reconciled with the Usage overview: a headline of total tokens ·
  * the Equivalent API value (Claude's live number when present), a 5-segment stacked bar, one flat row per
- * kind pairing its tokens with its ~cost (summed across every model at each model's own rate), and — when
- * more than one model touched the session — a "by model" attribution list, one row per model in its Aurora
+ * kind pairing its tokens with its ~cost (summed across every model at each model's own rate), and, when
+ * more than one model touched the session, a "by model" attribution list, one row per model in its Aurora
  * identity hue, each row revealing that model's full breakdown on hover. The ✎ opens the pricing editor;
  * each kind label reveals its description (and, single-model, its live rate).
  */
@@ -282,7 +299,9 @@ export function TokensPanel({
             label={
               <KindLabel
                 kind={r.kind}
-                model={multiModel ? undefined : model}
+                model={
+                  multiModel ? undefined : models[0]?.cost ? model : undefined
+                }
                 overrides={pricingOverrides}
               />
             }
@@ -303,7 +322,11 @@ export function TokensPanel({
             <div className="mb-1 text-[11px] text-fg-faint">by model</div>
             <div className="space-y-0.5">
               {models.map((m) => (
-                <ModelRow key={m.modelRaw ?? "null"} m={m} />
+                <ModelRow
+                  key={m.modelRaw ?? "null"}
+                  m={m}
+                  overrides={pricingOverrides}
+                />
               ))}
             </div>
           </div>
