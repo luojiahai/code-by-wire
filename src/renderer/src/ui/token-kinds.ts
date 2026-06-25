@@ -38,14 +38,14 @@ export const TOKEN_KINDS: TokenKind[] = [
   },
   {
     key: "cacheWrite5m",
-    label: "Cache write · 5-minute",
+    label: "Cache write 5m",
     rateField: "cacheWrite5m",
     description:
       "Context written into the 5-minute cache so the next turn replays it cheaply. 1.25× input.",
   },
   {
     key: "cacheWrite1h",
-    label: "Cache write · 1-hour",
+    label: "Cache write 1h",
     rateField: "cacheWrite1h",
     description:
       "Context written into the longer-lived 1-hour cache. 2× input.",

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import type { Family, ModelUsage, Usage } from "@shared/types";
 import {
   isKnownModelString,
@@ -10,7 +10,7 @@ import { viewUsageByModel, type ModelUsageView } from "@shared/usage-by-model";
 import { formatUsd, formatTokensShort, costDisplay } from "@shared/format";
 import { StackedBar } from "../../ui/charts";
 import { Swatch } from "../../ui/atoms";
-import { KIND_SEGMENT_COLORS, FAMILY_LABEL } from "../../ui/meta";
+import { KIND_SEGMENT_COLORS, FAMILY_LABEL, modelColorOf } from "../../ui/meta";
 import { MetricTip } from "../../ui/MetricTip";
 import {
   TOKEN_KINDS,
@@ -26,6 +26,13 @@ const TOKENS_INFO =
 
 const POPOVER =
   "absolute left-0 top-full z-20 mt-1 w-60 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-left text-[11px] leading-snug text-fg-muted shadow-lg";
+
+// The by-model row popover. Anchored to the row's left edge (the row spans the panel's content), so at
+// w-56 (224px) it stays inside the 256px content box — the inline chips it replaced anchored left-0 on a
+// right-side chip, running the 240px popover off the rail. Used directly (not via MetricTip), so it carries
+// its own reveal classes.
+const MODEL_POPOVER =
+  "absolute left-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-left text-[11px] leading-snug text-fg-muted shadow-lg group-hover:block group-focus-within:block";
 
 /** TokenKind.key → the matching Usage token field and CostBreakdown USD field, so the per-model popover
  *  and the kind rows read off one mapping. */
@@ -48,12 +55,12 @@ const KIND_BY_KEY = Object.fromEntries(
   TOKEN_KINDS.map((k) => [k.key, k]),
 ) as Record<TokenKind["key"], TokenKind>;
 
-/** A model's short attribution label: the lowercased family ("opus"), the raw id for an unrecognized
- *  model (honest, never the Opus fallback), or "unknown" for a turn that recorded none. */
+/** A model's short attribution label: the Title-Case family ("Opus"), the raw id for an unrecognized
+ *  model (honest, never the Opus fallback), or "Unknown" for a turn that recorded none. */
 function modelLabel(modelRaw: string | null): string {
-  if (modelRaw == null) return "unknown";
+  if (modelRaw == null) return "Unknown";
   if (isKnownModelString(modelRaw))
-    return FAMILY_LABEL[normalizeModelId(modelRaw)].toLowerCase();
+    return FAMILY_LABEL[normalizeModelId(modelRaw)];
   return modelRaw;
 }
 
@@ -82,44 +89,62 @@ function KindLabel({
   );
 }
 
-/** One model's chip in the "by model" line: its label + total tokens, with a hover popover carrying its
- *  full 5-kind breakdown (tokens · ~USD, or n/a for an unrecognized model) and a subtotal. */
-function ModelChip({ m }: { m: ModelUsageView }) {
+/** One model's row in the "by model" list: an identity dot in its family's Aurora hue (the same color the
+ *  model wears in the Usage overview), the model name, its total tokens, and ~cost — the same columns as the
+ *  kind rows below, so attribution and the combined breakdown read as one rack. The whole row is the
+ *  hover/focus target; its popover carries the full 5-kind breakdown (tokens · ~USD, or n/a for an
+ *  unrecognized model) and a subtotal, anchored to the row's left so it stays inside the rail. */
+function ModelRow({ m }: { m: ModelUsageView }) {
   const name = modelLabel(m.modelRaw);
+  const tipId = useId();
   return (
-    <MetricTip
-      label={
-        <span className="font-mono tabular-nums">
-          {name} {formatTokensShort(m.totalTokens)}
-        </span>
-      }
-      popoverClassName={POPOVER}
-    >
-      <span className="block font-medium text-fg">{name}</span>
-      <span className="mt-1 block space-y-0.5">
-        {TOKEN_KINDS.map((k) => (
-          <span
-            key={k.key}
-            className="flex items-baseline justify-between gap-3"
-          >
-            <span>{k.label}</span>
-            <span className="font-mono tabular-nums text-fg">
-              {formatTokensShort(KIND_TOKENS[k.key](m.usage))}
-              <span className="text-fg-faint">
-                {" · "}
-                {m.cost ? `~${formatUsd(KIND_COST[k.key](m.cost))}` : "n/a"}
-              </span>
-            </span>
-          </span>
-        ))}
-      </span>
-      <span className="mt-1 flex items-baseline justify-between gap-3 border-t border-ink-700 pt-1">
-        <span className="font-medium text-fg">Subtotal</span>
+    <div className="group relative">
+      <div
+        tabIndex={0}
+        aria-describedby={tipId}
+        // -mx-1 px-1: the hover/focus highlight bleeds 4px into the panel padding while the dot stays at
+        // x=0, column-aligned with the kind rows below (which have no horizontal padding).
+        className="-mx-1 flex cursor-help items-center gap-2 rounded px-1 py-0.5 text-[12px] transition-colors hover:bg-ink-850 focus-visible:bg-ink-850 focus-visible:outline-none"
+      >
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: modelColorOf(m.modelRaw) }}
+        />
+        <span className="flex-1 truncate text-fg-muted">{name}</span>
         <span className="font-mono tabular-nums text-fg">
+          {formatTokensShort(m.totalTokens)}
+        </span>
+        <span className="w-12 text-right font-mono text-[11px] tabular-nums text-fg-faint">
           {m.cost ? `~${formatUsd(m.cost.total)}` : "n/a"}
         </span>
+      </div>
+      <span role="tooltip" id={tipId} className={MODEL_POPOVER}>
+        <span className="block font-medium text-fg">{name}</span>
+        <span className="mt-1 block space-y-0.5">
+          {TOKEN_KINDS.map((k) => (
+            <span
+              key={k.key}
+              className="flex items-baseline justify-between gap-3"
+            >
+              <span>{k.label}</span>
+              <span className="font-mono tabular-nums text-fg">
+                {formatTokensShort(KIND_TOKENS[k.key](m.usage))}
+                <span className="text-fg-faint">
+                  {" · "}
+                  {m.cost ? `~${formatUsd(KIND_COST[k.key](m.cost))}` : "n/a"}
+                </span>
+              </span>
+            </span>
+          ))}
+        </span>
+        <span className="mt-1 flex items-baseline justify-between gap-3 border-t border-ink-700 pt-1">
+          <span className="font-medium text-fg">Subtotal</span>
+          <span className="font-mono tabular-nums text-fg">
+            {m.cost ? `~${formatUsd(m.cost.total)}` : "n/a"}
+          </span>
+        </span>
       </span>
-    </MetricTip>
+    </div>
   );
 }
 
@@ -127,9 +152,9 @@ function ModelChip({ m }: { m: ModelUsageView }) {
  * The session's token usage and its cost, reconciled with the Usage overview: a headline of total tokens ·
  * the Equivalent API value (Claude's live number when present), a 5-segment stacked bar, one flat row per
  * kind pairing its tokens with its ~cost (summed across every model at each model's own rate), and — when
- * more than one model touched the session — a "by model" attribution line whose chips reveal each model's
- * full breakdown on hover. The ✎ opens the pricing editor; each kind label reveals its description (and,
- * single-model, its live rate).
+ * more than one model touched the session — a "by model" attribution list, one row per model in its Aurora
+ * identity hue, each row revealing that model's full breakdown on hover. The ✎ opens the pricing editor;
+ * each kind label reveals its description (and, single-model, its live rate).
  */
 export function TokensPanel({
   usageByModel,
@@ -250,21 +275,6 @@ export function TokensPanel({
 
       <StackedBar className="mt-1" segments={bar} />
 
-      {multiModel && (
-        <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-fg-muted">
-          <span className="text-fg-faint">by model</span>
-          {models.map((m, i) => (
-            <span
-              key={m.modelRaw ?? "null"}
-              className="flex items-center gap-1.5"
-            >
-              {i > 0 && <span className="text-fg-faint">·</span>}
-              <ModelChip m={m} />
-            </span>
-          ))}
-        </div>
-      )}
-
       <div className="mt-2.5 space-y-1.5">
         {rows.map((r) => (
           <Row
@@ -283,6 +293,22 @@ export function TokensPanel({
           />
         ))}
       </div>
+
+      {multiModel && (
+        <>
+          {/* The stacked bar above is the kind rack's legend, so the rack follows it directly; the
+              per-model attribution sits below, parted by a hairline — who spent it, after what it bought. */}
+          <div className="mt-2.5 h-px bg-ink-800" />
+          <div className="mt-2.5">
+            <div className="mb-1 text-[11px] text-fg-faint">by model</div>
+            <div className="space-y-0.5">
+              {models.map((m) => (
+                <ModelRow key={m.modelRaw ?? "null"} m={m} />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {cacheSavings > 0 && (
         <div className="mt-2.5 flex items-baseline justify-between border-t border-ink-850 pt-2 text-[11px]">
