@@ -20,8 +20,16 @@ One pane instead of a dozen terminal windows.
 
 ![Code-by-wire](docs/assets/cbw-demo.gif)
 
-**[Download for macOS (Apple Silicon or Intel)](https://github.com/luojiahai/code-by-wire/releases/latest)**\
-**[Download for Windows (x64 or ARM64)](https://github.com/luojiahai/code-by-wire/releases/latest)**
+## Download
+
+One click starts the download. Always the latest release.
+
+| Platform              | File                                                                                                                              |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| macOS · Apple Silicon | [`Code-by-wire-arm64.dmg`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-arm64.dmg)             |
+| macOS · Intel         | [`Code-by-wire-x64.dmg`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-x64.dmg)                 |
+| Windows · x64         | [`Code-by-wire-Setup-x64.exe`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-Setup-x64.exe)     |
+| Windows · ARM64       | [`Code-by-wire-Setup-arm64.exe`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-Setup-arm64.exe) |
 
 ## What you get
 
@@ -145,18 +153,16 @@ needs attention, so a broken or logged-out install never slips by.
 
 ## Install
 
-Download the prebuilt app, or build it yourself.
+Grab the installer from [Download](#download) above, or build it yourself.
 
-### Download
+### First launch
 
-1. [Download the latest `.dmg`](https://github.com/luojiahai/code-by-wire/releases/latest) for your Mac (Apple Silicon or Intel).
-2. Open it and drag Code-by-wire to Applications.
-3. Launch it. The app is signed and notarized by Apple, so it opens straight
-   away, no Gatekeeper warning and no quarantine workaround.
+On macOS, open the `.dmg` and drag Code-by-wire to Applications, then launch it.
+The app is signed and notarized by Apple, so it opens straight away, no Gatekeeper
+warning and no quarantine workaround.
 
-On Windows, download the `.exe` for your CPU (x64 or ARM64) and run it. It's unsigned for now, so Windows
-SmartScreen may warn — click **More info → Run anyway**. Build from source with
-`pnpm dist:win` (see CONTRIBUTING).
+On Windows, run the `.exe`. It's unsigned for now, so Windows SmartScreen may warn.
+Click **More info → Run anyway**.
 
 ### Build from source
 
