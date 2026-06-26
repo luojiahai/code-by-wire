@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.18] - 2026-06-26
+
+### Added
+
+- Tokens panel shows a per-model breakdown assembled from both the main session transcript and any subagent transcripts, with in-rail attribution popovers. The breakdown re-summarizes automatically as subagent files grow.
+- Five token kinds (input, output, cache-read, cache-write-1h, cache-write-5m) in the Overview KPI strip and daily chart, with the 5m/1h cache-write split threaded through parsers and both stores.
+- Pricing editor in Settings. Per-kind and per-model rate overrides are persisted and wired through IPC and analytics, with live reflection in the Tokens panel headline and all totals.
+
+### Fixed
+
+- Custom pricing now reflects in the Tokens panel headline, not just the per-kind rows.
+- Pricing editor guards against zero rates, rejects invalid inputs, and clears cached sums on a version wipe.
+- Session token rows are flattened, pricing columns relabeled, and Overview popovers no longer clip.
+
 ## [0.1.17] - 2026-06-25
 
 ### Added
@@ -385,7 +399,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.17...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.18...HEAD
+[0.1.18]: https://github.com/luojiahai/code-by-wire/compare/v0.1.17...v0.1.18
 [0.1.17]: https://github.com/luojiahai/code-by-wire/compare/v0.1.16...v0.1.17
 [0.1.16]: https://github.com/luojiahai/code-by-wire/compare/v0.1.15...v0.1.16
 [0.1.15]: https://github.com/luojiahai/code-by-wire/compare/v0.1.14...v0.1.15
