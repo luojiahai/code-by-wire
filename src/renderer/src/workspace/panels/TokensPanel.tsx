@@ -104,9 +104,7 @@ function ModelRow({
 }) {
   const name = modelLabel(m.modelRaw);
   const tipId = useId();
-  const family = isKnownModelString(m.modelRaw ?? undefined)
-    ? normalizeModelId(m.modelRaw ?? undefined)
-    : null;
+  const family = m.modelRaw != null ? normalizeModelId(m.modelRaw) : null;
   return (
     <div className="group relative">
       <div
@@ -197,8 +195,8 @@ export function TokensPanel({
   );
   const { usage, cost, models } = view;
 
-  // When no model is recognized AND the statusLine didn't report a live cost, there's
-  // genuinely nothing to show — display n/a / — instead of a misleading ~$0.00.
+  // When every model has null modelRaw (genuinely absent model) AND the statusLine didn't report a
+  // live cost, there's genuinely nothing to show — display n/a / — instead of a misleading ~$0.00.
   const noPricing = models.every((m) => m.cost === null) && liveCostUsd == null;
 
   const multiModel = models.length > 1;
@@ -310,7 +308,11 @@ export function TokensPanel({
               <KindLabel
                 kind={r.kind}
                 model={
-                  multiModel ? undefined : models[0]?.cost ? model : undefined
+                  multiModel
+                    ? undefined
+                    : models[0]?.cost
+                      ? normalizeModelId(models[0].modelRaw ?? undefined)
+                      : undefined
                 }
                 overrides={pricingOverrides}
               />

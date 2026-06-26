@@ -864,6 +864,29 @@ describe("readByProject", () => {
     expect(rows[0].equivApiValueUsd).toBeCloseTo(0.0025); // 500 input at Opus $5/M fallback
   });
 
+  it("returns n/a cost for a project where all turns have null modelRaw", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "x",
+        cwd: "/w/proj",
+        project: "proj",
+        modelRaw: undefined,
+        usage: {
+          inputTokens: 500,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readByProject(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalTokens).toBe(500); // tokens still counted
+    expect(rows[0].equivApiValueUsd).toBeNull(); // n/a — no model recorded
+  });
+
   it("on a mixed project counts and prices both models' tokens at their rates", () => {
     const db = openTestDb();
     migrateAnalytics(db);
@@ -1435,6 +1458,27 @@ describe("readBySession", () => {
     expect(rows[0].equivApiValueUsd).toBeCloseTo(0.00617); // 1234 input at Opus $5/M fallback
   });
 
+  it("returns n/a cost for a session where all turns have null modelRaw", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "x",
+        sessionId: "s1",
+        modelRaw: undefined,
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const rows = readBySession(db);
+    expect(rows[0].totalTokens).toBe(100);
+    expect(rows[0].equivApiValueUsd).toBeNull(); // n/a — no model recorded
+  });
+
   it("orders rows by last activity descending, breaking ties by session id", () => {
     const db = openTestDb();
     migrateAnalytics(db);
@@ -1916,6 +1960,29 @@ describe("readDaily", () => {
     expect(d.byModel[0].equivApiValueUsd).toBeCloseTo(0.005);
   });
 
+  it("returns n/a cost and null costByKind for a day where all turns have null modelRaw", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "x",
+        ts: noon(2026, 6, 14),
+        modelRaw: undefined,
+        usage: {
+          inputTokens: 500,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const [d] = readDaily(db);
+    expect(d.inputTokens).toBe(500);
+    expect(d.equivApiValueUsd).toBeNull(); // n/a — no model recorded
+    expect(d.costByKind).toBeNull();
+    expect(d.byModel[0].equivApiValueUsd).toBeNull();
+  });
+
   it("prices a fresh equiv value per day (input + output only)", () => {
     const db = openTestDb();
     migrateAnalytics(db);
@@ -2108,6 +2175,28 @@ describe("readCalendar", () => {
     expect(cal[0].totalTokens).toBe(100);
     expect(cal[0].turns).toBe(1);
     expect(cal[0].equivApiValueUsd).toBeCloseTo(0.0005); // 100 input at Opus $5/M fallback
+  });
+
+  it("returns n/a cost for a calendar day where all turns have null modelRaw", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({
+        messageId: "x",
+        ts: noon(2026, 6, 14),
+        modelRaw: undefined,
+        usage: {
+          inputTokens: 100,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        },
+      }),
+    ]);
+    const cal = readCalendar(db, { sinceMs: since, untilMs: until });
+    expect(cal[0].totalTokens).toBe(100);
+    expect(cal[0].turns).toBe(1);
+    expect(cal[0].equivApiValueUsd).toBeNull(); // n/a — no model recorded
   });
 
   it("prices both recognized and unrecognized models on a mixed day, counting every model's tokens", () => {

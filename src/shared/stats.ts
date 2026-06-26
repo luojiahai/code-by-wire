@@ -1,8 +1,9 @@
 /**
  * All-time usage totals the Stats view renders as headline cards, computed by the analytics store from
  * a single SQL aggregate. `equivApiValueUsd` is an Equivalent API value (a reference figure, never money
- * owed on a subscription): the sum over only the models whose raw id maps to a known
- * family. Tokens from an unrecognized model are still counted in the token totals but contribute n/a cost.
+ * owed on a subscription): the sum over all models, each priced at its own rate (unrecognized ids
+ * fall back to Opus default pricing). Tokens from a genuinely absent model (null modelRaw) are still
+ * counted in the token totals but contribute n/a cost.
  */
 export interface StatsTotals {
   /** Distinct sessions that contributed at least one turn. */
@@ -58,7 +59,7 @@ export interface StatsByModel {
   /** Equivalent API value for this model, priced at Opus fallback for unrecognized ids; null only when modelRaw is absent. */
   equivApiValueUsd: number | null;
   /** The same value pricing only input + output (cache excluded): shown when the page cache pill is off.
-   *  0 (not null) for a recognized model with no fresh tokens; null only when the id is unrecognized. */
+   *  0 (not null) for a model with no fresh tokens; null only when modelRaw is genuinely absent. */
   equivApiValueFreshUsd: number | null;
 }
 
@@ -66,9 +67,9 @@ export interface StatsByModel {
  * One row of the per-project breakdown (#112). The grouping key is the FULL `cwd`, so two repos that share a
  * folder name stay separate rows; `project` is that cwd's basename, the display label. `totalTokens` sums all
  * four token kinds — the bar's length and the table's Tokens column. `equivApiValueUsd` is the project's
- * Equivalent API value summed across its recognized models, or null (n/a) when none of its turns ran a known
- * model — an honest n/a, never a guessed $0. A mixed project shows the sum over only its recognized models,
- * which is exactly its contribution to the grand total.
+ * Equivalent API value summed across all models (unrecognized ids at Opus fallback), or null (n/a) when
+ * none of its turns recorded a model — an honest n/a, never a guessed $0. A mixed project shows the sum
+ * over all its models, which is exactly its contribution to the grand total.
  */
 export interface StatsByProject {
   /** The full working directory the turns ran in: the grouping key, kept distinct per repo. The row labels
@@ -81,7 +82,7 @@ export interface StatsByProject {
    *  metric (input + output) when the page cache toggle is off. */
   inputTokens: number;
   outputTokens: number;
-  /** Equivalent API value summed over the project's recognized models, or null (n/a) when it has none. */
+  /** Equivalent API value summed over the project's models (unrecognized ids at Opus fallback), or null (n/a) when it has none. */
   equivApiValueUsd: number | null;
   /** The same value pricing only input + output (cache excluded): shown when the page cache pill is off. */
   equivApiValueFreshUsd: number | null;
@@ -114,7 +115,7 @@ export interface StatsByBranch {
  * along to disambiguate two same-basename repos on hover. `modelRaw` is the session's DOMINANT model by
  * total tokens (a session can span models, but the column is singular) — yet `equivApiValueUsd` sums cost
  * across ALL its recognized models, so it reconciles with the grand total exactly like the other
- * breakdowns; it's null (n/a) when none of the session's turns ran a recognized model. `lastActivityMs` is
+ * breakdowns; it's null (n/a) when none of the session's turns recorded a model. `lastActivityMs` is
  * the latest turn's timestamp (the default sort key). `durationMs` is the span from the session's earliest
  * to latest KNOWN-time turn (unknown-time `ts=0` turns are excluded from the earliest bound, so an
  * unparsed timestamp can't stretch it back to the epoch); it's 0 when no turn has a known time, or for a
@@ -136,7 +137,7 @@ export interface StatsBySession {
   totalTokens: number;
   inputTokens: number;
   outputTokens: number;
-  /** Equivalent API value summed over the session's recognized models, or null (n/a) when it has none. */
+  /** Equivalent API value summed over the session's models (unrecognized ids at Opus fallback), or null (n/a) when it has none. */
   equivApiValueUsd: number | null;
   /** The same value pricing only input + output (cache excluded): shown when the page cache pill is off. */
   equivApiValueFreshUsd: number | null;
@@ -189,8 +190,8 @@ export function tokensOf(
  * The Equivalent API value shown for a row, governed by the page's "Include cache" pill: the all-kinds
  * value (input + output + both cache kinds) when cache is included, or the fresh value (input + output
  * rates only) when it's off. The mirror of `tokensOf`, so the Tokens figure and the equiv figure on the
- * same card always agree on whether cache counts. Both fields are null when the row ran no recognized
- * model (n/a, never a guessed $0); null passes through either way.
+ * same card always agree on whether cache counts. Both fields are null when the row recorded no model
+ * (n/a, never a guessed $0); null passes through either way.
  */
 export function equivOf(
   row: {
@@ -416,14 +417,14 @@ export interface DailyBucket {
   cacheCreationTokens: number;
   cacheCreation5mTokens: number;
   cacheCreation1hTokens: number;
-  /** The day's Equivalent API value summed over its recognized models, or null (n/a) when none of its
-   *  turns ran a known model — never a guessed $0. Prices every kind, unaffected by the cache pill. */
+  /** The day's Equivalent API value summed over all its models (unrecognized ids at Opus fallback), or
+   *  null (n/a) when none of its turns recorded a model — never a guessed $0. */
   equivApiValueUsd: number | null;
   /** The same value pricing only input + output (cache excluded): shown when the page cache pill is off.
-   *  Equals costByKind.input + costByKind.output, or null on a day with no recognized model. */
+   *  Equals costByKind.input + costByKind.output, or null on a day with no model recorded. */
   equivApiValueFreshUsd: number | null;
   /** The day's Equivalent API value split by token kind (the four sum to equivApiValueUsd), or null when
-   *  the day has no recognized model. Carried because the renderer holds per-kind tokens but not the
+   *  the day has no model recorded. Carried because the renderer holds per-kind tokens but not the
    *  per-model prices a day spanning models needs. */
   costByKind: {
     input: number;
@@ -437,7 +438,7 @@ export interface DailyBucket {
   /** Total tokens (all four kinds) per raw model id active this day, ordered by tokens descending then
    *  raw id, each with its Equivalent API value — the all-kinds figure and the fresh input+output subset,
    *  so a tooltip row can honor the page cache pill via equivOf and sum to the day's Total under either
-   *  toggle (both null for an unrecognized id). A turn that recorded no model uses modelRaw null. Empty on a
+   *  toggle (both null for an absent modelRaw). A turn that recorded no model uses modelRaw null. Empty on a
    *  zero-fill day. */
   byModel: {
     modelRaw: string | null;
@@ -453,8 +454,9 @@ export interface DailyBucket {
  * `totalTokens` sums all four token kinds; `inputTokens`/`outputTokens` ride along so the page's "Include
  * cache" pill can pick the Tokens metric via the shared `tokensOf` (all four kinds on, fresh input+output
  * off), exactly like the per-model/-project/-branch/-session rows. `equivApiValueUsd` is the day's
- * Equivalent API value summed over its recognized models, or null (n/a) when none of that day's turns ran a
- * known model — never a guessed $0 (cost always prices every kind, unaffected by the cache pill).
+ * Equivalent API value summed over all of that day's models (unrecognized ids at Opus fallback),
+ * or null (n/a) when none of that day's turns recorded a model — never a guessed $0 (cost always prices
+ * every kind, unaffected by the cache pill).
  */
 export interface CalendarDay {
   day: string;

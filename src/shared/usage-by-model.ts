@@ -50,7 +50,7 @@ export function modelUsageCost(
   overrides?: PricingOverrides,
 ): CostBreakdown | null {
   const raw = mu.modelRaw ?? undefined;
-  if (!raw) return null; // genuinely absent model → n/a
+  if (raw == null) return null; // genuinely absent model → n/a
   return costBreakdown(mu.usage, normalizeModelId(raw), overrides);
 }
 
@@ -65,7 +65,7 @@ export interface ModelUsageView {
 /** The Tokens panel's whole data source for a session's per-model breakdown: the combined token usage
  *  (every model, recognized or not), the combined per-kind cost (summed across all models (unrecognized ids priced at the default family rate), each at
  *  its own rate), the per-model rows (biggest-tokens first) for the attribution line and popovers, and
- *  whether any present recognized model carries a pricing override (which drops the live-cost headline).
+ *  whether any present model carries a pricing override (which drops the live-cost headline).
  *  Pure and JSX-free, so it typechecks under tsconfig.node.json and is unit-testable. */
 export interface UsageByModelView {
   usage: Usage;
@@ -95,7 +95,10 @@ export function viewUsageByModel(
   const cost = zeroCost();
   let anyOverride = false;
   const rows = models.map((mu): ModelUsageView => {
-    const c = modelUsageCost(mu, overrides);
+    const raw = mu.modelRaw ?? undefined;
+    // Compute family once per model — used by cost computation and the override check below.
+    const family: Family = normalizeModelId(raw);
+    const c = raw != null ? costBreakdown(mu.usage, family, overrides) : null;
     if (c) {
       cost.input += c.input;
       cost.output += c.output;
@@ -108,7 +111,6 @@ export function viewUsageByModel(
     }
     // Check for overrides unconditionally: an unrecognized model still normalizes to a family, and
     // a user override for that family should suppress liveCostUsd in the headline even when c is null.
-    const family: Family = normalizeModelId(mu.modelRaw ?? undefined);
     if (overrides && Object.keys(overrides[family] ?? {}).length > 0)
       anyOverride = true;
     return {
@@ -132,8 +134,8 @@ export function viewUsageByModel(
   };
 }
 
-/** The reconciled multi-model Equivalent API value: each model priced at its own rate, summed; unrecognized
- *  ids contribute tokens elsewhere but no cost here. The headline figure hydrate stores and the panel
+/** The reconciled multi-model Equivalent API value: each model priced at its own rate, summed;
+ *  unrecognized ids fall back to the default family (Opus), so every non-null modelRaw contributes cost. The headline figure hydrate stores and the panel
  *  recomputes with live overrides. */
 export function equivApiValueByModel(
   models: ModelUsage[],

@@ -302,7 +302,7 @@ function modelRowCostBreakdown(
   overrides: PricingOverrides = {},
 ): CostBreakdown | null {
   const raw = m.model_raw ?? undefined;
-  if (!raw) return null; // genuinely absent model → n/a
+  if (raw == null) return null; // genuinely absent model → n/a
   return costBreakdown(
     {
       inputTokens: m.input_tokens,
@@ -507,7 +507,7 @@ function groupByDimsAndModel(
 }
 
 /** A dimension group mid-fold: tokens summed across its models; cost accumulated over all models
- *  (unrecognized ids priced at Opus fallback), tracking `hasKnownCost` so only a group with no model at all
+ *  (unrecognized ids priced at Opus fallback), tracking `hasCost` so only a group with no model at all
  *  renders n/a rather than a misleading $0. */
 interface DimAgg {
   cwd: string;
@@ -516,9 +516,9 @@ interface DimAgg {
   totalTokens: number;
   inputTokens: number;
   outputTokens: number;
-  knownCost: number;
+  cost: number;
   freshCost: number;
-  hasKnownCost: boolean;
+  hasCost: boolean;
 }
 
 /**
@@ -545,9 +545,9 @@ function foldByDim(
         totalTokens: 0,
         inputTokens: 0,
         outputTokens: 0,
-        knownCost: 0,
+        cost: 0,
         freshCost: 0,
-        hasKnownCost: false,
+        hasCost: false,
       };
       map.set(key, a);
     }
@@ -560,9 +560,9 @@ function foldByDim(
     a.outputTokens += r.output_tokens;
     const b = modelRowCostBreakdown(r, overrides);
     if (b != null) {
-      a.knownCost += b.total;
+      a.cost += b.total;
       a.freshCost += b.input + b.output;
-      a.hasKnownCost = true;
+      a.hasCost = true;
     }
   }
   return [...map.values()];
@@ -571,13 +571,13 @@ function foldByDim(
 /** A folded group's Equivalent API value: the summed cost of its models (unrecognized ids priced at Opus
  *  fallback), or null (n/a) when every model row has null modelRaw — an honest n/a, not a guessed $0. */
 function dimCost(a: DimAgg): number | null {
-  return a.hasKnownCost ? a.knownCost : null;
+  return a.hasCost ? a.cost : null;
 }
 
 /** A folded group's fresh Equivalent API value (input + output rates only): shown when the page cache
  *  pill is off. Null (n/a) when the group has no priced model, mirroring dimCost. */
 function dimFreshCost(a: DimAgg): number | null {
-  return a.hasKnownCost ? a.freshCost : null;
+  return a.hasCost ? a.freshCost : null;
 }
 
 /** The finest dimension grain: one row per (cwd × project × branch × model). readBreakdowns scans at this
@@ -712,7 +712,7 @@ function groupBySession(db: SqliteDb, win: StatsWindow): SessionModelRow[] {
 }
 
 /** A session mid-fold: tokens and turns summed across its models; the span tracked as earliest-known and
- *  latest; cost accumulated across all models at their rates (hasKnownCost so only a session with no model
+ *  latest; cost accumulated across all models at their rates (hasCost so only a session with no model
  *  at all renders n/a, not a misleading $0); the dominant model tracked as the running argmax of token volume. */
 interface SessionAgg {
   sessionId: string;
@@ -724,9 +724,9 @@ interface SessionAgg {
   totalTokens: number;
   inputTokens: number;
   outputTokens: number;
-  knownCost: number;
+  cost: number;
   freshCost: number;
-  hasKnownCost: boolean;
+  hasCost: boolean;
   topModel: string | null;
   topModelTokens: number;
 }
@@ -759,9 +759,9 @@ function foldSessions(
         totalTokens: 0,
         inputTokens: 0,
         outputTokens: 0,
-        knownCost: 0,
+        cost: 0,
         freshCost: 0,
-        hasKnownCost: false,
+        hasCost: false,
         topModel: null,
         topModelTokens: -1,
       };
@@ -783,9 +783,9 @@ function foldSessions(
     a.outputTokens += r.output_tokens;
     const b = modelRowCostBreakdown(r, overrides);
     if (b != null) {
-      a.knownCost += b.total;
+      a.cost += b.total;
       a.freshCost += b.input + b.output;
-      a.hasKnownCost = true;
+      a.hasCost = true;
     }
     // Dominant model by tokens; on an exact token tie pick the lexicographically smaller raw id so the
     // choice is stable. A null model (the "Unknown" bucket) compares as the empty string, so on a tie it
@@ -812,8 +812,8 @@ function foldSessions(
         totalTokens: a.totalTokens,
         inputTokens: a.inputTokens,
         outputTokens: a.outputTokens,
-        equivApiValueUsd: a.hasKnownCost ? a.knownCost : null,
-        equivApiValueFreshUsd: a.hasKnownCost ? a.freshCost : null,
+        equivApiValueUsd: a.hasCost ? a.cost : null,
+        equivApiValueFreshUsd: a.hasCost ? a.freshCost : null,
         title: null,
       }),
     )
@@ -912,8 +912,8 @@ interface DayAgg {
   kindCacheWriteUsd: number;
   kindCacheWrite5mUsd: number;
   kindCacheWrite1hUsd: number;
-  knownCost: number;
-  hasKnownCost: boolean;
+  cost: number;
+  hasCost: boolean;
 }
 
 /**
@@ -949,8 +949,8 @@ function foldDays(
         kindCacheWriteUsd: 0,
         kindCacheWrite5mUsd: 0,
         kindCacheWrite1hUsd: 0,
-        knownCost: 0,
-        hasKnownCost: false,
+        cost: 0,
+        hasCost: false,
       };
       map.set(r.day, a);
     }
@@ -982,8 +982,8 @@ function foldDays(
       a.kindCacheWriteUsd += b.cacheWrite;
       a.kindCacheWrite5mUsd += b.cacheWrite5m;
       a.kindCacheWrite1hUsd += b.cacheWrite1h;
-      a.knownCost += b.total;
-      a.hasKnownCost = true;
+      a.cost += b.total;
+      a.hasCost = true;
     }
   }
   return [...map.values()]
@@ -996,11 +996,11 @@ function foldDays(
         cacheCreationTokens: a.cacheCreationTokens,
         cacheCreation5mTokens: a.cacheCreation5mTokens,
         cacheCreation1hTokens: a.cacheCreation1hTokens,
-        equivApiValueUsd: a.hasKnownCost ? a.knownCost : null,
-        equivApiValueFreshUsd: a.hasKnownCost
+        equivApiValueUsd: a.hasCost ? a.cost : null,
+        equivApiValueFreshUsd: a.hasCost
           ? a.kindInputUsd + a.kindOutputUsd
           : null,
-        costByKind: a.hasKnownCost
+        costByKind: a.hasCost
           ? {
               input: a.kindInputUsd,
               output: a.kindOutputUsd,
@@ -1046,16 +1046,16 @@ export function readDaily(
 
 /** A calendar day mid-fold: turns and tokens summed across the day's models (total plus the fresh input/
  *  output subset, so the renderer can honor the page's "Include cache" pill via tokensOf); cost accumulated
- *  across its models (unrecognized ids at Opus fallback; hasKnownCost flags whether any model was priced). */
+ *  across its models (unrecognized ids at Opus fallback; hasCost flags whether any model was priced). */
 interface CalAgg {
   day: string;
   turns: number;
   totalTokens: number;
   inputTokens: number;
   outputTokens: number;
-  knownCost: number;
+  cost: number;
   freshCost: number;
-  hasKnownCost: boolean;
+  hasCost: boolean;
 }
 
 /**
@@ -1079,9 +1079,9 @@ function foldCalendar(
         totalTokens: 0,
         inputTokens: 0,
         outputTokens: 0,
-        knownCost: 0,
+        cost: 0,
         freshCost: 0,
-        hasKnownCost: false,
+        hasCost: false,
       };
       map.set(r.day, a);
     }
@@ -1095,9 +1095,9 @@ function foldCalendar(
     a.outputTokens += r.output_tokens;
     const b = modelRowCostBreakdown(r, overrides);
     if (b != null) {
-      a.knownCost += b.total;
+      a.cost += b.total;
       a.freshCost += b.input + b.output;
-      a.hasKnownCost = true;
+      a.hasCost = true;
     }
   }
   return [...map.values()]
@@ -1108,8 +1108,8 @@ function foldCalendar(
         totalTokens: a.totalTokens,
         inputTokens: a.inputTokens,
         outputTokens: a.outputTokens,
-        equivApiValueUsd: a.hasKnownCost ? a.knownCost : null,
-        equivApiValueFreshUsd: a.hasKnownCost ? a.freshCost : null,
+        equivApiValueUsd: a.hasCost ? a.cost : null,
+        equivApiValueFreshUsd: a.hasCost ? a.freshCost : null,
       }),
     )
     .sort((a, b) => a.day.localeCompare(b.day));
