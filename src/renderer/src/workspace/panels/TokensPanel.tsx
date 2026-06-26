@@ -222,35 +222,30 @@ export function TokensPanel({
       tokens: usage.inputTokens,
       usd: cost.input,
       color: KIND_SEGMENT_COLORS[0],
-      dim: false,
     },
     {
       kind: KIND_BY_KEY.output,
       tokens: usage.outputTokens,
       usd: cost.output,
       color: KIND_SEGMENT_COLORS[1],
-      dim: false,
     },
     {
       kind: KIND_BY_KEY.cacheRead,
       tokens: usage.cacheReadTokens,
       usd: cost.cacheRead,
       color: KIND_SEGMENT_COLORS[2],
-      dim: false,
     },
     {
       kind: KIND_BY_KEY.cacheWrite5m,
       tokens: usage.cacheCreation5mTokens,
       usd: cost.cacheWrite5m,
       color: KIND_SEGMENT_COLORS[3],
-      dim: false,
     },
     {
       kind: KIND_BY_KEY.cacheWrite1h,
       tokens: usage.cacheCreation1hTokens,
       usd: cost.cacheWrite1h,
       color: KIND_SEGMENT_COLORS[4],
-      dim: false,
     },
   ];
   const total = view.totalTokens;
@@ -308,7 +303,6 @@ export function TokensPanel({
             color={r.color}
             tokens={r.tokens}
             usd={r.usd}
-            dim={r.dim}
           />
         ))}
       </div>
@@ -354,32 +348,27 @@ export function TokensPanel({
   );
 }
 
-/** One kind row: swatch · MetricTip label · tokens · ~cost. Dims to `0 / —` when the kind is unused
- *  (the 1-hour cache-write row for a session that never used 1h caching). */
+/** One kind row: swatch · MetricTip label · tokens · ~cost. */
 function Row({
   label,
   color,
   tokens,
   usd,
-  dim,
 }: {
   label: ReactNode;
   color: string;
   tokens: number;
   usd: number;
-  dim?: boolean;
 }) {
   return (
-    <div
-      className={`flex items-center gap-2 text-[12px] ${dim ? "opacity-40" : ""}`}
-    >
+    <div className="flex items-center gap-2 text-[12px]">
       <Swatch color={color} />
       <span className="flex-1 text-fg-muted">{label}</span>
       <span className="font-mono tabular-nums text-fg">
-        {dim ? "0" : formatTokensShort(tokens)}
+        {formatTokensShort(tokens)}
       </span>
       <span className="w-12 text-right font-mono text-[11px] tabular-nums text-fg-faint">
-        {dim ? "—" : `~${formatUsd(usd)}`}
+        ~{formatUsd(usd)}
       </span>
     </div>
   );
