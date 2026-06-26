@@ -208,7 +208,7 @@ export function TokensPanel({
   });
 
   // The 5 bar segments + flat rows, in cost-palette order, parallel to TOKEN_KINDS. Tokens are combined
-  // across models; USD is the summed per-model cost. The 1-hour row dims to `0 / —` when unused.
+  // across models; USD is the summed per-model cost.
   const bar = [
     { value: usage.inputTokens, color: KIND_SEGMENT_COLORS[0] },
     { value: usage.outputTokens, color: KIND_SEGMENT_COLORS[1] },
