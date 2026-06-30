@@ -53,7 +53,7 @@ function createWindow(
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
-    backgroundColor: "#0c0c0d",
+    backgroundColor: "#0e0e0e",
     ...(isMac
       ? {
           titleBarStyle: "hidden" as const,
