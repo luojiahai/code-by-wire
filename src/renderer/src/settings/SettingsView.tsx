@@ -63,7 +63,7 @@ export function SettingsView({
   return (
     <div className="flex h-full min-w-0 flex-1 bg-ink-950 text-fg">
       <nav className="flex w-44 shrink-0 flex-col gap-0.5 border-r border-ink-800 px-2 py-4">
-        <div className="px-2.5 pb-2 font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+        <div className="px-2.5 pb-2 font-display text-label font-semibold uppercase tracking-[0.1em] text-fg-faint">
           Settings
         </div>
         {NAV.map((n) => {
@@ -74,7 +74,7 @@ export function SettingsView({
               type="button"
               onClick={() => onSectionChange(n.key)}
               className={cx(
-                "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors",
+                "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-body transition-colors",
                 active
                   ? "bg-ink-900 text-fg"
                   : "text-fg-muted hover:bg-ink-900/50 hover:text-fg",
@@ -131,11 +131,11 @@ export function SettingsView({
 function Header({ title, lede }: { title: string; lede?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <h1 className="font-display text-[17px] font-semibold tracking-tight text-fg">
+      <h1 className="font-display text-heading font-semibold tracking-tight text-fg">
         {title}
       </h1>
       {lede && (
-        <p className="max-w-[54ch] text-[12.5px] leading-relaxed text-fg-muted">
+        <p className="max-w-[54ch] text-body leading-relaxed text-fg-muted">
           {lede}
         </p>
       )}
@@ -146,7 +146,7 @@ function Header({ title, lede }: { title: string; lede?: string }) {
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-925">
-      <div className="border-b border-ink-850 px-4 py-2.5 font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+      <div className="border-b border-ink-850 px-4 py-2.5 font-display text-label font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {title}
       </div>
       <div className="flex flex-col">{children}</div>
@@ -166,10 +166,8 @@ function Row({
   return (
     <div className="flex items-center justify-between gap-4 border-b border-ink-850 px-4 py-3 last:border-b-0">
       <div className="min-w-0">
-        <div className="text-[13px] text-fg">{label}</div>
-        {desc && (
-          <div className="mt-0.5 text-[11.5px] text-fg-faint">{desc}</div>
-        )}
+        <div className="text-body text-fg">{label}</div>
+        {desc && <div className="mt-0.5 text-meta text-fg-faint">{desc}</div>}
       </div>
       <div className="shrink-0">{children}</div>
     </div>
@@ -179,7 +177,7 @@ function Row({
 /** A muted, bordered "locked"/status pill. */
 function Pill({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded border border-ink-700 px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+    <span className="rounded border border-ink-700 px-2 py-0.5 font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
       {children}
     </span>
   );
@@ -211,17 +209,17 @@ function SystemSection({
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-medium text-fg">
+              <span className="text-body font-medium text-fg">
                 {view ? view.headline : "Checking…"}
               </span>
               {cliStatus?.version && (
-                <span className="font-mono text-[11px] text-fg-muted">
+                <span className="font-mono text-meta text-fg-muted">
                   v{cliStatus.version}
                 </span>
               )}
             </div>
             {view && (
-              <div className="mt-0.5 text-[11.5px] text-fg-muted">
+              <div className="mt-0.5 text-meta text-fg-muted">
                 {view.detail}
               </div>
             )}
@@ -230,7 +228,7 @@ function SystemSection({
             type="button"
             onClick={onRecheck}
             disabled={checking || cliStatus === null}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-ink-700 px-2.5 py-1 text-[12px] text-fg-muted transition-colors hover:border-ink-600 hover:text-fg disabled:opacity-40"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-ink-700 px-2.5 py-1 text-aux text-fg-muted transition-colors hover:border-ink-600 hover:text-fg disabled:opacity-40"
           >
             <Icon
               name="rotate-ccw"
@@ -306,7 +304,7 @@ function Remedy({ status }: { status: CliStatus }) {
                 type="button"
                 onClick={() => setTab(t.method)}
                 className={cx(
-                  "rounded-md px-2 py-1 text-[12px] transition-colors",
+                  "rounded-md px-2 py-1 text-aux transition-colors",
                   tab === t.method
                     ? "bg-ink-700 text-fg"
                     : "text-fg-muted hover:text-fg",
@@ -325,14 +323,14 @@ function Remedy({ status }: { status: CliStatus }) {
         <CommandRow cmd={remedy.command} />
       )}
       {remedy.section === "login" && (
-        <div className="text-[12px] text-fg-faint">
+        <div className="text-aux text-fg-faint">
           Start a session (the terminal prompts you to log in), or run{" "}
           <code className="font-mono">claude</code> in your shell.
         </div>
       )}
       {remedy.section === "verify" && (
         <div className="flex flex-col gap-2">
-          <div className="text-[12px] text-fg-faint">
+          <div className="text-aux text-fg-faint">
             Run <code className="font-mono">claude --version</code> in a
             terminal to check it works.
           </div>
@@ -348,7 +346,7 @@ function Remedy({ status }: { status: CliStatus }) {
         href="https://code.claude.com/docs/en/setup"
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center gap-1.5 text-[12px] text-primary transition-colors hover:text-primary-bright"
+        className="inline-flex items-center gap-1.5 text-aux text-primary transition-colors hover:text-primary-bright"
       >
         <Icon name="arrow-up-right" size={12} />
         Install docs
@@ -361,18 +359,18 @@ function CommandRow({ cmd, note }: { cmd: string; note?: string }) {
   return (
     <div>
       <div className="flex items-center gap-2 rounded-md border border-ink-800 bg-ink-950 px-2 py-1.5">
-        <code className="flex-1 overflow-x-auto font-mono text-[12px] text-working">
+        <code className="flex-1 overflow-x-auto font-mono text-aux text-working">
           {cmd}
         </code>
         <button
           type="button"
           onClick={() => void window.api.clipboardWriteText(cmd)}
-          className="shrink-0 text-[12px] text-fg-faint transition-colors hover:text-fg"
+          className="shrink-0 text-aux text-fg-faint transition-colors hover:text-fg"
         >
           copy
         </button>
       </div>
-      {note && <div className="mt-1 text-[10px] text-fg-faint">{note}</div>}
+      {note && <div className="mt-1 text-label text-fg-faint">{note}</div>}
     </div>
   );
 }
@@ -392,7 +390,7 @@ function BinaryOverride({
   return (
     <Card title="Binary override">
       <div className="px-4 py-3.5">
-        <p className="text-[11.5px] text-fg-faint">
+        <p className="text-meta text-fg-faint">
           Point the app at a specific claude binary. Applies to app launches.
         </p>
         <div className="mt-2 flex gap-2">
@@ -400,13 +398,13 @@ function BinaryOverride({
             value={binPath}
             onChange={(e) => setBinPath(e.target.value)}
             placeholder="/absolute/path/to/claude"
-            className="min-w-0 flex-1 rounded-md border border-ink-700 bg-well px-2.5 py-1.5 font-mono text-[12px] text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+            className="min-w-0 flex-1 rounded-md border border-ink-700 bg-well px-2.5 py-1.5 font-mono text-aux text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
           />
           <button
             type="button"
             onClick={() => onSetBinPath(binPath.trim() || null)}
             disabled={checking}
-            className="shrink-0 rounded-md border border-ink-700 bg-ink-925 px-3 py-1.5 text-[13px] text-fg transition-colors hover:bg-ink-850 disabled:opacity-60"
+            className="shrink-0 rounded-md border border-ink-700 bg-ink-925 px-3 py-1.5 text-body text-fg transition-colors hover:bg-ink-850 disabled:opacity-60"
           >
             Save
           </button>
@@ -427,12 +425,12 @@ function DetailRow({
   warn?: string;
 }) {
   return (
-    <div className="flex gap-3 border-b border-ink-850 px-4 py-2.5 text-[12px]">
+    <div className="flex gap-3 border-b border-ink-850 px-4 py-2.5 text-aux">
       <span className="w-16 shrink-0 text-fg-faint">{label}</span>
       <div className="min-w-0 flex-1">
         <div className="break-all font-mono text-fg-muted">{value}</div>
         {warn && (
-          <div className="mt-1 text-[11px] text-accent-bright">{warn}</div>
+          <div className="mt-1 text-meta text-accent-bright">{warn}</div>
         )}
       </div>
     </div>
@@ -475,7 +473,7 @@ function requirementsFor(
 
 function Req({ state, label }: { state: ReqState; label: string }) {
   return (
-    <div className="flex items-center gap-2 text-[12px]">
+    <div className="flex items-center gap-2 text-aux">
       {state === "unknown" ? (
         <span className="flex h-3.5 w-3.5 items-center justify-center">
           <span className="h-px w-2 bg-ink-600" />
@@ -516,12 +514,12 @@ function AccountSection({ account }: { account: Account | null }) {
       />
       <Card title="Identity">
         <Row label="Signed in" desc="Read from ~/.claude">
-          <span className="font-mono text-[12px] text-fg">
+          <span className="font-mono text-aux text-fg">
             {account?.email ?? "—"}
           </span>
         </Row>
         <Row label="Plan" desc="Detected from rate-limit presence">
-          <span className="text-[12.5px] text-fg">{plan}</span>
+          <span className="text-body text-fg">{plan}</span>
         </Row>
       </Card>
 
@@ -538,7 +536,7 @@ function AccountSection({ account }: { account: Account | null }) {
                     value={`${pct}%`}
                     color={ctxColor(pct)}
                   />
-                  <div className="ml-14 mt-0.5 text-[10.5px] text-fg-faint">
+                  <div className="ml-14 mt-0.5 text-label text-fg-faint">
                     resets in {formatResetCountdown(g.w.resetsAt, Date.now())}
                   </div>
                 </div>
@@ -551,7 +549,7 @@ function AccountSection({ account }: { account: Account | null }) {
       {mode === "api" && (
         <Card title="API billing">
           <Row label="Usage" desc="Billed per API usage">
-            <span className="text-[12.5px] text-fg">API Usage Billing</span>
+            <span className="text-body text-fg">API Usage Billing</span>
           </Row>
         </Card>
       )}
@@ -575,12 +573,12 @@ function AppearanceSection() {
           desc="Dark glass-cockpit; color reserved for live state"
         >
           <div className="flex items-center gap-2">
-            <span className="text-[12.5px] text-fg">Instrument · dark</span>
+            <span className="text-body text-fg">Instrument · dark</span>
             <Pill>locked</Pill>
           </div>
         </Row>
         <Row label="Reduce motion" desc="Follows your system setting">
-          <span className="text-[12.5px] text-fg-muted">
+          <span className="text-body text-fg-muted">
             {reduceMotion ? "On" : "Off"}
           </span>
         </Row>
@@ -596,11 +594,11 @@ function AboutSection({ update }: { update?: UpdateControls }) {
       <Card title="Code-by-wire">
         <div className="flex flex-col gap-3 px-4 py-4">
           <Wordmark />
-          <p className="max-w-[54ch] text-[12.5px] leading-relaxed text-fg-muted">
+          <p className="max-w-[54ch] text-body leading-relaxed text-fg-muted">
             A fly-by-wire cockpit for your Claude Code sessions. Observe,
             manage, and review every run from one instrument panel.
           </p>
-          <div className="font-mono text-[11.5px] text-fg-faint">
+          <div className="font-mono text-meta text-fg-faint">
             github.com/luojiahai/code-by-wire
           </div>
         </div>
