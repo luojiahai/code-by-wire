@@ -9,7 +9,6 @@ import {
 import type { Provider } from "./provider/types";
 import type { SqliteDb } from "./db/driver";
 import type { StatusLineReader } from "@shared/statusline";
-import type { ApiConfig } from "./settings/api-config";
 import type { ModelDefaults } from "@shared/models";
 import type { CliStatus } from "@shared/cli-status";
 import type { CliStatusController } from "./cli-check";
@@ -72,8 +71,6 @@ export interface IpcDeps {
   statusLine?: StatusLineReader;
   /** Reads the logged-in account email (cached by the caller). Defaults to no email. */
   accountEmail?: () => string | null;
-  /** Reads the configured API-billing config (cached by the caller). Defaults to no config. */
-  apiConfig?: () => ApiConfig | null;
   /** Reads the configured model defaults: per-family overrides, default family, allowed families
    *  (cached by the caller). Defaults to empty overrides. */
   modelDefaults?: () => ModelDefaults;
@@ -108,7 +105,6 @@ export function registerIpc({
   provider,
   statusLine,
   accountEmail,
-  apiConfig,
   modelDefaults,
   beforeSync,
   analyticsDb,
@@ -120,7 +116,6 @@ export function registerIpc({
 }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
-  const readApi = apiConfig ?? ((): ApiConfig | null => null);
   const readDefaults =
     modelDefaults ?? ((): ModelDefaults => ({ overrides: {} }));
   const cli = cliStatus ?? {
@@ -166,14 +161,8 @@ export function registerIpc({
     const now = Date.now();
     const base = getOverview(db);
     const byId = freshestBySession(reader.read());
-    // deriveAccount owns the whole billing decision: subscription (live window) vs api (a base URL and no
-    // rate_limits evidence) vs unknown. Pass the configured endpoint so it can surface api billing in one place.
-    const account = deriveAccount(
-      byId.values(),
-      now,
-      CAPTURE_STALE_MS,
-      readApi(),
-    );
+    // deriveAccount owns the whole billing decision: subscription (rate_limits evidence) vs api (no evidence).
+    const account = deriveAccount(byId.values(), now, CAPTURE_STALE_MS);
     if (account?.billingMode === "subscription") {
       // Subscription identity: the oauthAccount email. Attached only here, only for a
       // subscription — beside gateway billing it would mislabel, so a non-subscription account never gets it.

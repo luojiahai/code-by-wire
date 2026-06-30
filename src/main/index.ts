@@ -16,7 +16,6 @@ import { createStatusLineReader } from "./statusline/reader";
 import { registerTerminalIpc } from "./terminal/ipc";
 import { buildChildEnv } from "./terminal/child-env";
 import { readAccountEmail } from "./settings/account-email";
-import { readApiConfig, type ApiConfig } from "./settings/api-config";
 import { readModelDefaults } from "./settings/model-defaults";
 import type { ModelDefaults } from "@shared/models";
 import { resolveClaudeDir } from "./claude-config";
@@ -268,13 +267,7 @@ app
       if (emailCache === undefined) emailCache = readAccountEmail(claudeDir);
       return emailCache;
     };
-    let apiConfigCache: ApiConfig | null | undefined;
-    const apiConfig = (): ApiConfig | null => {
-      if (apiConfigCache === undefined)
-        apiConfigCache = readApiConfig(claudeDir);
-      return apiConfigCache;
-    };
-    // Read once per app run — same populate-once tradeoff as apiConfig. Editing settings.json while
+    // Read once per app run — editing settings.json while
     // the app is running won't change the model picker until restart.
     let modelDefaultsCache: ModelDefaults | undefined;
     const modelDefaults = (): ModelDefaults => {
@@ -297,7 +290,6 @@ app
       provider,
       statusLine,
       accountEmail,
-      apiConfig,
       modelDefaults,
       beforeSync: reconcile,
       analyticsDb,

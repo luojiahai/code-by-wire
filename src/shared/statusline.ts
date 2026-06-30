@@ -1,4 +1,4 @@
-import type { Account, ApiConfig, RateLimit, Session } from "./types";
+import type { Account, RateLimit, Session } from "./types";
 import type { ContextBreakdown } from "./transcript";
 import { contextTotal } from "./context";
 
@@ -67,18 +67,6 @@ export function freshestBySession(
   return byId;
 }
 
-/** True when `url`'s host is anthropic.com or a *.anthropic.com subdomain. Scheme-tolerant (the synthesized
- *  default carries one; a hand-set ANTHROPIC_BASE_URL may not) and spoof-safe — the leading-dot match
- *  rejects lookalikes like evil-anthropic.com. Undefined (a cloud provider, no endpoint) is not direct. */
-function isAnthropicHost(url: string | undefined): boolean {
-  if (!url) return false;
-  const host = url
-    .replace(/^https?:\/\//i, "")
-    .split(/[/:?#]/)[0]
-    .toLowerCase();
-  return host === "anthropic.com" || host.endsWith(".anthropic.com");
-}
-
 /** A rate-limit window only if its reset is still ahead. A window that has already reset can't be
  *  described by a past capture, so it's dropped rather than shown with a stale "% used · resets now". */
 function liveWindow(
@@ -89,21 +77,18 @@ function liveWindow(
 }
 
 /**
- * The app-wide Account from the live statusLine captures within `staleMs` of `now`, plus the configured
- * `apiConfig` (read from settings.json by the main process). Billing mode is decided here, in one place:
+ * The app-wide Account from the live statusLine captures within `staleMs` of `now`. Billing mode is
+ * decided here, in one place:
  *
- * - subscription: rate-limit presence is the signal. A capture carrying rate_limits is a
- *   subscription; the account takes its windows from the freshest capture that HAS them. To avoid flapping
- *   (a subscription session before its first API response, or an API-key session running alongside, carries
- *   no rate_limits) a newer no-limits capture can't override an older with-limits one. Each window is dropped
- *   once its reset has passed, so a stale capture can't show an expired limit as current.
- * - unknown: no live window AND no API endpoint to surface. Reached when every window has expired (a
- *   dormant subscriber — still a subscriber, just idle), or when no capture carries rate_limits and no base
- *   URL is configured. The block disappears rather than show a window-less 'subscription'.
- * - api: when no capture ever carried rate_limits (no subscription evidence) and `apiConfig` is present —
- *   a base URL (configured or the synthesized direct default) or a cloud provider. `anthropicDirect` is set
- *   when the host is anthropic.com with no upstream provider. A capture with rate_limits — even all-expired —
- *   is proof of a subscription, so a dormant subscriber is NEVER relabeled API billing.
+ * - subscription: rate-limit presence is the signal. A capture carrying rate_limits is a subscription;
+ *   the account takes its windows from the freshest capture that HAS them. To avoid flapping (a
+ *   subscription session before its first API response, or an API-key session running alongside, carries
+ *   no rate_limits) a newer no-limits capture can't override an older with-limits one. Each window is
+ *   dropped once its reset has passed, so a stale capture can't show an expired limit as current. A
+ *   dormant subscriber (all windows expired) stays subscription — the rate_limits history is proof.
+ * - api: no capture ever carried rate_limits (no subscription evidence) and at least one fresh sample
+ *   exists. A capture with rate_limits — even all-expired — is proof of a subscription, so a dormant
+ *   subscriber is NEVER relabeled API billing.
  *
  * Returns null when there's no recent statusLine data at all (the UI reads null as "no bars").
  */
@@ -111,7 +96,6 @@ export function deriveAccount(
   samples: Iterable<StatusLineSample>,
   now: number,
   staleMs: number,
-  apiConfig: ApiConfig | null = null,
 ): Account | null {
   let freshest: StatusLineSample | null = null;
   let withLimits: StatusLineSample | null = null;
@@ -125,49 +109,18 @@ export function deriveAccount(
       withLimits = s;
   }
   if (withLimits?.rateLimits) {
-    const fiveHour = liveWindow(withLimits.rateLimits.fiveHour, now);
-    const sevenDay = liveWindow(withLimits.rateLimits.sevenDay, now);
-    const sevenDaySonnet = liveWindow(
-      withLimits.rateLimits.sevenDaySonnet,
-      now,
-    );
-    const sevenDayOpus = liveWindow(withLimits.rateLimits.sevenDayOpus, now);
-    // A still-live window is the only proof of a *current* subscription. Once every window has passed its
-    // reset, fall through — but `withLimits` stays set, so the api branch below knows this is a dormant
-    // subscriber and won't relabel it API billing.
-    if (fiveHour || sevenDay || sevenDaySonnet || sevenDayOpus) {
-      const acc: Account = {
-        billingMode: "subscription",
-        fiveHour,
-        sevenDay,
-        sevenDaySonnet,
-        sevenDayOpus,
-      };
-      if (freshest?.version) acc.version = freshest.version;
-      return acc;
-    }
+    const acc: Account = {
+      billingMode: "subscription",
+      fiveHour: liveWindow(withLimits.rateLimits.fiveHour, now),
+      sevenDay: liveWindow(withLimits.rateLimits.sevenDay, now),
+      sevenDaySonnet: liveWindow(withLimits.rateLimits.sevenDaySonnet, now),
+      sevenDayOpus: liveWindow(withLimits.rateLimits.sevenDayOpus, now),
+    };
+    if (freshest?.version) acc.version = freshest.version;
+    return acc;
   }
   if (freshest) {
-    // Promote to api only when there's no subscription evidence at all (`withLimits` null — no capture ever
-    // carried rate_limits) and an endpoint is configured. A dormant subscriber (withLimits set, all expired)
-    // falls to 'unknown' instead, so its cost never mislabels as 'Actual API spend'.
-    let acc: Account;
-    if (!withLimits && apiConfig) {
-      acc = { billingMode: "api" };
-      if (apiConfig.baseUrl) acc.apiBaseUrl = apiConfig.baseUrl;
-      if (apiConfig.authMethod) acc.apiAuthMethod = apiConfig.authMethod;
-      if (apiConfig.provider) acc.apiProvider = apiConfig.provider;
-      // Real-spend framing is a strong claim, so assert direct billing only when a credential was actually
-      // detected — a bare anthropic.com base URL with no auth env stays an estimate (keeps the ~).
-      if (
-        isAnthropicHost(apiConfig.baseUrl) &&
-        apiConfig.authMethod &&
-        !apiConfig.provider
-      )
-        acc.anthropicDirect = true;
-    } else {
-      acc = { billingMode: "unknown" };
-    }
+    const acc: Account = { billingMode: "api" };
     if (freshest.version) acc.version = freshest.version;
     return acc;
   }

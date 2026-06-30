@@ -205,12 +205,11 @@ export interface RateLimit {
   resetsAt: number;
 }
 
-/** The app-wide account, derived from the freshest statusLine capture plus the configured ApiConfig.
- *  Billing mode is decided in deriveAccount: a capture carrying rate_limits is a subscription;
- *  with no such evidence, a configured API endpoint or cloud provider resolves to `api`; otherwise
- *  `unknown`. */
+/** The app-wide account, derived from the freshest statusLine captures. Billing mode is decided in
+ *  deriveAccount: a capture carrying rate_limits is a subscription (even when all windows are expired —
+ *  the rate_limits history is proof); otherwise api. */
 export interface Account {
-  billingMode: "subscription" | "api" | "unknown";
+  billingMode: "subscription" | "api";
   /** Present only for a subscription; otherwise no account rate limits. */
   fiveHour?: RateLimit;
   sevenDay?: RateLimit;
@@ -221,32 +220,6 @@ export interface Account {
   version?: string;
   /** Logged-in account email, read from ~/.claude.json by the ipc layer (not derived from samples). */
   email?: string;
-  /** API endpoint host for an `api` account — a configured base URL or the synthesized api.anthropic.com
-   *  direct default. Absent for a cloud provider (Bedrock/Vertex/etc.). The renderer shows it as a bare host. */
-  apiBaseUrl?: string;
-  /** How the API endpoint authenticates — present only alongside apiBaseUrl when an auth env var is set. */
-  apiAuthMethod?: "token" | "apiKey";
-  /** Upstream provider for `api` billing: a Portkey x-portkey-provider value, or a cloud-provider key
-   *  (bedrock/vertex/foundry/mantle/anthropic_aws). Present only when set. */
-  apiProvider?: string;
-  /** True only for Anthropic-direct billing: the endpoint host is anthropic.com (or a subdomain), an auth
-   *  credential was detected, AND no upstream provider is set. Optional and defaults falsy. */
-  anthropicDirect?: boolean;
-}
-
-/** API-billing identity read from settings.json env (by the main process), then fed to deriveAccount as the
- *  endpoint/provider to surface when no subscription evidence exists. */
-export interface ApiConfig {
-  /** The configured endpoint: ANTHROPIC_BASE_URL, or a synthesized https://api.anthropic.com for the
-   *  key-only direct case. Absent for a cloud provider (Bedrock/Vertex/etc.), which carries no endpoint.
-   *  The renderer strips the scheme for display. */
-  baseUrl?: string;
-  /** How the endpoint authenticates — an auth token vs an API key. Omitted for cloud providers (their
-   *  credentials live outside ANTHROPIC_* env) and when neither auth var is set. */
-  authMethod?: "token" | "apiKey";
-  /** Upstream provider: a Portkey x-portkey-provider value, or a cloud-provider key
-   *  (bedrock/vertex/foundry/mantle/anthropic_aws). Omitted when none applies. */
-  provider?: string;
 }
 
 /** What a Provider can do. Drives graceful degradation in the UI. */

@@ -68,10 +68,10 @@ describe("deriveAccount", () => {
     });
   });
 
-  it("returns unknown (never api) from a sample with no rate_limits — absence is not proof of API billing", () => {
+  it("returns api from a sample with no rate_limits — absence of rate_limits is not subscription evidence", () => {
     expect(
       deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS),
-    ).toEqual({ billingMode: "unknown" });
+    ).toEqual({ billingMode: "api" });
   });
 
   it("returns null when there is no statusLine data at all", () => {
@@ -136,10 +136,10 @@ describe("deriveAccount", () => {
     });
   });
 
-  it("falls back to unknown when every window has expired — stale limits are not proof of a current subscription", () => {
+  it("a dormant subscriber (all windows expired) stays subscription — not downgraded to api or unknown", () => {
     // A subscription session from a while ago: its 5h and 7d windows have both passed their reset. The
-    // capture is still within the staleness window but no longer evidences a live subscription, so the
-    // account must not keep the 'subscription' label (e.g. after the user switched to API/gateway billing).
+    // capture is still within the staleness window but the rate_limits history is proof the account IS
+    // a subscriber — just idle. It must stay subscription, not flip to api (which would mislabel cost).
     const s = sample({
       version: "2.0.14",
       rateLimits: {
@@ -148,7 +148,9 @@ describe("deriveAccount", () => {
       },
     });
     expect(deriveAccount([s], NOW, STALE_MS)).toEqual({
-      billingMode: "unknown",
+      billingMode: "subscription",
+      fiveHour: undefined,
+      sevenDay: undefined,
       version: "2.0.14",
     });
   });
@@ -175,120 +177,46 @@ describe("deriveAccount", () => {
 });
 
 describe("deriveAccount — api billing", () => {
-  it("promotes to api when no capture carries rate_limits and a base URL is configured", () => {
-    const api = {
-      baseUrl: "https://api.portkey.ai",
-      authMethod: "token" as const,
-      provider: "bedrock-use1-nonprod",
-    };
+  it("returns api when no capture carries rate_limits", () => {
     expect(
-      deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, api),
-    ).toEqual({
-      billingMode: "api",
-      apiBaseUrl: "https://api.portkey.ai",
-      apiAuthMethod: "token",
-      apiProvider: "bedrock-use1-nonprod",
-    });
+      deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS),
+    ).toEqual({ billingMode: "api" });
   });
 
-  it("does NOT relabel a dormant subscriber as api: a capture that carried rate_limits (all expired) stays unknown", () => {
-    // The mixed Opus-subscription + gateway case. The freshest with-limits capture has every window past
-    // its reset, so it is not a *live* subscription — but the rate_limits history proves the account IS a
-    // subscriber, just idle. Relabeling it API billing would wrongly flip the cost label to 'Actual API spend'.
+  it("a fresh sample whose rate_limits are all expired still yields subscription (dormant subscriber stays a subscriber)", () => {
+    // The rate_limits history is proof the account IS a subscriber, just idle. It must stay subscription,
+    // not flip to api (which would mislabel cost as 'Actual API spend').
     const s = sample({
       rateLimits: {
         fiveHour: { usedPct: 80, resetsAt: NOW - 1 },
         sevenDay: { usedPct: 40, resetsAt: NOW - 1 },
       },
     });
-    expect(
-      deriveAccount([s], NOW, STALE_MS, { baseUrl: "https://api.portkey.ai" }),
-    ).toEqual({ billingMode: "unknown" });
+    expect(deriveAccount([s], NOW, STALE_MS)).toEqual({
+      billingMode: "subscription",
+      fiveHour: undefined,
+      sevenDay: undefined,
+    });
   });
 
-  it("keeps subscription over api when a window is live and a base URL is also configured (subscription wins)", () => {
+  it("keeps subscription when a live window is present (subscription wins over api)", () => {
     const s = sample({
       rateLimits: { fiveHour: { usedPct: 20, resetsAt: NOW + 3_600_000 } },
     });
-    expect(
-      deriveAccount([s], NOW, STALE_MS, { baseUrl: "https://api.portkey.ai" })
-        ?.billingMode,
-    ).toBe("subscription");
+    expect(deriveAccount([s], NOW, STALE_MS)?.billingMode).toBe("subscription");
   });
 
-  it("carries the CLI version onto a promoted api account, like the unknown fallback does", () => {
-    const api = { baseUrl: "https://api.portkey.ai" };
+  it("carries the CLI version onto an api account", () => {
     expect(
       deriveAccount(
         [sample({ rateLimits: null, version: "2.0.14" })],
         NOW,
         STALE_MS,
-        api,
       ),
     ).toEqual({
       billingMode: "api",
-      apiBaseUrl: "https://api.portkey.ai",
       version: "2.0.14",
     });
-  });
-
-  it("flags an Anthropic-direct account (synthesized default, no provider)", () => {
-    const api = {
-      baseUrl: "https://api.anthropic.com",
-      authMethod: "apiKey" as const,
-    };
-    expect(
-      deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, api),
-    ).toEqual({
-      billingMode: "api",
-      apiBaseUrl: "https://api.anthropic.com",
-      apiAuthMethod: "apiKey",
-      anthropicDirect: true,
-    });
-  });
-
-  it("classifies a cloud provider as api with a provider and no host", () => {
-    expect(
-      deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
-        provider: "bedrock",
-      }),
-    ).toEqual({ billingMode: "api", apiProvider: "bedrock" });
-  });
-
-  it("is not direct when a provider is set even on an anthropic host", () => {
-    const acc = deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
-      baseUrl: "https://api.anthropic.com",
-      authMethod: "apiKey",
-      provider: "portkey-thing",
-    });
-    expect(acc?.anthropicDirect).toBeUndefined();
-  });
-
-  it("is not direct for a lookalike host (no anthropic.com spoofing)", () => {
-    const acc = deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
-      baseUrl: "https://evil-anthropic.com",
-      authMethod: "apiKey",
-    });
-    expect(acc?.anthropicDirect).toBeUndefined();
-  });
-
-  it("is direct for an anthropic host with an uppercase scheme", () => {
-    const acc = deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
-      baseUrl: "HTTPS://api.anthropic.com",
-      authMethod: "token",
-    });
-    expect(acc?.anthropicDirect).toBe(true);
-  });
-
-  it("is not direct on an anthropic host when no credential was detected", () => {
-    const acc = deriveAccount([sample({ rateLimits: null })], NOW, STALE_MS, {
-      baseUrl: "https://api.anthropic.com",
-    });
-    expect(acc).toEqual({
-      billingMode: "api",
-      apiBaseUrl: "https://api.anthropic.com",
-    });
-    expect(acc?.anthropicDirect).toBeUndefined();
   });
 });
 

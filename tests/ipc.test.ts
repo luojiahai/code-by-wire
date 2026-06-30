@@ -235,30 +235,20 @@ describe("registerIpc overview — account email", () => {
 });
 
 describe("registerIpc overview — api billing", () => {
-  it("promotes an unknown account to api and attaches the config when apiConfig is provided", () => {
+  it("returns api when a sample carries no rate_limits", () => {
     const db = openTestDb();
     migrate(db);
     upsertSessions(db, [seed]);
     registerIpc({
       db,
       provider: provider(() => []),
-      statusLine: reader([lineSample({ sessionId: "seed" })]), // no rateLimits → deriveAccount returns 'unknown'
-      apiConfig: () => ({
-        baseUrl: "https://api.portkey.ai",
-        authMethod: "token",
-        provider: "bedrock-use1-nonprod",
-      }),
+      statusLine: reader([lineSample({ sessionId: "seed" })]), // no rateLimits → api
     });
     const o = handlers.get(IPC.overview)!() as OverviewData;
-    expect(o.account).toEqual({
-      billingMode: "api",
-      apiBaseUrl: "https://api.portkey.ai",
-      apiAuthMethod: "token",
-      apiProvider: "bedrock-use1-nonprod",
-    });
+    expect(o.account).toEqual({ billingMode: "api" });
   });
 
-  it("keeps a subscription account in subscription mode even when apiConfig is present (subscription wins)", () => {
+  it("keeps a subscription account in subscription mode (subscription wins over api)", () => {
     const db = openTestDb();
     migrate(db);
     upsertSessions(db, [seed]);
@@ -273,18 +263,14 @@ describe("registerIpc overview — api billing", () => {
           },
         }),
       ]),
-      apiConfig: () => ({ baseUrl: "https://api.portkey.ai" }),
     });
     const o = handlers.get(IPC.overview)!() as OverviewData;
     expect(o.account?.billingMode).toBe("subscription");
-    expect(o.account?.apiBaseUrl).toBeUndefined();
   });
 
-  it("does not relabel a dormant subscription (all windows expired) as api even when apiConfig is present", () => {
-    // Regression: a real subscription gone idle still writes captures carrying rate_limits whose windows
-    // have reset. deriveAccount returns 'unknown', but the rate_limits history proves the account is a
-    // subscriber, not API billing. Promoting it to 'api' just because a base URL is configured would
-    // misclassify the account type.
+  it("does not relabel a dormant subscription (all windows expired) as api — stays subscription", () => {
+    // A real subscription gone idle still writes captures carrying rate_limits whose windows have reset.
+    // The rate_limits history proves the account is a subscriber, not API billing — stays subscription.
     const db = openTestDb();
     migrate(db);
     upsertSessions(db, [seed]);
@@ -300,29 +286,12 @@ describe("registerIpc overview — api billing", () => {
           },
         }),
       ]),
-      apiConfig: () => ({ baseUrl: "https://api.portkey.ai" }),
     });
     const o = handlers.get(IPC.overview)!() as OverviewData;
-    expect(o.account?.billingMode).toBe("unknown");
-    expect(o.account?.apiBaseUrl).toBeUndefined();
+    expect(o.account?.billingMode).toBe("subscription");
   });
 
-  it("leaves an unknown account untouched when apiConfig returns null (no base URL configured)", () => {
-    const db = openTestDb();
-    migrate(db);
-    upsertSessions(db, [seed]);
-    registerIpc({
-      db,
-      provider: provider(() => []),
-      statusLine: reader([lineSample({ sessionId: "seed" })]),
-      apiConfig: () => null,
-    });
-    expect((handlers.get(IPC.overview)!() as OverviewData).account).toEqual({
-      billingMode: "unknown",
-    });
-  });
-
-  it("does not promote when no apiConfig dep is provided", () => {
+  it("returns api when a sample has no rate_limits (no statusLine config needed)", () => {
     const db = openTestDb();
     migrate(db);
     upsertSessions(db, [seed]);
@@ -332,7 +301,7 @@ describe("registerIpc overview — api billing", () => {
       statusLine: reader([lineSample({ sessionId: "seed" })]),
     });
     expect((handlers.get(IPC.overview)!() as OverviewData).account).toEqual({
-      billingMode: "unknown",
+      billingMode: "api",
     });
   });
 });
