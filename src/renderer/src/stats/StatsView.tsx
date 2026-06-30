@@ -21,7 +21,6 @@ import {
   type CalendarDay,
   DEFAULT_RANGE,
   emptySnapshot,
-  equivOf,
   tokensOf,
   isDayRange,
   rangeWindow,
@@ -31,7 +30,6 @@ import {
 import {
   formatTokensShort,
   formatTokensAxis,
-  formatUsd,
   formatDuration,
   formatRelativeTime,
   formatDayShort,
@@ -62,7 +60,6 @@ import {
 } from "../ui/contributions-geom";
 import { Swatch } from "../ui/atoms";
 import { CopyButton } from "../ui/CopyButton";
-import { InfoButton } from "../ui/InfoButton";
 import {
   sortSessions,
   defaultDirFor,
@@ -71,20 +68,6 @@ import {
   type SessionSortKey,
 } from "./session-sort";
 import type { PricingOverrides } from "@shared/models";
-
-/** A row's Equivalent API value as a display string under the page cache pill: the formatted USD, or "n/a"
- *  when the row ran no recognized model (equivOf null). One spelling for every equiv cell — the headline,
- *  the calendar tooltip, the daily Total, the session table — so the n/a wording can't drift. */
-function equivLabel(
-  row: {
-    equivApiValueUsd: number | null;
-    equivApiValueFreshUsd: number | null;
-  },
-  includeCache: boolean,
-): string {
-  const v = equivOf(row, includeCache);
-  return v == null ? "n/a" : formatUsd(v);
-}
 
 /** Poll cadences: brisk while the first cold backfill fills in, gentle once caught up so a turn landing
  *  in another Session still shows up without a manual refresh. */
@@ -418,14 +401,13 @@ function RangeFilter({
   );
 }
 
-/** Which metric the calendar's cell intensity reads. All three ride each CalendarDay, so the toggle is a
+/** Which metric the calendar's cell intensity reads. Both ride each CalendarDay, so the toggle is a
  *  pure re-bucket — no re-fetch. Default is turns (#115). */
-type CalMetric = "turns" | "tokens" | "equiv";
+type CalMetric = "turns" | "tokens";
 
 const CAL_METRIC_LABELS: Record<CalMetric, string> = {
   turns: "Turns",
   tokens: "Tokens",
-  equiv: "Equiv API value",
 };
 const CAL_METRIC_OPTS = Object.entries(CAL_METRIC_LABELS) as [
   CalMetric,
@@ -435,10 +417,10 @@ const CAL_METRIC_OPTS = Object.entries(CAL_METRIC_LABELS) as [
 /**
  * The contributions calendar (#115): a full-width activity grid below the KPI strip. A trailing-twelve-month (or selected-year) grid of
  * one cell per local day, intensity-bucketed adaptively over the visible window by the active metric (turns
- * default, tokens, or Equivalent API value). Its window is queried independently of the page range filter, so
- * its year switcher and metric toggle live in this panel's header, not the page toolbar. Hovering a day shows
- * the date and that day's value; clicking a day drives the page range to that single date (the rest of the
- * page re-scopes; the calendar stays put, the clicked cell ringed).
+ * default, or tokens). Its window is queried independently of the page range filter, so its year switcher and
+ * metric toggle live in this panel's header, not the page toolbar. Hovering a day shows the date and that
+ * day's value; clicking a day drives the page range to that single date (the rest of the page re-scopes;
+ * the calendar stays put, the clicked cell ringed).
  */
 function Contributions({
   days,
@@ -471,15 +453,13 @@ function Contributions({
   // and cache pill, so a toggle only re-buckets rather than re-laying-out.
   const byDay = useMemo(() => new Map(days.map((d) => [d.day, d])), [days]);
   // The value a day contributes under the active metric. The Tokens metric follows the page's "Include cache"
-  // pill via the shared tokensOf (all four kinds on, fresh input+output off), like the other breakdowns. A
-  // null equiv (no recognized model that day) reads as 0 intensity — honest n/a in the tooltip, no guessed cost.
+  // pill via the shared tokensOf (all four kinds on, fresh input+output off), like the other breakdowns.
   const valueOf = useCallback(
     (day: string): number => {
       const d = byDay.get(day);
       if (!d) return 0;
       if (metric === "turns") return d.turns;
-      if (metric === "tokens") return tokensOf(d, includeCache);
-      return equivOf(d, includeCache) ?? 0;
+      return tokensOf(d, includeCache);
     },
     [byDay, metric, includeCache],
   );
@@ -520,10 +500,7 @@ function Contributions({
       const n = d?.turns ?? 0;
       return `${n.toLocaleString("en-US")} ${n === 1 ? "turn" : "turns"}`;
     }
-    if (metric === "tokens")
-      return `${formatTokensShort(d ? tokensOf(d, includeCache) : 0)} tokens`;
-    if (!d) return "n/a";
-    return equivLabel(d, includeCache);
+    return `${formatTokensShort(d ? tokensOf(d, includeCache) : 0)} tokens`;
   };
   const renderTooltip = (day: string): ReactNode => (
     <div className="flex flex-col gap-0.5">
@@ -571,8 +548,8 @@ function Contributions({
   );
 }
 
-/** The calendar's metric toggle (Turns / Tokens / Equiv API value), styled like the daily chart's
- *  StackByToggle, pinned in the Contributions panel header. */
+/** The calendar's metric toggle (Turns / Tokens), styled like the daily chart's StackByToggle, pinned in
+ *  the Contributions panel header. */
 function CalMetricToggle({
   value,
   onChange,
@@ -629,9 +606,8 @@ function YearSwitcher({
   );
 }
 
-/** The headline KPI strip: Sessions, Turns, Tokens (with a mini kind-split bar), and Equivalent API value
- *  (with the reference-figure explainer). Replaces the old Totals card. The Tokens number and its split
- *  both follow the page's Include-cache toggle, so the bar and the figure above it always agree. */
+/** The headline KPI strip: Sessions, Turns, and Tokens (with a mini kind-split bar). The Tokens number
+ *  and its split both follow the page's Include-cache toggle, so the bar and the figure above it always agree. */
 function KpiStrip({
   totals,
   includeCache,
@@ -639,8 +615,8 @@ function KpiStrip({
   totals: StatsTotals;
   includeCache: boolean;
 }) {
-  // Segments under the Tokens number, in the shared cost-palette order. Cache off counts fresh tokens
-  // only, so drop the two cache segments — then the bar composition matches the number above it.
+  // Segments under the Tokens number. Cache off counts fresh tokens only, so drop the cache segments —
+  // then the bar composition matches the number above it.
   const kindSegments = includeCache
     ? [
         { value: totals.inputTokens, color: KIND_SEGMENT_COLORS[0] },
@@ -660,7 +636,7 @@ function KpiStrip({
       totals.cacheCreationTokens
     : totals.inputTokens + totals.outputTokens;
   return (
-    <div className="grid grid-cols-2 rounded-xl border border-ink-800 bg-ink-925 lg:grid-cols-4">
+    <div className="grid grid-cols-3 rounded-xl border border-ink-800 bg-ink-925">
       <KpiCard
         label="Sessions"
         value={totals.sessions.toLocaleString("en-US")}
@@ -680,23 +656,6 @@ function KpiStrip({
               </MetricTip>
             </span>
           ))}
-        </div>
-      </KpiCard>
-      <KpiCard
-        label="Equiv API value"
-        value={formatUsd(equivOf(totals, includeCache) ?? 0)}
-      >
-        <div className="mt-2 flex items-center gap-1 text-[10px] text-fg-faint">
-          <span>reference, not money owed</span>
-          <span className="relative">
-            <InfoButton
-              label="About Equivalent API value"
-              popoverClassName="left-0 top-full mt-1.5 w-56 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-[11px] leading-snug text-fg-muted shadow-lg"
-            >
-              What these tokens would cost at API rates. A reference figure for
-              a subscription account, never money owed.
-            </InfoButton>
-          </span>
         </div>
       </KpiCard>
     </div>
@@ -818,16 +777,6 @@ function DailyUsage({
     return m;
   });
 
-  // Per-day model → Equivalent API value under the page cache pill (all kinds on, fresh input+output off,
-  // via equivOf), so a tooltip model row pulls its cost in O(1) and the rows sum to the Total under the same
-  // toggle. null for an unrecognized model. Mirrors perDayModel, which carries the same models' tokens.
-  const perDayModelCost = days.map((d) => {
-    const m = new Map<string, number | null>();
-    for (const e of d.byModel)
-      m.set(modelKey(e.modelRaw), equivOf(e, includeCache));
-    return m;
-  });
-
   const columns: DayColumn[] = days.map((d, i) =>
     stackBy === "kind"
       ? {
@@ -866,40 +815,15 @@ function DailyUsage({
           color: s.color,
         }));
 
-  // Index-aligned with KIND_SEGMENT_LABELS / KIND_SEGMENT_COLORS, so a kind segment maps to its costByKind field.
-  const KIND_COST_KEYS = [
-    "input",
-    "output",
-    "cacheRead",
-    "cacheWrite5m",
-    "cacheWrite1h",
-  ] as const;
-
   const renderTooltip = (i: number): ReactNode => {
     const d = days[i];
-    // Cost follows the page cache pill: all four kinds when on, fresh input + output when off (equivOf),
-    // so the Total matches the day's equiv value shown in the calendar/headline under the same toggle. A
-    // kind's token count spans every model on the day, but costByKind prices only the recognized share. So
-    // on a day with unrecognized-model tokens a per-kind dollar would underprice its own row (a full token
-    // count beside a partial $). Show per-kind cost only when the day is fully priced; otherwise n/a.
-    // Per-MODEL cost is exact (a model maps 1:1 to a price), so the model view always shows a per-row cost,
-    // and it follows the same pill via equivOf — so its rows sum to the Total under either toggle.
-    // With cache off the visible kind costs (input + output) sum to the Total too, since both drop cache.
-    const fullyPriced =
-      d.costByKind != null &&
-      !d.byModel.some((m) => m.totalTokens > 0 && m.equivApiValueUsd == null);
-    const showKindCost = fullyPriced;
     const rows =
       stackBy === "kind"
         ? kindSegments(d)
-            .map((r, idx) => ({
+            .map((r) => ({
               label: r.label,
               value: r.value,
               color: r.color,
-              cost:
-                showKindCost && d.costByKind
-                  ? d.costByKind[KIND_COST_KEYS[idx]]
-                  : null,
             }))
             .filter((r) => r.value > 0)
         : series
@@ -907,13 +831,8 @@ function DailyUsage({
               label: s.modelRaw ?? "Unknown",
               value: perDayModel[i].get(modelKey(s.modelRaw)) ?? 0,
               color: s.color,
-              cost: perDayModelCost[i].get(modelKey(s.modelRaw)) ?? null,
             }))
             .filter((r) => r.value > 0);
-    // Tokens track exactly what the bar stacks: the kind view folds cache out when the pill is off, the
-    // model view always totals all kinds. Cost is the day's equiv value under the same pill (all kinds on,
-    // fresh off), so it agrees with every other panel and reads n/a (never blank) on a day with no
-    // recognized model.
     const total = rows.reduce((sum, r) => sum + r.value, 0);
     return (
       <div className="flex flex-col gap-1">
@@ -928,9 +847,6 @@ function DailyUsage({
               <span className="ml-auto pl-3 font-mono tabular-nums text-fg">
                 {formatTokensShort(r.value)}
               </span>
-              <span className="w-12 pl-2 text-right font-mono text-[11px] tabular-nums text-fg-faint">
-                {r.cost == null ? "n/a" : `~${formatUsd(r.cost)}`}
-              </span>
             </div>
           ))
         )}
@@ -938,9 +854,6 @@ function DailyUsage({
           <span className="text-fg-muted">Total</span>
           <span className="ml-auto pl-3 font-mono tabular-nums text-fg">
             {formatTokensShort(total)}
-          </span>
-          <span className="w-12 pl-2 text-right font-mono text-[11px] tabular-nums text-fg-faint">
-            {equivLabel(d, includeCache)}
           </span>
         </div>
       </div>
@@ -1001,8 +914,8 @@ function StackByToggle({
 
 /** The page-level "Include cache" control in the Stats header, governing the Tokens metric across every
  *  breakdown. A checkbox: a filled, sky-ticked box when on (count all four token kinds), an empty box when
- *  off (fresh input + output only). Cost always prices every kind, as the tooltip notes. The checkbox reads
- *  its binary state at a glance and stays visually distinct from the range pill group beside it. */
+ *  off (fresh input + output only). The checkbox reads its binary state at a glance and stays visually
+ *  distinct from the range pill group beside it. */
 function CacheToggle({
   on,
   onChange,
@@ -1015,7 +928,7 @@ function CacheToggle({
       type="button"
       onClick={() => onChange(!on)}
       aria-pressed={on}
-      title="Count cache-read and cache-creation tokens in the token figures (cost always includes them)"
+      title="Count cache-read and cache-creation tokens in the token figures"
       className="flex items-center gap-1.5 rounded-md border border-ink-800 bg-ink-900 px-2 py-1 text-[11px] text-fg-muted transition-colors hover:border-ink-700"
     >
       <span
@@ -1032,15 +945,14 @@ function CacheToggle({
   );
 }
 
-/** One row of a Breakdown panel: an entity with its displayed-metric tokens, Equivalent API value, and the
- *  color its bar (and optional swatch) take. The caller ranks the rows and assigns colors; the panel slices
- *  to `cap`, sizes bars against the largest displayed value, and renders the header and "+N more" note. */
+/** One row of a Breakdown panel: an entity with its displayed-metric tokens and the color its bar (and
+ *  optional swatch) take. The caller ranks the rows and assigns colors; the panel slices to `cap`, sizes
+ *  bars against the largest displayed value, and renders the header and "+N more" note. */
 type BreakdownRow = {
   key: string;
   label: string;
   title?: string;
   tokens: number;
-  equivApiValueUsd: number | null;
   color: string;
 };
 
@@ -1048,12 +960,12 @@ type BreakdownRow = {
 const TOP_BREAKDOWN_ROWS = 7;
 
 /** The shared ranked-breakdown panel behind By model and By project (#111/#112): a titled table of entities,
- *  biggest first, each a row of name + Tokens + Equivalent API value with a full-width bar beneath. The two
- *  callers differ only in props: model rows carry a per-model swatch (`showSwatch`); both cap to `cap.n` rows
- *  with a "+N more {cap.noun}s" note. The count and its noun ride in one object so a cap can't be set without
- *  the note that discloses it. Bars size against the largest DISPLAYED row, so a cap changes the denominator;
- *  an all-zero window yields empty bars rather than a divide-by-zero. The bar is built inline (not the `Bar`
- *  atom) because its color is a dynamic CSS value, not a Tailwind class. */
+ *  biggest first, each a row of name + Tokens with a full-width bar beneath. The two callers differ only in
+ *  props: model rows carry a per-model swatch (`showSwatch`); both cap to `cap.n` rows with a "+N more
+ *  {cap.noun}s" note. The count and its noun ride in one object so a cap can't be set without the note that
+ *  discloses it. Bars size against the largest DISPLAYED row, so a cap changes the denominator; an all-zero
+ *  window yields empty bars rather than a divide-by-zero. The bar is built inline (not the `Bar` atom)
+ *  because its color is a dynamic CSS value, not a Tailwind class. */
 function Breakdown({
   title,
   nameLabel,
@@ -1074,9 +986,8 @@ function Breakdown({
     <StatsPanel title={title}>
       <table className="w-full table-fixed text-[12px]">
         <colgroup>
-          <col className="w-[58%]" />
-          <col className="w-[21%]" />
-          <col className="w-[21%]" />
+          <col className="w-[70%]" />
+          <col className="w-[30%]" />
         </colgroup>
         <thead>
           <tr className="text-[10px] uppercase tracking-wide text-fg-faint">
@@ -1091,12 +1002,6 @@ function Breakdown({
               className="whitespace-nowrap pb-1.5 text-right font-normal"
             >
               Tokens
-            </th>
-            <th
-              scope="col"
-              className="whitespace-nowrap pb-1.5 text-right font-normal"
-            >
-              Equiv. value
             </th>
           </tr>
         </thead>
@@ -1115,14 +1020,9 @@ function Breakdown({
                 <td className="pt-2 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
                   {formatTokensShort(r.tokens)}
                 </td>
-                <td className="pt-2 pl-2 text-right align-middle font-mono tabular-nums text-fg">
-                  {r.equivApiValueUsd == null
-                    ? "n/a"
-                    : formatUsd(r.equivApiValueUsd)}
-                </td>
               </tr>
               <tr>
-                <td colSpan={3} className="pb-2 pt-1.5">
+                <td colSpan={2} className="pb-2 pt-1.5">
                   <div className="h-[5px] overflow-hidden rounded-full bg-ink-850">
                     <div
                       className="h-full rounded-full"
@@ -1147,11 +1047,11 @@ function Breakdown({
   );
 }
 
-/** The per-model breakdown (#111): a ranked list of raw model ids with their tokens and Equivalent API value,
- *  each a full-width bar in the model's fixed identity color (the same hue it carries everywhere else, so the
- *  bars are a legend you learn once). The page-level "Include cache" pill picks the token metric via the shared
- *  `tokensOf`, and the bars re-rank to match. An unrecognized id shows n/a cost while its tokens still count; a
- *  turn with no recorded model rows as "Unknown". Rendering is delegated to the shared `Breakdown`. */
+/** The per-model breakdown (#111): a ranked list of raw model ids with their tokens, each a full-width bar
+ *  in the model's fixed identity color (the same hue it carries everywhere else, so the bars are a legend
+ *  you learn once). The page-level "Include cache" pill picks the token metric via the shared `tokensOf`,
+ *  and the bars re-rank to match. A turn with no recorded model rows as "Unknown". Rendering is delegated
+ *  to the shared `Breakdown`. */
 function ByModel({
   rows,
   includeCache,
@@ -1176,7 +1076,6 @@ function ByModel({
       key: r.modelRaw ?? "\u0000",
       label: r.modelRaw ?? "Unknown",
       tokens: r.tokens,
-      equivApiValueUsd: equivOf(r, includeCache),
       color: modelColorOf(r.modelRaw),
     }));
   return (
@@ -1190,10 +1089,10 @@ function ByModel({
   );
 }
 
-/** The per-project breakdown (#112): top projects as full-width bars with tokens and Equivalent API value,
- *  keyed on the full cwd so two repos that share a basename stay separate (the cwd rides along as the row's
- *  hover title). Ranks by the displayed Tokens metric, so order follows the page's Include-cache toggle;
- *  capped to the top N with a "+N more" note. Rendering is delegated to the shared `Breakdown`. */
+/** The per-project breakdown (#112): top projects as full-width bars with tokens, keyed on the full cwd so
+ *  two repos that share a basename stay separate (the cwd rides along as the row's hover title). Ranks by
+ *  the displayed Tokens metric, so order follows the page's Include-cache toggle; capped to the top N with a
+ *  "+N more" note. Rendering is delegated to the shared `Breakdown`. */
 function ByProject({
   rows,
   includeCache,
@@ -1214,7 +1113,6 @@ function ByProject({
       label: r.project,
       title: r.cwd,
       tokens: tokensOf(r, includeCache),
-      equivApiValueUsd: equivOf(r, includeCache),
       color: "var(--color-data-1)",
     }));
   return (
@@ -1228,8 +1126,8 @@ function ByProject({
 }
 
 /** A capped display list: the per-Session table can run to hundreds of rows over all-time, so it shows the
- *  top N by the ACTIVE sort with a "+N more" note — sort-then-cap, so re-sorting by cost surfaces the most
- *  expensive sessions across all history, not a reshuffle of the most-recent N. */
+ *  top N by the ACTIVE sort with a "+N more" note — sort-then-cap, so re-sorting by tokens surfaces the
+ *  heaviest sessions across all history, not a reshuffle of the most-recent N. */
 const TOP_SESSIONS = 25;
 
 /** One sortable column header: a button that toggles the active sort. Clicking an inactive column sorts it
@@ -1282,11 +1180,9 @@ function SortHeader({
 }
 
 /** The per-Session table (#113): one row per Session with its project, last activity, duration, dominant
- *  model, turns, tokens, and Equivalent API value. Sortable on every column (client-side via sortSessions),
- *  defaulting to most recent activity first. The Tokens column follows the page's "Include cache" toggle,
- *  like the other breakdowns. Capped to the top N by the active sort with a "+N more" note. The model shown
- *  is the session's dominant one by tokens; cost still sums across all its models, so it's n/a only when no
- *  turn ran a recognized model. */
+ *  model, turns, and tokens. Sortable on every column (client-side via sortSessions), defaulting to most
+ *  recent activity first. The Tokens column follows the page's "Include cache" toggle, like the other
+ *  breakdowns. Capped to the top N by the active sort with a "+N more" note. */
 function BySession({
   rows,
   includeCache,
@@ -1311,13 +1207,12 @@ function BySession({
     <StatsPanel title="By session">
       <table className="w-full table-fixed text-[12px]">
         <colgroup>
-          <col className="w-[28%]" />
-          <col className="w-[14%]" />
+          <col className="w-[30%]" />
+          <col className="w-[16%]" />
+          <col className="w-[15%]" />
           <col className="w-[13%]" />
-          <col className="w-[11%]" />
-          <col className="w-[10%]" />
           <col className="w-[12%]" />
-          <col className="w-[12%]" />
+          <col className="w-[14%]" />
         </colgroup>
         <thead>
           <tr className="text-[10px] uppercase tracking-wide text-fg-faint">
@@ -1356,12 +1251,6 @@ function BySession({
             <SortHeader
               label="Tokens"
               column="tokens"
-              sort={sort}
-              onSort={onSort}
-            />
-            <SortHeader
-              label="Equiv. value"
-              column="cost"
               sort={sort}
               onSort={onSort}
             />
@@ -1404,9 +1293,6 @@ function BySession({
               </td>
               <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
                 {formatTokensShort(tokensOf(r, includeCache))}
-              </td>
-              <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
-                {equivLabel(r, includeCache)}
               </td>
             </tr>
           ))}

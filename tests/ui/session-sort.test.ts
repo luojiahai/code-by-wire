@@ -93,47 +93,6 @@ describe("sortSessions", () => {
     ).toEqual(["fresh", "cachey"]);
   });
 
-  it("sorts n/a cost below every real cost in descending order", () => {
-    const rows = [
-      row({ sessionId: "na", equivApiValueUsd: null }),
-      row({ sessionId: "cheap", equivApiValueUsd: 0.5 }),
-      row({ sessionId: "dear", equivApiValueUsd: 9 }),
-    ];
-    expect(
-      sortSessions(rows, { key: "cost", dir: "desc" }, true).map(
-        (r) => r.sessionId,
-      ),
-    ).toEqual(["dear", "cheap", "na"]);
-  });
-
-  it("sorts the cost column by the cache toggle, matching the visible figure", () => {
-    // 'fresh' is dearer on fresh tokens alone; 'cachey' is dearer once cache value counts.
-    const rows = [
-      row({
-        sessionId: "fresh",
-        equivApiValueUsd: 2,
-        equivApiValueFreshUsd: 2,
-      }),
-      row({
-        sessionId: "cachey",
-        equivApiValueUsd: 9,
-        equivApiValueFreshUsd: 0.5,
-      }),
-    ];
-    // Include cache → cachey ($9) tops.
-    expect(
-      sortSessions(rows, { key: "cost", dir: "desc" }, true).map(
-        (r) => r.sessionId,
-      ),
-    ).toEqual(["cachey", "fresh"]);
-    // Exclude cache → fresh ($2) tops over cachey ($0.5), matching the equivOf figure the cell shows.
-    expect(
-      sortSessions(rows, { key: "cost", dir: "desc" }, false).map(
-        (r) => r.sessionId,
-      ),
-    ).toEqual(["fresh", "cachey"]);
-  });
-
   it("breaks ties by session id, stable across a direction flip", () => {
     const rows = [
       row({ sessionId: "b", lastActivityMs: 5000 }),
@@ -198,6 +157,5 @@ describe("defaultDirFor", () => {
     expect(defaultDirFor("duration")).toBe("desc");
     expect(defaultDirFor("turns")).toBe("desc");
     expect(defaultDirFor("tokens")).toBe("desc");
-    expect(defaultDirFor("cost")).toBe("desc");
   });
 });
