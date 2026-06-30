@@ -1,36 +1,23 @@
 @import "tailwindcss";
 
-/* code-by-wire — "Instrument" glass-cockpit theme.
-   A calibrated-instrument visual language: the established neutral graphite surface stack (no
-   temperature), ONE engaged-teal signal ("wire"/managed), and a status palette reserved STRICTLY for
-   live state —
-   blue Working, amber Waiting/caution, red Warning/failed, slate Idle, faint Ended. Color never
-   decorates; if something isn't a state, it stays graphite.
-
-   Token NAMES are kept from the prior theme (ink-*, fg*, primary, accent, danger, ok); only their
-   VALUES are remapped, so existing utility classes adopt the new palette without a rename. `working`
-   (now blue), `accent` (amber caution), `idle` (slate), and `well` (the sunken plane under terminals
-   and inputs) carry over. The data/telemetry pair `steel`/`violet` still names chart series; the
-   cockpit port migrates those readouts to a monochrome tonal ramp so they read as information, not
-   affordances. Fonts are named here and bundled via @fontsource in main.tsx. */
+/* Mono grayscale palette with teal accent. Neutral surfaces + single teal primary/working signal;
+   amber reserved for Waiting, red/green for failed/done. Token names kept, values re-mapped. */
 @theme {
-  /* Surface stack (neutral graphite, equal RGB), darkest → lightest. Kept from the prior theme — the
-     Instrument redesign refines the signals and type, not the graphite base. */
+  /* Surface stack (neutral grayscale). */
   --color-well: #080808; /* sunken: terminal, inputs, code blocks */
-  --color-ink-950: #0c0c0d; /* app base */
+  --color-ink-950: #0e0e0e; /* app canvas / middle */
   --color-ink-925: #141414; /* cards, rails, panels */
-  --color-ink-900: #1b1b1c; /* raised: headers, chips, nested panels */
-  --color-ink-850: #202021; /* subtle hover / faint divider */
-  --color-ink-800: #2c2c2d; /* default hairline border / dividers */
-  --color-ink-750: #333334; /* hover on raised surfaces */
-  --color-ink-700: #3a3a3b; /* strong border, focus-adjacent edges */
-  --color-ink-600: #49525f; /* Ended state, dim glyphs */
+  --color-ink-900: #181818; /* raised: headers, chips, menus, popover */
+  --color-ink-850: #1e1e1e; /* subtle hover / faint divider */
+  --color-ink-800: #2a2a2a; /* default hairline border */
+  --color-ink-750: #303030; /* hover on raised surfaces */
+  --color-ink-700: #3a3a3a; /* strong border */
+  --color-ink-600: #4a4a4a; /* Ended state, dim glyphs (was bluish #49525f) */
 
-  /* Text — neutral graphite, matching the surface stack.
-     fg-faint is held above AA (~5.9:1 on the app base) so tertiary/metadata stays legible. */
-  --color-fg: #ededee;
-  --color-fg-muted: #a8a8a9;
-  --color-fg-faint: #8b8b8c;
+  /* Text — neutral grayscale. */
+  --color-fg: #eaeaea;
+  --color-fg-muted: #9a9a9a;
+  --color-fg-faint: #7d7d7d;
 
   /* Wire — the single brand signal (engaged teal): primary actions, focus, links, "managed" */
   --color-primary: #14b8a6;
@@ -38,33 +25,28 @@
   --color-primary-deep: #0d8276;
 
   /* Status hues — reserved for session state, never decorative */
-  --color-working: #2f95f5; /* Working — live, blue (running), pulses; distinct from the teal wire */
-  --color-working-bright: #5aa9f8;
+  --color-working: #2dd4bf; /* live = the teal accent (was blue #2f95f5) */
+  --color-working-bright: #5eead4;
   --color-accent: #f2b33d; /* Waiting — blocked on you, amber, pulses; also context-fill caution */
   --color-accent-bright: #f7c766;
-  --color-idle: #6e7782; /* Idle — calm slate */
+  --color-idle: #7a7a7a; /* neutral (was slate #6e7782) */
 
   /* Semantic */
   --color-danger: #f2685c; /* diff remove, failed, destructive */
   --color-ok: #46c57a; /* diff add, cache savings, done */
 
-  /* Data / telemetry. `steel` fills the context ring while roomy; `violet` renders ANSI magenta in shell
-     output. The token-kind breakdown's fresh split gets dedicated teal tones (Input lighter, Output deeper)
-     so it reads as its own telemetry family — clear of the jewel models and softer than the brand wire;
-     cache and the cost magnitude ramp grey back below. */
-  --color-steel: #8a97ac; /* neutral data magnitude — slate-steel (context ring) */
+  /* Data / telemetry — neutralized to grayscale. */
+  --color-steel: #8a8a8a; /* context-ring magnitude, neutralized */
   --color-violet: #907bc9; /* ANSI magenta (shell output) */
-  --color-token-input: #54bcae; /* Input — light teal (fresh-token split) */
-  --color-token-output: #2a8579; /* Output — deep teal (fresh-token split) */
+  --color-token-input: #b0b0b0; /* fresh-token split → neutral */
+  --color-token-output: #707070;
 
-  /* Magnitude ramp — a monochrome tonal scale for the cost/token breakdowns. Instrument discipline:
-     charts read as data, never affordances, so hue is reserved for live state. Light → deep by token
-     kind, with a dimmest tail for cache-write. */
-  --color-data-1: #c2c9d2; /* lightest — Input */
-  --color-data-2: #9098a3; /* Output */
-  --color-data-3: #707885; /* Cache read */
-  --color-data-4: #565d68; /* Cache write · 5-minute */
-  --color-data-5: #3e444d; /* Cache write · 1-hour (dimmest) */
+  /* Magnitude ramp — monochrome grayscale. */
+  --color-data-1: #c8c8c8;
+  --color-data-2: #9a9a9a;
+  --color-data-3: #707070;
+  --color-data-4: #525252;
+  --color-data-5: #3a3a3a;
 
   /* Model identity colors (Aurora) — one fixed hue per known family, reused everywhere a model appears
      (By model bars, daily stack-by-model, By session). Restrained jewel tones, held off the danger/
