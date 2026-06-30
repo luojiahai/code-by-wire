@@ -10,7 +10,7 @@ export interface Segment {
   color: string;
 }
 
-/** Clamp a percentage into 0–100. Shared with the rail's account gauges (rail-account) so the 0–100
+/** Clamp a percentage into 0–100. Shared with the Settings account gauges so the 0–100
  *  clamp lives in one React-free, node-testable place. */
 export const clampPct = (n: number): number => Math.min(100, Math.max(0, n));
 export const round2 = (n: number): number => Math.round(n * 100) / 100;

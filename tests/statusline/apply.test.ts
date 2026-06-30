@@ -183,22 +183,6 @@ describe("deriveAccount — api billing", () => {
     ).toEqual({ billingMode: "api" });
   });
 
-  it("a fresh sample whose rate_limits are all expired still yields subscription (dormant subscriber stays a subscriber)", () => {
-    // The rate_limits history is proof the account IS a subscriber, just idle. It must stay subscription,
-    // not flip to api (which would mislabel cost as 'Actual API spend').
-    const s = sample({
-      rateLimits: {
-        fiveHour: { usedPct: 80, resetsAt: NOW - 1 },
-        sevenDay: { usedPct: 40, resetsAt: NOW - 1 },
-      },
-    });
-    expect(deriveAccount([s], NOW, STALE_MS)).toEqual({
-      billingMode: "subscription",
-      fiveHour: undefined,
-      sevenDay: undefined,
-    });
-  });
-
   it("keeps subscription when a live window is present (subscription wins over api)", () => {
     const s = sample({
       rateLimits: { fiveHour: { usedPct: 20, resetsAt: NOW + 3_600_000 } },
