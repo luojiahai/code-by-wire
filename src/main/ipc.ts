@@ -10,7 +10,7 @@ import type { Provider } from "./provider/types";
 import type { SqliteDb } from "./db/driver";
 import type { StatusLineReader } from "@shared/statusline";
 import type { ApiConfig } from "./settings/api-config";
-import type { ModelDefaults, PricingOverrides } from "@shared/models";
+import type { ModelDefaults } from "@shared/models";
 import type { CliStatus } from "@shared/cli-status";
 import type { CliStatusController } from "./cli-check";
 import type { Updater } from "./updater";
@@ -284,13 +284,9 @@ export function registerIpc({
     filesDone: 0,
     done: true,
   });
-  const safeTotals = (
-    adb: SqliteDb,
-    win: StatsWindow,
-    overrides: PricingOverrides,
-  ): StatsTotals => {
+  const safeTotals = (adb: SqliteDb, win: StatsWindow): StatsTotals => {
     try {
-      return readTotals(adb, win, overrides);
+      return readTotals(adb, win);
     } catch (err) {
       console.error("stats read failed; serving zeros", err);
       return emptyTotals();
@@ -309,13 +305,9 @@ export function registerIpc({
   };
   // All three breakdowns from one finest-grain scan; on any read error serve empty breakdowns so a bad row
   // never sinks the whole snapshot (matching safeTotals' "serve zeros" posture).
-  const safeBreakdowns = (
-    adb: SqliteDb,
-    win: StatsWindow,
-    overrides: PricingOverrides,
-  ): StatsBreakdowns => {
+  const safeBreakdowns = (adb: SqliteDb, win: StatsWindow): StatsBreakdowns => {
     try {
-      return readBreakdowns(adb, win, overrides);
+      return readBreakdowns(adb, win);
     } catch (err) {
       console.error("stats breakdown read failed; serving none", err);
       return emptyBreakdowns();
@@ -350,13 +342,9 @@ export function registerIpc({
   };
   // The daily time-series, range-scoped; on a read error serve an empty series so a bad row never sinks
   // the snapshot (matching safeTotals/safeBreakdowns' "serve a safe default" posture).
-  const safeDaily = (
-    adb: SqliteDb,
-    win: StatsWindow,
-    overrides: PricingOverrides,
-  ): DailyBucket[] => {
+  const safeDaily = (adb: SqliteDb, win: StatsWindow): DailyBucket[] => {
     try {
-      return readDaily(adb, win, overrides);
+      return readDaily(adb, win);
     } catch (err) {
       console.error("stats daily read failed; serving none", err);
       return [];
@@ -366,13 +354,9 @@ export function registerIpc({
   // of the page range. On a read error serve an empty series/list so a bad row never sinks the snapshot
   // (same "serve a safe default" posture as safeDaily/safeBreakdowns). A CalendarWindow's sinceMs/untilMs are
   // always set, so it satisfies readCalendar's StatsWindow structurally — pass it straight through.
-  const safeCalendar = (
-    adb: SqliteDb,
-    win: CalendarWindow,
-    overrides: PricingOverrides,
-  ): CalendarDay[] => {
+  const safeCalendar = (adb: SqliteDb, win: CalendarWindow): CalendarDay[] => {
     try {
-      return readCalendar(adb, win, overrides);
+      return readCalendar(adb, win);
     } catch (err) {
       console.error("stats calendar read failed; serving none", err);
       return [];
@@ -487,16 +471,15 @@ export function registerIpc({
       if (since === token && token !== "" && progress.done && !wrote)
         return { status: "unchanged", token };
 
-      const overrides = settings.read().pricingOverrides ?? {};
-      const breakdowns = safeBreakdowns(analyticsDb, win, overrides);
+      const breakdowns = safeBreakdowns(analyticsDb, win);
       return {
         status: "changed",
         token,
         snapshot: {
-          totals: safeTotals(analyticsDb, win, overrides),
+          totals: safeTotals(analyticsDb, win),
           progress,
           hasAnyTurns: safeHasAnyTurns(analyticsDb),
-          daily: safeDaily(analyticsDb, win, overrides),
+          daily: safeDaily(analyticsDb, win),
           ...breakdowns,
           bySession: withSessionTitles(
             breakdowns.bySession,
@@ -504,7 +487,7 @@ export function registerIpc({
             sessionTitles?.read() ?? {},
             safeLiveNames(),
           ),
-          calendar: safeCalendar(analyticsDb, cal, overrides),
+          calendar: safeCalendar(analyticsDb, cal),
           calendarStart: cal.startDay,
           calendarEnd: cal.endDay,
           calendarYears: safeCalendarYears(analyticsDb),

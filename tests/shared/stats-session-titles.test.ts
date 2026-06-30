@@ -12,8 +12,6 @@ const row = (over: Partial<StatsBySession> = {}): StatsBySession => ({
   totalTokens: 0,
   inputTokens: 0,
   outputTokens: 0,
-  equivApiValueUsd: 0,
-  equivApiValueFreshUsd: 0,
   title: null,
   ...over,
 });

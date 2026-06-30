@@ -257,7 +257,6 @@ describe("registerIpc stats:read", () => {
     expect(snap.totals.sessions).toBe(1);
     expect(snap.totals.turns).toBe(1);
     expect(snap.totals.inputTokens).toBe(1_000_000);
-    expect(snap.totals.equivApiValueUsd).toBeCloseTo(5); // opus $5/M input
     expect(snap.progress.done).toBe(true);
     expect(snap.hasAnyTurns).toBe(true); // a turn was ingested
 
@@ -326,8 +325,6 @@ describe("registerIpc stats:read", () => {
         cacheCreationTokens: 0,
         cacheCreation5mTokens: 0,
         cacheCreation1hTokens: 0,
-        equivApiValueUsd: 0,
-        equivApiValueFreshUsd: 0,
       },
       progress: { filesTotal: 0, filesDone: 0, done: true },
       hasAnyTurns: false,
@@ -446,7 +443,6 @@ describe("registerIpc stats:read", () => {
     const week = byModelFor("7d");
     expect(week).toHaveLength(1); // the 100-day-old sonnet is out of the window
     expect(week[0].modelRaw).toBe("claude-opus-4-8");
-    expect(week[0].equivApiValueUsd).toBeCloseTo(5);
   });
 
   it("returns per-project breakdowns scoped to the requested range", () => {
@@ -511,7 +507,6 @@ describe("registerIpc stats:read", () => {
     const week = snapFor("7d");
     expect(week.byProject).toHaveLength(1); // beta is 100 days old, out of the window
     expect(week.byProject[0].project).toBe("alpha");
-    expect(week.byProject[0].equivApiValueUsd).toBeCloseTo(5);
   });
 
   it("returns a per-session breakdown scoped to the requested range", () => {
@@ -574,7 +569,6 @@ describe("registerIpc stats:read", () => {
     const week = snapFor("7d");
     expect(week.bySession).toHaveLength(1); // the 100-day-old session is out of the window
     expect(week.bySession[0].sessionId).toBe("recent");
-    expect(week.bySession[0].equivApiValueUsd).toBeCloseTo(5);
   });
 
   it("returns a daily time-series in the snapshot, ascending by day", () => {
@@ -631,9 +625,6 @@ describe("registerIpc stats:read", () => {
       {
         modelRaw: "claude-opus-4-8",
         totalTokens: 1_000_000,
-        equivApiValueUsd: expect.closeTo(5, 2),
-        // Input-only day, so the fresh value matches the all-kinds value.
-        equivApiValueFreshUsd: expect.closeTo(5, 2),
       },
     ]);
   });
