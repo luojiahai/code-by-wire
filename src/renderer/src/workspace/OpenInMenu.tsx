@@ -60,7 +60,7 @@ export function OpenInMenu({ sessionId }: { sessionId: string }) {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-controls={open ? menuId : undefined}
-        className="inline-flex items-center gap-1.5 rounded-md border border-ink-800 bg-ink-900 px-2.5 py-1 text-[12px] text-fg-muted transition-colors hover:border-ink-700 hover:text-fg focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
+        className="inline-flex items-center gap-1.5 rounded-md border border-ink-800 bg-ink-900 px-2.5 py-1 text-aux text-fg-muted transition-colors hover:border-ink-700 hover:text-fg focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
       >
         Open in
         <Icon name="chevron-down" size={13} />
@@ -78,14 +78,14 @@ export function OpenInMenu({ sessionId }: { sessionId: string }) {
               role="menuitem"
               onClick={() => void handleOpen(item.key)}
               disabled={busy}
-              className="flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left text-[12px] text-fg-muted transition-colors hover:bg-ink-800 hover:text-fg focus-visible:outline-none focus-visible:bg-ink-800 disabled:opacity-50"
+              className="flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left text-aux text-fg-muted transition-colors hover:bg-ink-800 hover:text-fg focus-visible:outline-none focus-visible:bg-ink-800 disabled:opacity-50"
             >
               <Icon name={item.icon} size={13} />
               {item.label}
             </button>
           ))}
           {error && (
-            <p role="alert" className="mt-1 px-2 py-1 text-[11px] text-danger">
+            <p role="alert" className="mt-1 px-2 py-1 text-meta text-danger">
               {error}
             </p>
           )}

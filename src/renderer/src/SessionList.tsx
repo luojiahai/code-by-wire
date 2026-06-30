@@ -43,7 +43,7 @@ export function SessionList({
               : "Claude Code CLI isn't usable — open Sys status in the title bar."
           }
           className={cx(
-            "inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border font-display text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors",
+            "inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border font-display text-label font-semibold uppercase tracking-[0.1em] transition-colors",
             focusRing,
             canSpawn
               ? "border-ink-700 bg-ink-900 text-fg hover:border-ink-600 hover:bg-ink-850"
@@ -56,9 +56,7 @@ export function SessionList({
       </div>
       <OverlayScroll className="min-h-0 flex-1">
         {active.length === 0 && ended.length === 0 ? (
-          <p className="px-4 py-5 text-[12px] text-fg-faint">
-            No sessions yet.
-          </p>
+          <p className="px-4 py-5 text-aux text-fg-faint">No sessions yet.</p>
         ) : (
           <>
             {active.length > 0 && (
@@ -93,10 +91,10 @@ export function SessionList({
                       !endedCollapsed && "rotate-90",
                     )}
                   />
-                  <span className="font-display text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+                  <span className="font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
                     {STATE_META.ended.label}
                   </span>
-                  <span className="font-mono text-[10px] text-fg-faint">
+                  <span className="font-mono text-label text-fg-faint">
                     · {ended.length}
                   </span>
                 </button>
@@ -159,20 +157,20 @@ function SessionRow({
           <div className="flex items-baseline gap-2">
             <span
               className={cx(
-                "min-w-0 flex-1 truncate text-[12.5px] text-fg",
+                "min-w-0 flex-1 truncate text-body text-fg",
                 selected ? "font-semibold" : "font-medium",
               )}
               title={s.title}
             >
               {s.title}
             </span>
-            <span className="shrink-0 font-mono text-[9.5px] tabular-nums text-fg-faint">
+            <span className="shrink-0 font-mono text-micro tabular-nums text-fg-faint">
               {formatRelativeTime(s.lastActivityMs, now)}
             </span>
           </div>
           <div className="mt-1 flex items-center gap-2">
             <span
-              className="min-w-0 flex-1 truncate font-mono text-[10px] text-fg-faint"
+              className="min-w-0 flex-1 truncate font-mono text-label text-fg-faint"
               title={projectLine}
             >
               {projectLine}
@@ -180,7 +178,7 @@ function SessionRow({
             {isContextHigh(s.contextPct) && (
               <span
                 className={cx(
-                  "shrink-0 rounded border border-ink-700 px-1 font-mono text-[9px] tabular-nums",
+                  "shrink-0 rounded border border-ink-700 px-1 font-mono text-micro tabular-nums",
                   ctxTone(s.contextPct),
                 )}
               >
@@ -192,7 +190,7 @@ function SessionRow({
       </div>
       {waiting && (
         <div
-          className="mt-2 flex items-center gap-1.5 rounded bg-ink-950 px-2 py-1.5 text-[11px] text-accent-bright"
+          className="mt-2 flex items-center gap-1.5 rounded bg-ink-950 px-2 py-1.5 text-meta text-accent-bright"
           title={s.waitingReason ?? "Waiting on you"}
         >
           <Icon

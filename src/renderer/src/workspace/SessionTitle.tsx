@@ -81,7 +81,7 @@ export function SessionTitle({
             inputRef.current?.blur(); // cancel via onBlur, guarded by cancelledRef
           }
         }}
-        className="min-w-0 flex-1 rounded border border-ink-600 bg-ink-900 px-1.5 py-0.5 text-sm font-semibold text-fg outline-none"
+        className="min-w-0 flex-1 rounded border border-ink-600 bg-ink-900 px-1.5 py-0.5 text-subhead font-medium text-fg outline-none"
       />
     );
   }
@@ -92,7 +92,7 @@ export function SessionTitle({
       title="Rename session"
       className="flex min-w-0 items-center gap-1.5 text-left"
     >
-      <span className="min-w-0 truncate text-sm font-semibold text-fg">
+      <span className="min-w-0 truncate text-subhead font-medium text-fg">
         {s.title}
       </span>
       <Icon

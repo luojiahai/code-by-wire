@@ -23,12 +23,12 @@ const VARIANT_CLASSES: Record<
 > = {
   lozenge: {
     base: "rounded px-2.5 py-1",
-    active: "bg-ink-900 font-semibold text-fg",
+    active: "bg-ink-900 font-medium text-fg",
     idle: "text-fg-faint hover:text-fg",
   },
   underline: {
     base: "-mb-px border-b-2 px-3",
-    active: "border-primary font-semibold text-fg",
+    active: "border-primary font-medium text-fg",
     idle: "border-transparent text-fg-faint hover:text-fg",
   },
 };
@@ -67,7 +67,7 @@ export function Tabs<T extends string>({
             onClick={() => onChange(t.id)}
             aria-pressed={active}
             className={cx(
-              "inline-flex items-center gap-1.5 text-[12px] transition-colors",
+              "inline-flex items-center gap-1.5 text-aux transition-colors",
               focusRing,
               look.base,
               active ? look.active : look.idle,
@@ -76,7 +76,7 @@ export function Tabs<T extends string>({
             {t.icon && <Icon name={t.icon} size={13} />}
             {t.label}
             {t.count !== undefined && (
-              <span className="font-mono text-[10px] tabular-nums text-fg-faint">
+              <span className="font-mono text-label tabular-nums text-fg-faint">
                 {t.count}
               </span>
             )}

@@ -89,7 +89,7 @@ function SessionIdChip({ id }: { id: string }) {
       type="button"
       onClick={copy}
       title={`Copy session id (${id})`}
-      className="inline-flex shrink-0 items-center gap-1 rounded border border-ink-700 bg-ink-900 px-1.5 py-0.5 font-mono text-[10px] text-fg-faint transition-colors hover:border-ink-600 hover:text-fg-muted"
+      className="inline-flex shrink-0 items-center gap-1 rounded border border-ink-700 bg-ink-900 px-1.5 py-0.5 font-mono text-label text-fg-faint transition-colors hover:border-ink-600 hover:text-fg-muted"
     >
       <span>{short}</span>
       <Icon name={copied ? "check" : "copy"} size={10} />

@@ -449,7 +449,7 @@ export function App() {
 function EmptyDetail({ empty, loading }: { empty: boolean; loading: boolean }) {
   if (empty) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-ink-950 text-[13px] text-fg-faint">
+      <div className="flex flex-1 items-center justify-center bg-ink-950 text-body text-fg-faint">
         {loading ? null : "No Claude Code sessions found."}
       </div>
     );
@@ -457,7 +457,7 @@ function EmptyDetail({ empty, loading }: { empty: boolean; loading: boolean }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2.5 bg-ink-950 text-fg-faint">
       <Icon name="square-dashed-mouse-pointer" size={28} />
-      <p className="text-[13px]">Select a session to open it.</p>
+      <p className="text-body">Select a session to open it.</p>
     </div>
   );
 }
