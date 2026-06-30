@@ -55,18 +55,4 @@ describe("createAppSettingsStore", () => {
     expect(store.read().claudeBinPath).toBe("/custom/claude");
     expect(store.read().autoCheckUpdates).toBe(false);
   });
-  it("reads pricingOverrides as undefined by default", () => {
-    expect(
-      createAppSettingsStore({ dir: tmp() }).read().pricingOverrides,
-    ).toBeUndefined();
-  });
-  it("persists and reads back pricingOverrides, keeping the binary override", () => {
-    const dir = tmp();
-    const store = createAppSettingsStore({ dir });
-    store.setClaudeBinPath("/custom/claude");
-    store.setPricingOverrides({ opus: { cacheWrite1h: 9 } });
-    const back = createAppSettingsStore({ dir }).read();
-    expect(back.pricingOverrides).toEqual({ opus: { cacheWrite1h: 9 } });
-    expect(back.claudeBinPath).toBe("/custom/claude");
-  });
 });

@@ -23,7 +23,6 @@ const s = (
     cacheCreation5mTokens: 0,
     cacheCreation1hTokens: 0,
   },
-  equivApiValueUsd: 0,
   lastActivityMs: 0,
   createdMs: 0,
 });

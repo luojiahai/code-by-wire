@@ -1,9 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  formatUsd,
   formatRelativeTime,
   formatResetCountdown,
-  costDisplay,
   formatTokens,
   formatDuration,
   formatTokensShort,
@@ -12,16 +10,6 @@ import {
   formatClock,
   formatMonthShort,
 } from "@shared/format";
-
-describe("formatUsd", () => {
-  it("uses 2 decimals under $10, 1 under $100, none above", () => {
-    expect(formatUsd(0)).toBe("$0.00");
-    expect(formatUsd(0.3025)).toBe("$0.30");
-    expect(formatUsd(6.42)).toBe("$6.42");
-    expect(formatUsd(42)).toBe("$42.0");
-    expect(formatUsd(142.7)).toBe("$143");
-  });
-});
 
 describe("formatRelativeTime", () => {
   const now = 1_000_000_000;
@@ -59,100 +47,6 @@ describe("formatResetCountdown", () => {
     expect(formatResetCountdown(now + 45_000, now)).toBe("<1m");
     expect(formatResetCountdown(now - 5_000, now)).toBe("now");
     expect(formatResetCountdown(now, now)).toBe("now");
-  });
-});
-
-describe("costDisplay", () => {
-  it("labels a live Anthropic-direct API account as real spend (no tilde)", () => {
-    expect(
-      costDisplay({
-        liveCostUsd: 0.5,
-        equivApiValueUsd: 9,
-        billingMode: "api",
-        anthropicDirect: true,
-      }),
-    ).toEqual({ text: "$0.50", equivalent: false });
-  });
-
-  it("keeps the tilde for a live gateway/cloud API account (not anthropicDirect)", () => {
-    expect(
-      costDisplay({
-        liveCostUsd: 0.5,
-        equivApiValueUsd: 9,
-        billingMode: "api",
-        anthropicDirect: false,
-      }),
-    ).toEqual({ text: "~$0.50", equivalent: true });
-  });
-
-  // The real production value for a gateway/cloud account is an absent anthropicDirect, not false —
-  // deriveAccount only ever sets it to true. The strict `=== true` gate must treat undefined as not-direct.
-  it("keeps the tilde for a live api account with anthropicDirect omitted", () => {
-    expect(
-      costDisplay({
-        liveCostUsd: 0.5,
-        equivApiValueUsd: 9,
-        billingMode: "api",
-      }),
-    ).toEqual({ text: "~$0.50", equivalent: true });
-  });
-
-  it("keeps the tilde for a direct account before its live cost arrives", () => {
-    expect(
-      costDisplay({
-        equivApiValueUsd: 6.42,
-        billingMode: "api",
-        anthropicDirect: true,
-      }),
-    ).toEqual({ text: "~$6.42", equivalent: true });
-  });
-
-  it("labels a subscription as an equivalent value (tilde)", () => {
-    expect(
-      costDisplay({
-        liveCostUsd: 0.5,
-        equivApiValueUsd: 9,
-        billingMode: "subscription",
-      }),
-    ).toEqual({
-      text: "~$0.50",
-      equivalent: true,
-    });
-  });
-
-  it("prefers live cost over the computed value when present", () => {
-    expect(
-      costDisplay({
-        liveCostUsd: 2,
-        equivApiValueUsd: 9,
-        billingMode: "subscription",
-      }).text,
-    ).toBe("~$2.00");
-  });
-
-  it("falls back to the computed equivalent value, framed as equivalent, when there is no account", () => {
-    expect(costDisplay({ equivApiValueUsd: 6.42 })).toEqual({
-      text: "~$6.42",
-      equivalent: true,
-    });
-  });
-
-  it("frames the computed fallback as an estimate even on an API account (no live sample to call spend)", () => {
-    // Without Claude's own live figure, the computed equivApiValueUsd is an estimate — it must not be
-    // labeled exact API spend just because the account bills per call.
-    expect(costDisplay({ equivApiValueUsd: 6.42, billingMode: "api" })).toEqual(
-      { text: "~$6.42", equivalent: true },
-    );
-  });
-
-  it("frames an unknown account as equivalent (~), like a subscription", () => {
-    expect(
-      costDisplay({
-        liveCostUsd: 0.5,
-        equivApiValueUsd: 9,
-        billingMode: "unknown",
-      }),
-    ).toEqual({ text: "~$0.50", equivalent: true });
   });
 });
 

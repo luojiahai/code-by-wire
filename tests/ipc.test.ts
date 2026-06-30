@@ -137,7 +137,7 @@ describe("registerIpc overview — statusLine overlay", () => {
   it("overlays live cost/context onto the matching session and derives a subscription account", () => {
     const db = openTestDb();
     migrate(db);
-    upsertSessions(db, [seed]); // id 'seed', opus, zero computed usage → equivApiValueUsd 0
+    upsertSessions(db, [seed]); // id 'seed', opus, zero computed usage
     registerIpc({
       db,
       provider: provider(() => []),
@@ -162,7 +162,6 @@ describe("registerIpc overview — statusLine overlay", () => {
       sevenDay: undefined,
     });
     const s = o.sessions.find((x) => x.id === "seed")!;
-    expect(s.liveCostUsd).toBe(1.25);
     expect(s.linesAdded).toBe(10);
     expect(s.contextPct).toBe(47);
   });
@@ -175,9 +174,6 @@ describe("registerIpc overview — statusLine overlay", () => {
 
     const o = handlers.get(IPC.overview)!() as OverviewData;
     expect(o.account).toBeNull();
-    const s = o.sessions.find((x) => x.id === "seed")!;
-    expect(s.liveCostUsd).toBeUndefined();
-    expect(s.equivApiValueUsd).toBe(0); // computed, still present
   });
 
   it("defaults to no live data when no statusLine reader is provided", () => {

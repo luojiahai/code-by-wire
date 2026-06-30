@@ -125,10 +125,6 @@ export interface Session {
    *  entry, the single-entry fallback for a session with no subagents). `usage` above stays main-thread
    *  only and unchanged, so no other consumer is surprised. */
   usageByModel?: ModelUsage[];
-  equivApiValueUsd: number;
-  /** Live USD cost from the statusLine when a capture exists (Claude's own figure): real spend on an
-   *  API account, Equivalent API value on a subscription. Absent ⇒ no statusLine sample for this Session. */
-  liveCostUsd?: number;
   /** Lines added/removed this session, from the statusLine `cost` block. Absent ⇒ no sample. */
   linesAdded?: number;
   linesRemoved?: number;
@@ -148,7 +144,7 @@ export interface Session {
 
 /**
  * The narrow per-session snapshot the index actually persists. Everything a SQLite row holds.
- * Derived display values (contextPct, equivApiValueUsd) are NOT stored — `hydrate` computes them
+ * Derived display values (contextPct) are NOT stored — `hydrate` computes them
  * from these fields when a row is read back, so the formula lives in exactly one place.
  */
 export interface PersistedSession {
@@ -235,9 +231,7 @@ export interface Account {
    *  (bedrock/vertex/foundry/mantle/anthropic_aws). Present only when set. */
   apiProvider?: string;
   /** True only for Anthropic-direct billing: the endpoint host is anthropic.com (or a subdomain), an auth
-   *  credential was detected, AND no upstream provider is set. Drives costDisplay's real-spend framing.
-   *  Optional and defaults falsy, so a gateway or cloud account (local cost is an estimate of the upstream
-   *  bill), or a bare base URL with no detected credential, keeps the ~ . */
+   *  credential was detected, AND no upstream provider is set. Optional and defaults falsy. */
   anthropicDirect?: boolean;
 }
 

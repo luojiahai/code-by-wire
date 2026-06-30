@@ -227,7 +227,6 @@ function WorkspaceBody({
         <TokensPanel
           usageByModel={s.usageByModel ?? []}
           model={s.model}
-          liveCostUsd={s.liveCostUsd}
           billingMode={account?.billingMode}
           anthropicDirect={account?.anthropicDirect}
         />

@@ -48,7 +48,6 @@ const session = (over: Partial<Session> = {}): Session => ({
     cacheCreation5mTokens: 0,
     cacheCreation1hTokens: 0,
   },
-  equivApiValueUsd: 3.5,
   lastActivityMs: NOW,
   createdMs: 0,
   ...over,
@@ -306,7 +305,6 @@ describe("overlaySessions", () => {
       }),
     ]);
     const [out] = overlaySessions([session()], byId);
-    expect(out.liveCostUsd).toBe(0.42);
     expect(out.linesAdded).toBe(156);
     expect(out.linesRemoved).toBe(23);
     expect(out.contextPct).toBe(64);
@@ -319,8 +317,6 @@ describe("overlaySessions", () => {
       freshestBySession([sample({ sessionId: "other" })]),
     );
     expect(out[0].contextPct).toBe(12); // computed, unchanged
-    expect(out[0].equivApiValueUsd).toBe(3.5); // computed, unchanged
-    expect(out[0].liveCostUsd).toBeUndefined();
     expect(out[0].linesAdded).toBeUndefined();
   });
 
@@ -347,11 +343,6 @@ describe("overlaySessions", () => {
     expect(
       overlaySessions([session({ contextPct: 12 })], byId)[0].contextPct,
     ).toBe(50); // 100000 / 200000
-  });
-
-  it('keeps a zero live cost (0 is a real value, not "missing")', () => {
-    const byId = freshestBySession([sample({ sessionId: "s1", costUsd: 0 })]);
-    expect(overlaySessions([session()], byId)[0].liveCostUsd).toBe(0);
   });
 
   it("overlays the live context split and model identity onto a Session with a sample", () => {

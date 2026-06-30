@@ -1,7 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readTextOrNull } from "./claude-config";
-import type { PricingOverrides } from "@shared/models";
 
 /** code-by-wire's own settings, stored under Electron's userData — NOT ~/.claude (that's Claude's). */
 export interface AppSettings {
@@ -11,16 +10,12 @@ export interface AppSettings {
   /** Whether to check for app updates on launch. Missing means on; the launch check reads
    *  `read().autoCheckUpdates ?? true`. */
   autoCheckUpdates?: boolean;
-  /** Per-family pricing overrides set by the user in the Settings view. Absent means use the
-   *  built-in defaults; present replaces them per field via resolvePricing. */
-  pricingOverrides?: PricingOverrides;
 }
 
 export interface AppSettingsStore {
   read(): AppSettings;
   setClaudeBinPath(path: string | null): void;
   setAutoCheckUpdates(enabled: boolean): void;
-  setPricingOverrides(overrides: PricingOverrides): void;
 }
 
 export interface AppSettingsDeps {
@@ -56,9 +51,6 @@ export function createAppSettingsStore(
     },
     setAutoCheckUpdates(enabled) {
       write({ ...read(), autoCheckUpdates: enabled });
-    },
-    setPricingOverrides(overrides) {
-      write({ ...read(), pricingOverrides: overrides });
     },
   };
 }

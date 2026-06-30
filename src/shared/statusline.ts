@@ -207,7 +207,6 @@ export function overlaySessions(
       liveContext: sample.liveContext,
       modelId: sample.modelId ?? undefined,
       modelDisplayName: sample.modelDisplayName ?? undefined,
-      liveCostUsd: sample.costUsd ?? undefined,
       linesAdded: sample.linesAdded ?? undefined,
       linesRemoved: sample.linesRemoved ?? undefined,
       effortLevel: sample.effortLevel ?? undefined,

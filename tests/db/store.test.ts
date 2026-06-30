@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { PersistedSession } from "@shared/types";
 import { usage } from "../helpers/usage";
-import { equivApiValueByModel } from "../../src/shared/usage-by-model";
 import {
   migrate,
   upsertSessions,
@@ -81,7 +80,7 @@ describe("store", () => {
     expect(rows[0].title).toBe("Renamed");
   });
 
-  it("hydrates a zero-usage snapshot to zero cost and context", () => {
+  it("hydrates a zero-usage snapshot to zero context", () => {
     const s = hydrate(snap({ model: "sonnet" }));
     expect(s.contextPct).toBe(0);
     expect(s.contextWindow).toBe(200_000);
@@ -93,12 +92,11 @@ describe("store", () => {
       cacheCreation5mTokens: 0,
       cacheCreation1hTokens: 0,
     });
-    expect(s.equivApiValueUsd).toBe(0);
     expect(s.model).toBe("sonnet");
     expect(s.state).toBe("idle");
   });
 
-  it("computes context % and Equivalent API value from real usage", () => {
+  it("computes context % from real usage", () => {
     const s = hydrate(
       snap({
         model: "opus",
@@ -115,7 +113,6 @@ describe("store", () => {
     );
     expect(s.contextWindow).toBe(200_000); // every family defaults to the standard 200K
     expect(s.contextPct).toBe(50); // 100000 / 200000
-    expect(s.equivApiValueUsd).toBeCloseTo(1.2625); // opus rates
     expect(s.usage.cacheReadTokens).toBe(400_000); // raw usage carries through untouched
   });
 
@@ -237,21 +234,6 @@ describe("store", () => {
     expect(getPersisted(db)[0].usageByModel).toEqual(models);
   });
 
-  it("hydrate prices equivApiValueUsd across every model in the breakdown", () => {
-    const db = openTestDb();
-    migrate(db);
-    const models = [
-      { modelRaw: "claude-opus-4-8", usage: usage({ inputTokens: 1_000_000 }) },
-      {
-        modelRaw: "claude-sonnet-4-6",
-        usage: usage({ inputTokens: 1_000_000 }),
-      },
-    ];
-    const s = hydrate(snap({ id: "u2", usageByModel: models }));
-    expect(s.equivApiValueUsd).toBeCloseTo(equivApiValueByModel(models)); // 5 + 3
-    expect(s.usageByModel).toEqual(models);
-  });
-
   it("hydrate falls back to a single main-thread entry when the breakdown is absent", () => {
     // An old cached row (pre-column) or an empty transcript: no usageByModel. The fallback prices to the
     // same figure the single-model path always did (modelRaw absent → the model family alias).
@@ -271,6 +253,5 @@ describe("store", () => {
     );
     expect(s.usageByModel).toHaveLength(1);
     expect(s.usageByModel![0].modelRaw).toBe("opus");
-    expect(s.equivApiValueUsd).toBeCloseTo(1.75675); // opus rates, matching the pre-change single-model formula
   });
 });

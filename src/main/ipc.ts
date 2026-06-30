@@ -147,7 +147,6 @@ export function registerIpc({
     read: () => ({}),
     setClaudeBinPath: () => {},
     setAutoCheckUpdates: () => {},
-    setPricingOverrides: () => {},
   };
 
   const sync = (): void => {

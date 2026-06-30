@@ -3,7 +3,6 @@ import {
   FAMILIES,
   normalizeModelId,
   isKnownModelString,
-  priceFor,
   type Family,
 } from "../../src/shared/models";
 
@@ -42,14 +41,3 @@ describe("isKnownModelString", () => {
   });
 });
 
-describe("priceFor", () => {
-  it("prices Fable at its own rates, not the Opus fallback", () => {
-    expect(priceFor("fable")).toEqual({
-      input: 10,
-      output: 50,
-      cacheRead: 1,
-      cacheWrite5m: 12.5,
-      cacheWrite1h: 20,
-    });
-  });
-});

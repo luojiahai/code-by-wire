@@ -1,10 +1,3 @@
-/** Equivalent API value as a short dollar string: $0.30 / $6.42 / $42.0 / $143. */
-export function formatUsd(n: number): string {
-  if (n >= 100) return "$" + n.toFixed(0);
-  if (n >= 10) return "$" + n.toFixed(1);
-  return "$" + n.toFixed(2);
-}
-
 /** Relative time like "now" / "45s ago" / "10m ago" / "3h ago" / "2d ago". */
 export function formatRelativeTime(ms: number, now: number): string {
   const s = Math.max(0, Math.round((now - ms) / 1000));
@@ -90,29 +83,6 @@ export function formatTps(tps: number): string {
  *  formatDuration (same two-unit rule); a named alias so the session-clock call site reads as intent. */
 export function formatClock(ms: number): string {
   return formatDuration(ms);
-}
-
-/**
- * The per-row cost figure plus whether it's an equivalent value (leading ~, "Equivalent API value" framing)
- * or real spend. Real spend (no ~) shows only when we have Claude's own live figure AND the account is
- * Anthropic-direct API billing — the only case where the locally-computed, Anthropic-priced number is the
- * user's actual bill. A gateway or cloud account, a subscription, or any figure before the account resolves
- * is an estimate of the upstream cost, so it keeps the ~.
- */
-export function costDisplay(opts: {
-  liveCostUsd?: number;
-  equivApiValueUsd: number;
-  billingMode?: "subscription" | "api" | "unknown";
-  anthropicDirect?: boolean;
-}): { text: string; equivalent: boolean } {
-  const live = opts.liveCostUsd != null;
-  const value = live ? opts.liveCostUsd! : opts.equivApiValueUsd;
-  const equivalent = !(
-    live &&
-    opts.billingMode === "api" &&
-    opts.anthropicDirect === true
-  );
-  return { text: (equivalent ? "~" : "") + formatUsd(value), equivalent };
 }
 
 /** Three-letter month names, indexed 0–11. A fixed table (not toLocaleDateString) so the day-label

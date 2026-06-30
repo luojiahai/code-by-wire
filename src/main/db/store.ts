@@ -1,6 +1,5 @@
 import type { Session, PersistedSession, ModelUsage } from "@shared/types";
 import { contextWindowFor, normalizeModelId } from "@shared/models";
-import { equivApiValueByModel } from "@shared/usage-by-model";
 import type { IndexOverview } from "@shared/ipc";
 import { isResumable } from "@shared/resumable";
 import { transaction, type SqliteDb } from "./driver";
@@ -130,11 +129,9 @@ export function hydrate(p: PersistedSession): Session {
   // The panel reads usageByModel for everything. A session summarized with the column carries its real
   // per-model breakdown; an old cached row (pre-column) or an empty transcript falls back to a single
   // main-thread entry, so the panel still renders main-only until the next re-summarize. The fallback's
-  // modelRaw prefers the stored raw id, else the family alias (which isKnownModelString recognizes), so
-  // its Equivalent API value equals the pre-change single-model figure.
+  // modelRaw prefers the stored raw id, else the family alias (which isKnownModelString recognizes).
   // Fall back to the single-entry main-thread model when usageByModel is absent/empty OR when every
-  // entry has a null modelRaw (turns that recorded no model at all): the fallback's modelRaw is always
-  // a recognized string, so equivApiValueByModel prices it at the family rate rather than returning $0.
+  // entry has a null modelRaw (turns that recorded no model at all).
   const models: ModelUsage[] =
     p.usageByModel?.length && p.usageByModel.some((mu) => mu.modelRaw !== null)
       ? p.usageByModel
@@ -153,7 +150,6 @@ export function hydrate(p: PersistedSession): Session {
     contextWindow,
     usage: p.usage,
     usageByModel: models,
-    equivApiValueUsd: equivApiValueByModel(models),
     lastActivityMs: p.lastActivityMs,
     createdMs: p.createdMs,
   };

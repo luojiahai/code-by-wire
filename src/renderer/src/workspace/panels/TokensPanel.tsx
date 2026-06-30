@@ -119,13 +119,11 @@ function ModelRow({ m }: { m: ModelUsageView }) {
 export function TokensPanel({
   usageByModel,
   model,
-  liveCostUsd: _liveCostUsd,
   billingMode: _billingMode,
   anthropicDirect: _anthropicDirect,
 }: {
   usageByModel: ModelUsage[];
   model: Family;
-  liveCostUsd?: number;
   billingMode?: "subscription" | "api" | "unknown";
   anthropicDirect?: boolean;
 }) {
