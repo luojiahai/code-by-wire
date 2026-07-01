@@ -1,13 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Session, Subagent, BackgroundShell } from "@shared/types";
-import { Icon } from "../ui/icons";
-import { useCopyFlash } from "../ui/use-copy-flash";
-import { Tabs } from "../ui/Tabs";
 import { TranscriptView } from "./TranscriptView";
 import { useTranscriptModals } from "./use-transcript-modals";
 import { TerminalView } from "../terminal/TerminalView";
 import { useTranscript, type DocState } from "./use-transcript";
-import { ContextPanel } from "./panels/ContextPanel";
 import { StructureDock } from "./panels/StructureDock";
 import { SubagentDrill, type DrillCrumb } from "./SubagentDrill";
 import { indexByDispatch, type DispatchDrill } from "./drill-index";
@@ -15,15 +11,11 @@ import { ShellDrill } from "./ShellDrill";
 import { useSubagentTranscript } from "./use-subagent-transcript";
 import { useShells } from "./use-shells";
 import { useShellOutput, type ShellOutputState } from "./use-shell-output";
-import { TokensPanel } from "./panels/TokensPanel";
-import { TokenSpeedPanel } from "./panels/TokenSpeedPanel";
 import { useTasks } from "./use-tasks";
-import { useMetrics, type MetricsState } from "./use-metrics";
-import { HeaderActions } from "./HeaderActions";
-import { SessionTitle } from "./SessionTitle";
 import { ObservedTerminal } from "./ObservedTerminal";
-import { Annunciator } from "./Annunciator";
 import { OverlayScroll } from "../ui/OverlayScroll";
+import { MiddleHeader } from "../shell/MiddleHeader";
+import { SessionMenu } from "../shell/SessionMenu";
 
 export function Workspace({
   session: s,
@@ -32,6 +24,10 @@ export function Workspace({
   onFork,
   onEnd,
   onRename,
+  leftCollapsed,
+  onShowLeft,
+  rightCollapsed,
+  onShowRight,
 }: {
   session: Session;
   /** Whether the Claude Code CLI is usable; gates Adopt and Fork (both spawn the CLI). */
@@ -42,80 +38,90 @@ export function Workspace({
   onEnd: (id: string) => void;
   /** Persist a display-name override for this session (null/empty clears it). Applies to any session. */
   onRename: (id: string, title: string | null) => void;
+  /** Whether the left sidebar is collapsed — reserves the traffic-light inset and shows the reopen button. */
+  leftCollapsed: boolean;
+  onShowLeft: () => void;
+  /** Whether the right sidebar is collapsed — shows the reopen button. */
+  rightCollapsed: boolean;
+  onShowRight: () => void;
 }) {
   // Recomputed each render; App's 3s background re-sync re-renders this, so the timeline timestamps tick.
   const now = Date.now();
-  const metrics = useMetrics(s.id);
+  // Every session gets the Terminal ⇄ Transcript toggle. The Terminal side is the live in-app xterm only
+  // for a Managed session that's still running; otherwise — an Observed session running in another
+  // terminal, or any Ended session (including a just-exited Managed one that re-derives Observed) — it's
+  // the ObservedTerminal panel instead. A live Managed session opens on Terminal (transcriptOn = false);
+  // everything else opens on Transcript (transcriptOn = true), since its read-only conversation leads.
+  const hasLiveTerminal = s.management === "managed" && s.state !== "ended";
+  const [transcriptOn, setTranscriptOn] = useState(!hasLiveTerminal);
+
+  // Follow the live terminal when it stands up in place. Adopt resumes this same id, so Workspace never
+  // remounts and `transcriptOn` keeps its seeded value, but `hasLiveTerminal` flips to true once the pty
+  // is live. Switch only toward the terminal: a session ending shouldn't yank the user off the transcript
+  // they were reading, and a manual toggle on a live session stays put.
+  useEffect(() => {
+    if (hasLiveTerminal) setTranscriptOn(false);
+  }, [hasLiveTerminal]);
+
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col bg-ink-950 text-fg">
-      <header className="group/header shrink-0 border-b border-ink-800 bg-ink-925 px-4 py-2.5">
-        <div className="flex items-center gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <SessionTitle session={s} onRename={onRename} />
-            <SessionIdChip id={s.id} />
-          </div>
-          <HeaderActions
+      <MiddleHeader
+        title={s.title}
+        session={s}
+        transcriptOn={transcriptOn}
+        onToggleTranscript={() => setTranscriptOn((v) => !v)}
+        leftCollapsed={leftCollapsed}
+        onShowLeft={onShowLeft}
+        rightCollapsed={rightCollapsed}
+        onShowRight={onShowRight}
+        menu={
+          <SessionMenu
             session={s}
             canSpawn={canSpawn}
             onAdopt={onAdopt}
             onFork={onFork}
             onEnd={onEnd}
+            onRename={onRename}
           />
-        </div>
-        <Annunciator session={s} git={metrics?.git} pr={metrics?.pr} />
-      </header>
+        }
+      />
 
       <div className="min-h-0 flex-1">
         <WorkspaceBody
           session={s}
           now={now}
-          metrics={metrics}
           canSpawn={canSpawn}
           onAdopt={onAdopt}
           onFork={onFork}
+          transcriptOn={transcriptOn}
+          setTranscriptOn={setTranscriptOn}
         />
       </div>
     </div>
   );
 }
 
-/** The short session id with a one-click copy: `a3f9…7c21` plus a copy glyph that flips to a check for a
- *  beat. The full id goes to the clipboard. Lives in the header so the rail needn't carry a Session row. */
-function SessionIdChip({ id }: { id: string }) {
-  const short = id.length > 12 ? `${id.slice(0, 4)}…${id.slice(-4)}` : id;
-  const { copied, copy } = useCopyFlash(id);
-  return (
-    <button
-      type="button"
-      onClick={copy}
-      title={`Copy session id (${id})`}
-      className="inline-flex shrink-0 items-center gap-1 rounded border border-ink-700 bg-ink-900 px-1.5 py-0.5 font-mono text-label text-fg-faint transition-colors hover:border-ink-600 hover:text-fg-muted"
-    >
-      <span>{short}</span>
-      <Icon name={copied ? "check" : "copy"} size={10} />
-    </button>
-  );
-}
-
 /**
- * The workspace body: a center column (the live view with the Structure dock below it) and a right rail
- * of telemetry panels. One transcript poll (useTranscript) feeds the center, the context panel, and the
- * dock. The rail and the dock both hide below `lg`.
+ * The workspace body: the center live view (terminal or transcript, per `transcriptOn`) with the Structure
+ * dock below it. One transcript poll (useTranscript) feeds the center and the dock. The right-rail
+ * telemetry panels have moved out to a sibling `RightSidebar` at the App level — this column is full width.
  */
 function WorkspaceBody({
   session: s,
   now,
-  metrics,
   canSpawn,
   onAdopt,
   onFork,
+  transcriptOn,
+  setTranscriptOn,
 }: {
   session: Session;
   now: number;
-  metrics: MetricsState;
   canSpawn: boolean;
   onAdopt: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
+  transcriptOn: boolean;
+  setTranscriptOn: (transcriptOn: boolean) => void;
 }) {
   const doc = useTranscript(s.id);
   const tasks = useTasks(s.id);
@@ -162,70 +168,55 @@ function WorkspaceBody({
     [dispatchIndex],
   );
   return (
-    <div className="flex h-full min-h-0">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1">
-          <CenterView
-            session={s}
-            doc={doc}
-            subagentDoc={subagentDoc}
-            shellOutput={shellOutput}
-            shell={activeShell}
-            now={now}
-            drill={drill}
-            onNavigate={(depth) => setDrill((d) => d.slice(0, depth))}
-            dispatchDrill={dispatchDrill}
-            canSpawn={canSpawn}
-            onAdopt={onAdopt}
-            onFork={onFork}
-          />
-        </div>
-        <StructureDock
-          tasks={tasks ?? []}
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1">
+        <CenterView
+          session={s}
           doc={doc}
-          shells={shells ?? []}
+          subagentDoc={subagentDoc}
+          shellOutput={shellOutput}
+          shell={activeShell}
           now={now}
-          activeAgentId={activeAgentId}
-          activeShellId={activeShellId}
-          onDrill={(agent: Subagent) =>
-            setDrill([
-              {
-                kind: "subagent",
-                agentId: agent.id,
-                type: agent.type,
-                description: agent.description,
-              },
-            ])
-          }
-          onDrillShell={(shell: BackgroundShell) =>
-            setDrill([
-              { kind: "shell", shellId: shell.id, label: shell.command },
-            ])
-          }
+          drill={drill}
+          onNavigate={(depth) => setDrill((d) => d.slice(0, depth))}
+          dispatchDrill={dispatchDrill}
+          canSpawn={canSpawn}
+          onAdopt={onAdopt}
+          onFork={onFork}
+          transcriptOn={transcriptOn}
+          setTranscriptOn={setTranscriptOn}
         />
       </div>
-      <OverlayScroll
-        className="hidden w-72 shrink-0 border-l border-ink-800 bg-ink-925 lg:block"
-        contentClassName="flex flex-col gap-4 p-4"
-      >
-        <ContextPanel
-          live={s.liveContext ?? null}
-          context={doc?.context ?? null}
-          contextPct={s.contextPct}
-          contextWindow={s.contextWindow}
-        />
-        <TokensPanel usageByModel={s.usageByModel ?? []} />
-        <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
-      </OverlayScroll>
+      <StructureDock
+        tasks={tasks ?? []}
+        doc={doc}
+        shells={shells ?? []}
+        now={now}
+        activeAgentId={activeAgentId}
+        activeShellId={activeShellId}
+        onDrill={(agent: Subagent) =>
+          setDrill([
+            {
+              kind: "subagent",
+              agentId: agent.id,
+              type: agent.type,
+              description: agent.description,
+            },
+          ])
+        }
+        onDrillShell={(shell: BackgroundShell) =>
+          setDrill([{ kind: "shell", shellId: shell.id, label: shell.command }])
+        }
+      />
     </div>
   );
 }
 
-type CenterTab = "terminal" | "transcript";
-
-/** The center column's live view. Every session gets the Terminal ⇄ Transcript tabs; the Terminal tab is
- *  the live xterm for a running Managed session, else the ObservedTerminal panel (Fork always, Adopt once
- *  Ended). A non-empty drill-stack renders the drilled Subagent or Shell surface in the Transcript slot. */
+/** The center column's live view. Every session gets the Terminal ⇄ Transcript toggle in `MiddleHeader`;
+ *  `transcriptOn` (lifted to `Workspace`, threaded down here) drives which side shows: off is the Terminal
+ *  — the live xterm for a running Managed session, else the ObservedTerminal panel (Fork always, Adopt once
+ *  Ended) — on is the Transcript, or the drilled Subagent/Shell surface when the drill-stack is non-empty.
+ *  Drilling a lane or shell auto-selects the Transcript side. */
 function CenterView({
   session: s,
   doc,
@@ -239,6 +230,8 @@ function CenterView({
   canSpawn,
   onAdopt,
   onFork,
+  transcriptOn,
+  setTranscriptOn,
 }: {
   session: Session;
   doc: DocState;
@@ -252,6 +245,8 @@ function CenterView({
   canSpawn: boolean;
   onAdopt: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
+  transcriptOn: boolean;
+  setTranscriptOn: (transcriptOn: boolean) => void;
 }) {
   const top = drill[drill.length - 1];
   // The full subagent path, so the breadcrumb shows Session › A › B … instead of just the top.
@@ -293,92 +288,45 @@ function CenterView({
       : top.agentId
     : undefined;
 
-  // Every session gets the Terminal ⇄ Transcript tabs. The Terminal slot is the live in-app xterm only for
-  // a Managed session that's still running; otherwise — an Observed session running in another terminal, or
-  // any Ended session (including a just-exited Managed one that re-derives Observed) — it's the
-  // ObservedTerminal panel: Fork is always offered, Adopt only once the session has Ended. Managed-live
-  // opens on the Terminal tab; everything else opens on Transcript (its read-only conversation leads).
+  // Drilling into a lane or shell always surfaces its content in the Transcript side of the toggle.
+  useEffect(() => {
+    if (drilledKey) setTranscriptOn(true);
+  }, [drilledKey, setTranscriptOn]);
+
+  // The Terminal side is the live in-app xterm only for a Managed session that's still running;
+  // otherwise — an Observed session running in another terminal, or any Ended session (including a
+  // just-exited Managed one that re-derives Observed) — it's the ObservedTerminal panel: Fork is always
+  // offered, Adopt only once the session has Ended.
   const hasLiveTerminal = s.management === "managed" && s.state !== "ended";
-  return (
-    <TabbedCenter
+  const terminalSlot = hasLiveTerminal ? (
+    <TerminalView sessionId={s.id} />
+  ) : (
+    <ObservedTerminal
       session={s}
-      doc={doc}
-      defaultTab={hasLiveTerminal ? "terminal" : "transcript"}
-      terminalSlot={
-        hasLiveTerminal ? (
-          <TerminalView sessionId={s.id} />
-        ) : (
-          <ObservedTerminal
-            session={s}
-            canSpawn={canSpawn}
-            onAdopt={onAdopt}
-            onFork={onFork}
-          />
-        )
-      }
-      drilledView={drilledView}
-      drilled={drilled}
-      drilledKey={drilledKey}
-      dispatchDrill={dispatchDrill}
+      canSpawn={canSpawn}
+      onAdopt={onAdopt}
+      onFork={onFork}
     />
   );
-}
 
-/** A two-tab center (Terminal ⇄ Transcript). `terminalSlot` is whatever the Terminal tab shows — the live
- *  xterm for a running Managed session, or the ObservedTerminal panel otherwise — and `defaultTab` sets
- *  which tab opens first (Terminal for a live Managed session, else Transcript). Toggling away only detaches
- *  the terminal slot; toggling back restores it. Drilling a lane or shell auto-selects the Transcript tab. */
-function TabbedCenter({
-  session: s,
-  doc,
-  defaultTab,
-  terminalSlot,
-  drilledView,
-  drilled,
-  drilledKey,
-  dispatchDrill,
-}: {
-  session: Session;
-  doc: DocState;
-  defaultTab: CenterTab;
-  terminalSlot: React.ReactNode;
-  drilledView: React.ReactNode;
-  drilled: boolean;
-  drilledKey?: string;
-  dispatchDrill: DispatchDrill;
-}) {
-  const [tab, setTab] = useState<CenterTab>(defaultTab);
-  // Follow the live terminal when it stands up in place. Adopt resumes this same id, so Workspace never
-  // remounts and `tab` keeps its seeded value, but defaultTab flips to "terminal" once the pty is live.
-  // Switch only toward "terminal": a session ending (defaultTab back to "transcript") shouldn't yank the
-  // user off the terminal they were watching, and a manual tab choice on a live session stays put.
-  useEffect(() => {
-    if (defaultTab === "terminal") setTab("terminal");
-  }, [defaultTab]);
-  useEffect(() => {
-    if (drilledKey) setTab("transcript");
-  }, [drilledKey]);
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <ViewTabs tab={tab} onChange={setTab} />
-      <div className="min-h-0 flex-1">
-        {tab === "terminal" ? (
-          <div className="h-full">{terminalSlot}</div>
-        ) : drilled ? (
-          drilledView
-        ) : (
-          <RenderedTranscript
-            session={s}
-            doc={doc}
-            dispatchDrill={dispatchDrill}
-          />
-        )}
-      </div>
+    <div className="h-full min-h-0">
+      {!transcriptOn ? (
+        <div className="h-full">{terminalSlot}</div>
+      ) : drilled ? (
+        drilledView
+      ) : (
+        <RenderedTranscript
+          session={s}
+          doc={doc}
+          dispatchDrill={dispatchDrill}
+        />
+      )}
     </div>
   );
 }
 
-/** The scrolling transcript, shared by the Observed center and the Managed Transcript tab. */
+/** The scrolling transcript, shared by the Observed center and the Transcript side of the toggle. */
 function RenderedTranscript({
   session: s,
   doc,
@@ -401,35 +349,5 @@ function RenderedTranscript({
       />
       {modals}
     </OverlayScroll>
-  );
-}
-
-const CENTER_TABS: {
-  id: CenterTab;
-  label: string;
-  icon: "square-terminal" | "messages-square";
-}[] = [
-  { id: "terminal", label: "Terminal", icon: "square-terminal" },
-  { id: "transcript", label: "Transcript", icon: "messages-square" },
-];
-
-/** The Terminal/Transcript view switch: underline tabs with their leading glyphs, the active one
- *  carrying a wire underline on the bar's hairline. */
-function ViewTabs({
-  tab,
-  onChange,
-}: {
-  tab: CenterTab;
-  onChange: (t: CenterTab) => void;
-}) {
-  return (
-    <div className="flex h-[34px] shrink-0 items-stretch border-b border-ink-800 bg-ink-925 pr-3">
-      <Tabs<CenterTab>
-        tabs={CENTER_TABS}
-        value={tab}
-        onChange={onChange}
-        variant="underline"
-      />
-    </div>
   );
 }

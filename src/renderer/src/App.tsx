@@ -452,6 +452,10 @@ export function App() {
               onFork={forkSession}
               onEnd={endSession}
               onRename={(id, title) => void renameSession(id, title)}
+              leftCollapsed={false}
+              onShowLeft={() => {}}
+              rightCollapsed={false}
+              onShowRight={() => {}}
             />
           ) : (
             <EmptyDetail empty={all.length === 0} loading={loading} />

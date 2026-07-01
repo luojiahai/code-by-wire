@@ -52,14 +52,17 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
   });
 
   it("lets the terminal fill its wrapper with no outer padding (only the 8px inside it)", () => {
-    // TerminalView is passed as the `terminalSlot` of TabbedCenter (inside a ternary that picks it for a
-    // live Managed session, else the ObservedTerminal panel). TabbedCenter wraps the slot in a plain
+    // TerminalView backs the `terminalSlot` local in CenterView (a ternary that picks it for a live
+    // Managed session, else the ObservedTerminal panel). CenterView wraps the slot in a plain
     // `<div className="h-full">` — no padding classes. Assert both: no padded wrapper sits between the
-    // `terminalSlot=` prop and `<TerminalView`, and the TabbedCenter inner wrapper carries only h-full.
-    const slotRegion = /terminalSlot=\{([\s\S]*?)<TerminalView/.exec(workspace);
+    // `const terminalSlot =` binding and `<TerminalView`, and the CenterView inner wrapper carries only
+    // h-full.
+    const slotRegion = /const terminalSlot = ([\s\S]*?)<TerminalView/.exec(
+      workspace,
+    );
     expect(
       slotRegion,
-      "TerminalView rendered inside the terminalSlot prop",
+      "TerminalView rendered inside the terminalSlot binding",
     ).toBeTruthy();
     expect(
       slotRegion![1],
@@ -78,10 +81,7 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
       /className="([^"]*\bh-full\b[^"]*)"[^>]*>\{terminalSlot\}/.exec(
         workspace,
       );
-    expect(
-      wrapM,
-      "TabbedCenter terminal wrapper has h-full class",
-    ).toBeTruthy();
+    expect(wrapM, "CenterView terminal wrapper has h-full class").toBeTruthy();
     expect(
       wrapM![1],
       "no outer padding/margin on the terminal wrapper",
