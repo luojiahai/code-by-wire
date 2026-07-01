@@ -32,6 +32,11 @@ export interface PaneProps {
   resizable?: boolean;
   hoverReveal?: boolean;
   disabled?: boolean;
+  /** Like `disabled`, but keeps `hoverReveal` alive — collapses the track without writing to
+   *  the pane-state store (e.g. a narrow window). Consumed by `PaneShell`, not by `Pane` itself:
+   *  once the shell resolves the pane's slot as closed, `Pane`'s own `open`/`overlayActive`
+   *  derivation (below) already reflects that with no further check needed here. */
+  forceCollapsed?: boolean;
   divider?: boolean;
   defaultOpen?: boolean;
   overlayWidth?: number;

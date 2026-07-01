@@ -23,6 +23,7 @@ interface CollectedPane {
   width: number;
   hoverReveal: boolean;
   disabled: boolean;
+  forceCollapsed: boolean;
 }
 
 function collectPanes(children: ReactNode): {
@@ -46,6 +47,7 @@ function collectPanes(children: ReactNode): {
       width: p.width ?? 248,
       hoverReveal: Boolean(p.hoverReveal),
       disabled: Boolean(p.disabled),
+      forceCollapsed: Boolean(p.forceCollapsed),
     };
     (p.side === "left" ? left : right).push(entry);
   }
@@ -71,7 +73,8 @@ export function PaneShell({
     let column = 1;
     const addColumn = (pane: CollectedPane) => {
       const snap = paneStates[pane.id];
-      const open = Boolean(snap?.open) && !pane.disabled;
+      const open =
+        Boolean(snap?.open) && !pane.disabled && !pane.forceCollapsed;
       const track = open ? `${snap?.widthOverride ?? pane.width}px` : "0px";
       tracks.push(track);
       cssVars[`--pane-${pane.id}-width`] = track;

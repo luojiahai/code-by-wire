@@ -36,7 +36,7 @@ import { RightSidebar } from "./shell/RightSidebar";
 import { NewSessionView } from "./shell/NewSessionView";
 import { MiddleHeader } from "./shell/MiddleHeader";
 import { useMediaQuery, NARROW_VIEWPORT_QUERY } from "./shell/use-media-query";
-import { $paneOpen, togglePane, setPaneOpen } from "./shell/panes";
+import { $paneOpen, togglePane } from "./shell/panes";
 import {
   CBW_LEFT_PANE_ID,
   CBW_RIGHT_PANE_ID,
@@ -386,15 +386,6 @@ export function App() {
   const rightOpen = useStore($paneOpen(CBW_RIGHT_PANE_ID));
   const metrics = useMetrics(selected?.id ?? "", hasSession);
 
-  // Narrow viewports collapse both rails to hover-reveal overlays (the columns' `hoverReveal`
-  // already renders a closed pane as a slide-in overlay) — mirrors hermes's `forceCollapsed`.
-  useEffect(() => {
-    if (narrow) {
-      setPaneOpen(CBW_LEFT_PANE_ID, false);
-      setPaneOpen(CBW_RIGHT_PANE_ID, false);
-    }
-  }, [narrow]);
-
   // Re-home the selection only when the list first arrives, the open session vanishes, or the list
   // empties. Keyed on the id list so it can't loop on a fresh `all` each render; setting the same id is
   // a no-op.
@@ -475,6 +466,7 @@ export function App() {
           minWidth={LEFT_MIN_WIDTH}
           maxWidth={LEFT_MAX_WIDTH}
           hoverReveal
+          forceCollapsed={narrow}
         >
           <LeftSidebar
             sessions={all}
@@ -496,6 +488,7 @@ export function App() {
           maxWidth={RIGHT_MAX_WIDTH}
           hoverReveal
           disabled={!hasSession}
+          forceCollapsed={narrow}
         >
           {selected && (
             <RightSidebar
