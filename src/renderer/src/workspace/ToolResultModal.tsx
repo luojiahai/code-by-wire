@@ -78,21 +78,21 @@ export function ToolResultModal({
     >
       <div
         id="tool-result-title"
-        className="mb-3 flex items-center gap-2 text-[12px]"
+        className="mb-3 flex items-center gap-2 text-aux"
       >
         <Icon
           name={toolIcon(tool.name)}
           size={14}
           className="shrink-0 text-primary-bright"
         />
-        <span className="font-semibold text-primary-bright">{tool.name}</span>
+        <span className="font-medium text-primary-bright">{tool.name}</span>
         <span className="text-ink-700">·</span>
         <span className={cx("font-mono", status.tone)}>
           {status.char} {status.label}
         </span>
       </div>
 
-      <div className="flex items-start gap-2 rounded-md border border-ink-800 bg-well px-3 py-2 font-mono text-[11px]">
+      <div className="flex items-start gap-2 rounded-md border border-ink-800 bg-well px-3 py-2 font-mono text-meta">
         <pre className="flex-1 whitespace-pre-wrap break-words text-fg">
           <span className="text-primary">$</span> {command}
         </pre>
@@ -101,7 +101,7 @@ export function ToolResultModal({
           disabled={state.phase !== "ready"}
           onClick={cmd.copy}
           className={cx(
-            "shrink-0 rounded border px-2 py-0.5 text-[10px] transition-colors disabled:opacity-40",
+            "shrink-0 rounded border px-2 py-0.5 text-label transition-colors disabled:opacity-40",
             cmd.copied
               ? "border-ink-600 text-fg"
               : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
@@ -111,10 +111,10 @@ export function ToolResultModal({
         </button>
       </div>
 
-      <div className="mb-1 mt-3 text-[10px] uppercase tracking-wider text-fg-faint">
+      <div className="mb-1 mt-3 text-label uppercase tracking-wider text-fg-faint">
         Output
       </div>
-      <div className="max-h-[60vh] overflow-auto rounded-md border border-ink-800 bg-well p-3 font-mono text-[11px] leading-relaxed text-fg-muted">
+      <div className="max-h-[60vh] overflow-auto rounded-md border border-ink-800 bg-well p-3 font-mono text-meta leading-relaxed text-fg-muted">
         {state.phase === "loading" && (
           <span className="text-fg-faint">Loading output…</span>
         )}
@@ -136,7 +136,7 @@ export function ToolResultModal({
           ))}
       </div>
 
-      <div className="mt-3 flex items-center gap-2 text-[10px] text-fg-faint">
+      <div className="mt-3 flex items-center gap-2 text-label text-fg-faint">
         <button
           type="button"
           disabled={state.phase !== "ready" || state.detail.output === ""}

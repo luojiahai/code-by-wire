@@ -6,7 +6,7 @@ import { InfoButton } from "../../ui/InfoButton";
 /** A dock tab body's empty state: faint, small, padded to the tab's content inset. Shared by the Turns
  *  and Subagents tabs so their "No X yet." lines stay identical. */
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <p className="px-4 py-3 text-[11px] text-fg-faint">{children}</p>;
+  return <p className="px-4 py-3 text-meta text-fg-faint">{children}</p>;
 }
 
 /** A rail panel's shell: vertical rhythm, a bottom hairline, and bottom padding. */
@@ -37,7 +37,7 @@ export function PanelHeading({
 }) {
   if (!info && !right) {
     return (
-      <h2 className="font-display text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+      <h2 className="font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {children}
       </h2>
     );
@@ -46,7 +46,7 @@ export function PanelHeading({
   return (
     <div className="relative flex items-center justify-between gap-2">
       <span className="flex items-center gap-1.5">
-        <h2 className="font-display text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+        <h2 className="font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
           {children}
         </h2>
         {info && (
@@ -54,7 +54,7 @@ export function PanelHeading({
           // width and top-full drops it below the strip.
           <InfoButton
             label={title ? `About ${title}` : "About this metric"}
-            popoverClassName="left-0 right-0 top-full mt-1.5 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-[11px] leading-snug text-fg-muted shadow-lg"
+            popoverClassName="left-0 right-0 top-full mt-1.5 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-meta leading-snug text-fg-muted shadow-lg"
           >
             {info}
           </InfoButton>

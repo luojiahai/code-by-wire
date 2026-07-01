@@ -32,14 +32,14 @@ export function SoftwareUpdateCard({ update }: { update: UpdateControls }) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-925">
-      <div className="border-b border-ink-850 px-4 py-2.5 font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+      <div className="border-b border-ink-850 px-4 py-2.5 font-display text-label font-semibold uppercase tracking-[0.1em] text-fg-faint">
         Software update
       </div>
       <StatusRow update={update} />
       <div className="flex items-center justify-between gap-4 border-t border-ink-850 px-4 py-3">
         <div className="min-w-0">
-          <div className="text-[13px] text-fg">Check for updates on launch</div>
-          <div className="mt-0.5 text-[11.5px] text-fg-faint">
+          <div className="text-body text-fg">Check for updates on launch</div>
+          <div className="mt-0.5 text-meta text-fg-faint">
             Look for a new version each time the app starts
           </div>
         </div>
@@ -112,7 +112,7 @@ function StatusRow({ update }: { update: UpdateControls }) {
         <button
           type="button"
           onClick={() => void window.api.openExternal(p.notesUrl)}
-          className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-primary transition-colors hover:text-primary-bright"
+          className="mt-1.5 inline-flex items-center gap-1 text-meta text-primary transition-colors hover:text-primary-bright"
         >
           Release notes
           <Icon name="arrow-up-right" size={11} />
@@ -140,7 +140,7 @@ function StatusRow({ update }: { update: UpdateControls }) {
       version = p.version;
       detail = "Downloaded · installs when you next quit";
       extra = (
-        <div className="mt-1 text-[10.5px] text-fg-faint">
+        <div className="mt-1 text-label text-fg-faint">
           or restart now to apply it immediately
         </div>
       );
@@ -166,14 +166,14 @@ function StatusRow({ update }: { update: UpdateControls }) {
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] font-medium text-fg">{headline}</span>
+          <span className="text-body font-medium text-fg">{headline}</span>
           {version && (
-            <span className="rounded border border-ink-700 px-1.5 py-0.5 font-mono text-[11px] text-primary-bright">
+            <span className="rounded border border-ink-700 px-1.5 py-0.5 font-mono text-meta text-primary-bright">
               v{version}
             </span>
           )}
         </div>
-        <div className="mt-0.5 text-[11.5px] text-fg-muted">{detail}</div>
+        <div className="mt-0.5 text-meta text-fg-muted">{detail}</div>
         {extra}
       </div>
       {action && <div className="shrink-0">{action}</div>}
@@ -195,7 +195,7 @@ function GhostButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center gap-1.5 rounded-md border border-ink-700 px-2.5 py-1 text-[12px] text-fg-muted transition-colors hover:border-ink-600 hover:text-fg disabled:opacity-40"
+      className="inline-flex items-center gap-1.5 rounded-md border border-ink-700 px-2.5 py-1 text-aux text-fg-muted transition-colors hover:border-ink-600 hover:text-fg disabled:opacity-40"
     >
       {children}
     </button>
@@ -213,7 +213,7 @@ function SolidButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center rounded-md border border-ink-600 bg-ink-800 px-3 py-1 text-[12px] text-fg transition-colors hover:bg-ink-700"
+      className="inline-flex items-center rounded-md border border-ink-600 bg-ink-800 px-3 py-1 text-aux text-fg transition-colors hover:bg-ink-700"
     >
       {children}
     </button>

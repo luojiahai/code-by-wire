@@ -14,14 +14,14 @@ const TOKENS_INFO =
   "This session's tokens by kind: fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes. When subagents ran, usage spans models, each with a per-model breakdown one hover away.";
 
 const POPOVER =
-  "absolute left-0 top-full z-20 mt-1 w-60 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-left text-[11px] leading-snug text-fg-muted shadow-lg";
+  "absolute left-0 top-full z-20 mt-1 w-60 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-left text-meta leading-snug text-fg-muted shadow-lg";
 
 // The by-model row popover. Anchored to the row's left edge (the row spans the panel's content), so at
 // w-56 (224px) it stays inside the 256px content box — the inline chips it replaced anchored left-0 on a
 // right-side chip, running the 240px popover off the rail. Used directly (not via MetricTip), so it carries
 // its own reveal classes.
 const MODEL_POPOVER =
-  "absolute left-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-left text-[11px] leading-snug text-fg-muted shadow-lg group-hover:block group-focus-within:block";
+  "absolute left-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-left text-meta leading-snug text-fg-muted shadow-lg group-hover:block group-focus-within:block";
 
 /** TokenKind.key → the matching Usage token field, so the per-model popover
  *  and the kind rows read off one mapping. */
@@ -71,7 +71,7 @@ function ModelRow({ m }: { m: ModelUsageView }) {
         aria-describedby={tipId}
         // -mx-1 px-1: the hover/focus highlight bleeds 4px into the panel padding while the dot stays at
         // x=0, column-aligned with the kind rows below (which have no horizontal padding).
-        className="-mx-1 flex cursor-help items-center gap-2 rounded px-1 py-0.5 text-[12px] transition-colors hover:bg-ink-850 focus-visible:bg-ink-850 focus-visible:outline-none"
+        className="-mx-1 flex cursor-help items-center gap-2 rounded px-1 py-0.5 text-aux transition-colors hover:bg-ink-850 focus-visible:bg-ink-850 focus-visible:outline-none"
       >
         <span
           className="h-2 w-2 shrink-0 rounded-full"
@@ -167,7 +167,7 @@ export function TokensPanel({ usageByModel }: { usageByModel: ModelUsage[] }) {
         info={TOKENS_INFO}
         right={
           <span
-            className="font-mono text-[13px] tabular-nums text-fg"
+            className="font-mono text-body tabular-nums text-fg"
             title="Total tokens"
           >
             {formatTokensShort(total)}
@@ -197,7 +197,7 @@ export function TokensPanel({ usageByModel }: { usageByModel: ModelUsage[] }) {
               per-model attribution sits below, parted by a hairline — who spent it, after what it bought. */}
           <div className="mt-2.5 h-px bg-ink-800" />
           <div className="mt-2.5">
-            <div className="mb-1 text-[11px] text-fg-faint">by model</div>
+            <div className="mb-1 text-meta text-fg-faint">by model</div>
             <div className="space-y-0.5">
               {models.map((m) => (
                 <ModelRow key={m.modelRaw ?? "null"} m={m} />
@@ -225,7 +225,7 @@ function Row({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 text-[12px] ${dim ? "opacity-40" : ""}`}
+      className={`flex items-center gap-2 text-aux ${dim ? "opacity-40" : ""}`}
     >
       <Swatch color={color} />
       <span className="flex-1 text-fg-muted">{label}</span>

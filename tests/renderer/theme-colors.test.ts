@@ -96,6 +96,17 @@ describe("terminal well matches the theme", () => {
     expect(spread(m![1])).toBeLessThanOrEqual(1);
     expect(m![1].toLowerCase()).toBe(token("well").toLowerCase());
   });
+
+  it("xterm foreground is graphite and equals --color-fg", () => {
+    const xterm = readFileSync(
+      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
+      "utf8",
+    );
+    const m = /foreground:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
+    expect(m, "xterm theme foreground hex").toBeTruthy();
+    expect(spread(m![1])).toBeLessThanOrEqual(1);
+    expect(m![1].toLowerCase()).toBe(token("fg").toLowerCase());
+  });
 });
 
 describe("electron window matches the theme", () => {

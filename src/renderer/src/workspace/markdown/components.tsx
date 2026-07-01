@@ -34,22 +34,22 @@ export const markdownComponents: Components = {
     </ExternalLink>
   ),
   h1: ({ children }) => (
-    <h1 className="mb-2 mt-4 text-[18px] font-semibold leading-tight first:mt-0">
+    <h1 className="mb-2 mt-4 text-heading font-semibold leading-tight first:mt-0">
       {children}
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 className="mb-2 mt-4 text-[16px] font-semibold leading-tight first:mt-0">
+    <h2 className="mb-2 mt-4 text-title font-semibold leading-tight first:mt-0">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="mb-1.5 mt-3 text-[14px] font-semibold leading-tight first:mt-0">
+    <h3 className="mb-1.5 mt-3 text-subhead font-semibold leading-tight first:mt-0">
       {children}
     </h3>
   ),
   h4: ({ children }) => (
-    <h4 className="mb-1.5 mt-3 text-[13px] font-semibold text-fg-muted first:mt-0">
+    <h4 className="mb-1.5 mt-3 text-body font-semibold text-fg-muted first:mt-0">
       {children}
     </h4>
   ),
@@ -80,7 +80,7 @@ export const markdownComponents: Components = {
   hr: () => <hr className="my-3 border-ink-800" />,
   table: ({ children }) => (
     <div className="my-2 overflow-x-auto">
-      <table className="border-collapse text-[12.5px]">{children}</table>
+      <table className="border-collapse text-body">{children}</table>
     </div>
   ),
   th: ({ children }) => (
@@ -100,7 +100,7 @@ export const markdownComponents: Components = {
     const inline = node ? isInlineCode(node as unknown as Element) : false;
     if (inline) {
       return (
-        <code className="rounded border border-ink-800 bg-ink-900 px-1 py-0.5 font-mono text-[12px] text-fg">
+        <code className="rounded border border-ink-800 bg-ink-900 px-1 py-0.5 font-mono text-aux text-fg">
           {children}
         </code>
       );

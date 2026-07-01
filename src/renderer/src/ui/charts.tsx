@@ -51,7 +51,7 @@ export function RateBar({
 }) {
   return (
     <div className="mt-1.5 flex items-center gap-2">
-      <span className="w-12 shrink-0 text-[12px] text-fg-muted">{label}</span>
+      <span className="w-12 shrink-0 text-aux text-fg-muted">{label}</span>
       <span className="h-2 flex-1 overflow-hidden rounded-full bg-ink-850">
         <span
           className="block h-full rounded-full"
@@ -61,7 +61,7 @@ export function RateBar({
           }}
         />
       </span>
-      <span className="w-[52px] shrink-0 text-right font-mono text-[12px] tabular-nums text-fg">
+      <span className="w-[52px] shrink-0 text-right font-mono text-aux tabular-nums text-fg">
         {value}
       </span>
     </div>
@@ -228,7 +228,7 @@ export function BarSeries({
         {ticks.map((t) => (
           <span
             key={t}
-            className="absolute right-0 translate-y-[calc(-50%_+_5px)] text-[9px] leading-none tabular-nums text-fg-faint"
+            className="absolute right-0 translate-y-[calc(-50%_+_5px)] text-micro leading-none tabular-nums text-fg-faint"
             style={{ bottom: `${(t / axisMax) * 100}%` }}
           >
             {formatTick(t)}
@@ -289,7 +289,7 @@ export function BarSeries({
               acceptable for v1. */}
           {hovered != null && (
             <div
-              className="pointer-events-none absolute bottom-full z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-ink-800 bg-ink-900 px-2 py-1.5 text-[11px] shadow-lg"
+              className="pointer-events-none absolute bottom-full z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-ink-800 bg-ink-900 px-2 py-1.5 text-meta shadow-lg"
               style={{ left: `${((hovered + 0.5) / Math.max(n, 1)) * 100}%` }}
             >
               {renderTooltip(hovered)}
@@ -301,7 +301,7 @@ export function BarSeries({
           {xLabels.map(({ index, label }) => (
             <span
               key={index}
-              className="absolute -translate-x-1/2 text-[9px] tabular-nums text-fg-faint"
+              className="absolute -translate-x-1/2 text-micro tabular-nums text-fg-faint"
               style={{ left: `${((index + 0.5) / Math.max(n, 1)) * 100}%` }}
             >
               {label}
@@ -413,7 +413,7 @@ export function CalendarHeatmap({
           {CAL_WEEKDAYS.map(({ row, label }) => (
             <span
               key={label}
-              className="absolute right-0 text-[9px] text-fg-faint"
+              className="absolute right-0 text-micro text-fg-faint"
               style={{ top: row * CAL_STEP - 1 }}
             >
               {label}
@@ -427,7 +427,7 @@ export function CalendarHeatmap({
             {monthLabels.map((m) => (
               <span
                 key={`${m.col}-${m.label}`}
-                className="absolute text-[9px] text-fg-faint"
+                className="absolute text-micro text-fg-faint"
                 style={{ left: m.col * CAL_STEP }}
               >
                 {m.label}
@@ -477,7 +477,7 @@ export function CalendarHeatmap({
           cell top; at the top rows it overhangs the wrapper (uncut), like BarSeries' tooltip. */}
       {hovered && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-ink-800 bg-ink-900 px-2 py-1.5 text-[11px] shadow-lg"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-ink-800 bg-ink-900 px-2 py-1.5 text-meta shadow-lg"
           style={{ left: hovered.x, top: CAL_MONTH_ROW_H + hovered.y - 4 }}
         >
           {renderTooltip(hovered.day)}

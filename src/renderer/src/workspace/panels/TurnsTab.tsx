@@ -26,7 +26,7 @@ export function TurnsTab({
             <span
               className={cx(
                 DOCK_GUTTER,
-                "shrink-0 text-right font-mono text-[10px] tabular-nums text-fg-faint",
+                "shrink-0 text-right font-mono text-label tabular-nums text-fg-faint",
               )}
             >
               {t.index}
@@ -50,7 +50,7 @@ export function TurnsTab({
           }
         >
           <span
-            className="min-w-0 flex-1 truncate text-[12px] text-fg"
+            className="min-w-0 flex-1 truncate text-aux text-fg"
             title={t.prompt}
           >
             {t.prompt}

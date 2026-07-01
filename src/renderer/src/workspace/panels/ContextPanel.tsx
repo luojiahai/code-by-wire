@@ -48,7 +48,7 @@ export function ContextPanel({
     return (
       <PanelSection>
         <PanelHeading info={CONTEXT_INFO}>Context</PanelHeading>
-        <p className="text-[11px] text-fg-faint">No context sampled yet.</p>
+        <p className="text-meta text-fg-faint">No context sampled yet.</p>
       </PanelSection>
     );
   }
@@ -60,14 +60,14 @@ export function ContextPanel({
       <div className="flex items-baseline justify-between">
         <div
           className={cx(
-            "font-mono text-[26px] font-medium leading-none tabular-nums",
+            "font-mono text-display font-medium leading-none tabular-nums",
             ctxTone(pct),
           )}
         >
           {pct}
-          <span className="text-[15px] text-fg-faint">%</span>
+          <span className="text-title text-fg-faint">%</span>
         </div>
-        <div className="font-mono text-[11px] text-fg-faint">
+        <div className="font-mono text-meta text-fg-faint">
           {formatTokensShort(contextWindow)} window
         </div>
       </div>
@@ -77,7 +77,7 @@ export function ContextPanel({
         caution={CONTEXT_WARN_PCT}
         danger={CONTEXT_DANGER_PCT}
       />
-      <div className="font-mono text-[11px] text-fg-muted">
+      <div className="font-mono text-meta text-fg-muted">
         <span className="text-fg">{formatTokensShort(total)}</span> used
         <span className="mx-1.5 text-ink-700">·</span>
         <span className="text-fg">{formatTokensShort(free)}</span> free

@@ -140,7 +140,7 @@ export function GitCell({
               }}
               className="z-50 rounded-lg border border-ink-700 bg-ink-900 p-2.5 shadow-xl"
             >
-              <div className="mb-2 px-1 font-display text-[8px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+              <div className="mb-2 px-1 font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
                 Git detail
               </div>
               <Row label="Repository">
@@ -216,8 +216,8 @@ export function GitCell({
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 border-t border-ink-850 px-1 py-1.5 first:border-t-0">
-      <span className="shrink-0 text-[11px] text-fg-faint">{label}</span>
-      <span className="flex min-w-0 items-center gap-2 font-mono text-[12px]">
+      <span className="shrink-0 text-meta text-fg-faint">{label}</span>
+      <span className="flex min-w-0 items-center gap-2 font-mono text-aux">
         {children}
       </span>
     </div>

@@ -24,7 +24,7 @@ export function CautionBanner({
       type="button"
       onClick={onOpenSystem}
       className={cx(
-        "flex w-full shrink-0 items-center gap-2.5 border-b px-4 py-2 text-left text-[12px] transition-colors",
+        "flex w-full shrink-0 items-center gap-2.5 border-b px-4 py-2 text-left text-aux transition-colors",
         error
           ? "border-danger/30 bg-danger/10 hover:bg-danger/15"
           : "border-accent/30 bg-accent/10 hover:bg-accent/15",

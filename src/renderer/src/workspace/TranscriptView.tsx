@@ -83,10 +83,10 @@ export function TranscriptView({
         footer={
           state === "waiting" ? (
             <div className="rounded-lg border border-accent/40 bg-accent/[0.08] p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-accent-bright">
+              <div className="text-meta font-semibold uppercase tracking-wider text-accent-bright">
                 Waiting for you
               </div>
-              <p className="mt-1 whitespace-pre-wrap font-mono text-[12px] text-accent-bright">
+              <p className="mt-1 whitespace-pre-wrap font-mono text-aux text-accent-bright">
                 {doc?.waitingReason ?? "Waiting for your input"}
               </p>
             </div>
@@ -99,7 +99,7 @@ export function TranscriptView({
 
 export function Center({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-full items-center justify-center text-[12px] text-fg-faint">
+    <div className="flex h-full items-center justify-center text-aux text-fg-faint">
       {children}
     </div>
   );

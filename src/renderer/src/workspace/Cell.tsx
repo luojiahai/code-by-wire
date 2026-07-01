@@ -35,12 +35,12 @@ export function Cell({
         seam && "border-l border-ink-800",
       )}
     >
-      <span className="font-display text-[8px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+      <span className="font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {label}
       </span>
       <span
         className={cx(
-          "flex min-w-0 items-center gap-1.5 font-mono text-[12px]",
+          "flex min-w-0 items-center gap-1.5 font-mono text-aux",
           valueClass ?? "text-fg",
         )}
       >

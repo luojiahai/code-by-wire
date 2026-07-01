@@ -33,7 +33,7 @@ function ShellRow({
         <span
           className={cx(
             DOCK_GUTTER,
-            "shrink-0 text-center font-mono text-[11px]",
+            "shrink-0 text-center font-mono text-meta",
             glyph.tone,
             shell.status === "running" && "animate-pulse-soft",
           )}
@@ -55,7 +55,7 @@ function ShellRow({
       }
     >
       <span
-        className="min-w-0 flex-1 truncate text-[12px]"
+        className="min-w-0 flex-1 truncate text-aux"
         title={
           shell.description
             ? `${shell.description}  ${shell.command}`
@@ -65,12 +65,12 @@ function ShellRow({
         {shell.description ? (
           <>
             <span className="text-fg">{shell.description}</span>
-            <span className="ml-2 font-mono text-[11px] text-fg-faint">
+            <span className="ml-2 font-mono text-meta text-fg-faint">
               {shell.command}
             </span>
           </>
         ) : (
-          <span className="font-mono text-[11px] text-fg">{shell.command}</span>
+          <span className="font-mono text-meta text-fg">{shell.command}</span>
         )}
       </span>
     </DockRow>

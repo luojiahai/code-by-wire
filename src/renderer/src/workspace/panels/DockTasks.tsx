@@ -40,7 +40,7 @@ export function DockTasks({ tasks }: { tasks: Task[] }) {
               <span
                 className={cx(
                   DOCK_GUTTER,
-                  "shrink-0 text-center font-mono text-[11px]",
+                  "shrink-0 text-center font-mono text-meta",
                   GLYPH_TONE[t.status],
                 )}
               >
@@ -57,7 +57,7 @@ export function DockTasks({ tasks }: { tasks: Task[] }) {
           >
             <span
               className={cx(
-                "min-w-0 flex-1 truncate text-[12px]",
+                "min-w-0 flex-1 truncate text-aux",
                 SUBJECT_TONE[t.status],
               )}
               title={t.subject}

@@ -79,7 +79,7 @@ function Breadcrumb({
   onNavigate: (depth: number) => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-4 py-2 text-[11px]">
+    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-4 py-2 text-meta">
       <button
         type="button"
         onClick={() => onNavigate(0)}
@@ -103,7 +103,7 @@ function Breadcrumb({
             <span className="shrink-0 text-ink-700">›</span>
             {last ? (
               <span
-                className="min-w-0 flex-1 truncate font-semibold text-fg"
+                className="min-w-0 flex-1 truncate font-medium text-fg"
                 title={subagentCrumbLabel(c)}
               >
                 {subagentCrumbLabel(c)}

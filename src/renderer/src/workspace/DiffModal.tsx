@@ -33,19 +33,19 @@ export function DiffModal({
       onClose={onClose}
     >
       <div id="diff-title" className="mb-3">
-        <div className="flex items-center gap-2 text-[12px]">
+        <div className="flex items-center gap-2 text-aux">
           <Icon
             name={toolIcon(diff.tool)}
             size={14}
             className="shrink-0 text-primary-bright"
           />
-          <span className="font-semibold text-primary-bright">{diff.tool}</span>
+          <span className="font-medium text-primary-bright">{diff.tool}</span>
           <span className="text-ink-700">·</span>
           <span className={cx("font-mono", st.tone)}>
             {st.char} {st.label}
           </span>
         </div>
-        <div className="mt-2 flex items-start gap-2 rounded-md border border-ink-800 bg-well px-3 py-1.5 font-mono text-[12px]">
+        <div className="mt-2 flex items-start gap-2 rounded-md border border-ink-800 bg-well px-3 py-1.5 font-mono text-aux">
           <Icon
             name="folder"
             size={12}
@@ -55,7 +55,7 @@ export function DiffModal({
             <span className="text-fg-faint">{file.dir}</span>
             <span className="text-fg">{file.name}</span>
           </span>
-          <span className="mt-0.5 shrink-0 text-[11px]">
+          <span className="mt-0.5 shrink-0 text-meta">
             <span className="text-ok">+{diff.hunk.added.length}</span>{" "}
             <span className="text-danger">−{diff.hunk.removed.length}</span>
           </span>
@@ -63,7 +63,7 @@ export function DiffModal({
             type="button"
             onClick={pathCopy.copy}
             className={cx(
-              "mt-0.5 shrink-0 rounded border px-2 py-0.5 text-[10px] transition-colors",
+              "mt-0.5 shrink-0 rounded border px-2 py-0.5 text-label transition-colors",
               pathCopy.copied
                 ? "border-ink-600 text-fg"
                 : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
@@ -74,7 +74,7 @@ export function DiffModal({
         </div>
       </div>
 
-      <div className="max-h-[60vh] overflow-auto rounded-md border border-ink-800 bg-well p-3 font-mono text-[11px] leading-relaxed">
+      <div className="max-h-[60vh] overflow-auto rounded-md border border-ink-800 bg-well p-3 font-mono text-meta leading-relaxed">
         {empty ? (
           <span className="text-fg-faint">no changes</span>
         ) : (
@@ -93,7 +93,7 @@ export function DiffModal({
         )}
       </div>
 
-      <div className="mt-3 flex items-center gap-2 text-[10px] text-fg-faint">
+      <div className="mt-3 flex items-center gap-2 text-label text-fg-faint">
         <button
           type="button"
           onClick={copy}

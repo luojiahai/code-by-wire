@@ -13,18 +13,18 @@ export function ShellLog({
   // already carries the command + status, so the null case is a calm note, not a dead end.
   if (output === undefined)
     return (
-      <div className="flex h-full items-center justify-center text-[12px] text-fg-faint">
+      <div className="flex h-full items-center justify-center text-aux text-fg-faint">
         Reading output…
       </div>
     );
   if (output === null)
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-        <div className="text-[18px] text-ink-700" aria-hidden>
+        <div className="text-heading text-ink-700" aria-hidden>
           ⌁
         </div>
-        <div className="text-[12px] text-fg-muted">No output</div>
-        <div className="text-[11px] text-fg-faint">
+        <div className="text-aux text-fg-muted">No output</div>
+        <div className="text-meta text-fg-faint">
           Command produced no stdout or stderr.
         </div>
       </div>
@@ -32,7 +32,7 @@ export function ShellLog({
   const trunc = truncLabel(output.truncatedBytes);
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-ink-850 px-4 py-1.5 text-[10px] uppercase tracking-wider">
+      <div className="flex shrink-0 items-center gap-2 border-b border-ink-850 px-4 py-1.5 text-label uppercase tracking-wider">
         <span
           className={
             output.source === "live" ? "text-primary" : "text-fg-faint"
@@ -42,7 +42,7 @@ export function ShellLog({
         </span>
         {trunc && <span className="ml-auto text-accent">{trunc}</span>}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto bg-well p-4 font-mono text-[11px] leading-relaxed text-fg-muted">
+      <div className="min-h-0 flex-1 overflow-auto bg-well p-4 font-mono text-meta leading-relaxed text-fg-muted">
         {output.text.split("\n").map((line, i) => (
           <AnsiLine key={i} text={line} />
         ))}

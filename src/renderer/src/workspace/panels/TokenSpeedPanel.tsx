@@ -38,7 +38,7 @@ export function TokenSpeedPanel({
       <PanelHeading
         info={SPEED_INFO}
         right={
-          <span className="rounded border border-ink-800 px-1 py-px text-[9px] uppercase tracking-wider text-fg-faint">
+          <span className="rounded border border-ink-800 px-1 py-px text-micro uppercase tracking-wider text-fg-faint">
             {SPEED_WINDOW_LABEL}
           </span>
         }
@@ -47,19 +47,19 @@ export function TokenSpeedPanel({
       </PanelHeading>
       <div className="flex items-baseline justify-between">
         {speed ? (
-          <span className="font-mono text-[22px] font-semibold tabular-nums text-fg">
+          <span className="font-mono text-display font-medium tabular-nums text-fg">
             {formatTps(speed.totalTps)}
           </span>
         ) : (
-          <span className="font-mono text-[16px] font-semibold tabular-nums text-fg-faint">
+          <span className="font-mono text-title font-medium tabular-nums text-fg-faint">
             idle
           </span>
         )}
-        <span className="text-[10.5px] text-fg-faint">total throughput</span>
+        <span className="text-label text-fg-faint">total throughput</span>
       </div>
       <Sparkline values={history} />
       {speed && (
-        <div className="flex justify-between font-mono text-[11px] text-fg-muted">
+        <div className="flex justify-between font-mono text-meta text-fg-muted">
           <span>
             Input <span className="text-fg">{formatTps(speed.inputTps)}</span>
           </span>

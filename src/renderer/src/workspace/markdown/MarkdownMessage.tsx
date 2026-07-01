@@ -19,7 +19,7 @@ export const MarkdownMessage = memo(function MarkdownMessage({
   text: string;
 }) {
   return (
-    <div className="text-[13px] leading-relaxed">
+    <div className="text-body leading-relaxed">
       <Markdown remarkPlugins={REMARK_PLUGINS} components={markdownComponents}>
         {text}
       </Markdown>

@@ -29,7 +29,7 @@ export function ShellDrill({
   const crumb = shell?.description ? `Shell: ${shell.description}` : "Shell";
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-4 py-2 text-[11px]">
+      <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-4 py-2 text-meta">
         <button
           type="button"
           onClick={onBack}
@@ -39,7 +39,7 @@ export function ShellDrill({
         </button>
         <span className="shrink-0 text-ink-700">›</span>
         <span
-          className="min-w-0 flex-1 truncate font-mono font-semibold text-fg"
+          className="min-w-0 flex-1 truncate font-mono font-medium text-fg"
           title={shell?.description ? crumb : undefined}
         >
           {crumb}
@@ -78,7 +78,7 @@ function ShellHeader({
         {pill && (
           <span
             className={cx(
-              "inline-flex items-center gap-1.5 rounded-full border border-ink-800 px-2 py-0.5 text-[10px]",
+              "inline-flex items-center gap-1.5 rounded-full border border-ink-800 px-2 py-0.5 text-label",
               pill.tone,
               shell?.status === "running" && "animate-pulse-soft",
             )}
@@ -88,12 +88,12 @@ function ShellHeader({
           </span>
         )}
         {meta.length > 0 && (
-          <span className="font-mono text-[10px] tabular-nums text-fg-faint">
+          <span className="font-mono text-label tabular-nums text-fg-faint">
             {meta.join(" · ")}
           </span>
         )}
         {startedAt && (
-          <span className="ml-auto font-mono text-[10px] tabular-nums text-fg-faint">
+          <span className="ml-auto font-mono text-label tabular-nums text-fg-faint">
             {startedAt}
           </span>
         )}
@@ -131,7 +131,7 @@ function CommandBlock({ command }: { command: string }) {
       <div
         ref={ref}
         className={cx(
-          "break-all font-mono text-[12.5px] leading-relaxed text-fg",
+          "break-all font-mono text-body leading-relaxed text-fg",
           !expanded && "line-clamp-2",
         )}
       >
@@ -141,7 +141,7 @@ function CommandBlock({ command }: { command: string }) {
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-1 inline-flex items-center gap-1 font-mono text-[10px] text-primary transition-colors hover:text-primary-bright"
+          className="mt-1 inline-flex items-center gap-1 font-mono text-label text-primary transition-colors hover:text-primary-bright"
         >
           {expanded ? "collapse" : "show full"}
           <span aria-hidden>{expanded ? "⌃" : "⌄"}</span>

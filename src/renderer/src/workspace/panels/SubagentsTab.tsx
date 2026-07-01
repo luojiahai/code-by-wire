@@ -107,7 +107,7 @@ function SubagentLane({
         <span
           className={cx(
             DOCK_GUTTER,
-            "shrink-0 text-center font-mono text-[11px]",
+            "shrink-0 text-center font-mono text-meta",
             meta.tone,
           )}
         >
@@ -136,12 +136,12 @@ function SubagentLane({
       }
     >
       {tag && (
-        <span className="shrink-0 rounded bg-ink-800 px-1 py-px font-mono text-[9px] text-fg-faint">
+        <span className="shrink-0 rounded bg-ink-800 px-1 py-px font-mono text-micro text-fg-faint">
           {tag}
         </span>
       )}
       <span
-        className="min-w-0 flex-1 truncate text-[12px] text-fg"
+        className="min-w-0 flex-1 truncate text-aux text-fg"
         title={primary}
       >
         {primary}
@@ -196,7 +196,7 @@ function GroupHeader({
       onClick={onToggle}
       aria-expanded={!collapsed}
       className={cx(
-        "flex w-full items-center gap-2 border-b border-ink-850 py-1 pl-2 pr-1.5 text-left font-mono text-[10px] tabular-nums transition-colors hover:bg-ink-900",
+        "flex w-full items-center gap-2 border-b border-ink-850 py-1 pl-2 pr-1.5 text-left font-mono text-label tabular-nums transition-colors hover:bg-ink-900",
         focusRingInset,
       )}
     >
@@ -208,7 +208,7 @@ function GroupHeader({
           !collapsed && "rotate-90",
         )}
       />
-      <span className="shrink-0 font-semibold text-fg">{label}</span>
+      <span className="shrink-0 font-medium text-fg">{label}</span>
       {type && <span className="min-w-0 truncate text-fg-faint">{type}</span>}
       {autoCollapsed && (
         <span className="shrink-0 italic text-fg-faint/70">auto</span>

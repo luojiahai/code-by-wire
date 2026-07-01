@@ -183,10 +183,10 @@ function DockTally({
       className="hidden w-full shrink-0 items-center gap-3 border-t border-ink-800 bg-ink-925 px-4 py-2 text-left text-fg-muted transition-colors hover:text-fg lg:flex"
     >
       <Icon name="chevron-up" size={14} />
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+      <span className="text-meta font-semibold uppercase tracking-wider text-fg-muted">
         Structure
       </span>
-      <span className="ml-auto flex items-center gap-3 font-mono text-[10px] tabular-nums text-fg-faint">
+      <span className="ml-auto flex items-center gap-3 font-mono text-label tabular-nums text-fg-faint">
         <span>
           {tasksDone}/{tasks.length} tasks
         </span>

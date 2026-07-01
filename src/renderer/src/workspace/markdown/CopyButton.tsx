@@ -25,7 +25,7 @@ export function CopyButton({
       onClick={copy}
       aria-label={copied ? "Copied" : "Copy"}
       className={cx(
-        "flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] text-fg-faint transition-colors hover:text-fg",
+        "flex items-center gap-1.5 rounded-md px-1.5 py-1 text-meta text-fg-faint transition-colors hover:text-fg",
         className,
       )}
     >

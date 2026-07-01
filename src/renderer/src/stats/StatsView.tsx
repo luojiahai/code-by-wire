@@ -195,7 +195,7 @@ export function StatsView() {
     <OverlayScroll className="h-full min-w-0 flex-1 bg-ink-950 text-fg">
       <div className="mx-auto flex max-w-[1100px] flex-col gap-4 px-6 py-6">
         <header className="flex items-center justify-between">
-          <h1 className="font-display text-[17px] font-semibold tracking-tight text-fg">
+          <h1 className="font-display text-heading font-semibold tracking-tight text-fg">
             Usage
           </h1>
           <div className="flex items-center gap-2">
@@ -204,7 +204,7 @@ export function StatsView() {
                 type="button"
                 onClick={() => setRange(DEFAULT_RANGE)}
                 title="Clear the day filter"
-                className="flex items-center gap-1 rounded-md border border-ink-700 bg-ink-700 px-2 py-0.5 text-[11px] text-fg transition-colors hover:bg-ink-600"
+                className="flex items-center gap-1 rounded-md border border-ink-700 bg-ink-700 px-2 py-0.5 text-meta text-fg transition-colors hover:bg-ink-600"
               >
                 {formatDayShort(range.day)}
                 <span aria-hidden className="text-fg-muted">
@@ -245,7 +245,7 @@ export function StatsView() {
           />
         )}
         {resetError && (
-          <div className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-[11px] text-danger">
+          <div className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-meta text-danger">
             Couldn&apos;t reset analytics. Please try again.
           </div>
         )}
@@ -334,7 +334,7 @@ function BuildingHistory({ progress }: { progress: ScanProgress }) {
     : 0;
   return (
     <div className="flex flex-col gap-1.5 rounded-md border border-ink-800 bg-ink-900/40 px-3 py-2.5">
-      <div className="flex items-center justify-between text-[11px] text-fg-muted">
+      <div className="flex items-center justify-between text-meta text-fg-muted">
         <span>Building history…</span>
         <span className="tabular-nums">
           {progress.filesDone.toLocaleString("en-US")}/
@@ -377,7 +377,7 @@ function RangeFilter({
   onChange: (r: StatsRange) => void;
 }) {
   return (
-    <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-[11px]">
+    <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-meta">
       {RANGE_OPTS.map(([v, label]) => (
         <button
           key={v}
@@ -528,7 +528,7 @@ function Contributions({
         monthLabels={monthLabels}
       />
       {/* Less -> More ramp legend. */}
-      <div className="mt-3 flex items-center gap-1.5 text-[10px] text-fg-faint">
+      <div className="mt-3 flex items-center gap-1.5 text-label text-fg-faint">
         <span>Less</span>
         {CALENDAR_RAMP.map((c, i) => (
           <span
@@ -553,7 +553,7 @@ function CalMetricToggle({
   onChange: (v: CalMetric) => void;
 }) {
   return (
-    <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-[11px]">
+    <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-meta">
       {CAL_METRIC_OPTS.map(([v, label]) => (
         <button
           key={v}
@@ -589,7 +589,7 @@ function YearSwitcher({
       onChange={(e) =>
         onChange(e.target.value === "trailing" ? null : Number(e.target.value))
       }
-      className="rounded-md border border-ink-800 bg-ink-900 px-2 py-1 text-[11px] text-fg-muted"
+      className="rounded-md border border-ink-800 bg-ink-900 px-2 py-1 text-meta text-fg-muted"
     >
       <option value="trailing">Last 12 months</option>
       {years.map((y) => (
@@ -639,13 +639,13 @@ function KpiStrip({
       <KpiCard label="Turns" value={totals.turns.toLocaleString("en-US")} />
       <KpiCard label="Tokens" value={formatTokensShort(tokenTotal)}>
         <StackedBar segments={kindSegments} height={6} className="mt-3" />
-        <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[9px] text-fg-faint">
+        <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-micro text-fg-faint">
           {KIND_SEGMENT_LABELS.slice(0, kindSegments.length).map((label, i) => (
             <span key={label} className="relative flex items-center gap-1">
               <Swatch color={KIND_SEGMENT_COLORS[i]} />
               <MetricTip
                 label={label}
-                popoverClassName="left-0 top-full z-50 mt-1 w-52 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-[11px] leading-snug text-fg-muted shadow-lg"
+                popoverClassName="left-0 top-full z-50 mt-1 w-52 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-meta leading-snug text-fg-muted shadow-lg"
               >
                 {TOKEN_KINDS[i].description}
               </MetricTip>
@@ -670,10 +670,10 @@ function KpiCard({
 }) {
   return (
     <div className="flex flex-col border-r border-ink-850 px-4 py-3.5 last:border-r-0">
-      <div className="font-display text-[8.5px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+      <div className="font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {label}
       </div>
-      <div className="mt-1.5 font-mono text-[25px] font-medium leading-none tracking-tight tabular-nums text-fg">
+      <div className="mt-1.5 font-mono text-display font-medium leading-none tracking-tight tabular-nums text-fg">
         {value}
       </div>
       {children}
@@ -866,7 +866,7 @@ function DailyUsage({
         xLabels={xLabels}
         renderTooltip={renderTooltip}
       />
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-meta">
         {legend.map((l) => (
           <span key={l.label} className="flex items-center gap-1.5">
             <Swatch color={l.color} />
@@ -888,7 +888,7 @@ function StackByToggle({
   onChange: (v: StackBy) => void;
 }) {
   return (
-    <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-[11px]">
+    <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-meta">
       {STACK_OPTS.map(([v, label]) => (
         <button
           key={v}
@@ -924,7 +924,7 @@ function CacheToggle({
       onClick={() => onChange(!on)}
       aria-pressed={on}
       title="Count cache-read and cache-creation tokens in the token figures"
-      className="flex items-center gap-1.5 rounded-md border border-ink-800 bg-ink-900 px-2 py-1 text-[11px] text-fg-muted transition-colors hover:border-ink-700"
+      className="flex items-center gap-1.5 rounded-md border border-ink-800 bg-ink-900 px-2 py-1 text-meta text-fg-muted transition-colors hover:border-ink-700"
     >
       <span
         className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border transition-colors ${
@@ -979,13 +979,13 @@ function Breakdown({
   const rest = rows.length - shown.length;
   return (
     <StatsPanel title={title}>
-      <table className="w-full table-fixed text-[12px]">
+      <table className="w-full table-fixed text-aux">
         <colgroup>
           <col className="w-[70%]" />
           <col className="w-[30%]" />
         </colgroup>
         <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-fg-faint">
+          <tr className="text-label uppercase tracking-wide text-fg-faint">
             <th
               scope="col"
               className="whitespace-nowrap pb-1.5 text-left font-normal"
@@ -1034,7 +1034,7 @@ function Breakdown({
         </tbody>
       </table>
       {rest > 0 && (
-        <p className="mt-2 text-[11px] text-fg-faint">
+        <p className="mt-2 text-meta text-fg-faint">
           +{rest} more {rest === 1 ? cap.noun : `${cap.noun}s`}
         </p>
       )}
@@ -1200,7 +1200,7 @@ function BySession({
   const now = Date.now();
   return (
     <StatsPanel title="By session">
-      <table className="w-full table-fixed text-[12px]">
+      <table className="w-full table-fixed text-aux">
         <colgroup>
           <col className="w-[30%]" />
           <col className="w-[16%]" />
@@ -1210,7 +1210,7 @@ function BySession({
           <col className="w-[14%]" />
         </colgroup>
         <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-fg-faint">
+          <tr className="text-label uppercase tracking-wide text-fg-faint">
             <SortHeader
               label="Session"
               column="session"
@@ -1259,7 +1259,7 @@ function BySession({
                 <span className="block truncate text-fg" title={r.cwd}>
                   {r.title ?? r.project}
                 </span>
-                <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-fg-faint">
+                <span className="mt-0.5 flex items-center gap-1.5 text-meta text-fg-faint">
                   <span className="truncate">{r.project}</span>
                   <span className="font-mono">{r.sessionId.slice(0, 8)}</span>
                   <CopyButton value={r.sessionId} label="Copy session id" />
@@ -1294,7 +1294,7 @@ function BySession({
         </tbody>
       </table>
       {rest > 0 && (
-        <p className="mt-2 text-[11px] text-fg-faint">
+        <p className="mt-2 text-meta text-fg-faint">
           +{rest} more {rest === 1 ? "session" : "sessions"}
         </p>
       )}
@@ -1306,7 +1306,7 @@ function EmptyStats() {
   return (
     <div className="flex flex-col items-center justify-center gap-2.5 py-24 text-fg-faint">
       <Icon name="chart-column" size={28} />
-      <p className="text-[13px]">No usage yet.</p>
+      <p className="text-body">No usage yet.</p>
     </div>
   );
 }
@@ -1326,7 +1326,7 @@ function StatsPanel({
   return (
     <section className="rounded-xl border border-ink-800 bg-ink-925 p-4">
       <header className="mb-4 flex items-center justify-between gap-2">
-        <h2 className="font-display text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-faint">
+        <h2 className="font-display text-label font-semibold uppercase tracking-[0.1em] text-fg-faint">
           {title}
         </h2>
         {right}

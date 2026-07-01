@@ -101,7 +101,7 @@ function Bubble({
       </div>
       <div
         className={cx(
-          "max-w-[85%] break-words rounded-xl px-3.5 py-2.5 text-[13px] leading-relaxed",
+          "max-w-[85%] break-words rounded-xl px-3.5 py-2.5 text-body leading-relaxed",
           user
             ? "whitespace-pre-wrap bg-ink-900 text-fg"
             : "bg-ink-925 text-fg ring-1 ring-ink-800",
@@ -115,7 +115,7 @@ function Bubble({
 
 function Thinking({ text }: { text: string }) {
   return (
-    <details className="ml-[34px] text-[11px] text-fg-faint">
+    <details className="ml-[34px] text-meta text-fg-faint">
       <summary className="cursor-pointer select-none">Thinking</summary>
       <p className="mt-1 whitespace-pre-wrap border-l border-ink-700 pl-2 leading-relaxed">
         {text}
@@ -136,7 +136,7 @@ function ToolCall({ tool, onOpen }: { tool: ToolEvent; onOpen?: () => void }) {
         ? "no output"
         : `${tool.outputLines} line${tool.outputLines === 1 ? "" : "s"}`;
   const base =
-    "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-[11px]";
+    "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-meta";
   const body = (
     <>
       <Icon
@@ -177,7 +177,7 @@ function ToolCall({ tool, onOpen }: { tool: ToolEvent; onOpen?: () => void }) {
 function DiffRow({ diff, onOpen }: { diff: DiffEvent; onOpen?: () => void }) {
   const st = TURN_STATUS[diff.status];
   const base =
-    "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-[11px]";
+    "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-meta";
   const body = (
     <>
       <Icon
@@ -223,7 +223,7 @@ function SubagentDispatch({
   onDrill?: () => void;
 }) {
   const base =
-    "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-[11px]";
+    "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-meta";
   const body = (
     <>
       <Icon

@@ -45,12 +45,12 @@ export function ObservedTerminal({
 
   return (
     <div className="relative flex h-full items-center justify-center bg-ink-950">
-      <span className="absolute left-4 top-3 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-fg-faint">
+      <span className="absolute left-4 top-3 inline-flex items-center gap-1.5 text-label uppercase tracking-wider text-fg-faint">
         <span className="h-1.5 w-1.5 rounded-full bg-ink-600" />
         {ended ? "Ended" : "Observed"}
       </span>
       <div className="flex flex-col items-center gap-4 text-center">
-        <p className="text-[13px] text-fg-faint">
+        <p className="text-body text-fg-faint">
           {ended
             ? "This session has ended. Bring it back to life."
             : "This session is running in another terminal — read-only here."}
@@ -64,7 +64,7 @@ export function ObservedTerminal({
               resumable={s.resumable}
               available={canAdopt}
               iconSize={15}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-body font-medium text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
             />
           )}
           <ResumeButton
@@ -73,18 +73,18 @@ export function ObservedTerminal({
             canSpawn={canSpawn}
             resumable={s.resumable}
             iconSize={15}
-            className="inline-flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-900 px-4 py-2 text-[13px] font-semibold text-fg-muted transition-colors enabled:hover:border-ink-600 enabled:hover:text-fg disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-900 px-4 py-2 text-body font-medium text-fg-muted transition-colors enabled:hover:border-ink-600 enabled:hover:text-fg disabled:opacity-40"
           />
         </div>
         {/* Each action owns its own error line, so a stale Adopt failure never masks a fresh Fork one
             (and vice versa) when both buttons are present on an Ended session. */}
         {adopt.error && (
-          <span className="text-[11px] text-danger">{adopt.error}</span>
+          <span className="text-meta text-danger">{adopt.error}</span>
         )}
         {fork.error && (
-          <span className="text-[11px] text-danger">{fork.error}</span>
+          <span className="text-meta text-danger">{fork.error}</span>
         )}
-        <span className="text-[11px] text-fg-faint">
+        <span className="text-meta text-fg-faint">
           {ended
             ? "Adopt = take the wheel · Fork = explore a new branch"
             : "Fork it to branch off into your own session."}

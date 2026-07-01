@@ -1,36 +1,23 @@
 @import "tailwindcss";
 
-/* code-by-wire — "Instrument" glass-cockpit theme.
-   A calibrated-instrument visual language: the established neutral graphite surface stack (no
-   temperature), ONE engaged-teal signal ("wire"/managed), and a status palette reserved STRICTLY for
-   live state —
-   blue Working, amber Waiting/caution, red Warning/failed, slate Idle, faint Ended. Color never
-   decorates; if something isn't a state, it stays graphite.
-
-   Token NAMES are kept from the prior theme (ink-*, fg*, primary, accent, danger, ok); only their
-   VALUES are remapped, so existing utility classes adopt the new palette without a rename. `working`
-   (now blue), `accent` (amber caution), `idle` (slate), and `well` (the sunken plane under terminals
-   and inputs) carry over. The data/telemetry pair `steel`/`violet` still names chart series; the
-   cockpit port migrates those readouts to a monochrome tonal ramp so they read as information, not
-   affordances. Fonts are named here and bundled via @fontsource in main.tsx. */
+/* Mono grayscale palette with teal accent. Neutral surfaces + single teal primary/working signal;
+   amber reserved for Waiting, red/green for failed/done. Token names kept, values re-mapped. */
 @theme {
-  /* Surface stack (neutral graphite, equal RGB), darkest → lightest. Kept from the prior theme — the
-     Instrument redesign refines the signals and type, not the graphite base. */
+  /* Surface stack (neutral grayscale). */
   --color-well: #080808; /* sunken: terminal, inputs, code blocks */
-  --color-ink-950: #0c0c0d; /* app base */
+  --color-ink-950: #0e0e0e; /* app canvas / middle */
   --color-ink-925: #141414; /* cards, rails, panels */
-  --color-ink-900: #1b1b1c; /* raised: headers, chips, nested panels */
-  --color-ink-850: #202021; /* subtle hover / faint divider */
-  --color-ink-800: #2c2c2d; /* default hairline border / dividers */
-  --color-ink-750: #333334; /* hover on raised surfaces */
-  --color-ink-700: #3a3a3b; /* strong border, focus-adjacent edges */
-  --color-ink-600: #49525f; /* Ended state, dim glyphs */
+  --color-ink-900: #181818; /* raised: headers, chips, menus, popover */
+  --color-ink-850: #1e1e1e; /* subtle hover / faint divider */
+  --color-ink-800: #2a2a2a; /* default hairline border */
+  --color-ink-750: #303030; /* hover on raised surfaces */
+  --color-ink-700: #3a3a3a; /* strong border */
+  --color-ink-600: #4a4a4a; /* Ended state, dim glyphs (was bluish #49525f) */
 
-  /* Text — neutral graphite, matching the surface stack.
-     fg-faint is held above AA (~5.9:1 on the app base) so tertiary/metadata stays legible. */
-  --color-fg: #ededee;
-  --color-fg-muted: #a8a8a9;
-  --color-fg-faint: #8b8b8c;
+  /* Text — neutral grayscale. */
+  --color-fg: #eaeaea;
+  --color-fg-muted: #9a9a9a;
+  --color-fg-faint: #7d7d7d;
 
   /* Wire — the single brand signal (engaged teal): primary actions, focus, links, "managed" */
   --color-primary: #14b8a6;
@@ -38,33 +25,28 @@
   --color-primary-deep: #0d8276;
 
   /* Status hues — reserved for session state, never decorative */
-  --color-working: #2f95f5; /* Working — live, blue (running), pulses; distinct from the teal wire */
-  --color-working-bright: #5aa9f8;
+  --color-working: #2dd4bf; /* live = the teal accent (was blue #2f95f5) */
+  --color-working-bright: #5eead4;
   --color-accent: #f2b33d; /* Waiting — blocked on you, amber, pulses; also context-fill caution */
   --color-accent-bright: #f7c766;
-  --color-idle: #6e7782; /* Idle — calm slate */
+  --color-idle: #7a7a7a; /* neutral (was slate #6e7782) */
 
   /* Semantic */
   --color-danger: #f2685c; /* diff remove, failed, destructive */
   --color-ok: #46c57a; /* diff add, cache savings, done */
 
-  /* Data / telemetry. `steel` fills the context ring while roomy; `violet` renders ANSI magenta in shell
-     output. The token-kind breakdown's fresh split gets dedicated teal tones (Input lighter, Output deeper)
-     so it reads as its own telemetry family — clear of the jewel models and softer than the brand wire;
-     cache and the cost magnitude ramp grey back below. */
-  --color-steel: #8a97ac; /* neutral data magnitude — slate-steel (context ring) */
+  /* Data / telemetry — neutralized to grayscale. */
+  --color-steel: #8a8a8a; /* context-ring magnitude, neutralized */
   --color-violet: #907bc9; /* ANSI magenta (shell output) */
-  --color-token-input: #54bcae; /* Input — light teal (fresh-token split) */
-  --color-token-output: #2a8579; /* Output — deep teal (fresh-token split) */
+  --color-token-input: #b0b0b0; /* fresh-token split → neutral */
+  --color-token-output: #707070;
 
-  /* Magnitude ramp — a monochrome tonal scale for the cost/token breakdowns. Instrument discipline:
-     charts read as data, never affordances, so hue is reserved for live state. Light → deep by token
-     kind, with a dimmest tail for cache-write. */
-  --color-data-1: #c2c9d2; /* lightest — Input */
-  --color-data-2: #9098a3; /* Output */
-  --color-data-3: #707885; /* Cache read */
-  --color-data-4: #565d68; /* Cache write · 5-minute */
-  --color-data-5: #3e444d; /* Cache write · 1-hour (dimmest) */
+  /* Magnitude ramp — monochrome grayscale. */
+  --color-data-1: #c8c8c8;
+  --color-data-2: #9a9a9a;
+  --color-data-3: #707070;
+  --color-data-4: #525252;
+  --color-data-5: #3a3a3a;
 
   /* Model identity colors (Aurora) — one fixed hue per known family, reused everywhere a model appears
      (By model bars, daily stack-by-model, By session). Restrained jewel tones, held off the danger/
@@ -75,20 +57,42 @@
   --color-model-sonnet: #b37bd9; /* orchid */
   --color-model-haiku: #db7fa4; /* rose */
 
-  /* Type — Inter for UI/body AND placards/labels (display reuses the sans face; the label/body
-     hierarchy comes from case, tracking, weight, and color, not a separate font), Cascadia Mono for
-     the wordmark, JetBrains Mono for all telemetry and identifiers. The "* Variable" names are the
-     bundled @fontsource-variable builds; the plain name stays as a fallback for a locally-installed
-     static font. */
+  /* Type — hermes "Mono" desktop fonts. System sans for all UI/body and
+     placards/labels (display reuses the sans face; hierarchy comes from case,
+     tracking, weight, color — not a separate font). JetBrains Mono (bundled,
+     @fontsource) leads the mono stack so code/diff/telemetry match the
+     terminal on every platform. Every stack ends in the emoji fallback. */
   --font-display: var(--font-sans);
   --font-sans:
-    "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
-    sans-serif;
+    "Segoe WPC", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "SF Pro Display", system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", emoji;
   --font-mono:
-    "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo,
-    Consolas, monospace;
-  --font-brand:
-    "Cascadia Mono Variable", "Cascadia Mono", ui-monospace, monospace;
+    "JetBrains Mono Variable", "JetBrains Mono", "Cascadia Code", "SF Mono",
+    ui-monospace, Menlo, Consolas, monospace, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", emoji;
+
+  /* Type scale — one principled ladder replacing per-component ad-hoc sizes.
+     px shown at the 16px root. Each tier carries a default line-height;
+     components may still override with an explicit `leading-*`. */
+  --text-micro: 0.5625rem; /* 9px  — micro overlines, micro tabular data */
+  --text-micro--line-height: 1.3;
+  --text-label: 0.625rem; /* 10px — section labels, badges, small mono meta */
+  --text-label--line-height: 1.35;
+  --text-meta: 0.6875rem; /* 11px — metadata, timestamps, status, captions */
+  --text-meta--line-height: 1.4;
+  --text-aux: 0.75rem; /* 12px — secondary body, code, tool rows, tabs */
+  --text-aux--line-height: 1.45;
+  --text-body: 0.8125rem; /* 13px — primary body text, buttons, values (base) */
+  --text-body--line-height: 1.5;
+  --text-subhead: 0.875rem; /* 14px — emphasized rows, markdown h3 */
+  --text-subhead--line-height: 1.4;
+  --text-title: 1rem; /* 16px — section titles, markdown h2 */
+  --text-title--line-height: 1.3;
+  --text-heading: 1.125rem; /* 18px — page headers, markdown h1 */
+  --text-heading--line-height: 1.25;
+  --text-display: 1.5rem; /* 24px — big gauge / stat numerals */
+  --text-display--line-height: 1;
 }
 
 html,
@@ -102,6 +106,8 @@ body {
   color: var(--color-fg);
   font-family: var(--font-sans);
   font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }

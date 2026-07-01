@@ -27,24 +27,24 @@ export function ConfirmDialog({
   // button's own tone, so keyboard focus reads clearly without mixing in a second color.
   const confirmClass =
     tone === "danger"
-      ? "rounded-md bg-danger px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-danger/40 transition-colors hover:bg-danger/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
-      : "rounded-md bg-primary px-3 py-1.5 text-[13px] font-semibold text-ink-950 ring-1 ring-primary/40 transition-colors hover:bg-primary-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+      ? "rounded-md bg-danger px-3 py-1.5 text-body font-medium text-white ring-1 ring-danger/40 transition-colors hover:bg-danger/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
+      : "rounded-md bg-primary px-3 py-1.5 text-body font-medium text-ink-950 ring-1 ring-primary/40 transition-colors hover:bg-primary-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
   return (
     <ModalShell
       labelledBy="confirm-title"
       widthClass="w-[26rem]"
       onClose={onCancel}
     >
-      <div id="confirm-title" className="text-sm font-semibold">
+      <div id="confirm-title" className="text-subhead font-semibold">
         {title}
       </div>
-      <p className="mt-2 text-[12px] leading-relaxed text-fg-faint">{body}</p>
+      <p className="mt-2 text-aux leading-relaxed text-fg-faint">{body}</p>
       <div className="mt-5 flex justify-end gap-2">
         <button
           type="button"
           onClick={onCancel}
           className={cx(
-            "rounded-md px-3 py-1.5 text-[13px] text-fg-muted transition-colors hover:text-fg",
+            "rounded-md px-3 py-1.5 text-body text-fg-muted transition-colors hover:text-fg",
             focusRing,
           )}
         >
