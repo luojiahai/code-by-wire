@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Session, Family, Account } from "@shared/types";
 import type { CliStatus } from "@shared/cli-status";
 import type { OverviewData } from "@shared/ipc";
@@ -30,6 +37,17 @@ import { OVERVIEW_ID } from "./stats/sentinel";
 import { SettingsView, type SettingsSection } from "./settings/SettingsView";
 import { SETTINGS_ID } from "./settings/sentinel";
 import { useUpdate } from "./ui/use-update";
+// TASK 3 SCAFFOLDING — remove this import and PANE_SHELL_SMOKE_TEST block below once Task 11
+// rewires this file to slot real content (sidebar/header/footer) into PaneShell/Pane for real.
+import { PaneShell } from "./shell/PaneShell";
+import { Pane } from "./shell/Pane";
+import { PaneShellContext } from "./shell/pane-shell-context";
+
+/** TASK 3 SCAFFOLDING: flips `App` over to the `PaneShell`/`Pane` engine smoke test (three
+ *  columns, drag-to-resize, hover-reveal, narrow-viewport collapse) instead of the real UI, so the
+ *  engine can be verified by hand ahead of the sidebar/header/footer content it will host. Task 11
+ *  rewires `App.tsx` for real and deletes this flag, `PaneShellSmokeTest`, and `MainColumn`. */
+const PANE_SHELL_SMOKE_TEST = true;
 
 /** How often the session list re-syncs in the background, so an open workspace's state (and the
  *  Overview) tracks a session as it moves. Slower than the transcript poll: metadata changes less
@@ -387,6 +405,11 @@ export function App() {
   const showCaution =
     cliStatus !== null && !isSettings && cliStatusView(cliStatus).tone !== "ok";
 
+  // TASK 3 SCAFFOLDING — see PANE_SHELL_SMOKE_TEST above; bypasses the real render below entirely.
+  if (PANE_SHELL_SMOKE_TEST) {
+    return <PaneShellSmokeTest />;
+  }
+
   return (
     <div className="app-bg flex h-screen flex-col text-fg">
       <GlobalHeader
@@ -441,6 +464,43 @@ export function App() {
           onCancel={() => setCreating(false)}
         />
       )}
+    </div>
+  );
+}
+
+/** TASK 3 SCAFFOLDING — placeholder render exercising the `PaneShell`/`Pane` engine: three
+ *  columns (resizable left/right rails + fluid main) over a full-width footer stub. Deleted by
+ *  Task 11 once the real sidebar/header/footer content is slotted in. */
+function PaneShellSmokeTest() {
+  return (
+    <div className="flex h-screen flex-col">
+      <PaneShell className="min-h-0 flex-1">
+        <Pane id="cbw-left" side="left" width={248} hoverReveal>
+          <div className="h-full border-r border-sidebar-border bg-sidebar" />
+        </Pane>
+        <MainColumn>
+          <div className="h-full" />
+        </MainColumn>
+        <Pane id="cbw-right" side="right" width={260} hoverReveal>
+          <div className="h-full border-l border-sidebar-border bg-sidebar" />
+        </Pane>
+      </PaneShell>
+      <div className="h-8 border-t border-ink-800 bg-ink-925" />
+    </div>
+  );
+}
+
+/** TASK 3 SCAFFOLDING — the main content isn't a `Pane`; it occupies `PaneShell`'s implicit
+ *  `minmax(0,1fr)` track. Reads `mainColumn` off `PaneShellContext` so its `gridColumn` stays
+ *  correct regardless of how many rails are open to its left. Deleted by Task 11. */
+function MainColumn({ children }: { children: ReactNode }) {
+  const ctx = useContext(PaneShellContext);
+  const gridColumn = ctx
+    ? `${ctx.mainColumn} / ${ctx.mainColumn + 1}`
+    : undefined;
+  return (
+    <div className="min-w-0" style={{ gridColumn }}>
+      {children}
     </div>
   );
 }
