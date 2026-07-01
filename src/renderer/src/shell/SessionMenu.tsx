@@ -234,7 +234,7 @@ export function SessionMenu({
             label="Copy session ID"
             title={session.id}
             onClick={() => {
-              void navigator.clipboard.writeText(session.id);
+              void window.api.clipboardWriteText(session.id);
               setOpen(false);
             }}
           />
