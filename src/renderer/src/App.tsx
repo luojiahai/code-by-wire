@@ -1,11 +1,5 @@
-import {
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useStore } from "@nanostores/react";
 import type { Session, Family, Account } from "@shared/types";
 import type { CliStatus } from "@shared/cli-status";
 import type { OverviewData } from "@shared/ipc";
@@ -24,12 +18,8 @@ import { newSessionId } from "@shared/terminal";
 import { orderedSessions } from "@shared/overview";
 import { applyTitleOverrides } from "@shared/title-override";
 import { Workspace } from "./workspace/Workspace";
-import { NewSessionDialog } from "./terminal/NewSessionDialog";
+import { useMetrics } from "./workspace/use-metrics";
 import { terminalStore } from "./terminal/terminal-store-instance";
-import { GlobalHeader } from "./ui/GlobalHeader";
-import { CautionBanner } from "./ui/CautionBanner";
-import { cliStatusView } from "./ui/cli-status-view";
-import { SessionList } from "./SessionList";
 import { spawnGate } from "./ui/cli-gating";
 import { Icon } from "./ui/icons";
 import { StatsView } from "./stats/StatsView";
@@ -37,17 +27,31 @@ import { OVERVIEW_ID } from "./stats/sentinel";
 import { SettingsView, type SettingsSection } from "./settings/SettingsView";
 import { SETTINGS_ID } from "./settings/sentinel";
 import { useUpdate } from "./ui/use-update";
-// TASK 3 SCAFFOLDING — remove this import and PANE_SHELL_SMOKE_TEST block below once Task 11
-// rewires this file to slot real content (sidebar/header/footer) into PaneShell/Pane for real.
 import { PaneShell } from "./shell/PaneShell";
 import { Pane } from "./shell/Pane";
-import { PaneShellContext } from "./shell/pane-shell-context";
+import { MainColumn } from "./shell/MainColumn";
+import { AppFooter } from "./shell/AppFooter";
+import { LeftSidebar } from "./shell/LeftSidebar";
+import { RightSidebar } from "./shell/RightSidebar";
+import { NewSessionView } from "./shell/NewSessionView";
+import { MiddleHeader } from "./shell/MiddleHeader";
+import { useMediaQuery, NARROW_VIEWPORT_QUERY } from "./shell/use-media-query";
+import { $paneOpen, togglePane, setPaneOpen } from "./shell/panes";
+import {
+  CBW_LEFT_PANE_ID,
+  CBW_RIGHT_PANE_ID,
+  LEFT_DEFAULT_WIDTH,
+  LEFT_MIN_WIDTH,
+  LEFT_MAX_WIDTH,
+  RIGHT_DEFAULT_WIDTH,
+  RIGHT_MIN_WIDTH,
+  RIGHT_MAX_WIDTH,
+} from "./shell/layout";
 
-/** TASK 3 SCAFFOLDING: flips `App` over to the `PaneShell`/`Pane` engine smoke test (three
- *  columns, drag-to-resize, hover-reveal, narrow-viewport collapse) instead of the real UI, so the
- *  engine can be verified by hand ahead of the sidebar/header/footer content it will host. Task 11
- *  rewires `App.tsx` for real and deletes this flag, `PaneShellSmokeTest`, and `MainColumn`. */
-const PANE_SHELL_SMOKE_TEST = true;
+/** The middle column's sentinel for the inline new-session view (design spec §5), alongside
+ *  `OVERVIEW_ID`/`SETTINGS_ID`: not a real session id (real ids come from `newSessionId()`, which
+ *  never produces this literal), so it can share the same `selectedId` routing state. */
+const NEW_SESSION_ID = "new-session";
 
 /** How often the session list re-syncs in the background, so an open workspace's state (and the
  *  Overview) tracks a session as it moves. Slower than the transcript poll: metadata changes less
@@ -93,7 +97,6 @@ export function App() {
   // guards on `!isOverview`, so it never yanks this to a session on first load; the user clicks into a
   // session to leave it.
   const [selectedId, setSelectedId] = useState<string | null>(OVERVIEW_ID);
-  const [creating, setCreating] = useState(false);
   const update = useUpdate();
 
   // Sessions and account come from one overview read, so apply them together — a stale or failed
@@ -237,7 +240,6 @@ export function App() {
         rows: 24,
       });
       setDrafts((ds) => [draft, ...ds]);
-      setCreating(false);
       setSelectedId(id);
     } catch (e) {
       terminalStore.dispose(id); // spawn failed → nothing will ever feed this handle; don't leak it
@@ -366,13 +368,32 @@ export function App() {
   );
   const isOverview = selectedId === OVERVIEW_ID;
   const isSettings = selectedId === SETTINGS_ID;
-  // Both pinned views (Overview, Settings) are non-session selections: the per-session lookup and the
-  // auto-select effect must treat them as valid, never as a stale/missing session to re-home.
-  const isPinned = isOverview || isSettings;
+  const isNewSession = selectedId === NEW_SESSION_ID;
+  // All three pinned views (Overview, Settings, New session) are non-session selections: the
+  // per-session lookup and the auto-select effect must treat them as valid, never as a
+  // stale/missing session to re-home — otherwise a background sync that changes the id list while
+  // the inline New session view is open would yank the user back to a session mid-form.
+  const isPinned = isOverview || isSettings || isNewSession;
   const selected =
     !isPinned && selectedId !== null
       ? (all.find((s) => s.id === selectedId) ?? null)
       : null;
+  const hasSession = selected != null;
+  const route = selectedId ?? "";
+
+  const narrow = useMediaQuery(NARROW_VIEWPORT_QUERY);
+  const leftOpen = useStore($paneOpen(CBW_LEFT_PANE_ID));
+  const rightOpen = useStore($paneOpen(CBW_RIGHT_PANE_ID));
+  const metrics = useMetrics(selected?.id ?? "", hasSession);
+
+  // Narrow viewports collapse both rails to hover-reveal overlays (the columns' `hoverReveal`
+  // already renders a closed pane as a slide-in overlay) — mirrors hermes's `forceCollapsed`.
+  useEffect(() => {
+    if (narrow) {
+      setPaneOpen(CBW_LEFT_PANE_ID, false);
+      setPaneOpen(CBW_RIGHT_PANE_ID, false);
+    }
+  }, [narrow]);
 
   // Re-home the selection only when the list first arrives, the open session vanishes, or the list
   // empties. Keyed on the id list so it can't loop on a fresh `all` each render; setting the same id is
@@ -396,115 +417,132 @@ export function App() {
     }
   }, [ids]);
 
-  const showSystem = (): void => {
-    setSettingsSection("system");
-    setSelectedId(SETTINGS_ID);
-  };
-  // The master-caution strip shows whenever the CLI is non-ok, except while already in Settings (the strip
-  // deep-links there) and during the pre-first-check window (no status to judge yet).
-  const showCaution =
-    cliStatus !== null && !isSettings && cliStatusView(cliStatus).tone !== "ok";
-
-  // TASK 3 SCAFFOLDING — see PANE_SHELL_SMOKE_TEST above; bypasses the real render below entirely.
-  if (PANE_SHELL_SMOKE_TEST) {
-    return <PaneShellSmokeTest />;
-  }
+  // The middle column's content, keyed on the current route: the inline new-session form, the
+  // pinned Overview/Settings views (each wrapped in `MiddleNonSession` for its own plain-title
+  // header), the live `Workspace` (which renders its own `MiddleHeader` + `SessionMenu`), or the
+  // empty state when nothing is selected (e.g. a stale/vanished session id with no pinned route).
+  const middle: ReactNode = isNewSession ? (
+    <MiddleNonSession title="New session" leftOpen={leftOpen}>
+      <NewSessionView
+        onCreate={createSession}
+        onCancel={() => setSelectedId(OVERVIEW_ID)}
+      />
+    </MiddleNonSession>
+  ) : isOverview ? (
+    <MiddleNonSession title="code-by-wire" leftOpen={leftOpen}>
+      <StatsView />
+    </MiddleNonSession>
+  ) : isSettings ? (
+    <MiddleNonSession title="Settings" leftOpen={leftOpen}>
+      <SettingsView
+        cliStatus={cliStatus}
+        account={account}
+        checking={checking}
+        onRecheck={() => void recheckCli()}
+        onSetBinPath={(p) => void setClaudeBinPath(p)}
+        section={settingsSection}
+        onSectionChange={setSettingsSection}
+        update={update}
+      />
+    </MiddleNonSession>
+  ) : selected ? (
+    <Workspace
+      key={selected.id}
+      session={selected}
+      canSpawn={spawnGate(cliStatus).canSpawn}
+      onAdopt={adoptSession}
+      onFork={forkSession}
+      onEnd={endSession}
+      onRename={(id, title) => void renameSession(id, title)}
+      leftCollapsed={!leftOpen}
+      onShowLeft={() => togglePane(CBW_LEFT_PANE_ID)}
+      rightCollapsed={!rightOpen}
+      onShowRight={() => togglePane(CBW_RIGHT_PANE_ID)}
+    />
+  ) : (
+    <MiddleNonSession title="code-by-wire" leftOpen={leftOpen}>
+      <EmptyDetail empty={all.length === 0} loading={loading} />
+    </MiddleNonSession>
+  );
 
   return (
     <div className="app-bg flex h-screen flex-col text-fg">
-      <GlobalHeader
-        cliStatus={cliStatus}
-        onOpenSettings={() => setSelectedId(SETTINGS_ID)}
-        settingsActive={isSettings}
-        updatePhase={update.state.phase.kind}
-      />
-      {showCaution && cliStatus && (
-        <CautionBanner status={cliStatus} onOpenSystem={showSystem} />
-      )}
-      <div className="flex min-h-0 flex-1">
-        <SessionList
-          sessions={all}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onNew={() => setCreating(true)}
-          canSpawn={spawnGate(cliStatus).canSpawn}
-        />
-        <div className="flex min-w-0 flex-1">
-          {isSettings ? (
-            <SettingsView
-              cliStatus={cliStatus}
-              account={account}
-              checking={checking}
-              onRecheck={() => void recheckCli()}
-              onSetBinPath={(p) => void setClaudeBinPath(p)}
-              section={settingsSection}
-              onSectionChange={setSettingsSection}
-              update={update}
-            />
-          ) : isOverview ? (
-            <StatsView />
-          ) : selected ? (
-            <Workspace
-              key={selected.id}
-              session={selected}
-              canSpawn={spawnGate(cliStatus).canSpawn}
-              onAdopt={adoptSession}
-              onFork={forkSession}
-              onEnd={endSession}
-              onRename={(id, title) => void renameSession(id, title)}
-              leftCollapsed={false}
-              onShowLeft={() => {}}
-              rightCollapsed={false}
-              onShowRight={() => {}}
-            />
-          ) : (
-            <EmptyDetail empty={all.length === 0} loading={loading} />
-          )}
-        </div>
-      </div>
-      {creating && (
-        <NewSessionDialog
-          onCreate={createSession}
-          onCancel={() => setCreating(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-/** TASK 3 SCAFFOLDING — placeholder render exercising the `PaneShell`/`Pane` engine: three
- *  columns (resizable left/right rails + fluid main) over a full-width footer stub. Deleted by
- *  Task 11 once the real sidebar/header/footer content is slotted in. */
-function PaneShellSmokeTest() {
-  return (
-    <div className="flex h-screen flex-col">
       <PaneShell className="min-h-0 flex-1">
-        <Pane id="cbw-left" side="left" width={248} hoverReveal>
-          <div className="h-full border-r border-sidebar-border bg-sidebar" />
+        <Pane
+          id={CBW_LEFT_PANE_ID}
+          side="left"
+          width={LEFT_DEFAULT_WIDTH}
+          minWidth={LEFT_MIN_WIDTH}
+          maxWidth={LEFT_MAX_WIDTH}
+          hoverReveal
+        >
+          <LeftSidebar
+            sessions={all}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onNew={() => setSelectedId(NEW_SESSION_ID)}
+            canSpawn={spawnGate(cliStatus).canSpawn}
+            route={route}
+            onRoute={setSelectedId}
+            onCollapse={() => togglePane(CBW_LEFT_PANE_ID)}
+          />
         </Pane>
-        <MainColumn>
-          <div className="h-full" />
-        </MainColumn>
-        <Pane id="cbw-right" side="right" width={260} hoverReveal>
-          <div className="h-full border-l border-sidebar-border bg-sidebar" />
+        <MainColumn>{middle}</MainColumn>
+        <Pane
+          id={CBW_RIGHT_PANE_ID}
+          side="right"
+          width={RIGHT_DEFAULT_WIDTH}
+          minWidth={RIGHT_MIN_WIDTH}
+          maxWidth={RIGHT_MAX_WIDTH}
+          hoverReveal
+          disabled={!hasSession}
+        >
+          {selected && (
+            <RightSidebar
+              session={selected}
+              metrics={metrics}
+              onCollapse={() => togglePane(CBW_RIGHT_PANE_ID)}
+            />
+          )}
         </Pane>
       </PaneShell>
-      <div className="h-8 border-t border-ink-800 bg-ink-925" />
+      <AppFooter version={__APP_VERSION__} />
     </div>
   );
 }
 
-/** TASK 3 SCAFFOLDING — the main content isn't a `Pane`; it occupies `PaneShell`'s implicit
- *  `minmax(0,1fr)` track. Reads `mainColumn` off `PaneShellContext` so its `gridColumn` stays
- *  correct regardless of how many rails are open to its left. Deleted by Task 11. */
-function MainColumn({ children }: { children: ReactNode }) {
-  const ctx = useContext(PaneShellContext);
-  const gridColumn = ctx
-    ? `${ctx.mainColumn} / ${ctx.mainColumn + 1}`
-    : undefined;
+/**
+ * The middle column's chrome for every non-`Workspace` route (New session, Overview, Settings, and
+ * the empty state): `MiddleHeader` with a plain title (no `SessionMenu`, no Transcript toggle — both
+ * are session-only) plus the reopen affordance for a collapsed left rail. There is never a selected
+ * session on these routes, so `session={null}`/`rightCollapsed={false}` are correct unconditionally
+ * — `MiddleHeader` only ever renders its "show right panel" button when a session is present, so the
+ * right rail's reopen control never appears here, matching its auto-hide (the right `Pane` is force-
+ * `disabled` on every one of these routes, see the `disabled={!hasSession}` above).
+ */
+function MiddleNonSession({
+  title,
+  leftOpen,
+  children,
+}: {
+  title: string;
+  leftOpen: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className="min-w-0" style={{ gridColumn }}>
-      {children}
+    <div className="flex h-full min-w-0 flex-1 flex-col bg-ink-950 text-fg">
+      <MiddleHeader
+        session={null}
+        title={title}
+        transcriptOn={false}
+        onToggleTranscript={() => {}}
+        leftCollapsed={!leftOpen}
+        onShowLeft={() => togglePane(CBW_LEFT_PANE_ID)}
+        rightCollapsed={false}
+        onShowRight={() => togglePane(CBW_RIGHT_PANE_ID)}
+        menu={null}
+      />
+      <div className="min-h-0 flex-1">{children}</div>
     </div>
   );
 }

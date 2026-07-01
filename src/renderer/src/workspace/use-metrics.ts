@@ -16,7 +16,9 @@ const readMetrics = (
         : r,
     );
 
-/** Poll one session's lazy metrics on an interval. Mirrors useTasks via the shared polled-read hook. */
-export function useMetrics(sessionId: string): MetricsState {
-  return usePolledRead(sessionId, readMetrics);
+/** Poll one session's lazy metrics on an interval. Mirrors useTasks via the shared polled-read hook.
+ *  `enabled` (default true) gates the poll — App.tsx calls this unconditionally (Rules of Hooks) but
+ *  passes `hasSession` so it doesn't poll `readMetrics("", …)` when nothing is selected. */
+export function useMetrics(sessionId: string, enabled = true): MetricsState {
+  return usePolledRead(sessionId, readMetrics, enabled);
 }
