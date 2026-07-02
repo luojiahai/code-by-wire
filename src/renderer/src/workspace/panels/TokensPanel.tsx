@@ -14,14 +14,14 @@ const TOKENS_INFO =
   "This session's tokens by kind: fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes. When subagents ran, usage spans models, each with a per-model breakdown one hover away.";
 
 const POPOVER =
-  "absolute left-0 top-full z-20 mt-1 w-60 rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2.5 py-2 text-left text-meta leading-snug text-fg-muted shadow-(--shadow-md) backdrop-blur-xl";
+  "absolute left-0 top-full z-20 mt-1 w-60 rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2.5 py-2 text-left text-xs leading-snug text-(--ui-text-secondary) shadow-(--shadow-md) backdrop-blur-xl";
 
 // The by-model row popover. Anchored to the row's left edge (the row spans the panel's content), so at
 // w-56 (224px) it stays inside the 256px content box — the inline chips it replaced anchored left-0 on a
 // right-side chip, running the 240px popover off the rail. Used directly (not via MetricTip), so it carries
 // its own reveal classes.
 const MODEL_POPOVER =
-  "absolute left-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2.5 py-2 text-left text-meta leading-snug text-fg-muted shadow-(--shadow-md) backdrop-blur-xl group-hover:block group-focus-within:block";
+  "absolute left-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2.5 py-2 text-left text-xs leading-snug text-(--ui-text-secondary) shadow-(--shadow-md) backdrop-blur-xl group-hover:block group-focus-within:block";
 
 /** TokenKind.key → the matching Usage token field, so the per-model popover
  *  and the kind rows read off one mapping. */

@@ -114,7 +114,7 @@
 }
 
 :root {
-  --titlebar-height: 34px;
+  --titlebar-height: 34px; /* Must stay in lockstep with HEADER_HEIGHT_PX in src/shared/chrome.ts. */
   /* Scales the `rounded-full` override below (hermes styles.css:540-545); hermes's own default. */
   --radius-scalar: 0.6;
 
@@ -360,12 +360,10 @@ body {
   }
 }
 
-/* Suppress the platform focus ring globally. Chromium draws the `:focus-visible` outline in the OS system
-   accent color, which on some machines lands as an off-brand amber on any control that hasn't replaced it.
-   Killing it here (rather than recoloring) also keeps focus boxes off the containers that get focused
-   programmatically: scroll regions, modal panels, the terminal. The visible indicator comes back as a
-   brand-teal box-shadow ring on the controls that need one, via `focusRing` / `focusRingInset` in ui/atoms.
-   Keyboard focus stays readable on those, and any new interactive control should carry one. */
+/* Suppress the platform focus ring globally. Chromium draws :focus-visible in the OS accent color,
+   which clashes with the mono chrome. Hermes parity (2026-07-02 spec) retires focus rings entirely —
+   focusRing/focusRingInset in ui/atoms are intentional no-ops; controls that would be invisible when
+   focused (e.g. hover-revealed actions) add their own focus-visible reveal classes instead. */
 :focus-visible {
   outline: none;
 }

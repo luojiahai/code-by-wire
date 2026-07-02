@@ -6,7 +6,7 @@
  */
 
 /** The title bar's height in CSS px. Main offsets native sheets (the directory picker) by this so they
- *  drop below the bar; the renderer applies it as the header height. Change here, both follow. */
+ *  drop below the bar; the renderer applies it as the header height. Must stay in lockstep with --titlebar-height in src/renderer/src/index.css. */
 export const HEADER_HEIGHT_PX = 34;
 
 /** Left inset (CSS px) the renderer reserves on macOS so the wordmark clears the native traffic lights.

@@ -185,7 +185,7 @@ export function SessionMenu({
             inputRef.current?.blur(); // cancel via onBlur, guarded by cancelledRef
           }
         }}
-        className="min-w-0 flex-1 rounded border border-ink-600 bg-ink-900 px-1.5 py-0.5 text-subhead font-medium text-fg outline-none"
+        className="h-6 min-w-0 flex-1 rounded-[2.5px] border border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) px-2 text-[0.75rem] font-medium text-fg outline-none"
       />
     );
   }
@@ -277,7 +277,7 @@ export function SessionMenu({
               <MenuItem icon="pencil" label="Rename" onClick={openEdit} />
 
               {adopt.error && (
-                <p role="alert" className="px-2 py-1 text-meta text-danger">
+                <p role="alert" className="px-2 py-1 text-xs text-danger">
                   {adopt.error}
                 </p>
               )}
@@ -290,7 +290,7 @@ export function SessionMenu({
               />
 
               {fork.error && (
-                <p role="alert" className="px-2 py-1 text-meta text-danger">
+                <p role="alert" className="px-2 py-1 text-xs text-danger">
                   {fork.error}
                 </p>
               )}
@@ -330,10 +330,7 @@ export function SessionMenu({
                 />
               ))}
               {openInError && (
-                <p
-                  role="alert"
-                  className="mt-1 px-2 py-1 text-meta text-danger"
-                >
+                <p role="alert" className="mt-1 px-2 py-1 text-xs text-danger">
                   {openInError}
                 </p>
               )}
@@ -400,7 +397,7 @@ function MenuItem({
       disabled={disabled}
       title={title}
       className={cx(
-        "flex w-full items-center gap-2.5 rounded-[2.5px] px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:bg-ink-800 disabled:cursor-default disabled:opacity-40",
+        "flex w-full items-center gap-2.5 rounded-[2.5px] px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:bg-(--ui-control-hover-background) disabled:cursor-default disabled:opacity-40",
         danger
           ? "text-danger enabled:hover:bg-danger/10"
           : "text-fg-muted enabled:hover:bg-(--ui-control-hover-background) enabled:hover:text-fg",
