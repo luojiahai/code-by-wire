@@ -15,7 +15,7 @@ const MENU_WIDTH = 256;
  * The middle header's session-name dropdown (design spec §5): one menu that consolidates what used to be
  * four separate header pieces — the inline-rename title (`SessionTitle`), the Managed/Observed badge, the
  * Adopt/Fork/End cluster (`HeaderActions`), and the "Open in" dropdown (`OpenInMenu`). The trigger is the
- * title + chevron + badge; clicking it (outside-click/Escape close it, modeled on `OpenInMenu`'s pattern)
+ * title + chevron; clicking it (outside-click/Escape close it, modeled on `OpenInMenu`'s pattern)
  * toggles the dropdown, whose six action rows are ALWAYS rendered — only `disabled`/`title` vary, per the
  * design's "never hide an action, dim the unavailable ones with a reason" rule. `Rename` swaps the trigger
  * for an inline input (closing the dropdown first, so the two never show at once — same state machine as
@@ -190,7 +190,6 @@ export function SessionMenu({
     );
   }
 
-  const badgeLabel = session.management === "managed" ? "Managed" : "Observed";
   const items = openInItems(window.api.platform);
 
   // Adopt: the task's stated gate (`!canAdopt || !canSpawn`) plus the `resumable` check ResumeButton
@@ -246,9 +245,6 @@ export function SessionMenu({
             open && "rotate-180",
           )}
         />
-        <span className="shrink-0 rounded-[3px] border border-(--ui-stroke-secondary) px-1.5 py-0.5 text-[0.65rem] font-medium leading-none text-(--ui-text-tertiary)">
-          {badgeLabel}
-        </span>
       </button>
 
       {open && pos
