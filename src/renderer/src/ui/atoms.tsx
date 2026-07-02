@@ -13,17 +13,13 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
 }
 
-/** The keyboard-focus indicator: a teal `:focus-visible` ring. The global `outline: none` in index.css
- *  suppresses Chromium's off-brand OS-accent outline on everything; this puts a brand-colored ring back on
- *  the interactive controls that need one, so keyboard users can see what's focused. Add it to any new
- *  button or row that doesn't otherwise style focus. */
-export const focusRing =
-  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40";
-
-/** The inset variant, for full-width rows and `overflow-hidden` containers where an outward ring would be
- *  clipped by the parent (e.g. the shell rows and subagent lanes). */
-export const focusRingInset =
-  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40";
+/** Hermes parity: the desktop chrome carries NO focus rings (hermes kills native outlines and
+ *  Tailwind ring vars globally — DESIGN.md "no focus rings anywhere"). The global
+ *  `:focus-visible { outline: none }` in index.css already suppresses the platform ring; these
+ *  exports are retained as no-ops so out-of-scope call sites keep compiling. Known keyboard-a11y
+ *  tradeoff, accepted in the 2026-07-02 style-parity spec. */
+export const focusRing = "";
+export const focusRingInset = "";
 
 /** The session glyph: color = state, fill = management. Pass `management` for a session dot (filled when
  *  managed, hollow ring when observed, with a "state · management" tooltip); omit it for the state-group
