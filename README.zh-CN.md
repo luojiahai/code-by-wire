@@ -1,5 +1,3 @@
-![Code-by-wire — 本地 Claude Code 的驾驶舱](docs/assets/cbw-hero.png)
-
 # <img src="docs/assets/logo.svg" alt="" height="64" align="center"> Code-by-wire
 
 [English](README.md) | 简体中文
@@ -17,8 +15,6 @@ Claude Code 一边工作，一边把丰富的轨迹写进 `.claude` 目录：每
 Code-by-wire 读取这份轨迹，把它变成一块实时仪表盘。你机器上的每个会话都集中到一处：实时状态、
 完整记录、一个可驱动或随时接管的内嵌终端，以及终端从不展示给你的遥测。一块面板，取代十几个终端
 窗口。
-
-![Code-by-wire](docs/assets/cbw-demo.gif)
 
 ## 下载
 

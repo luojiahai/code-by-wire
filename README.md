@@ -1,5 +1,3 @@
-![Code-by-wire — the cockpit for local Claude Code](docs/assets/cbw-hero.png)
-
 # <img src="docs/assets/logo.svg" alt="" height="64" align="center"> Code-by-wire
 
 English | [简体中文](README.zh-CN.md)
@@ -17,8 +15,6 @@ Code-by-wire reads that trail and turns it into one live dashboard. Every
 session on your machine in one place, with live state, the full transcript, an
 embedded terminal to drive or take over, and the telemetry the terminal hides.
 One pane instead of a dozen terminal windows.
-
-![Code-by-wire](docs/assets/cbw-demo.gif)
 
 ## Download
 

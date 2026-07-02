@@ -1,24 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#33d6c2"/>
-      <stop offset="1" stop-color="#0c8074"/>
-    </linearGradient>
-    <radialGradient id="hl" cx="0.26" cy="0.2" r="0.7">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
-      <stop offset="0.7" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
     <clipPath id="tileClip">
       <rect x="100" y="100" width="824" height="824" rx="185"/>
     </clipPath>
   </defs>
 
   <g clip-path="url(#tileClip)">
-    <rect x="100" y="100" width="824" height="824" fill="url(#tile)"/>
-    <rect x="100" y="100" width="824" height="824" fill="url(#hl)"/>
+    <rect x="100" y="100" width="824" height="824" fill="#17191f"/>
   </g>
-  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#5ee6d3" stroke-opacity="0.22" stroke-width="3"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="3"/>
 
-  <path d="M304 330 L460 486 L304 642" fill="none" stroke="#06564e" stroke-width="82" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="471" y="653" width="290" height="82" rx="41" fill="#ffffff"/>
+  <rect x="229" y="349" width="69" height="326" rx="13" fill="#ffffff" opacity="0.16"/>
+  <rect x="349" y="349" width="69" height="326" rx="13" fill="#ffffff" opacity="0.35"/>
+  <rect x="469" y="349" width="69" height="326" rx="13" fill="#ffffff" opacity="0.60"/>
+  <rect x="589" y="349" width="206" height="326" rx="17" fill="#ffffff"/>
 </svg>

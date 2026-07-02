@@ -124,7 +124,9 @@ export function Wordmark() {
   return (
     <span className="inline-flex shrink-0 items-center gap-2">
       <span className="inline-flex items-center gap-1.5 font-display text-aux font-semibold uppercase text-fg">
-        <Icon name="terminal" size={15} />
+        <span aria-hidden className="font-mono text-[15px] leading-none">
+          ░▒▓█
+        </span>
         <span>
           Code-by-<span className="text-primary">wire</span>
         </span>
