@@ -46,8 +46,8 @@ export function IdentityPanel({
   );
 }
 
-/** One identity row: a faint uppercase label on the left, a mono value (or the Git readout) on the
- *  right. */
+/** One identity row: a plain-case label on the left, a mono value (or the Git readout) on the right.
+ *  Plain case — uppercase is reserved for section headers. */
 function IdentityRow({
   label,
   children,
@@ -56,11 +56,11 @@ function IdentityRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="shrink-0 font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
+    <div className="flex min-h-[1.375rem] items-center justify-between gap-3">
+      <span className="shrink-0 text-xs text-(--ui-text-tertiary)">
         {label}
       </span>
-      <span className="flex min-w-0 items-center gap-1.5 font-mono text-aux text-fg">
+      <span className="flex min-w-0 items-center gap-1.5 font-mono text-xs text-(--ui-text-secondary)">
         {children}
       </span>
     </div>

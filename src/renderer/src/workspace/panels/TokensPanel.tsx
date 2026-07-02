@@ -21,7 +21,7 @@ const POPOVER =
 // right-side chip, running the 240px popover off the rail. Used directly (not via MetricTip), so it carries
 // its own reveal classes.
 const MODEL_POPOVER =
-  "absolute left-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-left text-meta leading-snug text-fg-muted shadow-lg group-hover:block group-focus-within:block";
+  "absolute left-0 top-full z-20 mt-1 hidden w-56 rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2.5 py-2 text-left text-meta leading-snug text-fg-muted shadow-(--shadow-md) backdrop-blur-xl group-hover:block group-focus-within:block";
 
 /** TokenKind.key → the matching Usage token field, so the per-model popover
  *  and the kind rows read off one mapping. */
@@ -71,7 +71,7 @@ function ModelRow({ m }: { m: ModelUsageView }) {
         aria-describedby={tipId}
         // -mx-1 px-1: the hover/focus highlight bleeds 4px into the panel padding while the dot stays at
         // x=0, column-aligned with the kind rows below (which have no horizontal padding).
-        className="-mx-1 flex cursor-help items-center gap-2 rounded px-1 py-0.5 text-aux transition-colors hover:bg-ink-850 focus-visible:bg-ink-850 focus-visible:outline-none"
+        className="-mx-1 flex cursor-help items-center gap-2 rounded px-1 py-0.5 text-xs transition-colors hover:bg-(--ui-row-hover-background) focus-visible:bg-(--ui-row-hover-background) focus-visible:outline-none"
       >
         <span
           className="h-2 w-2 shrink-0 rounded-full"
@@ -167,7 +167,7 @@ export function TokensPanel({ usageByModel }: { usageByModel: ModelUsage[] }) {
         info={TOKENS_INFO}
         right={
           <span
-            className="font-mono text-body tabular-nums text-fg"
+            className="font-mono text-xs tabular-nums text-(--ui-text-secondary)"
             title="Total tokens"
           >
             {formatTokensShort(total)}
@@ -225,7 +225,7 @@ function Row({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 text-aux ${dim ? "opacity-40" : ""}`}
+      className={`flex items-center gap-2 text-xs ${dim ? "opacity-40" : ""}`}
     >
       <Swatch color={color} />
       <span className="flex-1 text-fg-muted">{label}</span>

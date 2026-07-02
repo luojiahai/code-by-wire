@@ -48,7 +48,9 @@ export function ContextPanel({
     return (
       <PanelSection>
         <PanelHeading info={CONTEXT_INFO}>Context</PanelHeading>
-        <p className="text-meta text-fg-faint">No context sampled yet.</p>
+        <p className="text-xs text-(--ui-text-quaternary)">
+          No context sampled yet.
+        </p>
       </PanelSection>
     );
   }
@@ -67,7 +69,7 @@ export function ContextPanel({
           {pct}
           <span className="text-title text-fg-faint">%</span>
         </div>
-        <div className="font-mono text-meta text-fg-faint">
+        <div className="font-mono text-[0.625rem] text-(--ui-text-quaternary)">
           {formatTokensShort(contextWindow)} window
         </div>
       </div>
@@ -77,10 +79,10 @@ export function ContextPanel({
         caution={CONTEXT_WARN_PCT}
         danger={CONTEXT_DANGER_PCT}
       />
-      <div className="font-mono text-meta text-fg-muted">
-        <span className="text-fg">{formatTokensShort(total)}</span> used
-        <span className="mx-1.5 text-ink-700">·</span>
-        <span className="text-fg">{formatTokensShort(free)}</span> free
+      <div className="font-mono text-xs text-(--ui-text-secondary)">
+        {formatTokensShort(total)} used
+        <span className="mx-1.5 text-(--ui-text-quaternary)">·</span>
+        {formatTokensShort(free)} free
       </div>
     </PanelSection>
   );

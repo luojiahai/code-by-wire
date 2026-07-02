@@ -1,5 +1,4 @@
 import type { Session } from "@shared/types";
-import { OverlayScroll } from "../ui/OverlayScroll";
 import { useTranscript } from "../workspace/use-transcript";
 import type { MetricsState } from "../workspace/use-metrics";
 import { ContextPanel } from "../workspace/panels/ContextPanel";
@@ -26,26 +25,29 @@ export function RightSidebar({
 }) {
   const doc = useTranscript(session.id);
   return (
-    <div className="flex h-full flex-col border-l border-sidebar-border bg-sidebar">
+    <div className="flex h-full flex-col border-l border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) text-(--ui-text-tertiary) shadow-[inset_0.0625rem_0_0_color-mix(in_srgb,white_12%,transparent)]">
       <div
         className="drag-region shrink-0 select-none"
         style={{ height: "var(--titlebar-height)" }}
       />
 
-      <OverlayScroll
-        className="min-h-0 flex-1"
-        contentClassName="flex flex-col gap-4 p-4"
-      >
-        <IdentityPanel session={session} git={metrics?.git} pr={metrics?.pr} />
-        <ContextPanel
-          live={session.liveContext ?? null}
-          context={doc?.context ?? null}
-          contextPct={session.contextPct}
-          contextWindow={session.contextWindow}
-        />
-        <TokensPanel usageByModel={session.usageByModel ?? []} />
-        <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
-      </OverlayScroll>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex flex-col pb-2">
+          <IdentityPanel
+            session={session}
+            git={metrics?.git}
+            pr={metrics?.pr}
+          />
+          <ContextPanel
+            live={session.liveContext ?? null}
+            context={doc?.context ?? null}
+            contextPct={session.contextPct}
+            contextWindow={session.contextWindow}
+          />
+          <TokensPanel usageByModel={session.usageByModel ?? []} />
+          <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
+        </div>
+      </div>
     </div>
   );
 }

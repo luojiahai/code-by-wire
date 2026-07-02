@@ -1,30 +1,32 @@
 import { type ReactNode } from "react";
 import { InfoButton } from "../../ui/InfoButton";
+import { SidebarPanelLabel } from "../../shell/SidebarPanelLabel";
 
 // Shared chrome for the workspace rail panels and the Structure dock, so a retone lands in one place.
 
 /** A dock tab body's empty state: faint, small, padded to the tab's content inset. Shared by the Turns
  *  and Subagents tabs so their "No X yet." lines stay identical. */
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <p className="px-4 py-3 text-meta text-fg-faint">{children}</p>;
+  return (
+    <p className="px-4 py-3 text-xs text-(--ui-text-quaternary)">{children}</p>
+  );
 }
 
-/** A rail panel's shell: vertical rhythm, a bottom hairline, and bottom padding. */
+/** A rail panel's shell: flat hermes section chrome — no divider borders, just vertical rhythm and
+ *  bottom padding. */
 export function PanelSection({ children }: { children: ReactNode }) {
   return (
-    <section className="space-y-2 border-b border-ink-800 pb-3.5 last:border-0">
-      {children}
-    </section>
+    <section className="flex flex-col gap-2 px-2.5 pb-3">{children}</section>
   );
 }
 
 /**
- * A panel's small uppercase eyebrow heading. With no `info`/`right` it is the bare h2 (unchanged for the
- * Git/Tasks/Subagent panels). With either, it becomes the panel's full-width header strip: the heading
- * (plus an optional info button) on the left, an optional `right` slot (a total or a badge) on the right.
- * When `info` is set the info button reveals a description popover on hover or keyboard focus — scoped to
- * the button alone (its own `group`), so hovering the heading text or the `right` slot never triggers it.
- * The popover anchors to the strip, so it spans the full width and drops downward below the strip.
+ * A panel's hermes section-header strip: the shared `SidebarPanelLabel` (uppercase overline with dither
+ * dot) on the left, plus an optional info button, and an optional `right` slot (a total or a badge) on
+ * the right. When `info`/`right` are absent the extra spans simply render empty. When `info` is set the
+ * info button reveals a description popover on hover or keyboard focus — scoped to the button alone
+ * (its own `group`), so hovering the heading text or the `right` slot never triggers it. The popover
+ * anchors to the strip, so it spans the full width and drops downward below the strip.
  */
 export function PanelHeading({
   children,
@@ -35,26 +37,19 @@ export function PanelHeading({
   info?: ReactNode;
   right?: ReactNode;
 }) {
-  if (!info && !right) {
-    return (
-      <h2 className="font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
-        {children}
-      </h2>
-    );
-  }
   const title = typeof children === "string" ? children : undefined;
   return (
-    <div className="relative flex items-center justify-between gap-2">
-      <span className="flex items-center gap-1.5">
-        <h2 className="font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
-          {children}
+    <div className="relative -mx-2.5 flex h-7 shrink-0 items-center justify-between gap-2 px-2.5">
+      <span className="flex min-w-0 items-center gap-1.5">
+        <h2 className="flex min-w-0 items-center">
+          <SidebarPanelLabel>{children}</SidebarPanelLabel>
         </h2>
         {info && (
           // The popover is absolute against this outer relative strip, so left-0/right-0 span its full
           // width and top-full drops it below the strip.
           <InfoButton
             label={title ? `About ${title}` : "About this metric"}
-            popoverClassName="left-0 right-0 top-full mt-1.5 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-meta leading-snug text-fg-muted shadow-lg"
+            popoverClassName="left-0 right-0 top-full mt-1.5 rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2.5 py-2 text-xs leading-snug text-(--ui-text-secondary) shadow-(--shadow-md) backdrop-blur-xl"
           >
             {info}
           </InfoButton>
