@@ -5,6 +5,7 @@ import { contextView } from "@shared/context";
 import { formatTokensShort, formatResetCountdown } from "@shared/format";
 import { cx } from "../../ui/atoms";
 import { FillGauge } from "../../ui/charts";
+import { clampPct } from "../../ui/charts-geom";
 import {
   ctxColor,
   ctxTone,
@@ -27,7 +28,7 @@ function RateRow({
   window?: RateLimit;
   now: number;
 }) {
-  const pct = w ? Math.min(100, Math.max(0, w.usedPct)) : 0;
+  const pct = w ? clampPct(Math.round(w.usedPct)) : 0;
   return (
     <div className={cx("flex items-center gap-2", !w && "opacity-40")}>
       <span className="w-7 shrink-0 text-xs text-(--ui-text-tertiary)">
@@ -43,7 +44,7 @@ function RateRow({
         />
       </div>
       <span className="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-(--ui-text-secondary)">
-        {w ? `${Math.round(w.usedPct)}%` : "-"}
+        {w ? `${pct}%` : "-"}
       </span>
       <span className="w-11 shrink-0 text-right font-mono text-[0.625rem] text-(--ui-text-quaternary)">
         {w ? formatResetCountdown(w.resetsAt, now) : "-"}

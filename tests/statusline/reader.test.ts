@@ -271,4 +271,28 @@ describe("createStatusLineReader — apiDurationMs and pr", () => {
       reviewState: null,
     });
   });
+
+  it("drops a malformed pr block: non-object, non-numeric number, or empty url", () => {
+    const home = makeHome();
+    writeCapture(home, "sid-primitive", {
+      session_id: "sid-primitive",
+      pr: "nope", // not an object at all
+    });
+    writeCapture(home, "sid-badnumber", {
+      session_id: "sid-badnumber",
+      pr: { number: "252", url: "https://example.com/pull/252" }, // number not numeric
+    });
+    writeCapture(home, "sid-emptyurl", {
+      session_id: "sid-emptyurl",
+      pr: { number: 9, url: "" }, // url present but empty
+    });
+    const byId = new Map(
+      open(home)
+        .read()
+        .map((s) => [s.sessionId, s]),
+    );
+    expect(byId.get("sid-primitive")?.pr).toBeNull();
+    expect(byId.get("sid-badnumber")?.pr).toBeNull();
+    expect(byId.get("sid-emptyurl")?.pr).toBeNull();
+  });
 });
