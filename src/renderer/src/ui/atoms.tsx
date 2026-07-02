@@ -123,7 +123,7 @@ export function Bar({
 export function Wordmark() {
   return (
     <span className="inline-flex shrink-0 items-center gap-2">
-      <span className="inline-flex items-end gap-1.5 font-display text-aux font-semibold uppercase text-fg">
+      <span className="inline-flex items-center gap-1.5 font-display text-aux font-semibold uppercase text-fg">
         <span aria-hidden className="font-mono text-[9px] leading-none">
           ░▒▓█
         </span>
