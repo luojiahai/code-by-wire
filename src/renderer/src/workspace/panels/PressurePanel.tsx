@@ -109,6 +109,7 @@ export function PressurePanel({
             fill={ctxColor(view.pct)}
             caution={CONTEXT_WARN_PCT}
             danger={CONTEXT_DANGER_PCT}
+            height={4}
           />
         </>
       ) : (

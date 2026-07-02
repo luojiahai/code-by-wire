@@ -2,14 +2,25 @@ import type { ReactNode } from "react";
 import type { Session } from "@shared/types";
 import type { GitInfo, PrInfo } from "@shared/metrics";
 import { formatClock } from "@shared/format";
+import { reviewTone, reviewLabel, type ReviewTone } from "@shared/review-state";
 import { modelLabel } from "../ui/meta";
 import { PanelSection, PanelHeading } from "../workspace/panels/chrome";
 import { GitReadout } from "./GitReadout";
 
+/** Review-state diamond colors: amber pending, green approved, red changes requested, gray anything
+ *  unrecognized (rendered verbatim, no whitelist). */
+const REVIEW_TONE_COLOR: Record<ReviewTone, string> = {
+  pending: "var(--color-accent)",
+  approved: "var(--ui-green)",
+  changes: "var(--ui-red)",
+  neutral: "var(--ui-text-tertiary)",
+};
+
 /**
- * The cockpit's identity footer (cockpit spec §Session): Model (with effort folded in), Git (the
- * readout, now carrying PR review state), Lines (the session's ± footprint from the capture), and
- * Clock — each an always-shown label/value row; `-` fills a row whose data hasn't landed.
+ * The cockpit's identity footer (cockpit spec §Session): Model (with effort folded in), Git (branch
+ * + dirty dot + sync, popover-free), PR (link + review state — the capture's pr wins over the
+ * gh-polled one), Lines (the session's ± footprint from the capture), and Clock — each an
+ * always-shown label/value row; `-` fills a row whose data hasn't landed.
  */
 export function SessionPanel({
   session: s,
@@ -29,6 +40,8 @@ export function SessionPanel({
   const modelValue = s.effortLevel ? `${model} · ${s.effortLevel}` : model;
   const clock = s.sessionClockMs != null ? formatClock(s.sessionClockMs) : null;
   const hasLines = s.linesAdded != null || s.linesRemoved != null;
+  const prView = s.pr ?? pr ?? null;
+  const reviewState = s.pr?.reviewState ?? null;
   return (
     <PanelSection>
       <PanelHeading>Session</PanelHeading>
@@ -38,7 +51,30 @@ export function SessionPanel({
         </span>
       </SessionRow>
       <SessionRow label="Git">
-        <GitReadout session={s} git={git} pr={pr} />
+        <GitReadout session={s} git={git} />
+      </SessionRow>
+      <SessionRow label="PR">
+        {prView ? (
+          <>
+            <button
+              type="button"
+              onClick={() => void window.api.openExternal(prView.url)}
+              className="cursor-pointer text-fg hover:underline"
+            >
+              #{prView.number}
+            </button>
+            {reviewState && (
+              <span
+                style={{ color: REVIEW_TONE_COLOR[reviewTone(reviewState)] }}
+                title={`Review: ${reviewState}`}
+              >
+                ◆ {reviewLabel(reviewState)}
+              </span>
+            )}
+          </>
+        ) : (
+          "-"
+        )}
       </SessionRow>
       <SessionRow label="Lines">
         {hasLines ? (

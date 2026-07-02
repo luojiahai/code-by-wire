@@ -69,7 +69,7 @@ export function SpendPanel({
         </span>
       </div>
 
-      <StackedBar className="mt-1" segments={bar} />
+      <StackedBar className="mt-1" segments={bar} height={5} />
 
       <div className="mt-2.5 space-y-1.5">
         {TOKEN_KINDS.map((k, i) => (
