@@ -22,3 +22,27 @@ export function filterSessions(sessions: Session[], query: string): Session[] {
       (s.project ?? "").toLowerCase().includes(q),
   );
 }
+
+/** Label for sessions whose transcript carries no project path. */
+export const UNGROUPED_LABEL = "(no project)";
+
+export type SessionGroup = { project: string; sessions: Session[] };
+
+/** Hermes-style sidebar grouping (design spec §left-sidebar): one group per project, ordered by
+ *  the group's most recent activity; inside a group, sessions keep the flat list's sort. */
+export function groupSessionsByProject(sessions: Session[]): SessionGroup[] {
+  const byProject = new Map<string, Session[]>();
+  for (const s of sessions) {
+    const key = s.project || UNGROUPED_LABEL;
+    const bucket = byProject.get(key);
+    if (bucket) bucket.push(s);
+    else byProject.set(key, [s]);
+  }
+  return [...byProject.entries()]
+    .map(([project, members]) => ({ project, sessions: sortSessions(members) }))
+    .sort(
+      (a, b) =>
+        Math.max(...b.sessions.map((s) => s.lastActivityMs)) -
+        Math.max(...a.sessions.map((s) => s.lastActivityMs)),
+    );
+}
