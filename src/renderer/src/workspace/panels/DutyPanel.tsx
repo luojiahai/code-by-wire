@@ -21,7 +21,9 @@ export function DutyPanel({
   const pct = dutyPct(apiDurationMs, sessionClockMs);
   return (
     <PanelSection>
-      <PanelHeading info={DUTY_INFO}>Duty</PanelHeading>
+      <PanelHeading icon="timer" info={DUTY_INFO}>
+        Duty
+      </PanelHeading>
       <div className="flex items-baseline justify-between">
         {pct != null ? (
           <span className="font-mono text-title font-medium tabular-nums text-fg">

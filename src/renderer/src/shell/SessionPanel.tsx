@@ -45,7 +45,7 @@ export function SessionPanel({
   const reviewState = s.pr?.reviewState ?? null;
   return (
     <PanelSection>
-      <PanelHeading>Session</PanelHeading>
+      <PanelHeading icon="id-card">Session</PanelHeading>
       <SessionRow label="Model">
         <span className="min-w-0 truncate" title={modelValue}>
           {modelValue}

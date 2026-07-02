@@ -86,7 +86,9 @@ export function PressurePanel({
 
   return (
     <PanelSection>
-      <PanelHeading info={PRESSURE_INFO}>Pressure</PanelHeading>
+      <PanelHeading icon="gauge" info={PRESSURE_INFO}>
+        Pressure
+      </PanelHeading>
       {view ? (
         <>
           <div className="flex items-baseline justify-between">

@@ -35,9 +35,10 @@ export function RightSidebar({
       />
 
       {/* px-1.5 on top of PanelSection's own px-2.5 ≈ the left sidebar's ~16px content inset,
-          scoped here so the Structure dock's PanelSections keep their tighter fit. */}
+          scoped here so the Structure dock's PanelSections keep their tighter fit. divide-y parts
+          every section with the same hairline — no hand-placed dividers to drift. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="flex flex-col px-1.5 pb-2">
+        <div className="flex flex-col divide-y divide-(--ui-stroke-tertiary) px-1.5 pb-2">
           <PressurePanel
             live={session.liveContext ?? null}
             context={doc?.context ?? null}
@@ -54,7 +55,6 @@ export function RightSidebar({
             apiDurationMs={session.apiDurationMs ?? null}
             sessionClockMs={session.sessionClockMs ?? null}
           />
-          <div className="mx-2.5 my-1 border-t border-(--ui-stroke-tertiary)" />
           <SessionPanel session={session} git={metrics?.git} pr={metrics?.pr} />
         </div>
       </div>

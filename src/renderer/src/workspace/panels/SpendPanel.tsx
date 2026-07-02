@@ -53,7 +53,9 @@ export function SpendPanel({
 
   return (
     <PanelSection>
-      <PanelHeading info={SPEND_INFO}>Spend</PanelHeading>
+      <PanelHeading icon="coins" info={SPEND_INFO}>
+        Spend
+      </PanelHeading>
 
       <div className="flex items-baseline justify-between">
         <div className="font-mono text-title font-medium leading-none tabular-nums text-fg">

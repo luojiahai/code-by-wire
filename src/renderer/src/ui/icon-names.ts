@@ -6,6 +6,7 @@
  * can never drift: add a name here without a glyph there (or vice versa) and the typecheck fails.
  */
 export type IconName =
+  | "activity"
   | "archive"
   | "arrow-up-right"
   | "chart-column"
@@ -17,15 +18,18 @@ export type IconName =
   | "circle-user"
   | "clock"
   | "code"
+  | "coins"
   | "copy"
   | "eye"
   | "eye-off"
   | "folder"
   | "folder-open"
+  | "gauge"
   | "github"
   | "git-branch"
   | "git-pull-request-arrow"
   | "globe"
+  | "id-card"
   | "info"
   | "loader-circle"
   | "messages-square"
@@ -49,5 +53,6 @@ export type IconName =
   | "square-dashed-mouse-pointer"
   | "square-terminal"
   | "terminal"
+  | "timer"
   | "triangle-alert"
   | "x";

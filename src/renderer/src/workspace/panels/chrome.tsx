@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { InfoButton } from "../../ui/InfoButton";
+import type { IconName } from "../../ui/icon-names";
 import { SidebarPanelLabel } from "../../shell/SidebarPanelLabel";
 
 // Shared chrome for the workspace rail panels and the Structure dock, so a retone lands in one place.
@@ -32,17 +33,20 @@ export function PanelHeading({
   children,
   info,
   right,
+  icon,
 }: {
   children: ReactNode;
   info?: ReactNode;
   right?: ReactNode;
+  /** The panel's dedicated lucide glyph (cockpit rail); omitted, the label wears the dither dot. */
+  icon?: IconName;
 }) {
   const title = typeof children === "string" ? children : undefined;
   return (
     <div className="relative -mx-2.5 flex h-7 shrink-0 items-center justify-between gap-2 px-2.5">
       <span className="flex min-w-0 items-center gap-1.5">
         <h2 className="flex min-w-0 items-center">
-          <SidebarPanelLabel>{children}</SidebarPanelLabel>
+          <SidebarPanelLabel icon={icon}>{children}</SidebarPanelLabel>
         </h2>
         {info && (
           // The popover is absolute against this outer relative strip, so left-0/right-0 span its full
