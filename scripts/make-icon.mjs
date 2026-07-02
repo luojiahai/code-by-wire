@@ -42,7 +42,7 @@ const svgWin = crop(svg);
 const svgMac = crop(svg)
   .replace('<g clip-path="url(#tileClip)">', "<g>")
   .replace(
-    '<rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#5ee6d3" stroke-opacity="0.22" stroke-width="3"/>',
+    '<rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="3"/>',
     "",
   );
 
