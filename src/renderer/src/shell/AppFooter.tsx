@@ -7,7 +7,7 @@ export function AppFooter({ version }: { version: string | null }) {
     <footer className="no-drag flex h-5 shrink-0 items-stretch justify-between gap-2 border-t border-(--ui-stroke-tertiary) bg-(--ui-sidebar-surface-background) px-1 py-0 text-(--ui-text-tertiary)">
       <div className="flex items-stretch">
         <span className="inline-flex h-full items-center gap-1 px-1.5 text-[0.6875rem] font-medium uppercase text-(--ui-text-secondary)">
-          <span aria-hidden className="font-mono leading-none">
+          <span aria-hidden className="font-mono text-[0.7em] leading-none">
             ░▒▓█
           </span>
           code-by-wire
