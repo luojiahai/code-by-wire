@@ -2,7 +2,6 @@ import { useMemo, type ReactNode } from "react";
 import type { ModelUsage, Usage } from "@shared/types";
 import { viewUsageByModel } from "@shared/usage-by-model";
 import { formatTokensShort, formatUsd } from "@shared/format";
-import { StackedBar } from "../../ui/charts";
 import { Swatch } from "../../ui/atoms";
 import { KIND_SEGMENT_COLORS } from "../../ui/meta";
 import { MetricTip } from "../../ui/MetricTip";
@@ -36,8 +35,10 @@ function KindLabel({ kind }: { kind: TokenKind }) {
 
 /**
  * The cockpit's spend instrument (cockpit spec §Spend): a paired headline — total tokens large,
- * Claude Code's $ small on the same baseline — over the 5-segment stacked bar and one flat row per
- * kind. Tokens are combined across models; the old by-model attribution is deliberately gone.
+ * Claude Code's $ small on the same baseline — over one flat row per kind. Deliberately no
+ * part-to-whole chart: cache reads dominate real usage by orders of magnitude, so a stacked bar
+ * always rendered as one solid strip; the tabular rows carry the proportions honestly. Tokens are
+ * combined across models; the old by-model attribution is deliberately gone.
  */
 export function SpendPanel({
   usageByModel,
@@ -49,11 +50,6 @@ export function SpendPanel({
   const view = useMemo(() => viewUsageByModel(usageByModel), [usageByModel]);
   const { usage } = view;
   const total = view.totalTokens;
-
-  const bar = TOKEN_KINDS.map((k, i) => ({
-    value: KIND_TOKENS[k.key](usage),
-    color: KIND_SEGMENT_COLORS[i],
-  }));
 
   return (
     <PanelSection>
@@ -68,8 +64,6 @@ export function SpendPanel({
           {costUsd != null ? formatUsd(costUsd) : "-"}
         </span>
       </div>
-
-      <StackedBar className="mt-1" segments={bar} height={4} />
 
       <div className="mt-2.5 space-y-1.5">
         {TOKEN_KINDS.map((k, i) => (
