@@ -104,8 +104,10 @@ export function LeftSidebar({
 
       {/* Hermes SearchField anatomy: inline-flex + field-sizing:content, so the field (and its
           focus underline) hugs the text instead of spanning the column; a ghost clear button
-          appears once there's a query. */}
-      <div className="shrink-0 px-2 pb-1 pt-1">
+          appears once there's a query. px-4.5 = hermes's px-2 wrapper INSIDE SidebarContent's
+          px-2.5 (10+8px) — we flattened that outer container, so the wrapper carries both,
+          keeping the icon flush with the nav icons above. */}
+      <div className="shrink-0 px-4.5 pb-1 pt-1">
         <div className="inline-flex max-w-full items-center gap-1.5 border-b border-transparent px-0.5 transition-colors focus-within:border-(--ui-stroke-secondary)">
           <Icon
             name="search"
@@ -116,7 +118,7 @@ export function LeftSidebar({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search sessions"
+            placeholder="Search sessions…"
             aria-label="Search sessions"
             className="h-7 max-w-full bg-transparent text-xs text-fg [field-sizing:content] placeholder:text-(--ui-text-tertiary) focus:outline-none"
           />
