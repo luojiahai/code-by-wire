@@ -17,7 +17,9 @@ describe("titlebar cluster geometry (hermes constants)", () => {
   });
 
   it("puts the left cluster after the traffic lights on mac windowed, at the edge otherwise", () => {
-    expect(titlebarControlsLeftPx(true, false)).toBe(74); // hermes TITLEBAR_CONTROL_OFFSET_X
+    // hermes: windowButtonPosition.x (24) + TITLEBAR_CONTROL_OFFSET_X (74) — the 74 is an
+    // offset PAST the lights, not an absolute inset (hermes titlebar.ts:45, main.cjs:408).
+    expect(titlebarControlsLeftPx(true, false)).toBe(24 + 74); // 98
     expect(titlebarControlsLeftPx(true, true)).toBe(TITLEBAR_EDGE_INSET); // 14
     expect(titlebarControlsLeftPx(false, false)).toBe(TITLEBAR_EDGE_INSET);
     expect(titlebarControlsLeftPx(false, true)).toBe(TITLEBAR_EDGE_INSET);
@@ -25,7 +27,7 @@ describe("titlebar cluster geometry (hermes constants)", () => {
 
   it("insets the header past the lights AND the left cluster when the edge is exposed", () => {
     // hermes formula: controls.left + control width + round(width / 2)
-    expect(titlebarContentInsetPx(true, false)).toBe(74 + 20 + 10); // 104
+    expect(titlebarContentInsetPx(true, false)).toBe(98 + 20 + 10); // 128
     expect(titlebarContentInsetPx(true, true)).toBe(14 + 20 + 10); // 44
     expect(titlebarContentInsetPx(false, false)).toBe(44);
   });

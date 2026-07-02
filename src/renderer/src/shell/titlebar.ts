@@ -1,7 +1,7 @@
 import {
   HEADER_EDGE_PADDING_PX,
   HEADER_HEIGHT_PX,
-  MAC_TRAFFIC_LIGHT_INSET_PX,
+  MAC_TRAFFIC_LIGHT_POSITION,
 } from "@shared/chrome";
 
 /**
@@ -20,6 +20,11 @@ export const TITLEBAR_CONTROL_HEIGHT = 22;
  *  left side off macOS or in macOS fullscreen. Matches hermes's TITLEBAR_EDGE_INSET. */
 export const TITLEBAR_EDGE_INSET = 14;
 
+/** How far past the traffic lights' LEFT EDGE the cluster starts (hermes's
+ *  TITLEBAR_CONTROL_OFFSET_X): cluster left = lights.x + this, NOT an absolute inset —
+ *  hermes titlebarControlsPosition adds it to windowButtonPosition.x. */
+export const TITLEBAR_CONTROL_OFFSET_X = 74;
+
 /** Top offset that vertically centers a control in the titlebar band. */
 export const TITLEBAR_CONTROLS_TOP =
   (HEADER_HEIGHT_PX - TITLEBAR_CONTROL_HEIGHT) / 2;
@@ -31,7 +36,7 @@ export function titlebarControlsLeftPx(
   isFullscreen: boolean,
 ): number {
   return isMac && !isFullscreen
-    ? MAC_TRAFFIC_LIGHT_INSET_PX
+    ? MAC_TRAFFIC_LIGHT_POSITION.x + TITLEBAR_CONTROL_OFFSET_X
     : TITLEBAR_EDGE_INSET;
 }
 

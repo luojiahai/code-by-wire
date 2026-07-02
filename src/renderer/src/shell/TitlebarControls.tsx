@@ -91,7 +91,9 @@ function TitlebarToolButton({
       className="inline-flex items-center justify-center rounded-[4px] text-(--ui-text-secondary)/85 transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
       style={{ height: TITLEBAR_CONTROL_HEIGHT, width: TITLEBAR_CONTROL_WIDTH }}
     >
-      <Icon name={icon} size={14} />
+      {/* 16, not hermes's 14: hermes renders codicons, whose artwork fills ~the full em; lucide
+          keeps 25% internal padding, so lucide-16 ≈ codicon-14 in visible glyph size. */}
+      <Icon name={icon} size={16} />
     </button>
   );
 }

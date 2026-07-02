@@ -9,14 +9,11 @@
  *  drop below the bar; the renderer applies it as the header height. Must stay in lockstep with --titlebar-height in src/renderer/src/index.css. */
 export const HEADER_HEIGHT_PX = 34;
 
-/** Left inset (CSS px) the renderer reserves on macOS so the wordmark clears the native traffic lights.
- *  Must stay wider than the lights' right edge (see MAC_TRAFFIC_LIGHT_POSITION). */
-export const MAC_TRAFFIC_LIGHT_INSET_PX = 74;
-
-/** Where main parks the macOS traffic lights, in DIP. Kept beside the inset above so the two stay
- *  visually consistent: x must sit within MAC_TRAFFIC_LIGHT_INSET_PX, y centers the lights in the bar. */
+/** Where main parks the macOS traffic lights, in DIP. Hermes's WINDOW_BUTTON_POSITION verbatim
+ *  (main.cjs): x 24, y = (34px band − 14px lights) / 2. The renderer derives the left cluster's
+ *  inset from this (position.x + TITLEBAR_CONTROL_OFFSET_X in shell/titlebar.ts). */
 export const MAC_TRAFFIC_LIGHT_POSITION: { x: number; y: number } = {
-  x: 16,
+  x: 24,
   y: 10,
 };
 
