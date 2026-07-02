@@ -197,7 +197,9 @@ export function TokensPanel({ usageByModel }: { usageByModel: ModelUsage[] }) {
               per-model attribution sits below, parted by a hairline — who spent it, after what it bought. */}
           <div className="mt-2.5 h-px bg-(--ui-stroke-tertiary)" />
           <div className="mt-2.5">
-            <div className="mb-1 text-xs text-(--ui-text-quaternary)">by model</div>
+            <div className="mb-1 text-xs text-(--ui-text-quaternary)">
+              by model
+            </div>
             <div className="space-y-0.5">
               {models.map((m) => (
                 <ModelRow key={m.modelRaw ?? "null"} m={m} />
