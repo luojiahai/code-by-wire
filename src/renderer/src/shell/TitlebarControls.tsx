@@ -1,6 +1,5 @@
 import { useStore } from "@nanostores/react";
 import { isMacPlatform } from "@shared/platform";
-import { cx, focusRing } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { useFullscreen } from "../ui/use-fullscreen";
 import { $paneOpen, togglePane } from "./panes";
@@ -42,7 +41,7 @@ export function TitlebarControls({ hasSession }: { hasSession: boolean }) {
   return (
     <>
       <div
-        className="no-drag fixed z-40 flex select-none items-center"
+        className="no-drag fixed z-40 flex select-none items-center gap-x-1 translate-y-0.5"
         data-suppress-pane-reveal=""
         style={{
           left: titlebarControlsLeftPx(isMac, isFullscreen),
@@ -57,7 +56,7 @@ export function TitlebarControls({ hasSession }: { hasSession: boolean }) {
       </div>
       {hasSession && (
         <div
-          className="no-drag fixed z-40 flex select-none items-center"
+          className="no-drag fixed z-40 flex select-none items-center gap-x-1"
           data-suppress-pane-reveal=""
           style={{ right: TITLEBAR_EDGE_INSET, top: TITLEBAR_CONTROLS_TOP }}
         >
@@ -89,13 +88,10 @@ function TitlebarToolButton({
       aria-label={label}
       title={label}
       onClick={onSelect}
-      className={cx(
-        "inline-flex items-center justify-center rounded text-fg-faint transition-colors hover:bg-ink-900 hover:text-fg-muted",
-        focusRing,
-      )}
+      className="inline-flex items-center justify-center rounded-[4px] text-(--ui-text-secondary)/85 transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
       style={{ height: TITLEBAR_CONTROL_HEIGHT, width: TITLEBAR_CONTROL_WIDTH }}
     >
-      <Icon name={icon} size={15} />
+      <Icon name={icon} size={14} />
     </button>
   );
 }
