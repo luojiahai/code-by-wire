@@ -434,7 +434,6 @@ export function App() {
     <MiddleNonSession title="Settings" leftEdgeExposed={leftEdgeExposed}>
       <SettingsView
         cliStatus={cliStatus}
-        account={account}
         checking={checking}
         onRecheck={() => void recheckCli()}
         onSetBinPath={(p) => void setClaudeBinPath(p)}

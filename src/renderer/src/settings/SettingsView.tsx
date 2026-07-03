@@ -1,7 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import type { CliStatus } from "@shared/cli-status";
-import type { Account, RateLimit } from "@shared/types";
-import { formatResetCountdown } from "@shared/format";
 import { SoftwareUpdateCard, type UpdateControls } from "./SoftwareUpdateCard";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import { Icon } from "../ui/icons";
@@ -9,18 +7,13 @@ import type { IconName } from "../ui/icon-names";
 import { Wordmark, cx } from "../ui/atoms";
 import { footerView, type FooterView } from "../ui/rail-footer";
 import { cliStatusView } from "../ui/cli-status-view";
-import { RateBar } from "../ui/charts";
-import { ctxColor } from "../ui/meta";
-import { clampPct } from "../ui/charts-geom";
 import { remediesFor, INSTALL_TABS } from "../ui/cli-remedies";
 import { PageHeader, Card } from "../shell/page-primitives";
 
-export type SettingsSection = "system" | "account" | "appearance" | "about";
+export type SettingsSection = "system" | "about";
 
 const NAV: { key: SettingsSection; label: string; icon: IconName }[] = [
   { key: "system", label: "System", icon: "monitor" },
-  { key: "account", label: "Account", icon: "circle-user" },
-  { key: "appearance", label: "Appearance", icon: "palette" },
   { key: "about", label: "About", icon: "info" },
 ];
 
@@ -35,13 +28,12 @@ const DOT_CLASS: Record<FooterView["dot"], string> = {
 
 /**
  * The Settings view: a full Workspace-pane view (like the Overview) reached from the title-bar gear. A left
- * sub-nav switches between System (CLI/engine health), Account (identity + limits), Appearance, and About.
+ * sub-nav switches between System (CLI/engine health) and About.
  * The Sys lamp and the title-bar gear both route here; System is the new home for the Claude Code CLI
  * status (it replaced the standalone modal), so the binary override and remedy commands live in it too.
  */
 export function SettingsView({
   cliStatus,
-  account,
   checking,
   onRecheck,
   onSetBinPath,
@@ -50,7 +42,6 @@ export function SettingsView({
   update,
 }: {
   cliStatus: CliStatus | null;
-  account: Account | null;
   checking: boolean;
   onRecheck: () => void;
   onSetBinPath: (path: string | null) => void;
@@ -120,41 +111,10 @@ export function SettingsView({
               onSetBinPath={onSetBinPath}
             />
           )}
-          {section === "account" && <AccountSection account={account} />}
-          {section === "appearance" && <AppearanceSection />}
           {section === "about" && <AboutSection update={update} />}
         </div>
       </OverlayScroll>
     </div>
-  );
-}
-
-function Row({
-  label,
-  desc,
-  children,
-}: {
-  label: string;
-  desc?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-ink-850 px-4 py-3 last:border-b-0">
-      <div className="min-w-0">
-        <div className="text-body text-fg">{label}</div>
-        {desc && <div className="mt-0.5 text-meta text-fg-faint">{desc}</div>}
-      </div>
-      <div className="shrink-0">{children}</div>
-    </div>
-  );
-}
-
-/** A muted, bordered "locked"/status pill. */
-function Pill({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded border border-ink-700 px-2 py-0.5 font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
-      {children}
-    </span>
   );
 }
 
@@ -464,101 +424,6 @@ function Req({ state, label }: { state: ReqState; label: string }) {
         {label}
       </span>
     </div>
-  );
-}
-
-function AccountSection({ account }: { account: Account | null }) {
-  const mode = account?.billingMode;
-  const plan =
-    mode === "subscription"
-      ? "Claude · subscription"
-      : mode === "api"
-        ? "API Usage Billing"
-        : "Claude";
-  const gauges = [
-    { label: "5-hour", w: account?.fiveHour },
-    { label: "7-day", w: account?.sevenDay },
-    { label: "7-day · Sonnet", w: account?.sevenDaySonnet },
-    { label: "7-day · Opus", w: account?.sevenDayOpus },
-  ].filter((g): g is { label: string; w: RateLimit } => g.w != null);
-  return (
-    <>
-      <PageHeader
-        title="Account"
-        lede="Who Code-by-wire reads usage for. Identity comes from ~/.claude; rate limits ride the live status capture."
-      />
-      <Card title="Identity">
-        <Row label="Signed in" desc="Read from ~/.claude">
-          <span className="font-mono text-aux text-fg">
-            {account?.email ?? "—"}
-          </span>
-        </Row>
-        <Row label="Plan" desc="Detected from rate-limit presence">
-          <span className="text-body text-fg">{plan}</span>
-        </Row>
-      </Card>
-
-      {mode === "subscription" && gauges.length > 0 && (
-        <Card title="Rate limits">
-          <div className="flex flex-col gap-2.5 px-4 py-3.5">
-            {gauges.map((g) => {
-              const pct = clampPct(Math.round(g.w.usedPct));
-              return (
-                <div key={g.label}>
-                  <RateBar
-                    label={g.label}
-                    pct={pct}
-                    value={`${pct}%`}
-                    color={ctxColor(pct)}
-                  />
-                  <div className="ml-14 mt-0.5 text-label text-fg-faint">
-                    resets in {formatResetCountdown(g.w.resetsAt, Date.now())}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      {mode === "api" && (
-        <Card title="API billing">
-          <Row label="Usage" desc="Billed per API usage">
-            <span className="text-body text-fg">API Usage Billing</span>
-          </Row>
-        </Card>
-      )}
-    </>
-  );
-}
-
-function AppearanceSection() {
-  const reduceMotion = window.matchMedia(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
-  return (
-    <>
-      <PageHeader
-        title="Appearance"
-        lede="The look is fixed to the Instrument theme. The comfort settings follow your system."
-      />
-      <Card title="Theme">
-        <Row
-          label="Theme"
-          desc="Dark glass-cockpit; color reserved for live state"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-body text-fg">Instrument · dark</span>
-            <Pill>locked</Pill>
-          </div>
-        </Row>
-        <Row label="Reduce motion" desc="Follows your system setting">
-          <span className="text-body text-fg-muted">
-            {reduceMotion ? "On" : "Off"}
-          </span>
-        </Row>
-      </Card>
-    </>
   );
 }
 
