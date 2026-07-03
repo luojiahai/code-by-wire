@@ -75,7 +75,7 @@ export function KpiTile({
       </div>
       <div
         title={title}
-        className="mt-1.5 truncate font-mono text-heading font-medium leading-tight tracking-tight tabular-nums text-fg"
+        className="mt-1.5 truncate font-mono text-title font-medium leading-tight tracking-tight tabular-nums text-fg"
       >
         {children}
       </div>
