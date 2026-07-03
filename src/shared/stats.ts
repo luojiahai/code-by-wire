@@ -31,6 +31,41 @@ export function emptyTotals(): StatsTotals {
 }
 
 /**
+ * The activity-record metrics the Overview tiles read (#spec 2026-07-03): computed store-side over the
+ * turns table, carried on every snapshot. `activeDays`, `mostActiveDay`, and `longestSessionMs` scope to
+ * the page range window like the totals; the two streaks are ALL-TIME (a windowed "current streak" is
+ * meaningless — a 7-day window can't show an 8-day streak), anchored to the local day of the poll.
+ */
+export interface StatsRecords {
+  /** Local days with ≥1 known-time turn in the window. */
+  activeDays: number;
+  /** Total local days in the window: the window's span for a bounded range; for all-time, first
+   *  known-time turn's day through today (inclusive); 0 when all-time and the store is empty. */
+  windowDays: number;
+  /** The local day ('YYYY-MM-DD') with the most turns in the window, ties to the most recent day;
+   *  null when the window holds no known-time turn. */
+  mostActiveDay: string | null;
+  /** The largest per-session span (earliest→latest known-time turn, ms) in the window; 0 when none. */
+  longestSessionMs: number;
+  /** The longest all-time run of consecutive local days each holding ≥1 turn. */
+  longestStreakDays: number;
+  /** The all-time streak of consecutive days ending today (or yesterday when today is idle so far). */
+  currentStreakDays: number;
+}
+
+/** All-zero records: the empty store, the no-analytics-db fallback, and the read-error fallback. */
+export function emptyRecords(): StatsRecords {
+  return {
+    activeDays: 0,
+    windowDays: 0,
+    mostActiveDay: null,
+    longestSessionMs: 0,
+    longestStreakDays: 0,
+    currentStreakDays: 0,
+  };
+}
+
+/**
  * One row of the per-model breakdown (#111), keyed on the raw model id exactly as the transcript recorded
  * it (e.g. "claude-opus-4-8"), so one model version is distinct from the next. `totalTokens` sums all four
  * token kinds; `inputTokens + outputTokens` is the fresh subset. The donut and the table's Tokens column
@@ -463,7 +498,9 @@ export function densifyDays(
  */
 export function daysBetween(startDay: string, endDay: string): number {
   if (startDay > endDay) return 0;
-  return Math.round((dayStartMs(endDay) - dayStartMs(startDay)) / 86_400_000) + 1;
+  return (
+    Math.round((dayStartMs(endDay) - dayStartMs(startDay)) / 86_400_000) + 1
+  );
 }
 
 /**

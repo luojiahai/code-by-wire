@@ -10,6 +10,7 @@ import {
   readBySession,
   readBreakdowns,
   readDaily,
+  readRecords,
   emptyTotals,
   readProcessedFiles,
   upsertProcessedFile,
@@ -21,6 +22,7 @@ import {
 import { openTestDb } from "../helpers/sqlite";
 import { usage as mkUsage } from "../helpers/usage";
 import type { Usage } from "@shared/types";
+import { ALL_TIME } from "@shared/stats";
 
 const turn = (
   over: Partial<Omit<AnalyticsTurn, "usage">> & { usage?: Partial<Usage> } = {},
@@ -1724,5 +1726,122 @@ describe("clearAnalytics", () => {
     clearAnalytics(db); // must not throw on empty tables
     expect(readTotals(db).turns).toBe(0);
     expect(readProcessedFiles(db).size).toBe(0);
+  });
+});
+
+describe("readRecords", () => {
+  // Local-midnight ms for a day key, mirroring how the store buckets by 'localtime'.
+  const dayMs = (y: number, m: number, d: number, h = 12) =>
+    new Date(y, m - 1, d, h).getTime();
+  // Poll instant for the tests: 14 Jun 2026, 14:30 local.
+  const NOW = new Date(2026, 5, 14, 14, 30).getTime();
+
+  it("returns empty records on an empty store", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    expect(readRecords(db, ALL_TIME, NOW)).toEqual({
+      activeDays: 0,
+      windowDays: 0,
+      mostActiveDay: null,
+      longestSessionMs: 0,
+      longestStreakDays: 0,
+      currentStreakDays: 0,
+    });
+  });
+
+  it("counts active days and picks the most active day (ties to the most recent)", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({ messageId: "a1", ts: dayMs(2026, 6, 12) }),
+      turn({ messageId: "a2", ts: dayMs(2026, 6, 12, 13) }),
+      turn({ messageId: "b1", ts: dayMs(2026, 6, 13) }),
+      turn({ messageId: "b2", ts: dayMs(2026, 6, 13, 13) }),
+      turn({ messageId: "c1", ts: dayMs(2026, 6, 14) }),
+    ]);
+    const r = readRecords(db, ALL_TIME, NOW);
+    expect(r.activeDays).toBe(3);
+    // Jun 12 and Jun 13 tie on 2 turns — the most recent (Jun 13) wins.
+    expect(r.mostActiveDay).toBe("2026-06-13");
+    // All-time windowDays: first turn day (Jun 12) .. today (Jun 14) inclusive.
+    expect(r.windowDays).toBe(3);
+  });
+
+  it("scopes activeDays/mostActiveDay to the window but streaks to all time", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    // Jun 10-14: five consecutive active days; window covers only Jun 13-14.
+    upsertTurns(db, [
+      turn({ messageId: "d0", ts: dayMs(2026, 6, 10) }),
+      turn({ messageId: "d1", ts: dayMs(2026, 6, 11) }),
+      turn({ messageId: "d2", ts: dayMs(2026, 6, 12) }),
+      turn({ messageId: "d3", ts: dayMs(2026, 6, 13) }),
+      turn({ messageId: "d4", ts: dayMs(2026, 6, 14) }),
+      turn({ messageId: "d5", ts: dayMs(2026, 6, 14, 13) }),
+    ]);
+    const win = { sinceMs: dayMs(2026, 6, 13, 0), untilMs: null };
+    const r = readRecords(db, win, NOW);
+    expect(r.activeDays).toBe(2);
+    expect(r.mostActiveDay).toBe("2026-06-14"); // 2 turns beats 1
+    expect(r.windowDays).toBe(2); // Jun 13 .. today (Jun 14)
+    expect(r.longestStreakDays).toBe(5); // all-time, ignores the window
+    expect(r.currentStreakDays).toBe(5); // ends today
+  });
+
+  it("anchors the current streak to yesterday when today is idle", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      turn({ messageId: "e1", ts: dayMs(2026, 6, 12) }),
+      turn({ messageId: "e2", ts: dayMs(2026, 6, 13) }),
+    ]);
+    const r = readRecords(db, ALL_TIME, NOW); // today = Jun 14, idle
+    expect(r.currentStreakDays).toBe(2);
+    expect(r.longestStreakDays).toBe(2);
+  });
+
+  it("takes the largest per-session span and ignores unknown-time turns", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [
+      // sess-1: a 2-hour span.
+      turn({
+        messageId: "f1",
+        sessionId: "sess-1",
+        ts: dayMs(2026, 6, 13, 10),
+      }),
+      turn({
+        messageId: "f2",
+        sessionId: "sess-1",
+        ts: dayMs(2026, 6, 13, 12),
+      }),
+      // sess-2: a 30-hour span (the longest).
+      turn({ messageId: "g1", sessionId: "sess-2", ts: dayMs(2026, 6, 13, 8) }),
+      turn({
+        messageId: "g2",
+        sessionId: "sess-2",
+        ts: dayMs(2026, 6, 14, 14),
+      }),
+      // sess-3: an unknown-time turn only — no span, and no epoch-stretch.
+      turn({ messageId: "h1", sessionId: "sess-3", ts: 0 }),
+    ]);
+    const r = readRecords(db, ALL_TIME, NOW);
+    expect(r.longestSessionMs).toBe(
+      dayMs(2026, 6, 14, 14) - dayMs(2026, 6, 13, 8),
+    );
+  });
+
+  it("computes windowDays from the window bounds for a bounded range", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertTurns(db, [turn({ messageId: "i1", ts: dayMs(2026, 6, 14) })]);
+    // A single-day window: [Jun 14 00:00, Jun 15 00:00) — the calendar drill-down shape.
+    const win = {
+      sinceMs: new Date(2026, 5, 14).getTime(),
+      untilMs: new Date(2026, 5, 15).getTime(),
+    };
+    const r = readRecords(db, win, NOW);
+    expect(r.windowDays).toBe(1);
+    expect(r.activeDays).toBe(1);
   });
 });

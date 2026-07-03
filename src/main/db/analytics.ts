@@ -6,11 +6,19 @@ import type {
   StatsByBranch,
   StatsBySession,
   StatsBreakdowns,
+  StatsRecords,
   DailyBucket,
   CalendarDay,
   StatsWindow,
 } from "@shared/stats";
-import { branchRowKey, ALL_TIME } from "@shared/stats";
+import {
+  branchRowKey,
+  ALL_TIME,
+  localDayKey,
+  daysBetween,
+  longestStreak,
+  currentStreak,
+} from "@shared/stats";
 import { transaction, type SqliteDb } from "./driver";
 
 /**
@@ -700,6 +708,85 @@ export function readBySession(
   win: StatsWindow = ALL_TIME,
 ): StatsBySession[] {
   return foldSessions(groupBySession(db, win));
+}
+
+/**
+ * The activity-record metrics (#spec 2026-07-03): the Overview tiles' aggregates. `activeDays`,
+ * `mostActiveDay`, and `longestSessionMs` scope to `win` like every other cut; the two streaks read the
+ * ALL-TIME distinct-day list (a windowed "current streak" is meaningless), anchored to `nowMs`'s local
+ * day. All day cuts use tsWindow(win, true): an unknown-time (ts=0) turn can't sit on a calendar day.
+ * The session-span cut mirrors groupBySession's MIN(NULLIF(ts,0)) so an unparsed timestamp never
+ * stretches a span back to the epoch; a session with no known-time turn contributes no span at all.
+ */
+export function readRecords(
+  db: SqliteDb,
+  win: StatsWindow = ALL_TIME,
+  nowMs: number = Date.now(),
+): StatsRecords {
+  const today = localDayKey(nowMs);
+  const { where, bind } = tsWindow(win, true);
+
+  const activeDays = (
+    db
+      .prepare(
+        `SELECT COUNT(DISTINCT date(ts / 1000, 'unixepoch', 'localtime')) AS n
+         FROM turns ${where}`,
+      )
+      .get(...bind) as { n: number }
+  ).n;
+
+  const top = db
+    .prepare(
+      `SELECT date(ts / 1000, 'unixepoch', 'localtime') AS day, COUNT(*) AS turns
+       FROM turns ${where}
+       GROUP BY day
+       ORDER BY turns DESC, day DESC
+       LIMIT 1`,
+    )
+    .get(...bind) as { day: string; turns: number } | undefined;
+
+  // NULL spans (a session whose only turns are unknown-time) fall out of MAX; COALESCE covers the
+  // empty window.
+  const longestSessionMs = (
+    db
+      .prepare(
+        `SELECT COALESCE(MAX(span), 0) AS span FROM (
+           SELECT MAX(ts) - MIN(NULLIF(ts, 0)) AS span
+           FROM turns ${where}
+           GROUP BY session_id
+         )`,
+      )
+      .get(...bind) as { span: number }
+  ).span;
+
+  // The all-time active-day list, ascending — the streak helpers' input contract.
+  const allDays = (
+    db
+      .prepare(
+        `SELECT DISTINCT date(ts / 1000, 'unixepoch', 'localtime') AS day
+         FROM turns WHERE ts > 0 ORDER BY day`,
+      )
+      .all() as { day: string }[]
+  ).map((r) => r.day);
+
+  // Window span: a bounded range measures its own bounds (untilMs is exclusive, so the last covered
+  // day is untilMs - 1); all-time runs first-turn-day .. today, 0 on an empty store.
+  let windowDays = 0;
+  if (win.sinceMs != null) {
+    const endDay = win.untilMs != null ? localDayKey(win.untilMs - 1) : today;
+    windowDays = daysBetween(localDayKey(win.sinceMs), endDay);
+  } else if (allDays.length > 0) {
+    windowDays = daysBetween(allDays[0], today);
+  }
+
+  return {
+    activeDays,
+    windowDays,
+    mostActiveDay: top?.day ?? null,
+    longestSessionMs,
+    longestStreakDays: longestStreak(allDays),
+    currentStreakDays: currentStreak(allDays, today),
+  };
 }
 
 /**
