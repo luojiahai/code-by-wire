@@ -16,6 +16,8 @@ session on your machine in one place, with live state, the full transcript, an
 embedded terminal to drive or take over, and the telemetry the terminal hides.
 One pane instead of a dozen terminal windows.
 
+![Code-by-wire: a live Claude Code session with the session rail, transcript, and telemetry panels](docs/assets/cbw-screenshot.png)
+
 ## Download
 
 One click starts the download. Always the latest release.
@@ -29,18 +31,20 @@ One click starts the download. Always the latest release.
 
 ## What you get
 
-- **Every session in one rail.** Active sessions in one live list, each card
-  flagging its own state; ended ones fold into a zone below.
+- **Every session in one rail.** A searchable sidebar that groups every session
+  by project into collapsible folders, each row flagging its own live state.
 - **Drive, fork, or just watch.** Spawn a managed session in an embedded
-  terminal, fork or adopt any other, or observe one read-only.
+  terminal, fork a live one, adopt one you started elsewhere, or observe it
+  read-only.
 - **The full transcript.** Every message, tool call, and result, reconstructed
   from disk and rendered cleanly.
-- **The telemetry the CLI hides.** Live cost, context window, token throughput,
-  git, tasks, subagents, and background shells, per session.
-- **The whole story.** A cross-session overview with a year-long contributions
+- **The telemetry the CLI hides.** Live context pressure, spend, token
+  throughput, duty cycle, git, tasks, subagents, and background shells, per
+  session.
+- **The whole story.** A cross-session Stats view with a year-long contributions
   calendar and exact, never-estimated totals.
-- **Knows your account.** Reads your plan and rate-limit gauges straight from
-  the `.claude` directory.
+- **Your rate limits in view.** Reads your account's rate-limit windows straight
+  from the `.claude` directory, with live reset countdowns.
 
 ## Features
 
@@ -49,103 +53,101 @@ machine is there.
 
 ### 👀 See every session at a glance
 
-**Active up top, ended folded away.** Everything still running sits in one live
-list, newest first, each card carrying a small state icon for working, waiting,
-or idle. A filter box narrows it as you type. Ended sessions collapse into their
-own zone below, the archive, not the live work.
+**Grouped by project, folded to taste.** The sidebar buckets every session into
+a collapsible folder per project, newest activity first, with a running count on
+each folder and a total up top. Inside a folder, live sessions sort above ended
+ones, and each row carries a small state dot — working, waiting, idle, or ended.
+
+**Search as you type.** A box at the top of the rail filters the whole list by
+session name or project the moment you start typing.
 
 ### 🕹️ Start, drive, or watch any session
 
 **Start one in a click.** New session picks a directory and a model, then spawns
-Claude Code in an embedded terminal. Fork any session to branch a fresh copy from
-where it left off, or end a running one right from its header.
+Claude Code in an embedded terminal. Fork a live session to branch a fresh copy
+from where it left off, or end a running one from the menu in its header.
 
 **Observe safely, adopt later.** A session you started elsewhere shows up
 read-only, because two processes writing one transcript would corrupt it. Once
-it ends, adopt it to resume inside the app and take the controls. The adopt
-button appears only when the original process is gone, the only time it's safe.
+it ends, adopt it to resume inside the app and take the controls. Adopt unlocks
+only when the original process is gone, the only time it's safe.
 
 **Terminal or transcript.** A managed session toggles between its live terminal
 and the rendered transcript. Switching away only detaches the view. The terminal
 keeps buffering, so you never lose scrollback.
 
 **Label it, open it.** Rename any session inline to whatever you'll recognize it
-by. Open its working directory straight in your editor or file browser.
+by, copy its id, or open its working directory in VS Code or your file browser.
 
 ### 📜 Read exactly what the agent did
 
 **The full transcript, step by step.** Every message, tool call, and tool
 result, reconstructed from the raw transcript on disk and rendered cleanly.
 
-**A dock that follows the work.** Below the live view, a dock tabs through the
-session's structure and snaps to whatever's happening:
+**A dock that follows the work.** Below the live view, the Structure dock tabs
+through the session's makeup and snaps to whatever's happening, collapsing to a
+one-line tally when nothing's live:
 
 - **Tasks.** The task list with each item's status and what it's blocked by.
-- **Subagents.** The child sessions a session spawned, as a live timeline you
-  can drill into.
+- **Subagents.** The child sessions a session spawned, as a live list you can
+  drill into.
 - **Shells.** Background shells the session kicked off, reconstructed from the
   transcript, with their full output on demand.
-- **Turns.** A turn-by-turn strip: each prompt you sent, how many tools it
-  triggered, how long it ran, and how long ago.
 
 ### 📊 The telemetry Claude Code keeps out of sight
 
-A right-hand rail of live panels:
+Select a session and a right-hand rail of live panels reads it out:
 
-- **Context.** How full the window is, as a ring toward the ceiling, using
-  Claude's own number when it reports one. The session rail also flags any
-  session whose context is running high.
-- **Cost.** The session's spend, with a donut of where it went by token kind and
-  how much the prompt cache saved. On a subscription account this is _equivalent
-  API value_: what the tokens would cost at API rates. A reference figure, never
-  money owed.
-- **Tokens.** Input, output, and cached totals as a stacked bar.
-- **Token speed.** Live throughput, output and input rates over a rolling window.
-- **Git.** Branch, lines added and removed, ahead/behind, current SHA, and
-  working-tree status. Hidden when the directory isn't a repo.
-- **Session.** Model, effort level, and the run clock.
+- **Pressure.** How full the context window is, using Claude's own number when
+  it reports one, over your account's rate-limit windows — 5-hour, 7-day, and
+  per-model weekly buckets when present — each a bar with percent used and a
+  live reset countdown. Bars warm to amber and redline as they fill.
+- **Spend.** Total tokens with Claude Code's own dollar figure beside it, broken
+  out by kind: fresh input, generated output, cache reads, and the 5-minute and
+  1-hour cache writes. On a subscription the dollar figure is _equivalent API
+  value_, what the tokens would cost at API rates, never money owed.
+- **Throughput.** Live token rate over a rolling window, output and input.
+- **Duty.** The session's duty cycle — how much of the wall clock the API was
+  actually working.
+- **Session.** Model, effort, and the run clock, plus git (branch, dirty state,
+  ahead/behind), any linked pull request, lines added and removed, and time
+  since the last activity.
 
 ### 📈 The whole story across every session
 
-**Overview is where the app opens.** Reached from the account card pinned to the
-top of the rail, it's an app-level view that totals every Claude Code session on
-your machine, not just the one you're watching. Pick a range: Today, 7d, 30d,
-90d, or All.
+**Stats is where the app opens.** Reached from the rail's top menu, it totals
+every Claude Code session on your machine, not just the one you're watching. Pick
+a range: Today, 7d, 30d, 90d, or All.
 
-**Headline numbers.** Sessions, turns, tokens, and equivalent API value for the
-range, with a stacked bar of where the tokens went.
+**Headline numbers.** A grid of the figures worth knowing at a glance — sessions,
+tokens, your favorite model, active days, most active day, longest session, and
+your longest and current daily streaks.
 
-**A contributions calendar.** A year of activity as a heatmap, colored by turns,
-tokens, or equivalent API value. Click any day to scope the whole page to it.
+**A contributions calendar.** A year of activity as a token heatmap. Switch the
+window between the trailing twelve months and any past year, and click any day to
+scope the whole page to it.
 
-**Daily usage.** One stacked bar per day, split by token kind or by model.
+**Tokens per day.** One stacked bar per day, split by model, alongside a by-model
+breakdown for the range.
 
-**Three ways to slice it.** By model, by project with each project's branches
-folded in, and by session in a sortable table. An _Include cache_ toggle decides
-whether cached tokens count toward the totals.
+**Two more ways to slice it.** By project, with each project's work folded in,
+and by session in a sortable table. An _Include cache_ toggle decides whether
+cached tokens count toward the totals.
 
 **Exact, never estimated.** Every number is read straight from the transcripts
 on disk, deduped and totalled. No sampling, no guesses. The first launch
 backfills your history behind a progress bar, then it stays live like everything
-else.
-
-### 💳 Know your account
-
-The rail's top card reads your account straight from the `.claude` directory. On
-a subscription (Pro or Max) it shows your plan and rate-limit gauges with live
-reset countdowns, so you can see how close you are to a wall. On an API account
-it shows the endpoint host and plan. The account email is masked by default, one
-click to reveal, so you can screen-share without leaking it. The same card opens
-Overview.
+else — and you can reset and rebuild it from scratch anytime.
 
 ### ⚙️ Settings and CLI health
 
-A gear in the title bar opens Settings. **System** checks your local Claude Code,
-whether it's found, current, and logged in, and hands you the exact fix when
-something's off, plus a field to point the app at a non-standard binary.
-**Account** expands your plan and limits; **Appearance** and **About** round it
-out. The gear wears a caution badge that lights amber or red the moment the CLI
-needs attention, so a broken or logged-out install never slips by.
+**Settings** opens from the rail's top menu, in two sections. **System** checks
+your local Claude Code — whether it's found, current, and logged in — and hands
+you the exact fix when something's off, plus a field to point the app at a
+non-standard binary. It also flags a duplicate install or a config-directory
+mismatch. The System tab wears a caution badge that lights amber or red the
+moment the CLI needs attention, so a broken or logged-out install never slips by.
+**About** carries the app version and handles software updates.
 
 ## Install
 
