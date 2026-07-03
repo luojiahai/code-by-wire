@@ -199,7 +199,7 @@ export function SessionsCard({
             onClick={() => setVisible((v) => v + SESSION_BATCH)}
             className="mt-2 text-meta text-fg-faint transition-colors hover:text-fg-muted"
           >
-            Show {Math.min(SESSION_BATCH, rest)} more
+            Show {Math.min(SESSION_BATCH, rest)} more ({sorted.length} total)
           </button>
         )}
       </CardRegion>

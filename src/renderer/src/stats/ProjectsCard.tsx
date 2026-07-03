@@ -105,7 +105,7 @@ function Breakdown({
             onClick={() => setVisible((v) => v + batch)}
             className="mt-2 text-meta text-fg-faint transition-colors hover:text-fg-muted"
           >
-            Show {Math.min(batch, rest)} more
+            Show {Math.min(batch, rest)} more ({rows.length} total)
           </button>
         )}
       </CardRegion>

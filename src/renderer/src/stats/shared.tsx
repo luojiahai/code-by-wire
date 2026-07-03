@@ -2,12 +2,15 @@ import type { ReactNode } from "react";
 import { type StatsRange, type RangePreset } from "@shared/stats";
 import { Icon } from "../ui/icons";
 
-/** The merged-card shell (#spec 2026-07-03 Visual language): one border, ink-925 surface, overflow
- *  clipped so flush tile grids meet the radius — the page-primitives Card treatment without its
- *  mandatory title strip. Regions inside divide with CardDivider. */
+/** The merged-card shell (#spec 2026-07-03 Visual language): one border, ink-925 surface — the
+ *  page-primitives Card treatment without its mandatory title strip. Deliberately NOT overflow-clipped:
+ *  the daily-chart and contributions-calendar tooltips inside are designed to overhang the card edge,
+ *  and an `overflow-hidden` here would cut them off at the plot's left/right edge. Nothing in the card
+ *  needs corner clipping — its content is either transparent (the flush KPI tile grid) or inset by
+ *  CardRegion padding. Regions inside divide with CardDivider. */
 export function StatsCard({ children }: { children: ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-ink-800 bg-ink-925">
+    <section className="rounded-xl border border-ink-800 bg-ink-925">
       {children}
     </section>
   );
