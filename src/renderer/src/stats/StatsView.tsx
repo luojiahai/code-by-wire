@@ -2,7 +2,6 @@ import {
   Fragment,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -10,14 +9,12 @@ import {
 import { OverlayScroll } from "../ui/OverlayScroll";
 import {
   type StatsSnapshot,
-  type ScanProgress,
-  type StatsTotals,
   type StatsByModel,
+  type ScanProgress,
   type StatsByProject,
   type StatsBySession,
   type StatsRange,
   type DailyBucket,
-  type CalendarDay,
   DEFAULT_RANGE,
   emptySnapshot,
   tokensOf,
@@ -33,30 +30,15 @@ import {
   formatRelativeTime,
   formatDayShort,
   formatDayLong,
-  formatMonthShort,
 } from "@shared/format";
 import { Icon } from "../ui/icons";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
-import {
-  BarSeries,
-  CalendarHeatmap,
-  StackedBar,
-  type DayColumn,
-} from "../ui/charts";
+import { BarSeries, type DayColumn } from "../ui/charts";
 import {
   KIND_SEGMENT_COLORS,
   KIND_SEGMENT_LABELS,
   modelColorOf,
-  CALENDAR_RAMP,
 } from "../ui/meta";
-import { TOKEN_KINDS } from "../ui/token-kinds";
-import { MetricTip } from "../ui/MetricTip";
-import {
-  calendarGrid,
-  intensityThresholds,
-  intensityLevel,
-  monthLabelCols,
-} from "../ui/contributions-geom";
 import { Swatch } from "../ui/atoms";
 import { CopyButton } from "../ui/CopyButton";
 import {
@@ -67,6 +49,7 @@ import {
   type SessionSortKey,
 } from "./session-sort";
 import { RangeFilter, CacheToggle, StatsPanel } from "./shared";
+import { OverviewCard } from "./OverviewCard";
 
 /** Poll cadences: brisk while the first cold backfill fills in, gentle once caught up so a turn landing
  *  in another Session still shows up without a manual refresh. */
@@ -88,9 +71,6 @@ export function StatsView() {
   // The calendar's window selector: null = trailing twelve months, a number = that local year. Independent
   // of `range` — it drives only the calendar query, not the page totals.
   const [calendarYear, setCalendarYear] = useState<number | null>(null);
-  // The calendar's intensity metric. Page-local; all three metrics ride each CalendarDay, so switching is a
-  // pure re-bucket with no re-fetch.
-  const [calMetric, setCalMetric] = useState<CalMetric>("turns");
 
   // The last change token from stats:read, echoed back as `since`. Reset on a range/year change so a filter
   // switch always forces a full snapshot.
@@ -260,22 +240,20 @@ export function StatsView() {
               <EmptyStats />
             ) : (
               <>
-                <KpiStrip totals={snap.totals} includeCache={includeCache} />
-                {snap.calendarStart && (
-                  <Contributions
-                    days={snap.calendar}
-                    startDay={snap.calendarStart}
-                    endDay={snap.calendarEnd}
-                    years={snap.calendarYears}
-                    year={calendarYear}
-                    onYear={setCalendarYear}
-                    metric={calMetric}
-                    onMetric={setCalMetric}
-                    includeCache={includeCache}
-                    selectedDay={isDayRange(range) ? range.day : null}
-                    onSelectDay={(day) => setRange({ day })}
-                  />
-                )}
+                <OverviewCard
+                  totals={snap.totals}
+                  records={snap.records}
+                  byModel={snap.byModel}
+                  includeCache={includeCache}
+                  calendar={snap.calendar}
+                  calendarStart={snap.calendarStart}
+                  calendarEnd={snap.calendarEnd}
+                  calendarYears={snap.calendarYears}
+                  calendarYear={calendarYear}
+                  onCalendarYear={setCalendarYear}
+                  selectedDay={isDayRange(range) ? range.day : null}
+                  onSelectDay={(day) => setRange({ day })}
+                />
                 {snap.daily.length > 0 && (
                   <DailyUsage
                     daily={snap.daily}
@@ -342,291 +320,6 @@ function BuildingHistory({ progress }: { progress: ScanProgress }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-    </div>
-  );
-}
-
-/** Which metric the calendar's cell intensity reads. Both ride each CalendarDay, so the toggle is a
- *  pure re-bucket — no re-fetch. Default is turns (#115). */
-type CalMetric = "turns" | "tokens";
-
-const CAL_METRIC_LABELS: Record<CalMetric, string> = {
-  turns: "Turns",
-  tokens: "Tokens",
-};
-const CAL_METRIC_OPTS = Object.entries(CAL_METRIC_LABELS) as [
-  CalMetric,
-  string,
-][];
-
-/**
- * The contributions calendar (#115): a full-width activity grid below the KPI strip. A trailing-twelve-month (or selected-year) grid of
- * one cell per local day, intensity-bucketed adaptively over the visible window by the active metric (turns
- * default, or tokens). Its window is queried independently of the page range filter, so its year switcher and
- * metric toggle live in this panel's header, not the page toolbar. Hovering a day shows the date and that
- * day's value; clicking a day drives the page range to that single date (the rest of the page re-scopes;
- * the calendar stays put, the clicked cell ringed).
- */
-function Contributions({
-  days,
-  startDay,
-  endDay,
-  years,
-  year,
-  onYear,
-  metric,
-  onMetric,
-  includeCache,
-  selectedDay,
-  onSelectDay,
-}: {
-  days: CalendarDay[];
-  startDay: string;
-  endDay: string;
-  years: number[];
-  year: number | null;
-  onYear: (y: number | null) => void;
-  metric: CalMetric;
-  onMetric: (m: CalMetric) => void;
-  includeCache: boolean;
-  selectedDay: string | null;
-  onSelectDay: (day: string) => void;
-}) {
-  // Derived grid/metrics, memoized so the calendar isn't rebuilt wholesale on every poll re-render. weeks and
-  // monthLabels key on the day-string bounds (stable by value across polls, so the ~370-cell grid build and
-  // the column scan skip when the window is unchanged); the value buckets additionally track the active metric
-  // and cache pill, so a toggle only re-buckets rather than re-laying-out.
-  const byDay = useMemo(() => new Map(days.map((d) => [d.day, d])), [days]);
-  // The value a day contributes under the active metric. The Tokens metric follows the page's "Include cache"
-  // pill via the shared tokensOf (all four kinds on, fresh input+output off), like the other breakdowns.
-  const valueOf = useCallback(
-    (day: string): number => {
-      const d = byDay.get(day);
-      if (!d) return 0;
-      if (metric === "turns") return d.turns;
-      return tokensOf(d, includeCache);
-    },
-    [byDay, metric, includeCache],
-  );
-
-  const weeks = useMemo(
-    () => calendarGrid(startDay, endDay),
-    [startDay, endDay],
-  );
-  // Adaptive buckets over only the in-range days' values (padding cells are out of window).
-  const thresholds = useMemo(
-    () =>
-      intensityThresholds(
-        weeks
-          .flat()
-          .filter((c) => c.inRange)
-          .map((c) => valueOf(c.day)),
-        CALENDAR_RAMP.length,
-      ),
-    [weeks, valueOf],
-  );
-  const levelOf = useCallback(
-    (day: string): number => intensityLevel(valueOf(day), thresholds),
-    [valueOf, thresholds],
-  );
-  const monthLabels = useMemo(
-    () =>
-      monthLabelCols(weeks).map((m) => ({
-        col: m.col,
-        label: formatMonthShort(m.firstDay),
-      })),
-    [weeks],
-  );
-
-  // The active-metric value as a display string — shared by the hover tooltip and the cell's aria-label.
-  const valueLabel = (day: string): string => {
-    const d = byDay.get(day);
-    if (metric === "turns") {
-      const n = d?.turns ?? 0;
-      return `${n.toLocaleString("en-US")} ${n === 1 ? "turn" : "turns"}`;
-    }
-    return `${formatTokensShort(d ? tokensOf(d, includeCache) : 0)} tokens`;
-  };
-  const renderTooltip = (day: string): ReactNode => (
-    <div className="flex flex-col gap-0.5">
-      <div className="font-medium text-fg">{formatDayLong(day)}</div>
-      <div className="text-fg-muted">{valueLabel(day)}</div>
-    </div>
-  );
-  // The screen-reader label for a day cell: the date plus its value under the active metric.
-  const describeDay = (day: string): string =>
-    `${formatDayLong(day)}: ${valueLabel(day)}`;
-
-  return (
-    <StatsPanel
-      title="Contributions"
-      right={
-        <div className="flex items-center gap-2">
-          <YearSwitcher years={years} value={year} onChange={onYear} />
-          <CalMetricToggle value={metric} onChange={onMetric} />
-        </div>
-      }
-    >
-      <CalendarHeatmap
-        weeks={weeks}
-        levelOf={levelOf}
-        colors={CALENDAR_RAMP}
-        selectedDay={selectedDay}
-        onSelectDay={onSelectDay}
-        renderTooltip={renderTooltip}
-        ariaLabelOf={describeDay}
-        monthLabels={monthLabels}
-      />
-      {/* Less -> More ramp legend. */}
-      <div className="mt-3 flex items-center gap-1.5 text-label text-fg-faint">
-        <span>Less</span>
-        {CALENDAR_RAMP.map((c, i) => (
-          <span
-            key={i}
-            className="inline-block h-2.5 w-2.5 rounded-[2px]"
-            style={{ background: c }}
-          />
-        ))}
-        <span>More</span>
-      </div>
-    </StatsPanel>
-  );
-}
-
-/** The calendar's metric toggle (Turns / Tokens), styled like the daily chart's StackByToggle, pinned in
- *  the Contributions panel header. */
-function CalMetricToggle({
-  value,
-  onChange,
-}: {
-  value: CalMetric;
-  onChange: (v: CalMetric) => void;
-}) {
-  return (
-    <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-meta">
-      {CAL_METRIC_OPTS.map(([v, label]) => (
-        <button
-          key={v}
-          onClick={() => onChange(v)}
-          aria-pressed={v === value}
-          className={`rounded px-2 py-0.5 transition-colors ${
-            v === value
-              ? "bg-ink-700 text-fg"
-              : "text-fg-faint hover:text-fg-muted"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** The calendar's year switcher: "Last 12 months" (the trailing default) plus each year that holds data,
- *  descending. A native select so it scales to a long history without crowding the header. */
-function YearSwitcher({
-  years,
-  value,
-  onChange,
-}: {
-  years: number[];
-  value: number | null;
-  onChange: (y: number | null) => void;
-}) {
-  return (
-    <select
-      value={value ?? "trailing"}
-      onChange={(e) =>
-        onChange(e.target.value === "trailing" ? null : Number(e.target.value))
-      }
-      className="rounded-md border border-ink-800 bg-ink-900 px-2 py-1 text-meta text-fg-muted"
-    >
-      <option value="trailing">Last 12 months</option>
-      {years.map((y) => (
-        <option key={y} value={y}>
-          {y}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-/** The headline KPI strip: Sessions, Turns, and Tokens (with a mini kind-split bar). The Tokens number
- *  and its split both follow the page's Include-cache toggle, so the bar and the figure above it always agree. */
-function KpiStrip({
-  totals,
-  includeCache,
-}: {
-  totals: StatsTotals;
-  includeCache: boolean;
-}) {
-  // Segments under the Tokens number. Cache off counts fresh tokens only, so drop the cache segments —
-  // then the bar composition matches the number above it.
-  const kindSegments = includeCache
-    ? [
-        { value: totals.inputTokens, color: KIND_SEGMENT_COLORS[0] },
-        { value: totals.outputTokens, color: KIND_SEGMENT_COLORS[1] },
-        { value: totals.cacheReadTokens, color: KIND_SEGMENT_COLORS[2] },
-        { value: totals.cacheCreation5mTokens, color: KIND_SEGMENT_COLORS[3] },
-        { value: totals.cacheCreation1hTokens, color: KIND_SEGMENT_COLORS[4] },
-      ]
-    : [
-        { value: totals.inputTokens, color: KIND_SEGMENT_COLORS[0] },
-        { value: totals.outputTokens, color: KIND_SEGMENT_COLORS[1] },
-      ];
-  const tokenTotal = includeCache
-    ? totals.inputTokens +
-      totals.outputTokens +
-      totals.cacheReadTokens +
-      totals.cacheCreationTokens
-    : totals.inputTokens + totals.outputTokens;
-  return (
-    <div className="grid grid-cols-3 rounded-xl border border-ink-800 bg-ink-925">
-      <KpiCard
-        label="Sessions"
-        value={totals.sessions.toLocaleString("en-US")}
-      />
-      <KpiCard label="Turns" value={totals.turns.toLocaleString("en-US")} />
-      <KpiCard label="Tokens" value={formatTokensShort(tokenTotal)}>
-        <StackedBar segments={kindSegments} height={6} className="mt-3" />
-        <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-micro text-fg-faint">
-          {KIND_SEGMENT_LABELS.slice(0, kindSegments.length).map((label, i) => (
-            <span key={label} className="relative flex items-center gap-1">
-              <Swatch color={KIND_SEGMENT_COLORS[i]} />
-              <MetricTip
-                label={label}
-                popoverClassName="left-0 top-full z-50 mt-1 w-52 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-2 text-meta leading-snug text-fg-muted shadow-lg"
-              >
-                {TOKEN_KINDS[i].description}
-              </MetricTip>
-            </span>
-          ))}
-        </div>
-      </KpiCard>
-    </div>
-  );
-}
-
-/** One headline KPI: an uppercase eyebrow over a large display figure, with an optional detail slot below
- *  (the Tokens card's mini split bar). */
-function KpiCard({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col border-r border-ink-850 px-4 py-3.5 last:border-r-0">
-      <div className="font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
-        {label}
-      </div>
-      <div className="mt-1.5 font-mono text-display font-medium leading-none tracking-tight tabular-nums text-fg">
-        {value}
-      </div>
-      {children}
     </div>
   );
 }
