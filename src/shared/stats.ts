@@ -455,3 +455,46 @@ export function densifyDays(
   }
   return out;
 }
+
+/**
+ * The inclusive count of local calendar days from `startDay` to `endDay` ('YYYY-MM-DD' keys) — the
+ * Active-days tile's denominator. Local-midnight Dates and a rounded day quotient, so a DST hour can't
+ * skew the count. 0 when `startDay` is after `endDay`.
+ */
+export function daysBetween(startDay: string, endDay: string): number {
+  if (startDay > endDay) return 0;
+  return Math.round((dayStartMs(endDay) - dayStartMs(startDay)) / 86_400_000) + 1;
+}
+
+/**
+ * The longest run of consecutive local days in `days` — DISTINCT 'YYYY-MM-DD' keys sorted ascending,
+ * exactly the shape the store's DISTINCT-day query returns. Consecutiveness is checked via addDays so
+ * month, year, and DST boundaries behave like every other day-key walk in this file.
+ */
+export function longestStreak(days: string[]): number {
+  let best = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const day of days) {
+    run = prev !== null && addDays(prev, 1) === day ? run + 1 : 1;
+    if (run > best) best = run;
+    prev = day;
+  }
+  return best;
+}
+
+/**
+ * The streak of consecutive active days ending now: anchored at `today` when it holds a turn, else at
+ * yesterday (today may simply not have a turn YET — an active yesterday still reads as a live streak,
+ * matching Claude Code's own stats). 0 when both are idle. Same input contract as `longestStreak`.
+ */
+export function currentStreak(days: string[], today: string): number {
+  const active = new Set(days);
+  let anchor = active.has(today) ? today : addDays(today, -1);
+  let n = 0;
+  while (active.has(anchor)) {
+    n++;
+    anchor = addDays(anchor, -1);
+  }
+  return n;
+}
