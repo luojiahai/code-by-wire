@@ -9,8 +9,11 @@ import { ShellsTab } from "./ShellsTab";
 import { OverlayScroll } from "../../ui/OverlayScroll";
 import {
   type DockTab,
+  type DockCollapseOverride,
   type SubagentStats,
   defaultDockTab,
+  dockHasActivity,
+  resolveDockCollapsed,
   subagentStats,
 } from "./dock-tabs";
 
@@ -39,12 +42,19 @@ export function StructureDock({
   onDrill: (agent: Subagent) => void;
   onDrillShell: (shell: BackgroundShell) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapseOverride, setCollapseOverride] =
+    useState<DockCollapseOverride | null>(null);
   const subagents = doc?.subagents ?? [];
   // One forest walk feeds the count badge, the live tally, and the default tab. Memoized against the
   // subagents identity (stable between polls) so the 3s render clock doesn't re-walk the forest.
   const stats = useMemo(() => subagentStats(subagents), [subagents]);
   const alive = stats.working > 0;
+  // The dock hides itself when idle and reveals itself while any tab has a live entry (a working
+  // subagent, an in-progress task, or a running shell). A manual collapse/expand overrides that, but
+  // only for the current activity phase — the override lapses when activity starts or stops, so the
+  // dock re-follows (same lapsing-override shape as the tab-follow `pick` above).
+  const active = dockHasActivity(tasks, stats, shells);
+  const collapsed = resolveDockCollapsed(active, collapseOverride);
   // The right tab auto-follows the live fan-out (Subagents while alive, Tasks otherwise). A manual pick
   // overrides that, but only for the current fan-out phase: `pick` records the phase (`alive`) it was
   // chosen under, so when the fan-out starts or ends the pick lapses and the tab re-follows. That way a
@@ -70,7 +80,7 @@ export function StructureDock({
         tasks={tasks}
         stats={stats}
         shellCount={shells.length}
-        onExpand={() => setCollapsed(false)}
+        onExpand={() => setCollapseOverride({ collapsed: false, active })}
       />
     );
 
@@ -82,7 +92,7 @@ export function StructureDock({
         taskCount={tasks.length}
         subagentCount={stats.total}
         shellCount={shells.length}
-        onCollapse={() => setCollapsed(true)}
+        onCollapse={() => setCollapseOverride({ collapsed: true, active })}
       />
       <OverlayScroll className="min-h-0 flex-1">
         {tab === "tasks" ? (

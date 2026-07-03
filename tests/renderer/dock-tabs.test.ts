@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Subagent } from "@shared/types";
+import type { Subagent, Task, BackgroundShell } from "@shared/types";
 import {
   defaultDockTab,
+  dockHasActivity,
   flattenSubagents,
+  resolveDockCollapsed,
   subagentStats,
 } from "../../src/renderer/src/workspace/panels/dock-tabs";
 
@@ -89,5 +91,60 @@ describe("flattenSubagents", () => {
       "a2",
       "b",
     ]);
+  });
+});
+
+const task = (status: Task["status"]): Task => ({ status }) as Task;
+const shell = (status: BackgroundShell["status"]): BackgroundShell =>
+  ({ status }) as BackgroundShell;
+
+describe("dockHasActivity", () => {
+  const idle = { total: 0, working: 0, done: 0, failed: 0 };
+  it("is false when nothing is in progress, working, or running", () => {
+    expect(dockHasActivity([], idle, [])).toBe(false);
+    expect(
+      dockHasActivity([task("pending"), task("completed")], idle, [
+        shell("completed"),
+        shell("killed"),
+      ]),
+    ).toBe(false);
+  });
+  it("is true when a subagent is working", () => {
+    expect(dockHasActivity([], subagentStats([sub("a", "working")]), [])).toBe(
+      true,
+    );
+  });
+  it("is true when a task is in progress", () => {
+    expect(dockHasActivity([task("in_progress")], idle, [])).toBe(true);
+  });
+  it("is true when a shell is running", () => {
+    expect(dockHasActivity([], idle, [shell("running")])).toBe(true);
+  });
+});
+
+describe("resolveDockCollapsed", () => {
+  it("collapses when idle and expands when active, with no override", () => {
+    expect(resolveDockCollapsed(false, null)).toBe(true);
+    expect(resolveDockCollapsed(true, null)).toBe(false);
+  });
+  it("honors a manual override made under the same activity phase", () => {
+    // manually collapsed while active -> stays collapsed
+    expect(resolveDockCollapsed(true, { collapsed: true, active: true })).toBe(
+      true,
+    );
+    // manually expanded while idle -> stays expanded
+    expect(
+      resolveDockCollapsed(false, { collapsed: false, active: false }),
+    ).toBe(false);
+  });
+  it("lapses a manual override once the activity phase flips", () => {
+    // collapsed under active:true, now idle -> auto rule (collapsed)
+    expect(
+      resolveDockCollapsed(false, { collapsed: false, active: true }),
+    ).toBe(true);
+    // expanded under active:false, now active -> auto rule (expanded)
+    expect(resolveDockCollapsed(true, { collapsed: true, active: false })).toBe(
+      false,
+    );
   });
 });

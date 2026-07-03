@@ -1,4 +1,4 @@
-import type { Subagent } from "@shared/types";
+import type { Subagent, Task, BackgroundShell } from "@shared/types";
 
 // JSX-free dock logic, so the tests can import it under tsconfig.node.json (mirrors open-in-items.ts).
 
@@ -42,6 +42,37 @@ export function subagentStats(subagents: Subagent[]): SubagentStats {
 /** The dock's tab default: Subagents while a fan-out is alive (any node working); otherwise Tasks. */
 export function defaultDockTab(stats: SubagentStats): DockTab {
   return stats.working > 0 ? "subagents" : "tasks";
+}
+
+/** Whether any dock tab has a live entry — a task in progress, a working subagent, or a running shell.
+ *  Drives the dock's auto-expand: the dock shows itself exactly while something is active. */
+export function dockHasActivity(
+  tasks: Task[],
+  stats: SubagentStats,
+  shells: BackgroundShell[],
+): boolean {
+  return (
+    stats.working > 0 ||
+    tasks.some((t) => t.status === "in_progress") ||
+    shells.some((s) => s.status === "running")
+  );
+}
+
+/** A manual collapse choice, tagged with the activity phase it was made under so it lapses when
+ *  activity starts or stops — the collapse twin of the tab-follow `pick` in StructureDock. */
+export interface DockCollapseOverride {
+  collapsed: boolean;
+  active: boolean;
+}
+
+/** The dock's effective collapsed state: the manual override while it's still in the same activity
+ *  phase, otherwise the auto rule — collapsed exactly when nothing is active. */
+export function resolveDockCollapsed(
+  active: boolean,
+  override: DockCollapseOverride | null,
+): boolean {
+  if (override && override.active === active) return override.collapsed;
+  return !active;
 }
 
 /** Flatten the subagent forest to a flat lane list, depth-first, each parent before its subtree. The
