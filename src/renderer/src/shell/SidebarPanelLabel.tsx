@@ -19,14 +19,18 @@ export function SidebarPanelLabel({
   return (
     <span
       className={cx(
-        "flex min-w-0 items-center gap-2 text-[0.64rem] font-semibold uppercase tracking-[0.16em] text-(--theme-primary)",
+        "flex min-w-0 items-center gap-1.5 text-[0.64rem] font-semibold uppercase tracking-[0.16em] text-(--theme-primary)",
         className,
       )}
     >
       {icon ? (
-        <Icon name={icon} size={12} className="shrink-0 text-(--ui-accent)" />
+        <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-accent)">
+          <Icon name={icon} size={12} />
+        </span>
       ) : (
-        <span className="dither inline-block size-2 shrink-0 rounded-[1px]" />
+        <span className="grid size-3.5 shrink-0 place-items-center">
+          <span className="dither inline-block size-2 shrink-0 rounded-[1px]" />
+        </span>
       )}
       <span className="min-w-0 truncate leading-none">{children}</span>
     </span>

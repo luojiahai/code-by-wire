@@ -172,7 +172,7 @@ export function LeftSidebar({
                   </span>
                 </button>
                 {!collapsed.has(g.project) && (
-                  <div className="flex flex-col gap-px pb-1 pl-4">
+                  <div className="flex flex-col gap-px pb-1">
                     {g.sessions.map((s) => (
                       <SessionRow
                         key={s.id}
