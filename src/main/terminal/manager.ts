@@ -1,4 +1,4 @@
-import type { Family } from "@shared/models";
+import type { Family, ModelSelection } from "@shared/models";
 import { FLOW, type ReattachSnapshot } from "@shared/terminal";
 import {
   buildClaudeCommand,
@@ -33,7 +33,7 @@ interface Term {
 export interface SpawnRequest {
   id: string;
   cwd: string;
-  model: Family;
+  model: ModelSelection;
   cols: number;
   rows: number;
   bin?: string;
@@ -232,7 +232,7 @@ export function createTerminalManager(
       req.cwd,
       req.cols,
       req.rows,
-      req.model,
+      req.model === "default" ? undefined : req.model,
     );
   }
 

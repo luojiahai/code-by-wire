@@ -17,7 +17,7 @@ const REVIEW_TONE_COLOR: Record<ReviewTone, string> = {
 };
 
 /**
- * The cockpit's identity footer (cockpit spec §Session): Model (with effort folded in), Git (branch
+ * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Git (branch
  * + dirty dot + sync, popover-free), PR (link + review state — the capture's pr wins over the
  * gh-polled one), Lines (the session's ± footprint from the capture), Clock, and Active (relative
  * last-activity time — the left sidebar's rows no longer carry it) — each an always-shown
@@ -38,7 +38,6 @@ export function SessionPanel({
     s.modelDisplayName,
     { known: s.management === "managed" },
   );
-  const modelValue = s.effortLevel ? `${model} · ${s.effortLevel}` : model;
   const clock = s.sessionClockMs != null ? formatClock(s.sessionClockMs) : null;
   const hasLines = s.linesAdded != null || s.linesRemoved != null;
   const prView = s.pr ?? pr ?? null;
@@ -47,10 +46,11 @@ export function SessionPanel({
     <PanelSection>
       <PanelHeading icon="id-card">Session</PanelHeading>
       <SessionRow label="Model">
-        <span className="min-w-0 truncate" title={modelValue}>
-          {modelValue}
+        <span className="min-w-0 truncate" title={model}>
+          {model}
         </span>
       </SessionRow>
+      <SessionRow label="Effort">{s.effortLevel ?? "-"}</SessionRow>
       <SessionRow label="Git">
         <GitReadout session={s} git={git} />
       </SessionRow>

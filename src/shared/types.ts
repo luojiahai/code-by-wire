@@ -1,7 +1,7 @@
-import type { Family } from "./models";
+import type { Family, ModelSelection } from "./models";
 import type { ContextBreakdown } from "./transcript";
 
-export type { Family };
+export type { Family, ModelSelection };
 
 export type SessionState = "working" | "waiting" | "idle" | "ended";
 export type Management = "managed" | "observed";

@@ -6,7 +6,11 @@ import {
   type IpcMainEvent,
 } from "electron";
 import type { Session } from "@shared/types";
-import type { Family } from "@shared/models";
+import {
+  normalizeModelId,
+  type Family,
+  type ModelSelection,
+} from "@shared/models";
 import {
   TERMINAL,
   type SpawnRequest,
@@ -28,8 +32,10 @@ import { createRecorder } from "./recorder";
  * discovery has indexed the real process. Hydrated from zero usage so the derived display fields
  * (context %) are well-formed; the real row supersedes it on the next sync.
  */
-function draftSession(id: string, cwd: string, model: Family): Session {
+function draftSession(id: string, cwd: string, model: ModelSelection): Session {
   const project = projectFromCwd(cwd);
+  const family: Family =
+    model === "default" ? normalizeModelId(undefined) : model;
   return hydrate({
     id,
     title: project,
@@ -37,7 +43,7 @@ function draftSession(id: string, cwd: string, model: Family): Session {
     branch: undefined,
     state: "working",
     management: "managed",
-    model,
+    model: family,
     lastActivityMs: Date.now(),
     createdMs: Date.now(),
     awaitingUser: false,

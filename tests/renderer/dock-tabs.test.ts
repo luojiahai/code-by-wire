@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Subagent } from "@shared/types";
+import type { Subagent, Task, BackgroundShell } from "@shared/types";
 import {
   defaultDockTab,
+  dockHasActivity,
   flattenSubagents,
-  laneBand,
-  laneWindow,
+  resolveDockCollapsed,
   subagentStats,
 } from "../../src/renderer/src/workspace/panels/dock-tabs";
 
@@ -22,24 +22,6 @@ function sub(
     toolCount: 0,
     durationMs: 0,
     children,
-  };
-}
-
-/** A Subagent with explicit timing for the geometry tests. `startMs` may be undefined (unpositioned). */
-function timed(
-  id: string,
-  status: Subagent["status"],
-  startMs: number | undefined,
-  durationMs: number,
-): Subagent {
-  return {
-    id,
-    type: "general-purpose",
-    status,
-    tokens: 0,
-    toolCount: 0,
-    durationMs,
-    startMs,
   };
 }
 
@@ -71,25 +53,19 @@ describe("subagentStats", () => {
 });
 
 describe("defaultDockTab", () => {
-  it("defaults to subagents while a fan-out is alive, tasks or not", () => {
-    expect(defaultDockTab(subagentStats([sub("a", "working")]), 0)).toBe(
+  it("defaults to subagents while a fan-out is alive", () => {
+    expect(defaultDockTab(subagentStats([sub("a", "working")]))).toBe(
       "subagents",
     );
-    expect(defaultDockTab(subagentStats([sub("a", "working")]), 5)).toBe(
-      "subagents",
+    expect(
+      defaultDockTab(subagentStats([sub("a", "working"), sub("b", "done")])),
+    ).toBe("subagents");
+  });
+  it("defaults to tasks when idle (no working subagent)", () => {
+    expect(defaultDockTab({ total: 0, working: 0, done: 0, failed: 0 })).toBe(
+      "tasks",
     );
-  });
-  it("defaults to tasks when idle and any task exists", () => {
-    expect(
-      defaultDockTab({ total: 0, working: 0, done: 0, failed: 0 }, 3),
-    ).toBe("tasks");
-    expect(defaultDockTab(subagentStats([sub("a", "done")]), 1)).toBe("tasks");
-  });
-  it("falls back to turns when idle with no tasks", () => {
-    expect(
-      defaultDockTab({ total: 0, working: 0, done: 0, failed: 0 }, 0),
-    ).toBe("turns");
-    expect(defaultDockTab(subagentStats([sub("a", "done")]), 0)).toBe("turns");
+    expect(defaultDockTab(subagentStats([sub("a", "done")]))).toBe("tasks");
   });
 });
 
@@ -118,49 +94,57 @@ describe("flattenSubagents", () => {
   });
 });
 
-describe("laneWindow", () => {
-  it("falls back to now for a forest with no positioned lane", () => {
-    expect(laneWindow([], 1000)).toEqual({ start: 1000, end: 1000 });
-  });
-  it("freezes at the exact latest end when all lanes are done", () => {
+const task = (status: Task["status"]): Task => ({ status }) as Task;
+const shell = (status: BackgroundShell["status"]): BackgroundShell =>
+  ({ status }) as BackgroundShell;
+
+describe("dockHasActivity", () => {
+  const idle = { total: 0, working: 0, done: 0, failed: 0 };
+  it("is false when nothing is in progress, working, or running", () => {
+    expect(dockHasActivity([], idle, [])).toBe(false);
     expect(
-      laneWindow(
-        [timed("a", "done", 0, 30000), timed("b", "done", 10000, 5000)],
-        100000,
-      ),
-    ).toEqual({ start: 0, end: 30000 });
+      dockHasActivity([task("pending"), task("completed")], idle, [
+        shell("completed"),
+        shell("killed"),
+      ]),
+    ).toBe(false);
   });
-  it("extends to a nice rung at or past now while a lane works", () => {
-    expect(
-      laneWindow(
-        [timed("a", "done", 0, 18000), timed("b", "working", 20000, 0)],
-        34000,
-      ),
-    ).toEqual({ start: 0, end: 50000 });
-  });
-  it("steps the window up in discrete rungs as now grows", () => {
-    const lanes = [timed("a", "working", 0, 0)];
-    expect(laneWindow(lanes, 49000).end).toBe(50000);
-    expect(laneWindow(lanes, 51000).end).toBe(100000);
-  });
-  it("falls back to now when a working lane has no start", () => {
-    expect(laneWindow([timed("a", "working", undefined, 0)], 5000).start).toBe(
-      5000,
+  it("is true when a subagent is working", () => {
+    expect(dockHasActivity([], subagentStats([sub("a", "working")]), [])).toBe(
+      true,
     );
+  });
+  it("is true when a task is in progress", () => {
+    expect(dockHasActivity([task("in_progress")], idle, [])).toBe(true);
+  });
+  it("is true when a shell is running", () => {
+    expect(dockHasActivity([], idle, [shell("running")])).toBe(true);
   });
 });
 
-describe("laneBand", () => {
-  it("positions a lane by start offset and width", () => {
-    expect(laneBand(20, 80, 0, 100)).toEqual({ left: 20, width: 60 });
+describe("resolveDockCollapsed", () => {
+  it("collapses when idle and expands when active, with no override", () => {
+    expect(resolveDockCollapsed(false, null)).toBe(true);
+    expect(resolveDockCollapsed(true, null)).toBe(false);
   });
-  it("floors a near-instant lane to the minimum width", () => {
-    expect(laneBand(0, 1, 0, 100)).toEqual({ left: 0, width: 3 });
+  it("honors a manual override made under the same activity phase", () => {
+    // manually collapsed while active -> stays collapsed
+    expect(resolveDockCollapsed(true, { collapsed: true, active: true })).toBe(
+      true,
+    );
+    // manually expanded while idle -> stays expanded
+    expect(
+      resolveDockCollapsed(false, { collapsed: false, active: false }),
+    ).toBe(false);
   });
-  it("clamps left so a floored sliver stays on screen", () => {
-    expect(laneBand(99, 100, 0, 100)).toEqual({ left: 97, width: 3 });
-  });
-  it("floors at the left for a zero-width window", () => {
-    expect(laneBand(5, 10, 50, 50)).toEqual({ left: 0, width: 3 });
+  it("lapses a manual override once the activity phase flips", () => {
+    // collapsed under active:true, now idle -> auto rule (collapsed)
+    expect(
+      resolveDockCollapsed(false, { collapsed: false, active: true }),
+    ).toBe(true);
+    // expanded under active:false, now active -> auto rule (expanded)
+    expect(resolveDockCollapsed(true, { collapsed: true, active: false })).toBe(
+      false,
+    );
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useStore } from "@nanostores/react";
-import type { Session, Family, Account } from "@shared/types";
+import type { Session, ModelSelection, Account } from "@shared/types";
 import type { CliStatus } from "@shared/cli-status";
 import type { OverviewData } from "@shared/ipc";
 import {
@@ -223,7 +223,10 @@ export function App() {
     });
   }, []);
 
-  async function createSession(cwd: string, model: Family): Promise<void> {
+  async function createSession(
+    cwd: string,
+    model: ModelSelection,
+  ): Promise<void> {
     const gate = spawnGate(cliStatus);
     if (!gate.canSpawn) throw new Error(gate.reason ?? "CLI unavailable");
     // Mint the id here and stand the terminal up BEFORE spawning, so the very first pty bytes land on a

@@ -6,6 +6,11 @@ export const FAMILIES = ["opus", "sonnet", "haiku", "fable"] as const;
 
 export type Family = (typeof FAMILIES)[number];
 
+/** The picker's model choice at spawn time: a known family, or "default" — the `claude --model default`
+ *  alias that defers to the CLI's own configured default. "default" lives only here at the spawn
+ *  boundary; a running session's model is always re-derived from its transcript into a `Family`. */
+export type ModelSelection = Family | "default";
+
 /** Per-family resolved id from `ANTHROPIC_DEFAULT_<FAMILY>_MODEL`, the configured default, and the
  *  `availableModels` allowlist — read main-side from settings/env, served to the picker. */
 export interface ModelDefaults {

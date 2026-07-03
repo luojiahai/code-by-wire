@@ -1,5 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import { FAMILIES, type Family, type ModelDefaults } from "@shared/models";
+import { useState, useEffect } from "react";
+import {
+  FAMILIES,
+  type ModelSelection,
+  type ModelDefaults,
+} from "@shared/models";
 import { FAMILY_LABEL } from "../ui/meta";
 import { Icon } from "../ui/icons";
 import { PageHeader, Card } from "./page-primitives";
@@ -18,7 +22,7 @@ export function NewSessionView({
   onCancel,
   busy: externalBusy,
 }: {
-  onCreate: (cwd: string, model: Family) => void | Promise<void>;
+  onCreate: (cwd: string, model: ModelSelection) => void | Promise<void>;
   onCancel: () => void;
   /** An external in-flight signal from the caller (e.g. a future `App.tsx`'s broader busy state),
    *  OR'd with this view's own internal busy state — lets a caller widen the disabled/"Starting…"
@@ -26,29 +30,18 @@ export function NewSessionView({
   busy?: boolean;
 }) {
   const [cwd, setCwd] = useState<string | null>(null);
-  const [model, setModel] = useState<Family>("sonnet");
+  const [model, setModel] = useState<ModelSelection>("default");
   const [defaults, setDefaults] = useState<ModelDefaults | null>(null);
   const [internalBusy, setInternalBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const userPickedModel = useRef(false);
   const busy = internalBusy || (externalBusy ?? false);
 
-  // Fetch the configured model defaults once on mount: per-family overrides for the picker labels,
-  // and the default family to pre-select.
+  // Fetch the configured model defaults once on mount, only for the picker's family labels and the
+  // allowlist. The resting selection is always "Default" now, so we no longer preselect a family.
   useEffect(() => {
     void window.api
       .modelDefaults()
-      .then((d) => {
-        setDefaults(d);
-        if (!userPickedModel.current) {
-          // Pre-select the configured default, else keep "sonnet", then clamp to the allowlist so the
-          // picker can never preselect (and Create can never spawn) a model availableModels excludes.
-          let next: Family = d.default ?? "sonnet";
-          if (d.allowed && !d.allowed.includes(next))
-            next = d.allowed[0] ?? next;
-          setModel(next);
-        }
-      })
+      .then((d) => setDefaults(d))
       .catch(() => {
         /* keep defaults null; picker falls back to FAMILIES + bare labels */
       });
@@ -119,12 +112,10 @@ export function NewSessionView({
                 <div className="relative mt-1.5">
                   <select
                     value={model}
-                    onChange={(e) => {
-                      userPickedModel.current = true;
-                      setModel(e.target.value as Family);
-                    }}
+                    onChange={(e) => setModel(e.target.value as ModelSelection)}
                     className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
                   >
+                    <option value="default">Default</option>
                     {(defaults?.allowed ?? FAMILIES).map((id) => {
                       const override = defaults?.overrides[id];
                       return (

@@ -47,6 +47,15 @@ describe("buildClaudeCommand", () => {
     expect(cmd.file).toBe("/opt/bin/claude");
     expect(cmd.args[0]).toBe("--session-id");
   });
+
+  it("passes the literal 'default' alias straight through to --model", () => {
+    expect(buildClaudeCommand({ id: "sid-d", model: "default" }).args).toEqual([
+      "--session-id",
+      "sid-d",
+      "--model",
+      "default",
+    ]);
+  });
 });
 
 describe("buildResumeCommand", () => {
