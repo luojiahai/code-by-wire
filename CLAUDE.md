@@ -22,7 +22,7 @@ Electron app, three processes:
 
 ## Code style
 
-- `no-unsafe-*` lint rules are intentionally downgraded to warn for `src/main/provider/claude/` — those readers consume `any` from external transcript JSON. Don't "fix" the warnings.
+- `no-unsafe-*` lint rules are intentionally downgraded to warn repo-wide (in `eslint.config.mjs`) — driven by `src/main/provider/claude/`, whose readers consume `any` from external transcript JSON. Don't "fix" the warnings.
 
 ## Commits & PRs
 
