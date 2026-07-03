@@ -50,30 +50,32 @@ export function CardRegion({
   );
 }
 
-/** One KPI tile: an uppercase eyebrow over a mono value. `num` is the 24px count treatment, `str`
- *  the 16px string treatment (Favorite model, Most active day, Longest session), so the 4×2 grid
- *  reads even. Callers dim unit suffixes inline (<span className="text-fg-faint">). The grid owner
- *  passes the cell hairlines via className. */
+/** One KPI tile: an uppercase eyebrow over a mono value. Every tile shares ONE value size so the 4×2
+ *  grid reads evenly (numbers and strings alike). The value truncates — with an optional `title`
+ *  tooltip — so a long string like a raw model id can't stretch its column or wrap to a second line;
+ *  `min-w-0` lets the grid cell shrink so the truncation actually engages. Callers dim unit suffixes
+ *  inline (<span className="text-fg-faint">). The grid owner passes the cell hairlines via className. */
 export function KpiTile({
   label,
-  size = "num",
+  title,
   className = "",
   children,
 }: {
   label: string;
-  size?: "num" | "str";
+  /** Hover tooltip for the value — set it where the value can be a long string that truncates
+   *  (e.g. a raw model id), so the full text stays reachable. */
+  title?: string;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <div className={`flex flex-col px-4 py-3.5 ${className}`}>
+    <div className={`flex min-w-0 flex-col px-4 py-3.5 ${className}`}>
       <div className="font-display text-micro font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {label}
       </div>
       <div
-        className={`mt-1.5 font-mono font-medium leading-none tracking-tight tabular-nums text-fg ${
-          size === "num" ? "text-display" : "text-title"
-        }`}
+        title={title}
+        className="mt-1.5 truncate font-mono text-heading font-medium leading-tight tracking-tight tabular-nums text-fg"
       >
         {children}
       </div>

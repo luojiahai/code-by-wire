@@ -106,7 +106,11 @@ export function OverviewCard({
         <KpiTile label="Tokens" className={cellBorder(1)}>
           {formatTokensShort(tokenTotal)}
         </KpiTile>
-        <KpiTile label="Favorite model" size="str" className={cellBorder(2)}>
+        <KpiTile
+          label="Favorite model"
+          title={favorite ?? undefined}
+          className={cellBorder(2)}
+        >
           {favorite ?? EMPTY}
         </KpiTile>
         <KpiTile label="Active days" className={cellBorder(3)}>
@@ -115,12 +119,12 @@ export function OverviewCard({
             /{records.windowDays.toLocaleString("en-US")}
           </span>
         </KpiTile>
-        <KpiTile label="Most active day" size="str" className={cellBorder(4)}>
+        <KpiTile label="Most active day" className={cellBorder(4)}>
           {records.mostActiveDay
             ? formatDayShort(records.mostActiveDay)
             : EMPTY}
         </KpiTile>
-        <KpiTile label="Longest session" size="str" className={cellBorder(5)}>
+        <KpiTile label="Longest session" className={cellBorder(5)}>
           {records.longestSessionMs > 0
             ? formatDuration(records.longestSessionMs)
             : EMPTY}
