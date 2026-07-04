@@ -54,16 +54,15 @@ export function LeftSidebar({
   );
   const allCollapsed =
     groups.length > 0 && groups.every((g) => collapsed.has(g.project));
-  const toggleActiveOnly = () =>
-    setActiveOnly((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem(ACTIVE_ONLY_KEY, String(next));
-      } catch {
-        // Storage failures are nonfatal — the toggle still works for this run.
-      }
-      return next;
-    });
+  const toggleActiveOnly = () => {
+    const next = !activeOnly;
+    try {
+      window.localStorage.setItem(ACTIVE_ONLY_KEY, String(next));
+    } catch {
+      // Storage failures are nonfatal — the toggle still works for this run.
+    }
+    setActiveOnly(next);
+  };
   const toggleGroup = (project: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);

@@ -4,8 +4,8 @@ import { STATE_META } from "./meta";
 /** The lamp encoding (2026-07-04 sidebar spec §1): filled = live, hollow = quiet. Working is an
  *  11px spinning arc over a static 4px core; Waiting a 6px amber dot breathing a halo; Idle a 6px
  *  hollow ring; Ended a 4px ember. Literal Tailwind class strings so the scanner emits every
- *  utility (the STATE_META.ring rule), kept in this JSX-free module so the encoding stays
- *  unit-tested. Management is no longer drawn — glyphTitle's tooltip is where it survives. */
+ *  utility (the same rule the old STATE_META.ring relied on), kept in this JSX-free module so the
+ *  encoding stays unit-tested. Management is no longer drawn — glyphTitle's tooltip is where it survives. */
 export const LAMP: Record<SessionState, { outer: string; core?: string }> = {
   working: {
     outer:
