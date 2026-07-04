@@ -6,7 +6,7 @@ import { Icon, type IconName } from "../ui/icons";
  *  uppercase overline, shared by the left sidebar's section header and the right rail's panel
  *  headings so the treatment can't drift. The leading glyph is the dither dot by default; a rail
  *  panel passes `icon` to wear its dedicated lucide glyph instead (Pressure's gauge, Spend's
- *  coins, …), in the accent gray so it carries the same weight the dot did. */
+ *  coins, …), in the label's own color so icon and title read as one unit. */
 export function SidebarPanelLabel({
   children,
   className,
@@ -24,7 +24,7 @@ export function SidebarPanelLabel({
       )}
     >
       {icon ? (
-        <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-accent)">
+        <span className="grid size-3.5 shrink-0 place-items-center text-(--theme-primary)">
           <Icon name={icon} size={12} />
         </span>
       ) : (
