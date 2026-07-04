@@ -466,6 +466,7 @@ export function createSettingsManager(
     const { parsed } = readSettings();
     const block = parsed?.statusLine;
     if (!parsed || block?.command !== appCommand) return;
+    const state = readState(); // throws on a corrupt record — same contract as install(); read before any write
     const next: StatusLine = { ...block };
     if (seconds === null) delete next.refreshInterval;
     else next.refreshInterval = seconds;
@@ -480,7 +481,6 @@ export function createSettingsManager(
       JSON.stringify({ ...parsed, statusLine: next }, null, 2) + "\n",
       mode,
     );
-    const state = readState(); // throws on a corrupt record — same contract as install()
     if (state !== null) {
       writeFileAtomic(
         statePath,

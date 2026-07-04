@@ -1259,4 +1259,31 @@ describe("status() and setRefreshInterval()", () => {
     mgr.setRefreshInterval(4000); // > 3600
     expect(readRaw(home)).toBe(wrapped);
   });
+
+  it("does not mutate settings.json when state.json is corrupt (read before write)", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "mine" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = createSettingsManager({
+      claudeDir: home,
+      now: () => NOW,
+      platform: "linux",
+    });
+    mgr.install();
+
+    writeFileSync(
+      join(home, ".code-by-wire", "state.json"),
+      "{ corrupt not json",
+    ); // the record we rely on is broken
+
+    const before = readRaw(home);
+    expect(() => mgr.setRefreshInterval(10)).toThrow();
+    expect(readRaw(home)).toBe(before); // no half-applied write — settings.json untouched
+  });
 });
