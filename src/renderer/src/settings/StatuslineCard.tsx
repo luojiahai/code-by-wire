@@ -51,6 +51,13 @@ export function StatuslineCard() {
   }
 
   const on = status.state !== "off";
+  const showRows = status.state === "capturing" || status.state === "stale";
+  const note =
+    status.state === "fault"
+      ? null
+      : status.state === "off"
+        ? NOTE_OFF
+        : NOTE_ON;
   return (
     <Card title="Statusline">
       <SubsystemHeader
@@ -70,8 +77,7 @@ export function StatuslineCard() {
         >
           {status.watchedSessions} {status.watchKind}{" "}
           {status.watchedSessions === 1 ? "session" : "sessions"}, none
-          reporting — the statusline entry in ~/.claude/settings.json is missing
-          or broken.
+          reporting — captures have stopped. Repair rewrites the wrapper.
         </FaultBand>
       )}
       {status.state === "fault" && (
@@ -83,7 +89,7 @@ export function StatuslineCard() {
         </FaultBand>
       )}
 
-      {on && (
+      {showRows && (
         <>
           <RefreshRow
             value={status.refreshInterval}
@@ -108,9 +114,11 @@ export function StatuslineCard() {
         </>
       )}
 
-      <div className="px-4 py-2.5 text-meta leading-relaxed text-fg-faint">
-        {on ? NOTE_ON : NOTE_OFF}
-      </div>
+      {note !== null && (
+        <div className="px-4 py-2.5 text-meta leading-relaxed text-fg-faint">
+          {note}
+        </div>
+      )}
     </Card>
   );
 }
