@@ -36,6 +36,12 @@ const api: AppApi = {
   getAutoCheckUpdates: () => ipcRenderer.invoke(IPC.updateGetAutoCheck),
   setAutoCheckUpdates: (enabled) =>
     ipcRenderer.invoke(IPC.updateSetAutoCheck, enabled),
+  getStatuslineStatus: () => ipcRenderer.invoke(IPC.statuslineGetStatus),
+  setStatuslineEnabled: (enabled) =>
+    ipcRenderer.invoke(IPC.statuslineSetEnabled, enabled),
+  setStatuslineRefreshInterval: (seconds) =>
+    ipcRenderer.invoke(IPC.statuslineSetRefreshInterval, seconds),
+  repairStatusline: () => ipcRenderer.invoke(IPC.statuslineRepair),
   readSubagentTranscript: (id, agentId, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readSubagentTranscript, id, agentId, sinceMtimeMs),
   readTasks: (id, sinceMtimeMs) =>

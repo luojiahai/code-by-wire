@@ -223,28 +223,34 @@ app
           })
         : null,
     };
+    const appSettings = createAppSettingsStore({
+      dir: app.getPath("userData"),
+    });
     // Wrap the user's statusLine so live cost/context and account rate limits flow to the app.
-    // Idempotent and reversible; a failure must never cost the user a window.
-    try {
-      const result = createSettingsManager({ claudeDir }).install();
-      if (result.healed) {
-        console.warn(
-          "statusLine install was desynced (missing record or externally stripped entry); " +
-            "recovered the original command and reinstalled",
+    // Idempotent and reversible; a failure must never cost the user a window. Gated on the user's
+    // durable preference — a Settings-page Disable must survive relaunch, not silently re-install.
+    const settingsManager = createSettingsManager({ claudeDir });
+    let statuslineLaunchFault: string | null = null;
+    if (appSettings.read().statuslineEnabled ?? true) {
+      try {
+        const result = settingsManager.install();
+        if (result.healed) {
+          console.warn(
+            "statusLine install was desynced (missing record or externally stripped entry); " +
+              "recovered the original command and reinstalled",
+          );
+        }
+      } catch (err) {
+        statuslineLaunchFault = (err as Error).message;
+        console.error(
+          "statusLine install failed; live rate limits and cost will be unavailable",
+          err,
         );
       }
-    } catch (err) {
-      console.error(
-        "statusLine install failed; live rate limits and cost will be unavailable",
-        err,
-      );
     }
     const statusLine = createStatusLineReader({ claudeDir });
     const provider = createClaudeProvider({ managed, claudeDir });
     services.provider = provider;
-    const appSettings = createAppSettingsStore({
-      dir: app.getPath("userData"),
-    });
     const sessionTitles = createSessionTitleStore({
       dir: app.getPath("userData"),
     });
@@ -299,6 +305,8 @@ app
       sessionTitles,
       updater,
       appSettings,
+      settingsManager,
+      statuslineLaunchFault,
     });
 
     // One-shot launch check: packaged only, and only when the user hasn't turned it off. Deferred so it

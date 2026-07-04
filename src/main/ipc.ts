@@ -20,6 +20,9 @@ import {
   freshestBySession,
   CAPTURE_STALE_MS,
 } from "@shared/statusline";
+import { deriveStatuslineStatus } from "@shared/statusline-status";
+import type { StatuslineStatus } from "@shared/statusline-status";
+import type { SettingsManager } from "./settings/manager";
 import { applyTitleOverrides } from "@shared/title-override";
 import type { SessionTitleStore } from "./session-titles";
 import { getOverview, readSessionTitles } from "./db/store";
@@ -94,6 +97,11 @@ export interface IpcDeps {
   updater?: Updater;
   /** The app's own settings store (auto-check preference). Defaults to a no-op. */
   appSettings?: AppSettingsStore;
+  /** The statusLine wrapper's settings manager. When absent, the statusline handlers report a
+   *  wiring fault (dev harnesses that don't wire it still get a well-formed status). */
+  settingsManager?: SettingsManager;
+  /** Installer failure text from the launch attempt, surfaced as the initial fault. */
+  statuslineLaunchFault?: string | null;
 }
 
 export function attachCliStatus<T extends object>(
@@ -116,6 +124,8 @@ export function registerIpc({
   sessionTitles,
   updater,
   appSettings,
+  settingsManager,
+  statuslineLaunchFault,
 }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
@@ -179,6 +189,86 @@ export function registerIpc({
     const named = applyTitleOverrides(overlaid, sessionTitles?.read() ?? {});
     return attachCliStatus({ sessions: named, account }, () => cli.get());
   };
+
+  // The last statusline installer failure (launch or action). Cleared by a succeeding action; shown
+  // in the card's fault band. Module state is safe: registerIpc runs once, actions are serialized
+  // through ipcMain's handler queue.
+  let statuslineFault: string | null = statuslineLaunchFault ?? null;
+
+  /** The Statusline card's readout, assembled from the three sources main already has: the settings
+   *  manager (installed?, wrapped interval), the capture reader (freshest mtime per session), and the
+   *  session index (states for the watch population). Pure derivation lives in shared. */
+  const statuslineNow = (): StatuslineStatus => {
+    const wrapper = settingsManager?.status() ?? {
+      installed: false,
+      refreshInterval: null,
+    };
+    const captures = new Map<string, number>();
+    for (const s of reader.read()) {
+      const prev = captures.get(s.sessionId);
+      if (prev === undefined || s.capturedMtimeMs > prev)
+        captures.set(s.sessionId, s.capturedMtimeMs);
+    }
+    return deriveStatuslineStatus({
+      enabled: settings.read().statuslineEnabled ?? true,
+      installed: wrapper.installed,
+      fault:
+        statuslineFault ??
+        (settingsManager ? null : "Statusline is not wired in this build."),
+      refreshInterval: wrapper.refreshInterval,
+      captures,
+      sessions: getOverview(db).sessions.map((s) => ({
+        id: s.id,
+        state: s.state,
+      })),
+      now: Date.now(),
+    });
+  };
+
+  ipcMain.handle(IPC.statuslineGetStatus, () => statuslineNow());
+  ipcMain.handle(IPC.statuslineSetEnabled, (_e, enabled: boolean) => {
+    try {
+      if (!settingsManager)
+        throw new Error("Statusline is not wired in this build.");
+      if (enabled) {
+        // Preference first so a failing install still reads enabled+fault (Repair retries).
+        settings.setStatuslineEnabled(true);
+        settingsManager.install();
+      } else {
+        // Uninstall first: the preference only persists once the restore succeeded, so the
+        // toggle never claims off while the wrapper is still installed.
+        settingsManager.uninstall();
+        settings.setStatuslineEnabled(false);
+      }
+      statuslineFault = null;
+    } catch (err) {
+      statuslineFault = (err as Error).message;
+    }
+    return statuslineNow();
+  });
+  ipcMain.handle(
+    IPC.statuslineSetRefreshInterval,
+    (_e, seconds: number | null) => {
+      try {
+        settingsManager?.setRefreshInterval(seconds);
+        statuslineFault = null;
+      } catch (err) {
+        statuslineFault = (err as Error).message;
+      }
+      return statuslineNow();
+    },
+  );
+  ipcMain.handle(IPC.statuslineRepair, () => {
+    try {
+      if (!settingsManager)
+        throw new Error("Statusline is not wired in this build.");
+      settingsManager.install();
+      statuslineFault = null;
+    } catch (err) {
+      statuslineFault = (err as Error).message;
+    }
+    return statuslineNow();
+  });
 
   ipcMain.handle(IPC.overview, () => overviewNow());
   ipcMain.handle(IPC.refresh, () => {

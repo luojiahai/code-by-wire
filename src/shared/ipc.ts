@@ -17,6 +17,7 @@ import type { ModelDefaults } from "./models";
 import type { StatsSnapshot, StatsRange } from "./stats";
 import type { CliStatus } from "./cli-status";
 import type { UpdateState } from "./update";
+import type { StatuslineStatus } from "./statusline-status";
 export { type UpdateState };
 export const IPC = {
   overview: "overview:get",
@@ -45,6 +46,10 @@ export const IPC = {
   updateInstall: "update:install",
   updateGetAutoCheck: "update:getAutoCheck",
   updateSetAutoCheck: "update:setAutoCheck",
+  statuslineGetStatus: "statusline:getStatus",
+  statuslineSetEnabled: "statusline:setEnabled",
+  statuslineSetRefreshInterval: "statusline:setRefreshInterval",
+  statuslineRepair: "statusline:repair",
   /** PUSH: main -> renderer on every update-state transition. */
   updateState: "update:state",
 } as const;
@@ -187,6 +192,21 @@ export interface IpcApi {
   getAutoCheckUpdates(): Promise<boolean>;
   /** Persist the launch-check preference. */
   setAutoCheckUpdates(enabled: boolean): Promise<void>;
+  /** The Statusline card's readout: preference, install state, derived health, coverage. Assembled in
+   *  main; polled by the System section every 3s while open. Never rejects. */
+  getStatuslineStatus(): Promise<StatuslineStatus>;
+  /** Toggle capture. Disable = uninstall (settings restored byte-for-byte, captures removed) + persist
+   *  the preference; enable = clear it + install. Returns the fresh status; failures surface as
+   *  state "fault", never a rejection. */
+  setStatuslineEnabled(enabled: boolean): Promise<StatuslineStatus>;
+  /** Write refreshInterval (seconds, 1–60 from the UI) into the wrapped statusLine block; null means
+   *  events-only. Returns the fresh status. */
+  setStatuslineRefreshInterval(
+    seconds: number | null,
+  ): Promise<StatuslineStatus>;
+  /** Re-run the installer's self-heal (recovers a stripped entry / vanished record). Returns the
+   *  fresh status. */
+  repairStatusline(): Promise<StatuslineStatus>;
 }
 
 /** Everything exposed on `window.api`: the request/response surface plus the Managed-terminal surface. */
