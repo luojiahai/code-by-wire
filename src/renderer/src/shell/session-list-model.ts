@@ -23,6 +23,13 @@ export function filterSessions(sessions: Session[], query: string): Session[] {
   );
 }
 
+/** The active-only toggle's filter (2026-07-04 sidebar spec §4): live sessions (working, waiting,
+ *  idle) stay; ended drop. Order-preserving — composes before grouping, so a project whose sessions
+ *  are all ended simply grows no group. */
+export function filterActive(sessions: Session[]): Session[] {
+  return sessions.filter((s) => s.state !== "ended");
+}
+
 /** Label for sessions whose transcript carries no project path. */
 export const UNGROUPED_LABEL = "(no project)";
 
