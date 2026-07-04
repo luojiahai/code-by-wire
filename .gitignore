@@ -11,6 +11,7 @@ release/
 .claude/skills/*
 # ...except repo-owned skills committed here
 !.claude/skills/release/
+skills-lock.json
 
 # Superpowers plugin state and generated docs: local only, never tracked
 .superpowers/
