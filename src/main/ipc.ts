@@ -1,4 +1,5 @@
 import { ipcMain, shell, clipboard } from "electron";
+import { homedir } from "node:os";
 import {
   IPC,
   type OverviewData,
@@ -187,7 +188,10 @@ export function registerIpc({
     // Claude's live session_name. Read fresh each call so a just-persisted rename shows immediately.
     const overlaid = overlaySessions(base.sessions, byId);
     const named = applyTitleOverrides(overlaid, sessionTitles?.read() ?? {});
-    return attachCliStatus({ sessions: named, account }, () => cli.get());
+    return attachCliStatus(
+      { sessions: named, account, homeDir: homedir() },
+      () => cli.get(),
+    );
   };
 
   // The last statusline installer failure (launch or action). Cleared by a succeeding action; shown

@@ -68,6 +68,9 @@ export interface OverviewData extends IndexOverview {
   account: Account | null;
   /** The cached Claude Code CLI verdict, or null before the first check completes. */
   cliStatus: CliStatus | null;
+  /** The user's home directory (os.homedir()), for ~-abbreviating paths in the renderer (the
+   *  sidebar's group hints). Rides the overview so no separate IPC round trip is needed. */
+  homeDir: string;
 }
 
 /** The result of an on-demand tasks read: a fresh list with a change token the caller echoes back as

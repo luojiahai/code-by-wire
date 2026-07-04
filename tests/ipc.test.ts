@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { homedir } from "node:os";
 import type { PersistedSession } from "@shared/types";
 import { IPC, type OverviewData } from "@shared/ipc";
 import type { Provider } from "../src/main/provider/types";
@@ -105,6 +106,14 @@ describe("registerIpc overview", () => {
     const handler = handlers.get(IPC.overview)!;
     const o = handler() as OverviewData;
     expect(o.sessions.map((s) => s.id)).toEqual(["seed"]);
+  });
+
+  it("carries the user's home directory for path abbreviation", () => {
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider: provider(() => []) });
+    const o = handlers.get(IPC.overview)!() as OverviewData;
+    expect(o.homeDir).toBe(homedir());
   });
 });
 
