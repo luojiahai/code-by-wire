@@ -5,7 +5,9 @@ import type { StatuslineDeriveInputs } from "../../src/shared/statusline-status"
 const NOW = 1_800_000_000_000;
 
 /** Baseline: enabled + installed, interval 10s, one live session reporting 4s ago. */
-function inputs(over: Partial<StatuslineDeriveInputs> = {}): StatuslineDeriveInputs {
+function inputs(
+  over: Partial<StatuslineDeriveInputs> = {},
+): StatuslineDeriveInputs {
   return {
     enabled: true,
     installed: true,
@@ -20,13 +22,17 @@ function inputs(over: Partial<StatuslineDeriveInputs> = {}): StatuslineDeriveInp
 
 describe("deriveStatuslineStatus — states", () => {
   it("is off when the preference is disabled, regardless of everything else", () => {
-    const s = deriveStatuslineStatus(inputs({ enabled: false, installed: false }));
+    const s = deriveStatuslineStatus(
+      inputs({ enabled: false, installed: false }),
+    );
     expect(s.state).toBe("off");
     expect(s.fault).toBeUndefined();
   });
 
   it("is fault with the given message when the installer failed", () => {
-    const s = deriveStatuslineStatus(inputs({ fault: "settings.json is not valid JSON" }));
+    const s = deriveStatuslineStatus(
+      inputs({ fault: "settings.json is not valid JSON" }),
+    );
     expect(s.state).toBe("fault");
     expect(s.fault).toBe("settings.json is not valid JSON");
   });
@@ -105,15 +111,22 @@ describe("deriveStatuslineStatus — watch population & freshness", () => {
   it("freshness threshold is 3× the interval, floored at 60s", () => {
     // interval 10s → threshold 60s (floor): a 59s-old capture is fresh, a 61s-old one is not
     expect(
-      deriveStatuslineStatus(inputs({ captures: new Map([["s1", NOW - 59_000]]) })).state,
+      deriveStatuslineStatus(
+        inputs({ captures: new Map([["s1", NOW - 59_000]]) }),
+      ).state,
     ).toBe("capturing");
     expect(
-      deriveStatuslineStatus(inputs({ captures: new Map([["s1", NOW - 61_000]]) })).state,
+      deriveStatuslineStatus(
+        inputs({ captures: new Map([["s1", NOW - 61_000]]) }),
+      ).state,
     ).toBe("stale");
     // interval 30s → threshold 90s: an 80s-old capture is still fresh
     expect(
       deriveStatuslineStatus(
-        inputs({ refreshInterval: 30, captures: new Map([["s1", NOW - 80_000]]) }),
+        inputs({
+          refreshInterval: 30,
+          captures: new Map([["s1", NOW - 80_000]]),
+        }),
       ).state,
     ).toBe("capturing");
   });
@@ -122,12 +135,20 @@ describe("deriveStatuslineStatus — watch population & freshness", () => {
     const working = [{ id: "s1", state: "working" as const }];
     expect(
       deriveStatuslineStatus(
-        inputs({ refreshInterval: null, sessions: working, captures: new Map([["s1", NOW - 50_000]]) }),
+        inputs({
+          refreshInterval: null,
+          sessions: working,
+          captures: new Map([["s1", NOW - 50_000]]),
+        }),
       ).state,
     ).toBe("capturing");
     expect(
       deriveStatuslineStatus(
-        inputs({ refreshInterval: null, sessions: working, captures: new Map([["s1", NOW - 70_000]]) }),
+        inputs({
+          refreshInterval: null,
+          sessions: working,
+          captures: new Map([["s1", NOW - 70_000]]),
+        }),
       ).state,
     ).toBe("stale");
   });
