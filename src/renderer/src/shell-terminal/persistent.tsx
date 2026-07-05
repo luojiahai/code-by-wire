@@ -85,10 +85,14 @@ export function PersistentTerminal() {
     let frame = 0;
     const tick = (): void => {
       const r = slot.getBoundingClientRect();
-      // floor top/left + ceil right/bottom: the overlay always covers the slot's full pixel
-      // footprint, so half-pixel rects can't leak page bg through.
-      const top = Math.floor(r.top);
-      const left = Math.floor(r.left);
+      // Round the top/left INWARD (ceil) and the right/bottom OUTWARD (ceil) so the overlay covers
+      // the slot's footprint without painting over the wrapper's 1px top/left borders. At a large
+      // window the grid lands on fractional px; a floor() here pulls the overlay a sub-pixel left/up
+      // into the border and hides it (the bug only showed full-screen — at ~1100px the grid was
+      // integer-aligned). The resulting <1px inset on the top/left exposes the wrapper's own
+      // --ui-editor-surface-background behind the overlay — the same color — so there's no gap.
+      const top = Math.ceil(r.top);
+      const left = Math.ceil(r.left);
       const next: Rect = {
         top,
         left,
