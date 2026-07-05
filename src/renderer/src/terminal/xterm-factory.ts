@@ -4,6 +4,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import type { FitLike, XtermLike } from "./terminal-store";
 import { viewportScrollTop } from "./viewport-scroll";
+import { createWebLinksAddon } from "./web-links";
 import {
   thumbMetrics,
   scrollTopForThumbTop,
@@ -218,6 +219,10 @@ export function createXterm(): {
   const term = new Terminal(OPTIONS);
   const fit = new FitAddon();
   term.loadAddon(fit);
+  // URLs in claude's output were plain text before this — the factory loaded only fit + WebGL.
+  term.loadAddon(
+    createWebLinksAddon((url) => void window.api.openExternal(url)),
+  );
   // The WebGL addon needs the canvas, which only exists after the view calls term.open(). Wrap open so
   // the renderer attaches itself right after — keeping all GPU-renderer wiring in this seam, with the
   // view and store untouched. open() is called once (guarded by handle.opened in the view).
