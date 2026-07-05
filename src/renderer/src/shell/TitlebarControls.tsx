@@ -41,7 +41,7 @@ export function TitlebarControls({ hasSession }: { hasSession: boolean }) {
   return (
     <>
       <div
-        className="no-drag fixed z-40 flex select-none items-center gap-x-1 translate-y-0.5"
+        className="no-drag fixed z-40 flex select-none items-center gap-x-1"
         data-suppress-pane-reveal=""
         style={{
           left: titlebarControlsLeftPx(isMac, isFullscreen),
