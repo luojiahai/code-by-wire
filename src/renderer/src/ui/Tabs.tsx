@@ -5,59 +5,28 @@ import { Icon, type IconName } from "./icons";
 export interface TabItem<T extends string> {
   id: T;
   label: string;
-  /** Optional leading glyph (the center column's Terminal/Transcript tabs). */
+  /** Optional leading glyph. */
   icon?: IconName;
-  /** Optional trailing count badge (the dock's Tasks/Subagents/Shells/Turns tabs). */
+  /** Optional trailing count badge (the Activity dock's Tasks/Subagents/Shells tabs). */
   count?: number;
 }
 
-/** The two tab looks: `underline` for the primary view switch (center column), `lozenge` for the
- *  utility dock. Both are trackless — the old bordered pill is retired. */
-export type TabsVariant = "underline" | "lozenge";
-
-/** Per-variant class sets: a shared `base` shape plus the `active`/`idle` tone deltas, so a shape tweak
- *  lands in one string and the two states can't drift. */
-const VARIANT_CLASSES: Record<
-  TabsVariant,
-  { base: string; active: string; idle: string }
-> = {
-  lozenge: {
-    base: "rounded-sm px-2.5 py-1",
-    active: "bg-ink-900 font-medium text-fg",
-    idle: "text-fg-faint hover:text-fg",
-  },
-  underline: {
-    base: "-mb-px border-b-2 px-3",
-    active: "border-(--ui-text-primary) font-medium text-(--ui-text-primary)",
-    idle: "border-transparent text-(--ui-text-tertiary) hover:text-(--ui-text-primary)",
-  },
-};
-
 /**
- * The app's tab control. One primitive, two variants so the center column's Terminal/Transcript switch
- * and the Activity dock's tab bar share their icon/count/selection logic while reading distinct by role.
- * Each tab can carry a leading icon, a trailing count, or both.
+ * The app's tab control: a single trackless underline switcher (active = a 2px rule under the label,
+ * pulled down 1px to sit on the bar's own border). The Activity dock is its sole consumer. Each tab can
+ * carry a leading icon, a trailing count, or both.
  */
 export function Tabs<T extends string>({
   tabs,
   value,
   onChange,
-  variant,
 }: {
   tabs: TabItem<T>[];
   value: T;
   onChange: (id: T) => void;
-  variant: TabsVariant;
 }) {
-  const look = VARIANT_CLASSES[variant];
   return (
-    <div
-      className={cx(
-        variant === "lozenge"
-          ? "inline-flex items-center gap-0.5"
-          : "flex items-stretch",
-      )}
-    >
+    <div className="flex items-stretch">
       {tabs.map((t) => {
         const active = value === t.id;
         return (
@@ -67,10 +36,11 @@ export function Tabs<T extends string>({
             onClick={() => onChange(t.id)}
             aria-pressed={active}
             className={cx(
-              "inline-flex items-center gap-1.5 text-aux transition-colors",
+              "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 text-aux transition-colors",
               focusRing,
-              look.base,
-              active ? look.active : look.idle,
+              active
+                ? "border-(--ui-text-primary) font-medium text-(--ui-text-primary)"
+                : "border-transparent text-(--ui-text-tertiary) hover:text-(--ui-text-primary)",
             )}
           >
             {t.icon && <Icon name={t.icon} size={13} />}

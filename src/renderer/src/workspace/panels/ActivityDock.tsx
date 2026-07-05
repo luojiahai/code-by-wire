@@ -210,7 +210,6 @@ function DockTabBar({
         ]}
         value={tab}
         onChange={onChange}
-        variant="underline"
       />
       <button
         type="button"
