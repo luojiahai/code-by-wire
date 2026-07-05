@@ -11,16 +11,16 @@ const GLYPH: Record<Task["status"], string> = {
   pending: "○",
 };
 const GLYPH_TONE: Record<Task["status"], string> = {
-  completed: "text-fg-faint",
+  completed: "text-(--ui-text-tertiary)",
   in_progress: "text-working-bright",
   blocked: "text-accent-bright",
-  pending: "text-fg-muted",
+  pending: "text-(--ui-text-secondary)",
 };
 const SUBJECT_TONE: Record<Task["status"], string> = {
-  completed: "text-fg-faint line-through",
-  in_progress: "text-fg",
-  blocked: "text-fg-muted",
-  pending: "text-fg",
+  completed: "text-(--ui-text-tertiary) line-through",
+  in_progress: "text-(--ui-text-primary)",
+  blocked: "text-(--ui-text-secondary)",
+  pending: "text-(--ui-text-primary)",
 };
 
 /**
