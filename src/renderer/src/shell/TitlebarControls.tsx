@@ -88,7 +88,7 @@ function TitlebarToolButton({
       aria-label={label}
       title={label}
       onClick={onSelect}
-      className="inline-flex items-center justify-center rounded-[4px] text-(--ui-text-secondary)/85 transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
+      className="inline-flex items-center justify-center rounded-sm text-(--ui-text-secondary)/85 transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
       style={{ height: TITLEBAR_CONTROL_HEIGHT, width: TITLEBAR_CONTROL_WIDTH }}
     >
       {/* 16, not hermes's 14: hermes renders codicons, whose artwork fills ~the full em; lucide

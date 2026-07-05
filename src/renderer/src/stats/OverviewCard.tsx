@@ -251,7 +251,7 @@ function Contributions({
         {CALENDAR_RAMP.map((c, i) => (
           <span
             key={i}
-            className="inline-block h-2.5 w-2.5 rounded-[2px]"
+            className="inline-block h-2.5 w-2.5 rounded-xs"
             style={{ background: c }}
           />
         ))}

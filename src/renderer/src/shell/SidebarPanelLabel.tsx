@@ -29,7 +29,7 @@ export function SidebarPanelLabel({
         </span>
       ) : (
         <span className="grid size-3.5 shrink-0 place-items-center">
-          <span className="dither inline-block size-2 shrink-0 rounded-[1px]" />
+          <span className="dither inline-block size-2 shrink-0 rounded-xs" />
         </span>
       )}
       <span className="min-w-0 truncate leading-none">{children}</span>

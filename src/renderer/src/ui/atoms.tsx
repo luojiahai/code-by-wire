@@ -39,7 +39,7 @@ export function Lamp({
 export function Swatch({ color }: { color: string }) {
   return (
     <span
-      className="h-2 w-2 shrink-0 rounded-[2px]"
+      className="h-2 w-2 shrink-0 rounded-xs"
       style={{ background: color }}
     />
   );

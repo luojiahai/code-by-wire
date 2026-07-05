@@ -185,7 +185,7 @@ export function SessionMenu({
             inputRef.current?.blur(); // cancel via onBlur, guarded by cancelledRef
           }
         }}
-        className="no-drag h-6 w-72 max-w-full rounded-[2.5px] border border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) px-2 text-[0.75rem] font-medium text-fg outline-none"
+        className="no-drag h-6 w-72 max-w-full rounded-xs border border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) px-2 text-[0.75rem] font-medium text-fg outline-none"
       />
     );
   }
@@ -232,7 +232,7 @@ export function SessionMenu({
         aria-haspopup="menu"
         aria-controls={open ? menuId : undefined}
         title="Session menu"
-        className="flex h-6 min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-[2.5px] border border-transparent bg-transparent px-2 py-0 text-left text-(--ui-text-secondary) transition-colors duration-100 hover:border-(--ui-stroke-tertiary) hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none aria-expanded:border-(--ui-stroke-tertiary) aria-expanded:bg-(--ui-control-active-background)"
+        className="flex h-6 min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-xs border border-transparent bg-transparent px-2 py-0 text-left text-(--ui-text-secondary) transition-colors duration-100 hover:border-(--ui-stroke-tertiary) hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none aria-expanded:border-(--ui-stroke-tertiary) aria-expanded:bg-(--ui-control-active-background)"
       >
         <span className="min-w-0 truncate text-[0.75rem] font-medium leading-none">
           {session.title}
@@ -393,7 +393,7 @@ function MenuItem({
       disabled={disabled}
       title={title}
       className={cx(
-        "flex w-full items-center gap-2.5 rounded-[2.5px] px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:bg-(--ui-control-hover-background) disabled:cursor-default disabled:opacity-40",
+        "flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:bg-(--ui-control-hover-background) disabled:cursor-default disabled:opacity-40",
         danger
           ? "text-danger enabled:hover:bg-danger/10"
           : "text-fg-muted enabled:hover:bg-(--ui-control-hover-background) enabled:hover:text-fg",
