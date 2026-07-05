@@ -14,7 +14,9 @@ import { registerIpc } from "./ipc";
 import { createSettingsManager } from "./settings/manager";
 import { createStatusLineReader } from "./statusline/reader";
 import { registerTerminalIpc } from "./terminal/ipc";
+import { registerShellTerminalIpc } from "./terminal/shell-ipc";
 import { buildChildEnv } from "./terminal/child-env";
+import { buildShellEnv } from "./terminal/shell-command";
 import { readAccountEmail } from "./settings/account-email";
 import { readModelDefaults } from "./settings/model-defaults";
 import type { ModelDefaults } from "@shared/models";
@@ -44,6 +46,7 @@ function createWindow(
   registerRename: (rename: (from: string, to: string) => void) => void,
   childEnv: (() => NodeJS.ProcessEnv) | undefined,
   resolveBin: (() => string | null) | undefined,
+  shellEnv: () => NodeJS.ProcessEnv,
 ): void {
   // The renderer header is a fixed HEADER_HEIGHT_PX tall and doubles as the title bar. On macOS we hide
   // the native title bar but KEEP the traffic lights (titleBarStyle 'hidden', never frame:false — the
@@ -91,6 +94,11 @@ function createWindow(
     resolveBin,
   });
   registerRename(rename);
+
+  // The footer shell terminal: a second manager on its own channels. No registry, no adopt/fork —
+  // plain interactive shells that die with the window.
+  registerShellTerminalIpc({ window: win, env: shellEnv });
+
   win.on("closed", () => registerRename(() => {}));
 
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -154,6 +162,16 @@ app
         correctedPath: childEnvInputs.correctedPath,
       }));
     };
+    // Env for user shells in the footer terminal: process.env with the recovered PATH (packaged,
+    // Finder-launched) run through buildShellEnv's scrub/declare. Unlike childEnv it does NOT pin
+    // CLAUDE_CONFIG_DIR — a user's interactive shell keeps their own config (hermes parity).
+    const shellTermEnv = (): NodeJS.ProcessEnv =>
+      buildShellEnv({
+        baseEnv: childEnvInputs?.correctedPath
+          ? { ...process.env, PATH: childEnvInputs.correctedPath }
+          : process.env,
+        appVersion: app.getVersion(),
+      });
     // provider + cliStatus are wired below, AFTER the window. The window's closures only read them on a
     // later spawn/adopt (never during createWindow), so a holder populated a few lines down is enough —
     // and it lets the window open before claudeDir, which needs the synchronous login-shell probe.
@@ -173,6 +191,7 @@ app
         registerRename,
         childEnv,
         () => services.cliStatus?.resolvedPath() ?? null,
+        shellTermEnv,
       );
     openWindow();
     app.on("activate", () => {
