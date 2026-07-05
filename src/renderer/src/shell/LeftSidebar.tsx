@@ -158,7 +158,7 @@ export function LeftSidebar({
               type="button"
               aria-label="Clear search"
               onClick={() => setQuery("")}
-              className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-[4px] text-(--ui-text-tertiary)/85 transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
+              className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-(--ui-text-tertiary)/85 transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
             >
               <Icon name="x" size={16} />
             </button>
@@ -179,7 +179,7 @@ export function LeftSidebar({
               )
             }
             title={allCollapsed ? "Expand all" : "Collapse all"}
-            className="grid size-5 cursor-pointer place-items-center rounded-[5px] border border-transparent text-(--ui-text-quaternary) transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
+            className="grid size-5 cursor-pointer place-items-center rounded-sm border border-transparent text-(--ui-text-quaternary) transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
           >
             <Icon
               name={allCollapsed ? "chevrons-up-down" : "chevrons-down-up"}
@@ -194,7 +194,7 @@ export function LeftSidebar({
               activeOnly ? "Show all sessions" : "Show active sessions only"
             }
             className={cx(
-              "grid size-5 cursor-pointer place-items-center rounded-[5px] border transition-colors duration-100 ease-out hover:transition-none",
+              "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
               activeOnly
                 ? "border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-fg"
                 : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",

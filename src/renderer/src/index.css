@@ -98,25 +98,30 @@
   --text-heading--line-height: 1.25;
   --text-display: 1.5rem; /* 24px — big gauge / stat numerals */
   --text-display--line-height: 1;
+}
 
-  /* Radius scale — hermes's scalar radius system (styles.css's `@theme inline`
-     block resolves these as `calc(var(--radius-scalar) * …)`; the values below
-     are that formula pre-resolved at hermes's own --radius-scalar: 0.6). Tailwind
-     v4 maps --radius-* onto the rounded-* utilities. */
-  --radius-xs: 0.075rem;
-  --radius-sm: 0.3rem;
-  --radius-md: 0.375rem; /* 6px — hermes rounded-md */
-  --radius-lg: 0.45rem;
-  --radius-xl: 0.6rem;
-  --radius-2xl: 0.9rem;
-  --radius-3xl: 1.2rem;
-  --radius-4xl: 1.5rem;
+/* Radius scale — hermes's scalar radius system (styles.css's `@theme inline`
+   block): each tier is hermes's base value × --radius-scalar (defined on :root
+   below). Tailwind v4 maps --radius-* onto the rounded-* utilities; `inline`
+   bakes each calc() into the utility so the scalar resolves live at runtime.
+   px comments give the resolved value at the current scalar 0.3. */
+@theme inline {
+  --radius-xs: calc(var(--radius-scalar) * 0.125rem); /* 0.6px */
+  --radius-sm: calc(var(--radius-scalar) * 0.5rem); /* 2.4px */
+  --radius-md: calc(var(--radius-scalar) * 0.625rem); /* 3px */
+  --radius-lg: calc(var(--radius-scalar) * 0.75rem); /* 3.6px */
+  --radius-xl: calc(var(--radius-scalar) * 1rem); /* 4.8px */
+  --radius-2xl: calc(var(--radius-scalar) * 1.5rem); /* 7.2px */
+  --radius-3xl: calc(var(--radius-scalar) * 2rem); /* 9.6px */
+  --radius-4xl: calc(var(--radius-scalar) * 2.5rem); /* 12px */
 }
 
 :root {
   --titlebar-height: 34px; /* Must stay in lockstep with HEADER_HEIGHT_PX in src/shared/chrome.ts. */
-  /* Scales the `rounded-full` override below (hermes styles.css:540-545); hermes's own default. */
-  --radius-scalar: 0.6;
+  /* Single knob for every corner radius: feeds the @theme inline ladder above
+     and the `rounded-full` override below (hermes styles.css:540-545). Hermes
+     ships 0.6; code-by-wire runs compact at 0.3 (2026-07-05 spec). */
+  --radius-scalar: 0.3;
 
   /* Hermes Mono seeds — the raw grayscale values hermes's monoTheme preset
      (apps/desktop/src/themes/presets.ts) assigns to foreground/primary/midground/

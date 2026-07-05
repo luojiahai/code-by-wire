@@ -101,7 +101,7 @@ export function ToolResultModal({
           disabled={state.phase !== "ready"}
           onClick={cmd.copy}
           className={cx(
-            "shrink-0 rounded border px-2 py-0.5 text-label transition-colors disabled:opacity-40",
+            "shrink-0 rounded-sm border px-2 py-0.5 text-label transition-colors disabled:opacity-40",
             cmd.copied
               ? "border-ink-600 text-fg"
               : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
@@ -142,7 +142,7 @@ export function ToolResultModal({
           disabled={state.phase !== "ready" || state.detail.output === ""}
           onClick={out.copy}
           className={cx(
-            "rounded border px-2 py-0.5 transition-colors disabled:opacity-40",
+            "rounded-sm border px-2 py-0.5 transition-colors disabled:opacity-40",
             out.copied
               ? "border-ink-600 text-fg"
               : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",

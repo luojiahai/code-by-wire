@@ -151,7 +151,7 @@ function DockTabBar({
         onClick={onCollapse}
         aria-label="Collapse structure dock"
         title="Collapse"
-        className="ml-auto inline-flex items-center justify-center rounded p-1 text-fg-faint transition-colors hover:text-fg"
+        className="ml-auto inline-flex items-center justify-center rounded-sm p-1 text-fg-faint transition-colors hover:text-fg"
       >
         <Icon name="chevron-down" size={14} />
       </button>

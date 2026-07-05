@@ -22,7 +22,7 @@ const VARIANT_CLASSES: Record<
   { base: string; active: string; idle: string }
 > = {
   lozenge: {
-    base: "rounded px-2.5 py-1",
+    base: "rounded-sm px-2.5 py-1",
     active: "bg-ink-900 font-medium text-fg",
     idle: "text-fg-faint hover:text-fg",
   },

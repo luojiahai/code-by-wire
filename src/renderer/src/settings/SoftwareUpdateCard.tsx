@@ -168,7 +168,7 @@ function StatusRow({ update }: { update: UpdateControls }) {
         <div className="flex items-center gap-2">
           <span className="text-body font-medium text-fg">{headline}</span>
           {version && (
-            <span className="rounded border border-ink-700 px-1.5 py-0.5 font-mono text-meta text-primary-bright">
+            <span className="rounded-sm border border-ink-700 px-1.5 py-0.5 font-mono text-meta text-primary-bright">
               v{version}
             </span>
           )}

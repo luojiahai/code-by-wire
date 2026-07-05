@@ -13,7 +13,7 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
       title={copied ? "Copied" : label}
       onClick={copy}
       className={cx(
-        "inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors",
+        "inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-sm border transition-colors",
         copied
           ? "border-ink-700 text-fg"
           : "border-ink-800 text-fg-faint hover:border-ink-700 hover:text-fg",

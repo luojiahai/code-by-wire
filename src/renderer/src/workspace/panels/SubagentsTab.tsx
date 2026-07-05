@@ -76,7 +76,7 @@ function SubagentRow({
       }
     >
       {tag && (
-        <span className="shrink-0 rounded bg-ink-800 px-1 py-px font-mono text-micro text-fg-faint">
+        <span className="shrink-0 rounded-sm bg-ink-800 px-1 py-px font-mono text-micro text-fg-faint">
           {tag}
         </span>
       )}

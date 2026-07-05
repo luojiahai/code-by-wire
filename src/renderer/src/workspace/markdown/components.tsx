@@ -100,7 +100,7 @@ export const markdownComponents: Components = {
     const inline = node ? isInlineCode(node as unknown as Element) : false;
     if (inline) {
       return (
-        <code className="rounded border border-ink-800 bg-ink-900 px-1 py-0.5 font-mono text-aux text-fg">
+        <code className="rounded-sm border border-ink-800 bg-ink-900 px-1 py-0.5 font-mono text-aux text-fg">
           {children}
         </code>
       );

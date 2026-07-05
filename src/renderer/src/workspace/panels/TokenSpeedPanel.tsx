@@ -38,7 +38,7 @@ export function TokenSpeedPanel({
         icon="activity"
         info={SPEED_INFO}
         right={
-          <span className="rounded-[3px] border border-(--ui-stroke-secondary) px-1.5 py-0.5 text-[0.65rem] font-medium leading-none text-(--ui-text-tertiary)">
+          <span className="rounded-sm border border-(--ui-stroke-secondary) px-1.5 py-0.5 text-[0.65rem] font-medium leading-none text-(--ui-text-tertiary)">
             {SPEED_WINDOW_LABEL}
           </span>
         }

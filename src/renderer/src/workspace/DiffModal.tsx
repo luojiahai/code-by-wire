@@ -63,7 +63,7 @@ export function DiffModal({
             type="button"
             onClick={pathCopy.copy}
             className={cx(
-              "mt-0.5 shrink-0 rounded border px-2 py-0.5 text-label transition-colors",
+              "mt-0.5 shrink-0 rounded-sm border px-2 py-0.5 text-label transition-colors",
               pathCopy.copied
                 ? "border-ink-600 text-fg"
                 : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
@@ -98,7 +98,7 @@ export function DiffModal({
           type="button"
           onClick={copy}
           className={cx(
-            "rounded border px-2 py-0.5 transition-colors",
+            "rounded-sm border px-2 py-0.5 transition-colors",
             copied
               ? "border-ink-600 text-fg"
               : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
