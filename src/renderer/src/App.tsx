@@ -51,7 +51,6 @@ import { TerminalPaneChrome } from "./shell-terminal/chrome";
 import { PersistentTerminal } from "./shell-terminal/persistent";
 import { installTerminalKeybind } from "./shell-terminal/keybinds";
 import { $activeSessionCwd, $terminalTakeover } from "./shell-terminal/store";
-import { cx } from "./ui/atoms";
 
 /** The middle column's sentinel for the inline new-session view (design spec §5), alongside
  *  `OVERVIEW_ID`/`SETTINGS_ID`: not a real session id (real ids come from `newSessionId()`, which
@@ -520,14 +519,22 @@ export function App() {
           disabled={!terminalOpen}
           bottomRow={terminalAsRow}
         >
-          {/* As a column the sash separates it from the workspace; as a row inside the rail the
-              sash moves to the top edge, so the left border takes over as the separator. */}
-          <div
-            className={cx(
-              "relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-editor-surface-background)",
-              terminalAsRow && "border-l border-(--ui-stroke-secondary)",
+          {/* A persistent left border anchors the pane against the workspace, matching the metrics
+              sidebar (its resize sash alone reads as no edge until hovered). As a column it's the
+              left edge; as a row inside the rail the sash moves to the top edge, so this same border
+              stays the row's left separator. */}
+          <div className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-l border-(--ui-stroke-secondary) bg-(--ui-editor-surface-background)">
+            {/* As a full-height column the terminal reaches the top of the window, so it must clear
+                the titlebar band (the fixed sidebar-toggle clusters float there) — the same
+                --titlebar-height drag strip every other rail column reserves (see RightSidebar). As a
+                bottom row it sits beneath the already-cleared metrics column, so it needs no strip
+                (hermes' pt-(--titlebar-height) vs pt-0 on terminalAsRow). */}
+            {!terminalAsRow && (
+              <div
+                className="drag-region shrink-0 select-none"
+                style={{ height: "var(--titlebar-height)" }}
+              />
             )}
-          >
             <TerminalPaneChrome />
           </div>
         </Pane>
