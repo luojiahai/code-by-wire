@@ -12,3 +12,7 @@ export const RIGHT_MAX_WIDTH = 320; // hermes FILE_BROWSER_MAX_WIDTH (20rem)
 
 ensurePaneRegistered(CBW_LEFT_PANE_ID, { open: true });
 ensurePaneRegistered(CBW_RIGHT_PANE_ID, { open: true });
+
+export const CBW_TERMINAL_PANE_ID = "cbw-terminal";
+
+ensurePaneRegistered(CBW_TERMINAL_PANE_ID, { open: true });
