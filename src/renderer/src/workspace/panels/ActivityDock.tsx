@@ -1,7 +1,13 @@
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { Subagent, Task, BackgroundShell } from "@shared/types";
 import { Icon } from "../../ui/icons";
 import { Tabs } from "../../ui/Tabs";
+import { SidebarPanelLabel } from "../../shell/SidebarPanelLabel";
 import type { DocState } from "../use-transcript";
 import { DockTasks } from "./DockTasks";
 import { SubagentsTab } from "./SubagentsTab";
@@ -16,14 +22,17 @@ import {
   resolveDockCollapsed,
   subagentStats,
 } from "./dock-tabs";
+import { useStore } from "@nanostores/react";
+import { $paneHeightOverride, setPaneHeightOverride } from "../../shell/panes";
+import { DOCK_DEFAULT_HEIGHT, clampDockHeight } from "./dock-resize";
 
 /**
- * The Session workspace's bottom Structure dock: a single tabbed section (Tasks / Subagents / Shells)
+ * The Session workspace's bottom Activity dock: a single tabbed section (Tasks / Subagents / Shells)
  * spanning the center column below the live view. Collapses to a thin tally bar so the Transcript
  * can take the full height, and width-gates with the rail (hidden below `lg`) so a narrow window degrades
  * cleanly to just the live view.
  */
-export function StructureDock({
+export function ActivityDock({
   tasks,
   doc,
   shells,
@@ -74,6 +83,46 @@ export function StructureDock({
           ? "subagents"
           : defaultDockTab(stats);
 
+  // Drag-to-resize the expanded dock, persisted like a sidebar (shell/panes.ts, id "activity-dock").
+  const heightOverride = useStore($paneHeightOverride("activity-dock"));
+  const height = heightOverride ?? DOCK_DEFAULT_HEIGHT;
+  const dockRef = useRef<HTMLDivElement>(null);
+  // Grows upward from the top edge: dragging the sash up (clientY down) increases height. Pointer-capture
+  // + window listeners mirror the pane-shell sash so a fast drag that leaves the strip still tracks.
+  const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const base = dockRef.current?.getBoundingClientRect().height ?? 0;
+    if (base <= 0) return;
+    event.preventDefault();
+    const handle = event.currentTarget;
+    const { pointerId } = event;
+    const startY = event.clientY;
+    const restoreCursor = document.body.style.cursor;
+    const restoreSelect = document.body.style.userSelect;
+    handle.setPointerCapture?.(pointerId);
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    const onMove = (e: PointerEvent) => {
+      const next = base + (startY - e.clientY);
+      setPaneHeightOverride(
+        "activity-dock",
+        clampDockHeight(next, window.innerHeight),
+      );
+    };
+    const cleanup = () => {
+      document.body.style.cursor = restoreCursor;
+      document.body.style.userSelect = restoreSelect;
+      handle.releasePointerCapture?.(pointerId);
+      window.removeEventListener("pointermove", onMove, true);
+      window.removeEventListener("pointerup", cleanup, true);
+      window.removeEventListener("pointercancel", cleanup, true);
+      window.removeEventListener("blur", cleanup);
+    };
+    window.addEventListener("pointermove", onMove, true);
+    window.addEventListener("pointerup", cleanup, true);
+    window.addEventListener("pointercancel", cleanup, true);
+    window.addEventListener("blur", cleanup);
+  };
+
   if (collapsed)
     return (
       <DockTally
@@ -85,7 +134,21 @@ export function StructureDock({
     );
 
   return (
-    <div className="hidden h-64 shrink-0 flex-col border-t border-ink-800 bg-ink-925 lg:flex">
+    <div
+      ref={dockRef}
+      style={{ height }}
+      className="relative hidden shrink-0 flex-col border-t border-(--ui-stroke-tertiary) bg-(--ui-surface-background) lg:flex"
+    >
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize activity dock"
+        tabIndex={0}
+        onPointerDown={startResize}
+        className="group absolute inset-x-0 top-0 z-20 h-1 -translate-y-1/2 cursor-row-resize [-webkit-app-region:no-drag]"
+      >
+        <span className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-primary/40 opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
+      </div>
       <DockTabBar
         tab={tab}
         onChange={(t) => setPick({ tab: t, alive })}
@@ -117,8 +180,8 @@ export function StructureDock({
   );
 }
 
-/** The dock's tab bar: the shared lozenge Tabs of Tasks / Subagents / Shells (each with a count) plus a
- *  collapse glyph. */
+/** The dock's header bar: an ACTIVITY overline label, the underline Tabs of Tasks / Subagents / Shells
+ *  (each with a count), and a collapse chevron pinned to the right edge. */
 function DockTabBar({
   tab,
   onChange,
@@ -135,7 +198,10 @@ function DockTabBar({
   onCollapse: () => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 px-3 py-1.5">
+    <div className="flex h-8 shrink-0 items-stretch gap-3 border-b border-(--ui-stroke-tertiary) pl-3 pr-2">
+      <span className="flex items-center">
+        <SidebarPanelLabel>Activity</SidebarPanelLabel>
+      </span>
       <Tabs<DockTab>
         tabs={[
           { id: "tasks", label: "Tasks", count: taskCount },
@@ -144,14 +210,13 @@ function DockTabBar({
         ]}
         value={tab}
         onChange={onChange}
-        variant="lozenge"
       />
       <button
         type="button"
         onClick={onCollapse}
-        aria-label="Collapse structure dock"
+        aria-label="Collapse activity dock"
         title="Collapse"
-        className="ml-auto inline-flex items-center justify-center rounded-sm p-1 text-fg-faint transition-colors hover:text-fg"
+        className="my-auto ml-auto inline-flex size-6 items-center justify-center rounded-sm text-(--ui-text-tertiary) transition-colors hover:bg-(--ui-control-hover-background) hover:text-(--ui-text-primary)"
       >
         <Icon name="chevron-down" size={14} />
       </button>
@@ -159,8 +224,10 @@ function DockTabBar({
   );
 }
 
-/** The collapsed dock: a thin, full-width button summarizing tasks, subagents, and shells — the expanded
- *  dock's tab order. Clickable to expand. Carries the same `lg` width gate as the expanded dock. */
+/** The collapsed dock: a thin, full-width button that mirrors the expanded bar — the ACTIVITY overline
+ *  on the left, a three-count summary where the tabs sit, and the expand chevron pinned right (the same
+ *  slot as the collapse chevron; only the glyph direction flips). Clickable to expand. Carries the same
+ *  `lg` width gate as the expanded dock. */
 function DockTally({
   tasks,
   stats,
@@ -177,24 +244,20 @@ function DockTally({
     <button
       type="button"
       onClick={onExpand}
-      aria-label="Expand structure dock"
+      aria-label="Expand activity dock"
       title="Expand"
-      className="hidden w-full shrink-0 items-center gap-3 border-t border-ink-800 bg-ink-925 px-4 py-2 text-left text-fg-muted transition-colors hover:text-fg lg:flex"
+      className="hidden h-8 w-full shrink-0 items-center gap-3 border-t border-(--ui-stroke-tertiary) bg-(--ui-surface-background) pl-3 pr-2 text-left transition-colors hover:bg-(--ui-row-hover-background) lg:flex"
     >
-      <Icon name="chevron-up" size={14} />
-      <span className="text-meta font-semibold uppercase tracking-wider text-fg-muted">
-        Structure
+      <SidebarPanelLabel>Activity</SidebarPanelLabel>
+      <span className="min-w-0 flex-1 truncate font-mono text-[0.72rem] tabular-nums text-(--ui-text-quaternary)">
+        {tasksDone}/{tasks.length} tasks · {stats.total} subagents ·{" "}
+        {shellCount} shells
       </span>
-      <span className="ml-auto flex items-center gap-3 font-mono text-label tabular-nums text-fg-faint">
-        <span>
-          {tasksDone}/{tasks.length} tasks
-        </span>
-        <span>
-          {stats.total} subagents
-          {stats.working > 0 ? ` · ${stats.working} working` : ""}
-        </span>
-        <span>{shellCount} shells</span>
-      </span>
+      <Icon
+        name="chevron-up"
+        size={14}
+        className="shrink-0 text-(--ui-text-tertiary)"
+      />
     </button>
   );
 }

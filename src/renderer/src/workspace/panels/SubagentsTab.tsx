@@ -12,7 +12,7 @@ import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
 const STATUS_META: Record<Subagent["status"], { char: string; tone: string }> =
   {
     working: { char: "◐", tone: "text-working-bright" },
-    done: { char: "✓", tone: "text-fg-muted" },
+    done: { char: "✓", tone: "text-(--ui-text-secondary)" },
     failed: { char: "✕", tone: "text-danger" },
   };
 
@@ -59,7 +59,7 @@ function SubagentRow({
           <MetricCell width="w-10">
             {agent.model ? FAMILY_LABEL[agent.model] : "—"}
           </MetricCell>
-          <MetricCell width="w-16" tone="text-fg-muted" unit="tok">
+          <MetricCell width="w-16" tone="text-(--ui-text-secondary)" unit="tok">
             {formatTokensShort(agent.tokens)}
           </MetricCell>
           <MetricCell
@@ -69,19 +69,19 @@ function SubagentRow({
           >
             {agent.toolCount}
           </MetricCell>
-          <MetricCell width="w-12" tone="text-fg-muted">
+          <MetricCell width="w-12" tone="text-(--ui-text-secondary)">
             {formatDuration(elapsed)}
           </MetricCell>
         </MetricRack>
       }
     >
       {tag && (
-        <span className="shrink-0 rounded-sm bg-ink-800 px-1 py-px font-mono text-micro text-fg-faint">
+        <span className="shrink-0 rounded-sm bg-(--ui-bg-tertiary) px-1 py-px font-mono text-micro text-(--ui-text-tertiary)">
           {tag}
         </span>
       )}
       <span
-        className="min-w-0 flex-1 truncate text-aux text-fg"
+        className="min-w-0 flex-1 truncate text-aux text-(--ui-text-primary)"
         title={primary}
       >
         {primary}
@@ -91,7 +91,7 @@ function SubagentRow({
 }
 
 /**
- * The Structure dock's Subagents tab: a plain flat list of every subagent (the forest flattened
+ * The Activity dock's Subagents tab: a plain flat list of every subagent (the forest flattened
  * depth-first, each parent before its subtree, oldest dispatch first), one row each with its status,
  * label, and metrics. No dispatch-batch grouping and no Gantt timeline. Shows an empty state until the
  * session spawns a subagent.

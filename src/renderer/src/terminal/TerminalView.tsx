@@ -38,7 +38,7 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
       // Rebuild xterm's viewport geometry against the live element after every (re)layout. While the wrapper
       // was detached the pty kept streaming, so background renders recorded the off-DOM offsetHeight of 0 —
       // shrinking the scroll-area and resetting the DOM scrollTop, which buries the bottom-most line (the
-      // Claude prompt). The fit above is a no-op when the size is unchanged (the StructureDock pins a fixed
+      // Claude prompt). The fit above is a no-op when the size is unchanged (the ActivityDock pins a fixed
       // height across a tab switch), so driving this from sync — not just the mount tick — is what lets the
       // ResizeObserver re-run it when a collapsed container later gets its real size; otherwise that stale
       // geometry would survive and the prompt would stay unreachable.

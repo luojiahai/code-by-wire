@@ -43,7 +43,7 @@ function ShellRow({
       }
       trailing={
         <MetricRack>
-          <MetricCell width="w-14" tone="text-fg-muted">
+          <MetricCell width="w-14" tone="text-(--ui-text-secondary)">
             {formatDuration(elapsed)}
           </MetricCell>
           {shell.startMs !== undefined && (
@@ -64,13 +64,17 @@ function ShellRow({
       >
         {shell.description ? (
           <>
-            <span className="text-fg">{shell.description}</span>
-            <span className="ml-2 font-mono text-meta text-fg-faint">
+            <span className="text-(--ui-text-primary)">
+              {shell.description}
+            </span>
+            <span className="ml-2 font-mono text-meta text-(--ui-text-tertiary)">
               {shell.command}
             </span>
           </>
         ) : (
-          <span className="font-mono text-meta text-fg">{shell.command}</span>
+          <span className="font-mono text-meta text-(--ui-text-primary)">
+            {shell.command}
+          </span>
         )}
       </span>
     </DockRow>
@@ -78,7 +82,7 @@ function ShellRow({
 }
 
 /**
- * The Structure dock's Shells tab: a compact list of every background bash shell the session spawned,
+ * The Activity dock's Shells tab: a compact list of every background bash shell the session spawned,
  * ordered by start time. View-only — clicking a row drills into its full log in the center pane (no
  * inline expand, no kill controls). Empty until the session backgrounds a command.
  */

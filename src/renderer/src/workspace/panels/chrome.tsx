@@ -3,7 +3,7 @@ import { InfoButton } from "../../ui/InfoButton";
 import type { IconName } from "../../ui/icon-names";
 import { SidebarPanelLabel } from "../../shell/SidebarPanelLabel";
 
-// Shared chrome for the workspace rail panels and the Structure dock, so a retone lands in one place.
+// Shared chrome for the workspace rail panels and the Activity dock, so a retone lands in one place.
 
 /** A dock tab body's empty state: faint, small, padded to the tab's content inset. Shared by the Turns
  *  and Subagents tabs so their "No X yet." lines stay identical. */

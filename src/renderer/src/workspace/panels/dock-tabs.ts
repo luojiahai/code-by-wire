@@ -59,7 +59,7 @@ export function dockHasActivity(
 }
 
 /** A manual collapse choice, tagged with the activity phase it was made under so it lapses when
- *  activity starts or stops — the collapse twin of the tab-follow `pick` in StructureDock. */
+ *  activity starts or stops — the collapse twin of the tab-follow `pick` in ActivityDock. */
 export interface DockCollapseOverride {
   collapsed: boolean;
   active: boolean;

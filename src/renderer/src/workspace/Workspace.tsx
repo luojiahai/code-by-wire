@@ -4,7 +4,7 @@ import { TranscriptView } from "./TranscriptView";
 import { useTranscriptModals } from "./use-transcript-modals";
 import { TerminalView } from "../terminal/TerminalView";
 import { useTranscript, type DocState } from "./use-transcript";
-import { StructureDock } from "./panels/StructureDock";
+import { ActivityDock } from "./panels/ActivityDock";
 import { SubagentDrill, type DrillCrumb } from "./SubagentDrill";
 import { indexByDispatch, type DispatchDrill } from "./drill-index";
 import { ShellDrill } from "./ShellDrill";
@@ -96,7 +96,7 @@ export function Workspace({
 }
 
 /**
- * The workspace body: the center live view (terminal or transcript, per `transcriptOn`) with the Structure
+ * The workspace body: the center live view (terminal or transcript, per `transcriptOn`) with the Activity
  * dock below it. One transcript poll (useTranscript) feeds the center and the dock. The right-rail
  * telemetry panels have moved out to a sibling `RightSidebar` at the App level — this column is full width.
  */
@@ -181,7 +181,7 @@ function WorkspaceBody({
           setTranscriptOn={setTranscriptOn}
         />
       </div>
-      <StructureDock
+      <ActivityDock
         tasks={tasks ?? []}
         doc={doc}
         shells={shells ?? []}

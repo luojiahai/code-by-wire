@@ -1,7 +1,7 @@
 import { type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { cx, focusRingInset } from "../../ui/atoms";
 
-// Shared row grammar for the Structure dock tabs (Tasks / Subagents / Shells / Turns): a fixed status
+// Shared row grammar for the Activity dock tabs (Tasks / Subagents / Shells / Turns): a fixed status
 // gutter, a flex-1 truncating label, and a right-aligned mono metric rack. Each row is a listitem (the tab
 // wraps them in a role="list"). Rows are transparent and split by a hairline; interactive rows hover (but
 // an active row holds its background) and carry the inset focus ring. A `fill` node renders as a full-bleed
@@ -33,10 +33,12 @@ export function DockRow({
   children: ReactNode;
 } & Omit<ComponentPropsWithoutRef<"div">, "onClick">) {
   const container = cx(
-    "relative flex min-h-[26px] w-full items-center border-b border-ink-850 last:border-0",
+    "relative flex min-h-[26px] w-full items-center border-b border-(--ui-stroke-quaternary) last:border-0",
     Boolean(fill) && "overflow-hidden",
-    active && "bg-ink-850",
-    onClick && !active && "transition-colors hover:bg-ink-900/60",
+    active && "bg-(--ui-row-active-background)",
+    onClick &&
+      !active &&
+      "transition-colors hover:bg-(--ui-row-hover-background)",
     className,
   );
   // The padded content row sits above the fill; padding lives here so the fill spans the row edge to edge.
@@ -83,7 +85,7 @@ export function MetricRack({ children }: { children: ReactNode }) {
  *  leads regardless of the value's own tone. `width` fixes the column so values line up down the panel. */
 export function MetricCell({
   width,
-  tone = "text-fg-faint",
+  tone = "text-(--ui-text-tertiary)",
   unit,
   className,
   children,
@@ -104,7 +106,7 @@ export function MetricCell({
       {...rest}
     >
       {children}
-      {unit && <span className="ml-0.5 text-fg-faint">{unit}</span>}
+      {unit && <span className="ml-0.5 text-(--ui-text-tertiary)">{unit}</span>}
     </span>
   );
 }

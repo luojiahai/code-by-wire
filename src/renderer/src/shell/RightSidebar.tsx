@@ -35,7 +35,7 @@ export function RightSidebar({
       />
 
       {/* px-1.5 on top of PanelSection's own px-2.5 ≈ the left sidebar's ~16px content inset,
-          scoped here so the Structure dock's PanelSections keep their tighter fit. Explicit
+          scoped here so the Activity dock's PanelSections keep their tighter fit. Explicit
           dividers (not divide-y): their mx-2.5 matches PanelSection's px-2.5, so the hairlines
           start and end exactly where the content does. */}
       <div className="min-h-0 flex-1 overflow-y-auto">

@@ -252,7 +252,7 @@ export function createXterm(): {
   // re-attach. While the wrapper is detached the pty keeps streaming, and every background render runs
   // xterm's refresh with the off-DOM element's offsetHeight of 0 — which shrinks the scroll-area so the last
   // line (the Claude prompt) becomes unreachable, and resets the DOM scrollTop. A no-op fit on re-attach
-  // (the StructureDock pins the terminal to a fixed height, so the size is unchanged and xterm never gets a
+  // (the ActivityDock pins the terminal to a fixed height, so the size is unchanged and xterm never gets a
   // resize to rebuild on) leaves that stale geometry in place, so we force the rebuild here.
   //
   // syncScrollArea(true) re-syncs the recorded buffer length, rebuilds the scroll-area against the live
