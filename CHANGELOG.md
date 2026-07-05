@@ -6,6 +6,50 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.20] - 2026-07-05
+
+### Added
+
+- A Statusline card in Settings → System, showing capture health as a
+  cockpit-style annunciator (`CAPTURING`/`STALE`/`FAULT`/`OFF`), last-capture
+  freshness, session coverage ("N of M live reporting"), an inline
+  refresh-interval editor, a durable enable/disable toggle, and one-click
+  Repair.
+
+### Changed
+
+- Sidebar session list redesigned: a status lamp (filled = live, hollow =
+  quiet) replaces the state dot, folder rows gain folder icons with the
+  chevron moved to the row's right edge, and the header gains
+  collapse/expand-all and an active-only toggle (persisted) that hides ended
+  sessions and now-empty folders.
+- The Claude Code CLI card in Settings is redesigned into the same subsystem
+  grammar as the new Statusline card — state said once via a lamp and mono
+  state word, remedies confined to a fault band, and the binary-path override
+  folded into an inline edit.
+- Corner radii tightened app-wide: the whole radius ladder now derives from a
+  single scalar (`0.6` → `0.3`, hermes parity), so `rounded-md` goes 6px → 3px
+  and the rest scale proportionally. Pills, avatars, status dots, and the
+  scrollbar thumb stay fully circular.
+
+### Fixed
+
+- A statusLine entry stripped by an external tool (e.g. `ccstatusline`'s
+  uninstall) now self-heals from the last known state instead of silently
+  losing the user's wrapped prompt command and its live Duty/effort/clock
+  telemetry.
+- Upstream statusLine extras like `refreshInterval` now carry through the
+  wrap, so an idle session's capture — and the Duty/clock panels reading it —
+  no longer freezes.
+- Two differently-located projects that share a folder name no longer merge
+  into one sidebar group; grouping now keys on the full working directory
+  (persisted in the index, schema v8), with a dimmed parent-path hint and
+  full-path tooltip when a name collides.
+- macOS traffic-light corner spacing equalized on both axes (`x: 24` → `10`);
+  the left pane-toggle cluster and header inset shift to match.
+- Sidebar and right-rail panel-label icons now match their title's color
+  instead of a dimmer accent gray.
+
 ## [0.1.19] - 2026-07-03
 
 ### Added
@@ -469,7 +513,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.19...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.20...HEAD
+[0.1.20]: https://github.com/luojiahai/code-by-wire/compare/v0.1.19...v0.1.20
 [0.1.19]: https://github.com/luojiahai/code-by-wire/compare/v0.1.18...v0.1.19
 [0.1.18]: https://github.com/luojiahai/code-by-wire/compare/v0.1.17...v0.1.18
 [0.1.17]: https://github.com/luojiahai/code-by-wire/compare/v0.1.16...v0.1.17
