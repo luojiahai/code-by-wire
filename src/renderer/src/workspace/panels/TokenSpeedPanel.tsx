@@ -3,7 +3,7 @@ import type { TokenSpeed } from "@shared/metrics";
 import { formatTps } from "@shared/format";
 import { Sparkline } from "../../ui/charts";
 import { SPEED_WINDOW_LABEL } from "./speed-window";
-import { PanelSection, PanelHeading } from "./chrome";
+import { PanelSection, PanelHeading, StatRow } from "./chrome";
 
 const SPEED_INFO =
   "Token throughput over the last 60s of active generation. The sparkline traces total tokens/sec across recent samples; idle gaps between turns don't count.";
@@ -62,9 +62,9 @@ export function TokenSpeedPanel({
       </div>
       <Sparkline values={history} />
       {speed && (
-        <div className="flex justify-between font-mono text-xs text-(--ui-text-secondary)">
-          <span>Input {formatTps(speed.inputTps)}</span>
-          <span>Output {formatTps(speed.outputTps)}</span>
+        <div className="space-y-1.5">
+          <StatRow label="Input" value={formatTps(speed.inputTps)} />
+          <StatRow label="Output" value={formatTps(speed.outputTps)} />
         </div>
       )}
     </PanelSection>

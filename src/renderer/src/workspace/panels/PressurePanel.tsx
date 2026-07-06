@@ -99,7 +99,7 @@ export function PressurePanel({
               )}
             >
               {view.pct}
-              <span className="text-xs text-fg-faint">%</span>
+              <span className="text-xs text-fg-faint">% context window</span>
             </div>
             <div className="font-mono text-[0.625rem] text-(--ui-text-quaternary)">
               {formatTokensShort(view.total)} /{" "}

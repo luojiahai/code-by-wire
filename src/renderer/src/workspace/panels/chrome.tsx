@@ -65,3 +65,20 @@ export function PanelHeading({
     </div>
   );
 }
+
+/** A flat label/value row shared by the Spend and Throughput panels: a muted label on the left,
+ *  a mono tabular value on the right. */
+export function StatRow({
+  label,
+  value,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="flex-1 text-fg-muted">{label}</span>
+      <span className="font-mono tabular-nums text-fg">{value}</span>
+    </div>
+  );
+}

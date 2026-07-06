@@ -1,12 +1,10 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 import type { ModelUsage, Usage } from "@shared/types";
 import { viewUsageByModel } from "@shared/usage-by-model";
 import { formatTokensShort, formatUsd } from "@shared/format";
-import { Swatch } from "../../ui/atoms";
-import { KIND_SEGMENT_COLORS } from "../../ui/meta";
 import { MetricTip } from "../../ui/MetricTip";
 import { TOKEN_KINDS, type TokenKind } from "../../ui/token-kinds";
-import { PanelSection, PanelHeading } from "./chrome";
+import { PanelSection, PanelHeading, StatRow } from "./chrome";
 
 const SPEND_INFO =
   "What this session has consumed: total tokens by kind — fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes. The $ is Claude Code's own session accounting; on a subscription it is the API-equivalent value, not a bill.";
@@ -68,36 +66,14 @@ export function SpendPanel({
       </div>
 
       <div className="space-y-1.5">
-        {TOKEN_KINDS.map((k, i) => (
-          <Row
+        {TOKEN_KINDS.map((k) => (
+          <StatRow
             key={k.key}
             label={<KindLabel kind={k} />}
-            color={KIND_SEGMENT_COLORS[i]}
-            tokens={KIND_TOKENS[k.key](usage)}
+            value={formatTokensShort(KIND_TOKENS[k.key](usage))}
           />
         ))}
       </div>
     </PanelSection>
-  );
-}
-
-/** One kind row: swatch · MetricTip label · tokens. */
-function Row({
-  label,
-  color,
-  tokens,
-}: {
-  label: ReactNode;
-  color: string;
-  tokens: number;
-}) {
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <Swatch color={color} />
-      <span className="flex-1 text-fg-muted">{label}</span>
-      <span className="font-mono tabular-nums text-fg">
-        {formatTokensShort(tokens)}
-      </span>
-    </div>
   );
 }
