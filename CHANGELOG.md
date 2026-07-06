@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.22] - 2026-07-06
+
+### Changed
+
+- The right sidebar's Pressure panel gets an inline "context window" suffix on
+  its hero %, matching the hero-suffix idiom Spend and Throughput already use.
+  Spend's decorative token-kind swatches are dropped, and Throughput's
+  Input/Output split into two stacked rows matching Spend's row style.
+
+### Fixed
+
+- The right sidebar's telemetry panels (Pressure, Spend, Throughput, Duty) each
+  used a slightly different size/color combo for their secondary values —
+  standardized on `text-xs` + `text-(--ui-text-tertiary)`, with tabular-nums on
+  the numeric ones so digit widths stay stable as values update.
+- The Settings software-update toggle knob stayed white regardless of state,
+  reading as no visual change on the light "on" track — it now darkens when
+  auto-check is on.
+
 ## [0.1.21] - 2026-07-06
 
 ### Added
@@ -536,7 +555,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.21...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.22...HEAD
+[0.1.22]: https://github.com/luojiahai/code-by-wire/compare/v0.1.21...v0.1.22
 [0.1.21]: https://github.com/luojiahai/code-by-wire/compare/v0.1.20...v0.1.21
 [0.1.20]: https://github.com/luojiahai/code-by-wire/compare/v0.1.19...v0.1.20
 [0.1.19]: https://github.com/luojiahai/code-by-wire/compare/v0.1.18...v0.1.19
