@@ -46,7 +46,7 @@ function RateRow({
       <span className="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-(--ui-text-secondary)">
         {w ? `${pct}%` : "-"}
       </span>
-      <span className="w-11 shrink-0 text-right font-mono text-[0.625rem] text-(--ui-text-quaternary)">
+      <span className="w-11 shrink-0 text-right font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
         {w ? formatResetCountdown(w.resetsAt, now) : "-"}
       </span>
     </div>
@@ -101,7 +101,7 @@ export function PressurePanel({
               {view.pct}
               <span className="text-xs text-fg-faint">% context window</span>
             </div>
-            <div className="font-mono text-[0.625rem] text-(--ui-text-quaternary)">
+            <div className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
               {formatTokensShort(view.total)} /{" "}
               {formatTokensShort(contextWindow)}
             </div>

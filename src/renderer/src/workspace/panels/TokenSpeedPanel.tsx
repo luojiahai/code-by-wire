@@ -56,7 +56,7 @@ export function TokenSpeedPanel({
             idle
           </span>
         )}
-        <span className="text-[0.625rem] text-(--ui-text-quaternary)">
+        <span className="text-xs text-(--ui-text-tertiary)">
           total throughput
         </span>
       </div>

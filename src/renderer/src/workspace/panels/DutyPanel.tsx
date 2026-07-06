@@ -35,7 +35,7 @@ export function DutyPanel({
             -
           </span>
         )}
-        <span className="font-mono text-[0.625rem] text-(--ui-text-quaternary)">
+        <span className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
           {apiDurationMs != null && sessionClockMs != null
             ? `${formatDuration(apiDurationMs)} / ${formatDuration(sessionClockMs)}`
             : ""}

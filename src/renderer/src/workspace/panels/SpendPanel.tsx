@@ -60,7 +60,7 @@ export function SpendPanel({
           {formatTokensShort(total)}
           <span className="text-xs text-fg-faint"> tokens</span>
         </div>
-        <span className="font-mono text-xs tabular-nums text-(--ui-text-quaternary)">
+        <span className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
           {costUsd != null ? formatUsd(costUsd) : "-"}
         </span>
       </div>
