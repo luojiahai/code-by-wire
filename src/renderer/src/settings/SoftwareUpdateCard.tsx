@@ -55,8 +55,10 @@ export function SoftwareUpdateCard({ update }: { update: UpdateControls }) {
         >
           <span
             className={cx(
-              "absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white transition-all",
-              update.autoCheck ? "right-[2px]" : "left-[2px]",
+              "absolute top-[2px] h-[14px] w-[14px] rounded-full transition-all",
+              update.autoCheck
+                ? "right-[2px] bg-ink-900"
+                : "left-[2px] bg-white",
             )}
           />
         </button>
