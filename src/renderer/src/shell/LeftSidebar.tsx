@@ -293,7 +293,10 @@ export function LeftSidebar({
                           "absolute right-5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",
                           canSpawn && !quickAdding.has(g.key)
                             ? "cursor-pointer text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
-                            : "cursor-not-allowed text-(--ui-text-quaternary)/50",
+                            : // Disabled: stay rendered (spec's "not hidden") but let the swallowed
+                              // click fall through to the collapse toggle underneath instead of
+                              // dead-zoning its ~20px strip.
+                              "pointer-events-none text-(--ui-text-quaternary)/50",
                         )}
                       >
                         <Icon name="plus" size={13} />
