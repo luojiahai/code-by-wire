@@ -19,6 +19,7 @@ import { buildChildEnv } from "./terminal/child-env";
 import { buildShellEnv } from "./terminal/shell-command";
 import { readAccountEmail } from "./settings/account-email";
 import { readModelDefaults } from "./settings/model-defaults";
+import { readSessionWindowMs } from "./settings/session-window";
 import type { ModelDefaults } from "@shared/models";
 import { resolveClaudeDir } from "./claude-config";
 import { createAppSettingsStore } from "./app-settings";
@@ -268,7 +269,11 @@ app
       }
     }
     const statusLine = createStatusLineReader({ claudeDir });
-    const provider = createClaudeProvider({ managed, claudeDir });
+    const provider = createClaudeProvider({
+      managed,
+      claudeDir,
+      recentWindowMs: readSessionWindowMs(claudeDir),
+    });
     services.provider = provider;
     const sessionTitles = createSessionTitleStore({
       dir: app.getPath("userData"),

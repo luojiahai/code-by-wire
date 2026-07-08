@@ -47,7 +47,8 @@ export interface ClaudeProviderDeps {
   isPidAlive?: (pid: number) => boolean;
   /** Clock for the recency cut; defaults to the wall clock, overridden in tests. */
   now?: () => number;
-  /** How recent (ms) an Ended session's transcript must be to surface; defaults to 7 days. */
+  /** How recent (ms) an Ended session's transcript must be to surface. The composition root passes the
+   *  user's cleanupPeriodDays; the fallback mirrors Claude Code's own 30-day default. */
   recentWindowMs?: number;
   /** The authority for Managed-ness: a discovered session is Managed iff this run spawned its id.
    *  Defaults to "nothing is Managed", so a provider built without it labels everything Observed.
@@ -59,7 +60,7 @@ export interface ClaudeProviderDeps {
   };
 }
 
-const DEFAULT_RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const DEFAULT_RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** A stable 32-bit hash of the composite metrics token (transcript mtime + git/voice/remote state), so the
  *  renderer's numeric `since` dedupe works even though those changes aren't mtimes. */
