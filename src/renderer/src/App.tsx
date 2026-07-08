@@ -70,6 +70,14 @@ export function App() {
   // Ids adopted this run that discovery has not yet relabeled Managed. Overlaid by applyAdopting so the
   // adopted row reads Managed/Working immediately, until the next sync confirms it (or its pty exits).
   const [adopting, setAdopting] = useState<Set<string>>(new Set());
+  // A failed quick-add's directory + error, carried into the New session view so the failure
+  // has a form to land on. The nonce keys the view so a repeat failure re-seeds it even if
+  // it's already open (the props are read once on mount).
+  const [quickAddPrefill, setQuickAddPrefill] = useState<{
+    cwd: string;
+    error: string;
+    nonce: number;
+  } | null>(null);
   // Ids ended this run that discovery has not yet relabeled. Overlaid by applyEnding so the row reads
   // Ended immediately — the header swaps End for Adopt and the workspace flips to the Transcript — until the
   // next sync confirms it.
@@ -253,6 +261,22 @@ export function App() {
     } catch (e) {
       terminalStore.dispose(id); // spawn failed → nothing will ever feed this handle; don't leak it
       throw e; // surfaced by the dialog's catch
+    }
+  }
+
+  // Sidebar folder quick-add: spawn in the group's directory with the CLI's default model, no
+  // form. Never rejects — a failure routes to the New session view with the directory kept and
+  // the error shown (the app's only creation-error surface).
+  async function quickAddSession(cwd: string): Promise<void> {
+    try {
+      await createSession(cwd, "default");
+    } catch (e) {
+      setQuickAddPrefill((p) => ({
+        cwd,
+        error: e instanceof Error ? e.message : "Failed to start the session",
+        nonce: (p?.nonce ?? 0) + 1,
+      }));
+      setSelectedId(NEW_SESSION_ID);
     }
   }
 
@@ -441,8 +465,11 @@ export function App() {
   const middle: ReactNode = isNewSession ? (
     <MiddleNonSession title="New session" leftEdgeExposed={leftEdgeExposed}>
       <NewSessionView
+        key={quickAddPrefill?.nonce ?? 0}
         onCreate={createSession}
         onCancel={() => setSelectedId(OVERVIEW_ID)}
+        initialCwd={quickAddPrefill?.cwd}
+        initialError={quickAddPrefill?.error}
       />
     </MiddleNonSession>
   ) : isOverview ? (
@@ -498,7 +525,11 @@ export function App() {
             homeDir={homeDir}
             selectedId={selectedId}
             onSelect={setSelectedId}
-            onNew={() => setSelectedId(NEW_SESSION_ID)}
+            onNew={() => {
+              setQuickAddPrefill(null); // manual open starts blank, not on a stale failure
+              setSelectedId(NEW_SESSION_ID);
+            }}
+            onQuickAdd={quickAddSession}
             canSpawn={spawnGate(cliStatus).canSpawn}
             route={route}
             onRoute={setSelectedId}

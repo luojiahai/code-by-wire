@@ -9,18 +9,19 @@ import { Icon } from "../ui/icons";
 import { PageHeader, Card } from "./page-primitives";
 
 /**
- * The inline create-a-Managed-session form (design spec §5): the same directory/model/create logic
- * as the modal `NewSessionDialog`, but rendered directly in the middle column's content area instead
- * of behind `ModalShell`'s overlay — no backdrop, no focus trap. Since it no longer inherits
- * `ModalShell`'s Escape handling, it registers its own window-level listener. Self-centers via a
- * full-size flex wrapper so it looks right regardless of what Task 11 ends up wrapping it in.
- * Standalone for now — not yet wired into `App.tsx` (that's Task 11's job); `NewSessionDialog` keeps
- * serving the modal flow until then.
+ * The inline create-a-Managed-session form (design spec §5): the app's sole create-a-session surface,
+ * rendered directly in the middle column's content area rather than behind a modal overlay — no
+ * backdrop, no focus trap, so it owns its own window-level Escape listener and self-centers via a
+ * full-size flex wrapper. `App.tsx` mounts it at the `NEW_SESSION_ID` route — reached from the
+ * sidebar's "New session" button and, seeded via `initialCwd`/`initialError`, from a sidebar folder
+ * quick-add that failed and fell back here to retry.
  */
 export function NewSessionView({
   onCreate,
   onCancel,
   busy: externalBusy,
+  initialCwd,
+  initialError,
 }: {
   onCreate: (cwd: string, model: ModelSelection) => void | Promise<void>;
   onCancel: () => void;
@@ -28,12 +29,17 @@ export function NewSessionView({
    *  OR'd with this view's own internal busy state — lets a caller widen the disabled/"Starting…"
    *  window without this component needing to know why. */
   busy?: boolean;
+  /** Seeds the directory — set when a sidebar quick-add fails and routes here keeping its cwd.
+   *  Read once on mount; the caller re-keys the view to re-seed. */
+  initialCwd?: string;
+  /** Seeds the error line with the failure that routed here. Read once on mount. */
+  initialError?: string;
 }) {
-  const [cwd, setCwd] = useState<string | null>(null);
+  const [cwd, setCwd] = useState<string | null>(initialCwd ?? null);
   const [model, setModel] = useState<ModelSelection>("default");
   const [defaults, setDefaults] = useState<ModelDefaults | null>(null);
   const [internalBusy, setInternalBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const busy = internalBusy || (externalBusy ?? false);
 
   // Fetch the configured model defaults once on mount, only for the picker's family labels and the
