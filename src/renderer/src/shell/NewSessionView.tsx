@@ -13,9 +13,9 @@ import { PageHeader, Card } from "./page-primitives";
  * as the modal `NewSessionDialog`, but rendered directly in the middle column's content area instead
  * of behind `ModalShell`'s overlay — no backdrop, no focus trap. Since it no longer inherits
  * `ModalShell`'s Escape handling, it registers its own window-level listener. Self-centers via a
- * full-size flex wrapper so it looks right regardless of what Task 11 ends up wrapping it in.
- * Standalone for now — not yet wired into `App.tsx` (that's Task 11's job); `NewSessionDialog` keeps
- * serving the modal flow until then.
+ * full-size flex wrapper. It's the app's sole create-a-session surface, rendered by `App.tsx` at the
+ * `NEW_SESSION_ID` route — both from the sidebar's "New session" button and, seeded via `initialCwd`/
+ * `initialError`, when a sidebar folder quick-add fails and falls back here to retry.
  */
 export function NewSessionView({
   onCreate,
