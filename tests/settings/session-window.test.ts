@@ -75,6 +75,13 @@ describe("readSessionWindowMs", () => {
   it("defaults on malformed JSON", () => {
     expect(readSessionWindowMs(writeRaw("{not json"))).toBe(DEFAULT_MS);
   });
+  it("defaults on a non-ENOENT read failure (settings.json is a directory)", () => {
+    const dir = claudeDir();
+    // Making settings.json a directory makes readFileSync throw EISDIR (not ENOENT),
+    // which readTextOrNull re-throws — the reader's catch must turn it into the default.
+    mkdirSync(join(dir, "settings.json"));
+    expect(readSessionWindowMs(dir)).toBe(DEFAULT_MS);
+  });
   it("defaults when settings.json is not an object", () => {
     expect(readSessionWindowMs(writeRaw("null"))).toBe(DEFAULT_MS);
   });
