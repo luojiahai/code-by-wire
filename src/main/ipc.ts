@@ -38,7 +38,10 @@ import {
   emptyTotals,
   hasAnyTurns,
   clearAnalytics,
+  readWorktrees,
+  upsertWorktree,
 } from "./db/analytics";
+import { createWorktreeMap } from "./git/worktrees";
 import {
   scanStep,
   collectScanTargets,
@@ -169,6 +172,18 @@ export function registerIpc({
     syncSessions(db, provider);
   };
 
+  // cwd → linked-worktree identity: live git detection cached per cwd, seeded from (and written
+  // back to) the durable analytics store so a deleted worktree's sessions keep merging across
+  // restarts. Without an analytics db the map still live-detects; it just forgets on restart.
+  const worktreeMap = createWorktreeMap(
+    analyticsDb
+      ? {
+          load: () => readWorktrees(analyticsDb),
+          save: (row) => upsertWorktree(analyticsDb, row),
+        }
+      : { load: () => [], save: () => {} },
+  );
+
   /** The index snapshot enriched with the live statusLine overlay: per-session cost/context/lines, plus
    *  the app-wide account. Both handlers go through here so the list and the account share one read. The
    *  freshest-per-session map feeds both the overlay and the account, so the captures are walked once. */
@@ -188,8 +203,14 @@ export function registerIpc({
     // Claude's live session_name. Read fresh each call so a just-persisted rename shows immediately.
     const overlaid = overlaySessions(base.sessions, byId);
     const named = applyTitleOverrides(overlaid, sessionTitles?.read() ?? {});
+    // Worktree sessions merge into their main repo's sidebar folder; tag them here, after the
+    // overlay and renames, so the lookup sees the best-known cwd.
+    const withWorktrees = named.map((s) => {
+      const wt = s.cwd ? worktreeMap.lookup(s.cwd) : null;
+      return wt ? { ...s, worktree: wt } : s;
+    });
     return attachCliStatus(
-      { sessions: named, account, homeDir: homedir() },
+      { sessions: withWorktrees, account, homeDir: homedir() },
       () => cli.get(),
     );
   };

@@ -18,6 +18,7 @@ vi.mock("electron", () => ({
 
 import { registerIpc } from "../src/main/ipc";
 import { migrate, upsertSessions } from "../src/main/db/store";
+import { migrateAnalytics, upsertWorktree } from "../src/main/db/analytics";
 import { openTestDb } from "./helpers/sqlite";
 
 const seed: PersistedSession = {
@@ -83,6 +84,33 @@ describe("registerIpc refresh", () => {
       result = refresh() as OverviewData;
     }).not.toThrow();
     expect(result?.sessions.map((s) => s.id)).toEqual(["seed"]);
+  });
+
+  it("attaches worktree identity from the persisted map, even when the directory is gone", async () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [{ ...seed, id: "wt", cwd: "/w/repo-wt" }, seed]);
+
+    const analyticsDb = openTestDb();
+    migrateAnalytics(analyticsDb);
+    // Recorded while the worktree existed; the path itself no longer has to.
+    upsertWorktree(analyticsDb, {
+      cwd: "/w/repo-wt",
+      repoRoot: "/w/repo",
+      name: "repo-wt",
+    });
+
+    registerIpc({ db, provider: provider(() => []), analyticsDb });
+    const overview = handlers.get(IPC.overview)!;
+    const data = (await overview()) as OverviewData;
+    const byId = new Map(data.sessions.map((s) => [s.id, s]));
+    expect(byId.get("wt")?.worktree).toEqual({
+      repoRoot: "/w/repo",
+      repoLabel: "repo",
+      name: "repo-wt",
+    });
+    // A cwd with no mapping (and no repo on disk) stays untagged — today's behavior.
+    expect(byId.get("seed")?.worktree).toBeUndefined();
   });
 });
 
