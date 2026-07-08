@@ -14,6 +14,11 @@ import { SidebarPanelLabel } from "./SidebarPanelLabel";
 
 const ACTIVE_ONLY_KEY = "cbw.sessionsActiveOnly.v1";
 
+/** Shown when the Claude Code CLI can't spawn — on the New session button, the folder quick-add "+",
+ *  and the folder header the "+" falls through to (so its `pointer-events-none` doesn't hide the reason). */
+const CLI_BLOCKED_TOOLTIP =
+  "Claude Code CLI isn't usable — open Sys status in the title bar.";
+
 /** Reads the persisted active-only flag; missing, malformed, or unreadable → false. */
 function loadActiveOnly(): boolean {
   try {
@@ -115,11 +120,7 @@ export function LeftSidebar({
           type="button"
           onClick={onNew}
           disabled={!canSpawn}
-          title={
-            canSpawn
-              ? undefined
-              : "Claude Code CLI isn't usable — open Sys status in the title bar."
-          }
+          title={canSpawn ? undefined : CLI_BLOCKED_TOOLTIP}
           className={cx(
             "flex h-7 w-full items-center justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium transition-colors duration-100 ease-out hover:transition-none",
             canSpawn
@@ -250,7 +251,9 @@ export function LeftSidebar({
                       type="button"
                       onClick={() => toggleGroup(g.key)}
                       aria-expanded={!collapsed.has(g.key)}
-                      title={cwd}
+                      // When the CLI is down the "+" is pointer-events-none, so a hover over it lands
+                      // here instead — carry its reason so that affordance survives (spec §4).
+                      title={cwd && !canSpawn ? CLI_BLOCKED_TOOLTIP : cwd}
                       className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
                     >
                       <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
@@ -287,16 +290,20 @@ export function LeftSidebar({
                         title={
                           canSpawn
                             ? `New session in ${cwd}`
-                            : "Claude Code CLI isn't usable — open Sys status in the title bar."
+                            : CLI_BLOCKED_TOOLTIP
                         }
                         className={cx(
                           "absolute right-5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",
                           canSpawn && !quickAdding.has(g.key)
                             ? "cursor-pointer text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
-                            : // Disabled: stay rendered (spec's "not hidden") but let the swallowed
-                              // click fall through to the collapse toggle underneath instead of
-                              // dead-zoning its ~20px strip.
-                              "pointer-events-none text-(--ui-text-quaternary)/50",
+                            : !canSpawn
+                              ? // CLI unusable: pass the click through to the collapse toggle beneath
+                                // (which carries the reason in its title) so the disabled "+" doesn't
+                                // dead-zone its ~20px strip.
+                                "pointer-events-none text-(--ui-text-quaternary)/50"
+                              : // Quick-add in flight (transient): keep the click inert so it can't
+                                // re-collapse the group we just expanded for the incoming draft row.
+                                "cursor-not-allowed text-(--ui-text-quaternary)/50",
                         )}
                       >
                         <Icon name="plus" size={13} />
