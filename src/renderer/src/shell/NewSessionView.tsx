@@ -9,13 +9,12 @@ import { Icon } from "../ui/icons";
 import { PageHeader, Card } from "./page-primitives";
 
 /**
- * The inline create-a-Managed-session form (design spec §5): the same directory/model/create logic
- * as the modal `NewSessionDialog`, but rendered directly in the middle column's content area instead
- * of behind `ModalShell`'s overlay — no backdrop, no focus trap. Since it no longer inherits
- * `ModalShell`'s Escape handling, it registers its own window-level listener. Self-centers via a
- * full-size flex wrapper. It's the app's sole create-a-session surface, rendered by `App.tsx` at the
- * `NEW_SESSION_ID` route — both from the sidebar's "New session" button and, seeded via `initialCwd`/
- * `initialError`, when a sidebar folder quick-add fails and falls back here to retry.
+ * The inline create-a-Managed-session form (design spec §5): the app's sole create-a-session surface,
+ * rendered directly in the middle column's content area rather than behind a modal overlay — no
+ * backdrop, no focus trap, so it owns its own window-level Escape listener and self-centers via a
+ * full-size flex wrapper. `App.tsx` mounts it at the `NEW_SESSION_ID` route — reached from the
+ * sidebar's "New session" button and, seeded via `initialCwd`/`initialError`, from a sidebar folder
+ * quick-add that failed and fell back here to retry.
  */
 export function NewSessionView({
   onCreate,
