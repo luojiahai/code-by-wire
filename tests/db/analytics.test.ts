@@ -18,6 +18,8 @@ import {
   readCalendar,
   readCalendarYears,
   clearAnalytics,
+  readWorktrees,
+  upsertWorktree,
 } from "../../src/main/db/analytics";
 import { openTestDb } from "../helpers/sqlite";
 import { usage as mkUsage } from "../helpers/usage";
@@ -42,14 +44,14 @@ const turn = (
 };
 
 describe("analytics store", () => {
-  it("migrates to schema v3 and is idempotent", () => {
+  it("migrates to schema v4 and is idempotent", () => {
     const db = openTestDb();
     migrateAnalytics(db);
     migrateAnalytics(db); // second call is a no-op, not an error
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(3);
+    ).toBe(4);
   });
 
   it("creates processed_files and round-trips a high-water mark", () => {
@@ -104,13 +106,13 @@ describe("analytics store", () => {
       (db.prepare("SELECT COUNT(*) AS n FROM turns").get() as { n: number }).n,
     ).toBe(1);
 
-    migrateAnalytics(db); // 1 → 3: clears turns so the next scan rebuilds under the new surrogate scheme
+    migrateAnalytics(db); // 1 → 4: clears turns so the next scan rebuilds under the new surrogate scheme
     expect(readTotals(db).turns).toBe(0);
     expect(readProcessedFiles(db).size).toBe(0); // new table exists and is empty
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(3);
+    ).toBe(4);
   });
 
   it("only clears turns on the v1 → v2 step, never on another upgrade (no future-bump re-wipe)", () => {
@@ -134,12 +136,12 @@ describe("analytics store", () => {
        VALUES ('msg-1','sess-1',1000,'claude-opus-4-8',0,0,0,0,'/work/code-by-wire','code-by-wire','main')`,
     );
 
-    migrateAnalytics(db); // enters the block (0 < 3) but `from !== 1`, so turns survive
+    migrateAnalytics(db); // enters the block (0 < 4) but `from !== 1`, so turns survive
     expect(readTotals(db).turns).toBe(1);
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(3);
+    ).toBe(4);
   });
 
   it("returns zeroed totals for an empty store", () => {
@@ -412,6 +414,48 @@ describe("analytics store", () => {
     expect(t.cacheCreation5mTokens + t.cacheCreation1hTokens).toBe(
       t.cacheCreationTokens,
     );
+  });
+
+  it("round-trips worktree mappings keyed by cwd (upsert wins)", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    expect(readWorktrees(db)).toEqual([]);
+
+    upsertWorktree(db, {
+      cwd: "/w/repo-wt",
+      repoRoot: "/w/repo",
+      name: "repo-wt",
+    });
+    upsertWorktree(db, {
+      cwd: "/w/repo-wt",
+      repoRoot: "/w/repo2",
+      name: "repo-wt",
+    });
+    expect(readWorktrees(db)).toEqual([
+      { cwd: "/w/repo-wt", repoRoot: "/w/repo2", name: "repo-wt" },
+    ]);
+  });
+
+  it("v3 → v4 keeps processed_files (no forced rescan)", () => {
+    const db = openTestDb();
+    migrateAnalytics(db); // v4 schema
+    upsertProcessedFile(db, "/a.jsonl", 111, 3);
+    db.exec("PRAGMA user_version = 3"); // pretend this store predates v4
+    migrateAnalytics(db);
+    expect(readProcessedFiles(db).size).toBe(1);
+    expect(
+      (db.prepare("PRAGMA user_version").get() as { user_version: number })
+        .user_version,
+    ).toBe(4);
+  });
+
+  it("v2 → v4 still clears processed_files to backfill the cache split", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    upsertProcessedFile(db, "/a.jsonl", 111, 3);
+    db.exec("PRAGMA user_version = 2");
+    migrateAnalytics(db);
+    expect(readProcessedFiles(db).size).toBe(0);
   });
 });
 

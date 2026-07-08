@@ -20,6 +20,7 @@ import {
   currentStreak,
 } from "@shared/stats";
 import { transaction, type SqliteDb } from "./driver";
+import type { WorktreeRow } from "../git/worktrees";
 
 /**
  * Bump when the turn schema changes. The analytics store is durable: a full disk scan is expensive to
@@ -35,8 +36,13 @@ import { transaction, type SqliteDb } from "./driver";
  * Critically the delete is scoped to exactly the v1 -> v2 step (`from === 1`), NOT every upgrade: it
  * must never re-run on a future bump, or a later schema change would silently re-wipe a v2+ user's
  * durable history, the precise durability violation this file guards against.
+ *
+ * v4 adds `worktrees` (the cwd → main-checkout map behind the sidebar's worktree folder merge) — a
+ * pure CREATE, no existing data touched. It also narrows the v2 backfill guard from `from >= 2` to
+ * exactly `from === 2`: that seed exists to initialize the 5m/1h split when leaving v2, and re-running
+ * it on a later bump would needlessly clear the high-water marks and force a full rescan.
  */
-const ANALYTICS_SCHEMA_VERSION = 3;
+const ANALYTICS_SCHEMA_VERSION = 4;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -73,6 +79,11 @@ export function migrateAnalytics(db: SqliteDb): void {
       mtime REAL NOT NULL,
       lines INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS worktrees (
+      cwd TEXT PRIMARY KEY,
+      repo_root TEXT NOT NULL,
+      worktree_name TEXT NOT NULL
+    );
   `);
 
   // A pre-existing turns table from an older schema lacks the split columns; add them if missing. (A fresh
@@ -100,9 +111,10 @@ export function migrateAnalytics(db: SqliteDb): void {
   // Upgrading a store that already held turns (v2+): seed the all-5m fallback to initialize the
   // 5m/1h token split (5m + 1h == total holds), then clear the high-water marks so the next scan
   // re-ingests live transcripts and backfills the REAL split to transcript-retention depth. Orphaned rows
-  // (their transcript gone) keep the all-5m fallback. Scoped to `from >= 2` so it never runs on the v1
-  // wipe (which already emptied turns) or a fresh install (no rows to seed).
-  if (from >= 2) {
+  // (their transcript gone) keep the all-5m fallback. Scoped to exactly `from === 2` so it never runs on
+  // the v1 wipe (which already emptied turns), a fresh install (no rows to seed), or a later bump past v2
+  // (which would needlessly clear the high-water marks and force a full rescan).
+  if (from === 2) {
     db.exec(
       "UPDATE turns SET cache_creation_5m_tokens = cache_creation_tokens WHERE cache_creation_5m_tokens = 0 AND cache_creation_1h_tokens = 0",
     );
@@ -217,6 +229,36 @@ export function upsertProcessedFile(
   lines: number,
 ): void {
   db.prepare(UPSERT_PROCESSED).run({ path, mtime, lines });
+}
+
+/** Every persisted cwd → main-checkout mapping (see git/worktrees.ts) — the worktree map's seed at
+ *  startup, so a deleted worktree's sessions keep merging across restarts. */
+export function readWorktrees(db: SqliteDb): WorktreeRow[] {
+  const rows = db
+    .prepare("SELECT cwd, repo_root, worktree_name FROM worktrees")
+    .all() as { cwd: string; repo_root: string; worktree_name: string }[];
+  return rows.map((r) => ({
+    cwd: r.cwd,
+    repoRoot: r.repo_root,
+    name: r.worktree_name,
+  }));
+}
+
+const UPSERT_WORKTREE = `
+  INSERT INTO worktrees (cwd, repo_root, worktree_name)
+  VALUES (@cwd, @repo_root, @worktree_name)
+  ON CONFLICT(cwd) DO UPDATE SET
+    repo_root = excluded.repo_root,
+    worktree_name = excluded.worktree_name
+`;
+
+/** Record a cwd's worktree identity the first time live detection resolves it (idempotent upsert). */
+export function upsertWorktree(db: SqliteDb, row: WorktreeRow): void {
+  db.prepare(UPSERT_WORKTREE).run({
+    cwd: row.cwd,
+    repo_root: row.repoRoot,
+    worktree_name: row.name,
+  });
 }
 
 interface TotalsRow {
