@@ -35,6 +35,7 @@ export function LeftSidebar({
   selectedId,
   onSelect,
   onNew,
+  onQuickAdd,
   canSpawn,
   route,
   onRoute,
@@ -45,6 +46,9 @@ export function LeftSidebar({
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
+  /** Folder quick-add: spawns a session in `cwd` with the default model. Never rejects —
+   *  App surfaces failures in the New session view — so this only gates the busy mark. */
+  onQuickAdd: (cwd: string) => Promise<void>;
   canSpawn: boolean;
   route: string;
   onRoute: (id: string) => void;
@@ -74,6 +78,30 @@ export function LeftSidebar({
       else next.add(key);
       return next;
     });
+  const [quickAdding, setQuickAdding] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+  // Expand up front so the optimistic draft row lands somewhere visible; the busy mark
+  // guards a double-click from spawning twice.
+  const quickAdd = async (key: string, cwd: string) => {
+    if (quickAdding.has(key)) return;
+    setQuickAdding((prev) => new Set(prev).add(key));
+    setCollapsed((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+    try {
+      await onQuickAdd(cwd);
+    } finally {
+      setQuickAdding((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
 
   return (
     <div className="flex h-full flex-col border-r border-sidebar-border bg-(--ui-sidebar-surface-background)">
@@ -213,54 +241,80 @@ export function LeftSidebar({
           </p>
         ) : (
           <div className="flex flex-col gap-px">
-            {groups.map((g) => (
-              <div key={g.key}>
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(g.key)}
-                  aria-expanded={!collapsed.has(g.key)}
-                  title={g.cwd}
-                  className="group/project flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none"
-                >
-                  <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
-                    <Icon
-                      name={collapsed.has(g.key) ? "folder" : "folder-open"}
-                      size={14}
-                    />
-                  </span>
-                  <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
-                    {g.label}
-                  </span>
-                  {g.hint && (
-                    <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-                      {g.hint}
-                    </span>
-                  )}
-                  <span className="ml-auto grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
-                    <Icon
-                      name="chevron-right"
-                      size={13}
-                      className={cx(
-                        "transition-transform",
-                        !collapsed.has(g.key) && "rotate-90",
+            {groups.map((g) => {
+              const cwd = g.cwd;
+              return (
+                <div key={g.key}>
+                  <div className="group/project relative rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(g.key)}
+                      aria-expanded={!collapsed.has(g.key)}
+                      title={cwd}
+                      className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
+                    >
+                      <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
+                        <Icon
+                          name={collapsed.has(g.key) ? "folder" : "folder-open"}
+                          size={14}
+                        />
+                      </span>
+                      <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
+                        {g.label}
+                      </span>
+                      {g.hint && (
+                        <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
+                          {g.hint}
+                        </span>
                       )}
-                    />
-                  </span>
-                </button>
-                {!collapsed.has(g.key) && (
-                  <div className="flex flex-col gap-px pb-1">
-                    {g.sessions.map((s) => (
-                      <SessionRow
-                        key={s.id}
-                        session={s}
-                        selected={s.id === selectedId}
-                        onSelect={() => onSelect(s.id)}
-                      />
-                    ))}
+                      <span className="ml-auto grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
+                        <Icon
+                          name="chevron-right"
+                          size={13}
+                          className={cx(
+                            "transition-transform",
+                            !collapsed.has(g.key) && "rotate-90",
+                          )}
+                        />
+                      </span>
+                    </button>
+                    {cwd && (
+                      <button
+                        type="button"
+                        onClick={() => void quickAdd(g.key, cwd)}
+                        disabled={!canSpawn || quickAdding.has(g.key)}
+                        aria-label={`New session in ${cwd}`}
+                        title={
+                          canSpawn
+                            ? `New session in ${cwd}`
+                            : "Claude Code CLI isn't usable — open Sys status in the title bar."
+                        }
+                        className={cx(
+                          "absolute right-5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",
+                          canSpawn && !quickAdding.has(g.key)
+                            ? "cursor-pointer text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
+                            : "cursor-not-allowed text-(--ui-text-quaternary)/50",
+                        )}
+                      >
+                        <Icon name="plus" size={13} />
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                  {!collapsed.has(g.key) && (
+                    <div className="flex flex-col gap-px pb-1">
+                      {g.sessions.map((s) => (
+                        <SessionRow
+                          key={s.id}
+                          session={s}
+                          selected={s.id === selectedId}
+                          onSelect={() => onSelect(s.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
