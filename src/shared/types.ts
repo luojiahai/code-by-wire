@@ -92,6 +92,19 @@ export interface Subagent {
   children?: Subagent[];
 }
 
+/** A cwd's linked-worktree identity: the main checkout it belongs to and the worktree's own name.
+ *  Attached to Session when the cwd is inside a linked git worktree (live-detected, or recalled from
+ *  the durable map after the worktree directory is gone), so the sidebar merges the session into the
+ *  main repo's folder and tags the row. */
+export interface SessionWorktree {
+  /** The main checkout's root — the merged sidebar group's key and its quick-add cwd. */
+  repoRoot: string;
+  /** basename(repoRoot), the merged group's folder label. */
+  repoLabel: string;
+  /** The worktree directory's basename — the session row's dimmed hint. */
+  name: string;
+}
+
 export interface Session {
   id: string;
   title: string;
@@ -134,6 +147,9 @@ export interface Session {
   /** Best-known working directory: the live statusLine capture when present, else the transcript's
    *  persisted cwd. Keys the sidebar's project groups. Absent when neither source knows. */
   cwd?: string;
+  /** Present when `cwd` is inside a linked git worktree; the sidebar merges this session into the
+   *  main repo's folder (see SessionWorktree). */
+  worktree?: SessionWorktree;
   /** Claude Code's own session cost (statusLine cost.total_cost_usd) — the Spend panel's small $
    *  readout. Display-only, never derived from a pricing table. Absent ⇒ no sample. */
   costUsd?: number;
