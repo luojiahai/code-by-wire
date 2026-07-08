@@ -21,6 +21,8 @@ export function NewSessionView({
   onCreate,
   onCancel,
   busy: externalBusy,
+  initialCwd,
+  initialError,
 }: {
   onCreate: (cwd: string, model: ModelSelection) => void | Promise<void>;
   onCancel: () => void;
@@ -28,12 +30,17 @@ export function NewSessionView({
    *  OR'd with this view's own internal busy state — lets a caller widen the disabled/"Starting…"
    *  window without this component needing to know why. */
   busy?: boolean;
+  /** Seeds the directory — set when a sidebar quick-add fails and routes here keeping its cwd.
+   *  Read once on mount; the caller re-keys the view to re-seed. */
+  initialCwd?: string;
+  /** Seeds the error line with the failure that routed here. Read once on mount. */
+  initialError?: string;
 }) {
-  const [cwd, setCwd] = useState<string | null>(null);
+  const [cwd, setCwd] = useState<string | null>(initialCwd ?? null);
   const [model, setModel] = useState<ModelSelection>("default");
   const [defaults, setDefaults] = useState<ModelDefaults | null>(null);
   const [internalBusy, setInternalBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const busy = internalBusy || (externalBusy ?? false);
 
   // Fetch the configured model defaults once on mount, only for the picker's family labels and the
