@@ -76,4 +76,17 @@ describe("session list model", () => {
       groupSessionsByProject(filterActive([a, e1])).map((g) => g.label),
     ).toEqual(["alpha"]);
   });
+
+  it("filters by the merged repo label so repo-name search finds worktree sessions", () => {
+    const wt = mk({
+      id: "wt",
+      title: "port terminal",
+      project: "feat-x",
+      worktree: { repoRoot: "/w/repo", repoLabel: "repo", name: "feat-x" },
+    });
+    const other = mk({ id: "o", title: "other", project: "beta" });
+    expect(filterSessions([wt, other], "REPO").map((s) => s.id)).toEqual([
+      "wt",
+    ]);
+  });
 });

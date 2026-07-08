@@ -12,14 +12,16 @@ export function sortSessions(sessions: Session[]): Session[] {
   return [...active, ...ended];
 }
 
-/** Case-insensitive substring match on title or project — the sidebar search box's filter. */
+/** Case-insensitive substring match on title, project, or merged repo label (so searching a repo's
+ *  name also finds its worktree sessions) — the sidebar search box's filter. */
 export function filterSessions(sessions: Session[], query: string): Session[] {
   const q = query.trim().toLowerCase();
   if (!q) return sessions;
   return sessions.filter(
     (s) =>
       s.title.toLowerCase().includes(q) ||
-      (s.project ?? "").toLowerCase().includes(q),
+      (s.project ?? "").toLowerCase().includes(q) ||
+      (s.worktree?.repoLabel ?? "").toLowerCase().includes(q),
   );
 }
 
@@ -61,7 +63,9 @@ export function parentHint(cwd: string, homeDir: string): string {
  *  cwd — sessions with no known cwd fall back to a name-keyed group, degrading to the old
  *  behavior. Groups order by most recent activity; inside a group, sessions keep the flat sort.
  *  When 2+ groups share a label, each path-keyed one carries a `hint` (its ~-abbreviated parent)
- *  so the sidebar can tell them apart. */
+ *  so the sidebar can tell them apart.
+ *  Worktree sessions key on their main checkout's root (2026-07-09 worktree-merge spec), so a repo
+ *  and its linked worktrees form one group. */
 export function groupSessionsByProject(
   sessions: Session[],
   homeDir = "",
@@ -71,8 +75,11 @@ export function groupSessionsByProject(
     { cwd?: string; label: string; sessions: Session[] }
   >();
   for (const s of sessions) {
-    const cwd = s.cwd || undefined;
-    const label = s.project || UNGROUPED_LABEL;
+    // A worktree session groups under its main checkout: root as the key (and the quick-add cwd),
+    // repo name as the label. A main-checkout session in the same repo produces the identical
+    // bucket values, so merge order doesn't matter.
+    const cwd = s.worktree?.repoRoot ?? (s.cwd || undefined);
+    const label = s.worktree?.repoLabel ?? (s.project || UNGROUPED_LABEL);
     const key = cwd ?? label;
     const bucket = buckets.get(key);
     if (bucket) bucket.sessions.push(s);

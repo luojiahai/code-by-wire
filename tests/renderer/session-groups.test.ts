@@ -87,6 +87,35 @@ describe("groupSessionsByProject", () => {
     expect(withPath?.hint).toBe("~/a");
     expect(without?.hint).toBeUndefined();
   });
+
+  it("merges worktree sessions into the main repo's group", () => {
+    const main = mk({ project: "repo", cwd: "/w/repo", lastActivityMs: 100 });
+    const wt = mk({
+      project: "repo-wt",
+      cwd: "/w/repo-wt",
+      worktree: { repoRoot: "/w/repo", repoLabel: "repo", name: "repo-wt" },
+      lastActivityMs: 200,
+    });
+    const groups = groupSessionsByProject([main, wt]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].key).toBe("/w/repo");
+    expect(groups[0].label).toBe("repo");
+    // Quick-add on the merged folder spawns in the main checkout.
+    expect(groups[0].cwd).toBe("/w/repo");
+    expect(groups[0].sessions).toHaveLength(2);
+  });
+
+  it("keys a worktree-only group on the repo root, even with no main-checkout session", () => {
+    const wt = mk({
+      project: "repo-wt",
+      cwd: "/w/repo-wt",
+      worktree: { repoRoot: "/w/repo", repoLabel: "repo", name: "repo-wt" },
+    });
+    const [g] = groupSessionsByProject([wt]);
+    expect(g.key).toBe("/w/repo");
+    expect(g.label).toBe("repo");
+    expect(g.cwd).toBe("/w/repo");
+  });
 });
 
 describe("parentHint", () => {
