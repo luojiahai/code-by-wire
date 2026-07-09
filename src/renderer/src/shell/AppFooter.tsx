@@ -48,7 +48,7 @@ export function AppFooter({ version }: { version: string | null }) {
             void window.api.setCaffeinate(!caffeinated).then(setCaffeinated);
           }}
           className={cx(
-            "inline-flex h-full items-center gap-1 rounded-none px-1.5 text-[0.6875rem]",
+            "relative inline-flex h-full items-center gap-1 rounded-none px-1.5 text-[0.6875rem]",
             caffeinated
               ? "bg-(--chrome-action-hover) text-fg"
               : "hover:text-fg",
@@ -56,6 +56,7 @@ export function AppFooter({ version }: { version: string | null }) {
         >
           <Icon name="coffee" size={12} />
           Caffeinate
+          {caffeinated && <span aria-hidden className="arc-border" />}
         </button>
         <button
           type="button"

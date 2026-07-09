@@ -417,6 +417,74 @@ body {
   animation: blink 1.1s step-end infinite;
 }
 
+/* hermes's working-session arc (styles.css:574-683): a masked 1.25px ring whose
+   ::before slides three faint comet arcs diagonally around the edge. Adapted for
+   code-by-wire: colors pinned to the dark-only theme (bright edge = --color-fg,
+   hermes's dark-mode choice; trail = the footer surface), and --arc-inset 0
+   instead of hermes's -0.125rem — the footer button sits flush against the
+   window's bottom edge, so an outset ring would clip its bottom arc. */
+@keyframes arc-border {
+  0% {
+    background-position: 15% 15%;
+  }
+  100% {
+    background-position: 75% 75%;
+  }
+}
+
+.arc-border {
+  --arc-c0: color-mix(in srgb, var(--color-fg) 0%, transparent);
+  --arc-c1: var(--color-fg);
+  --arc-c2: var(--ui-sidebar-surface-background);
+  --arc-angle: 160deg;
+  --arc-width: 0.078125rem;
+  --arc-inset: 0px;
+  --arc-duration: 2.23s;
+
+  pointer-events: none;
+  position: absolute;
+  overflow: hidden;
+  border-radius: inherit;
+  inset: var(--arc-inset);
+  padding: var(--arc-width);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.arc-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    var(--arc-angle),
+    transparent 0%,
+    var(--arc-c0) 15%,
+    var(--arc-c1) 20%,
+    var(--arc-c2) 25%,
+    transparent 35%,
+    transparent 40%,
+    var(--arc-c0) 55%,
+    var(--arc-c1) 60%,
+    var(--arc-c2) 65%,
+    transparent 75%,
+    transparent 80%,
+    var(--arc-c0) 95%,
+    var(--arc-c1) 100%
+  );
+  background-size: 300% 300%;
+  animation: arc-border var(--arc-duration) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc-border::before {
+    animation: none;
+  }
+}
+
 /* Thin themed scrollbars (hermes styles.css:803-876, `.scrollbar-dt` applied globally — every
    scroll region gets this treatment rather than opting in via a wrapper class). Firefox reads
    scrollbar-color/-width; Chromium/Electron read the ::-webkit-scrollbar-* rules below. */
