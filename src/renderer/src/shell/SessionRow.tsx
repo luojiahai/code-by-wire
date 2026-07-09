@@ -1,11 +1,14 @@
 import type { Session } from "@shared/types";
 import { cx, Lamp } from "../ui/atoms";
+import { Icon } from "../ui/icons";
 
 /**
  * The hermes single-line sidebar row: a 26px-tall strip with a state `Lamp` and the title — one
  * plain select button, no hover extras. The relative-time stamp moved to the right sidebar's
  * Session panel (Active row), and the copy-ID button is gone with it; no project·branch line and
- * no context-% chip either, which also live in the right sidebar now.
+ * no context-% chip either, which also live in the right sidebar now. The only extra is the
+ * dimmed worktree hint on sessions that merged into their repo's folder (2026-07-09
+ * worktree-merge spec).
  */
 export function SessionRow({
   session,
@@ -41,6 +44,12 @@ export function SessionRow({
       >
         {session.title}
       </span>
+      {session.worktree && (
+        <span className="flex min-w-0 shrink-[2] items-center gap-1 text-[0.72rem] leading-none text-(--ui-text-quaternary)">
+          <Icon name="git-branch" size={10} className="shrink-0" />
+          <span className="truncate">{session.worktree.name}</span>
+        </span>
+      )}
     </button>
   );
 }
