@@ -17,6 +17,7 @@ import {
 import { newSessionId } from "@shared/terminal";
 import { orderedSessions } from "@shared/overview";
 import { applyTitleOverrides } from "@shared/title-override";
+import { isUpdatePending } from "@shared/update";
 import { Workspace } from "./workspace/Workspace";
 import { useMetrics } from "./workspace/use-metrics";
 import { terminalStore } from "./terminal/terminal-store-instance";
@@ -111,6 +112,7 @@ export function App() {
   // session to leave it.
   const [selectedId, setSelectedId] = useState<string | null>(OVERVIEW_ID);
   const update = useUpdate();
+  const updatePending = isUpdatePending(update.state.phase);
 
   // Sessions and account come from one overview read, so apply them together — a stale or failed
   // half can't leave the list and the account disagreeing.
@@ -531,6 +533,7 @@ export function App() {
             }}
             onQuickAdd={quickAddSession}
             canSpawn={spawnGate(cliStatus).canSpawn}
+            updatePending={updatePending}
             route={route}
             onRoute={setSelectedId}
           />

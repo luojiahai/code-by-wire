@@ -46,6 +46,17 @@ export function releaseNotesUrl(version: string): string {
   return `${RELEASES_BASE}/v${version}`;
 }
 
+/** Whether an update is pending — found, downloading, or awaiting restart. Drives the sidebar
+ *  gear badge and the Settings About-row dot; clears only when the update installs (the new
+ *  version relaunches into `idle`). */
+export function isUpdatePending(phase: UpdatePhase): boolean {
+  return (
+    phase.kind === "available" ||
+    phase.kind === "downloading" ||
+    phase.kind === "downloaded"
+  );
+}
+
 /** State before any check: `unsupported` in dev (electron-updater can't run unpacked), else `idle`. */
 export function initialUpdateState(
   currentVersion: string,

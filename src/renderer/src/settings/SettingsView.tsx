@@ -1,4 +1,5 @@
 import type { CliStatus } from "@shared/cli-status";
+import { isUpdatePending } from "@shared/update";
 import { SoftwareUpdateCard, type UpdateControls } from "./SoftwareUpdateCard";
 import { CliCard } from "./CliCard";
 import { StatuslineCard } from "./StatuslineCard";
@@ -41,6 +42,7 @@ export function SettingsView({
 }) {
   const cliDot = footerView(cliStatus).dot;
   const cliTrips = cliDot === "warn" || cliDot === "error";
+  const updatePending = update ? isUpdatePending(update.state.phase) : false;
 
   return (
     <div className="flex h-full min-w-0 flex-1 bg-ink-950 text-fg">
@@ -74,6 +76,12 @@ export function SettingsView({
                     "h-1.5 w-1.5 rounded-full",
                     cliDot === "error" ? "bg-danger" : "bg-accent",
                   )}
+                />
+              )}
+              {n.key === "about" && updatePending && (
+                <span
+                  aria-hidden
+                  className="h-1.5 w-1.5 rounded-full bg-accent"
                 />
               )}
             </button>

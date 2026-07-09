@@ -42,6 +42,7 @@ export function LeftSidebar({
   onNew,
   onQuickAdd,
   canSpawn,
+  updatePending,
   route,
   onRoute,
 }: {
@@ -55,6 +56,9 @@ export function LeftSidebar({
    *  App surfaces failures in the New session view — so this only gates the busy mark. */
   onQuickAdd: (cwd: string) => Promise<void>;
   canSpawn: boolean;
+  /** True while a software update is pending (available/downloading/downloaded) —
+   *  badges the Settings gear (design spec 2026-07-09-update-dot). */
+  updatePending: boolean;
   route: string;
   onRoute: (id: string) => void;
 }) {
@@ -149,6 +153,9 @@ export function LeftSidebar({
           type="button"
           onClick={() => onRoute(SETTINGS_ID)}
           aria-pressed={route === SETTINGS_ID}
+          title={
+            updatePending ? "Update pending — see Settings › About" : undefined
+          }
           className={cx(
             "flex h-7 w-full items-center justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium transition-colors duration-100 ease-out hover:transition-none",
             route === SETTINGS_ID
@@ -156,8 +163,18 @@ export function LeftSidebar({
               : "text-(--ui-text-secondary) hover:bg-(--ui-control-hover-background) hover:text-fg",
           )}
         >
-          <Icon name="settings" size={16} className="shrink-0 opacity-70" />
+          <span className="relative grid shrink-0 place-items-center">
+            <Icon name="settings" size={16} className="opacity-70" />
+            {updatePending && (
+              // Ring stays the sidebar surface even on row hover/active — accepted halo (spec §UI).
+              <span
+                aria-hidden
+                className="absolute -right-[3px] -top-[2px] size-[7px] rounded-full border-[1.5px] border-(--ui-sidebar-surface-background) bg-accent"
+              />
+            )}
+          </span>
           Settings
+          {updatePending && <span className="sr-only">(update pending)</span>}
         </button>
       </div>
 

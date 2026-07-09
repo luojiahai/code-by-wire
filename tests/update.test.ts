@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   initialUpdateState,
+  isUpdatePending,
   nextUpdateState,
   releaseNotesUrl,
   type UpdateState,
@@ -129,5 +130,38 @@ describe("nextUpdateState", () => {
     expect(nextUpdateState(downloading, { type: "checking" })).toBe(
       downloading,
     );
+  });
+});
+
+describe("isUpdatePending", () => {
+  it("is true for available, downloading, and downloaded", () => {
+    expect(
+      isUpdatePending({
+        kind: "available",
+        version: "0.1.17",
+        notesUrl:
+          "https://github.com/luojiahai/code-by-wire/releases/tag/v0.1.17",
+      }),
+    ).toBe(true);
+    expect(
+      isUpdatePending({
+        kind: "downloading",
+        version: "0.1.17",
+        percent: 40,
+        transferred: 24,
+        total: 60,
+      }),
+    ).toBe(true);
+    expect(isUpdatePending({ kind: "downloaded", version: "0.1.17" })).toBe(
+      true,
+    );
+  });
+
+  it("is false for every non-pending phase", () => {
+    expect(isUpdatePending({ kind: "unsupported" })).toBe(false);
+    expect(isUpdatePending({ kind: "idle" })).toBe(false);
+    expect(isUpdatePending({ kind: "checking" })).toBe(false);
+    expect(isUpdatePending({ kind: "upToDate", checkedAt: 1234 })).toBe(false);
+    expect(isUpdatePending({ kind: "error", message: "offline" })).toBe(false);
   });
 });
