@@ -272,6 +272,48 @@ describe("scanStep (chunked incremental engine)", () => {
     const after = scanStep(db, home, 1_000_000);
     expect(after.wrote).toBe(true); // re-ingest detected even though no new rowid lands
   });
+
+  it("progressive usage snapshots converge to the final value at every chunk size", () => {
+    // A subagent-style turn written as three growing snapshots of one message id. Under
+    // first-entry-wins the stored row depended on WHERE the chunk boundary fell (nondeterministic
+    // output totals across restarts); last-entry-wins must land on the final snapshot always.
+    const home = makeHome();
+    const dir = join(home, "projects", "-p");
+    mkdirSync(dir, { recursive: true });
+    const snap = (out: number) =>
+      JSON.stringify({
+        type: "assistant",
+        cwd: "/work/proj",
+        timestamp: "2020-01-01T00:00:00.000Z",
+        message: {
+          role: "assistant",
+          id: "grow-1",
+          model: "claude-opus-4-8",
+          usage: {
+            input_tokens: 7,
+            output_tokens: out,
+            cache_read_input_tokens: 0,
+            cache_creation_input_tokens: 0,
+          },
+          content: [{ type: "text", text: "…" }],
+        },
+      });
+    const path = join(dir, "s-grow.jsonl");
+    writeFileSync(path, [snap(0), snap(0), snap(764)].join("\n") + "\n");
+    utimesSync(path, new Date(MT), new Date(MT));
+
+    for (const maxLines of [1, 2, 1_000_000]) {
+      const db = openTestDb();
+      migrateAnalytics(db);
+      while (!scanStep(db, home, maxLines).done) {
+        // drain the chunked scan
+      }
+      const totals = readTotals(db);
+      expect(totals.turns).toBe(1);
+      expect(totals.outputTokens).toBe(764); // the LAST snapshot, regardless of chunking
+      expect(totals.inputTokens).toBe(7);
+    }
+  });
 });
 
 describe("freshTargets (walk cache)", () => {
