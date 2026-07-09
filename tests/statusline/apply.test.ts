@@ -157,6 +157,73 @@ describe("deriveAccount", () => {
     });
   });
 
+  it("takes each window's highest used% across parallel sessions, not the newest file's (no flapping)", () => {
+    // Three sessions in the SAME 5h window. The idle ones keep rewriting their captures (fresh
+    // mtime) while carrying the % from their last API call (stale data) — here the stalest value
+    // sits on the newest file. Usage only grows within a window, so every sample is a lower bound
+    // and the max is the current account-wide estimate; picking by mtime flapped 45↔55↔63 between
+    // polls as write order changed.
+    const resetsAt = NOW + 3_600_000;
+    const idle = sample({
+      sessionId: "idle",
+      capturedMtimeMs: NOW, // newest file…
+      rateLimits: { fiveHour: { usedPct: 45, resetsAt } }, // …stalest data
+    });
+    const older = sample({
+      sessionId: "older",
+      capturedMtimeMs: NOW - 600_000,
+      rateLimits: { fiveHour: { usedPct: 55, resetsAt } },
+    });
+    const active = sample({
+      sessionId: "active",
+      capturedMtimeMs: NOW - 2_000,
+      rateLimits: { fiveHour: { usedPct: 63, resetsAt } },
+    });
+    expect(
+      deriveAccount([idle, older, active], NOW, STALE_MS)?.fiveHour,
+    ).toEqual({ usedPct: 63, resetsAt });
+  });
+
+  it("a newer reset window supersedes an older one, whatever its used%", () => {
+    // Around a reset boundary both generations can be live for a moment (clock skew, a session that
+    // hasn't called the API since the reset). The later resets_at is the current window; its low %
+    // must win over the old generation's high one — max across generations would resurrect it.
+    const oldGen = sample({
+      sessionId: "a",
+      capturedMtimeMs: NOW,
+      rateLimits: { fiveHour: { usedPct: 90, resetsAt: NOW + 60_000 } },
+    });
+    const newGen = sample({
+      sessionId: "b",
+      capturedMtimeMs: NOW - 1_000,
+      rateLimits: { fiveHour: { usedPct: 5, resetsAt: NOW + 5 * 3_600_000 } },
+    });
+    expect(deriveAccount([oldGen, newGen], NOW, STALE_MS)?.fiveHour).toEqual({
+      usedPct: 5,
+      resetsAt: NOW + 5 * 3_600_000,
+    });
+  });
+
+  it("derives each window independently — one session's live 5h joins another's live weekly", () => {
+    // The freshest-with-limits sample used to donate ALL windows; a session missing one window
+    // blanked it even though a parallel session had it live.
+    const fiveOnly = sample({
+      sessionId: "a",
+      capturedMtimeMs: NOW,
+      rateLimits: { fiveHour: { usedPct: 40, resetsAt: NOW + 3_600_000 } },
+    });
+    const weeklyOnly = sample({
+      sessionId: "b",
+      capturedMtimeMs: NOW - 1_000,
+      rateLimits: { sevenDay: { usedPct: 70, resetsAt: NOW + 86_400_000 } },
+    });
+    expect(deriveAccount([fiveOnly, weeklyOnly], NOW, STALE_MS)).toEqual({
+      billingMode: "subscription",
+      fiveHour: { usedPct: 40, resetsAt: NOW + 3_600_000 },
+      sevenDay: { usedPct: 70, resetsAt: NOW + 86_400_000 },
+    });
+  });
+
   it("stays subscription on a lone live per-model window — any one live window is proof enough", () => {
     // The 5h and weekly windows have both reset, but the per-model Opus bucket is still live. A single
     // live window keeps the account 'subscription'; this exercises the sevenDayOpus term of the OR that

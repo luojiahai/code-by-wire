@@ -81,16 +81,41 @@ function liveWindow(
   return w && w.resetsAt > now ? w : undefined;
 }
 
+/** The best live view of one window across every fresh with-limits sample: the latest resetsAt wins
+ *  (a newer window generation supersedes the old one), and within one generation the highest usedPct
+ *  wins. Usage only grows during a window, so each session's snapshot is a lower bound on the
+ *  account-wide value — an idle session keeps rewriting its capture (fresh mtime) with the % from its
+ *  last API call (stale data), so picking by file mtime flapped between parallel sessions' numbers. */
+function bestWindow(
+  samples: StatusLineSample[],
+  key: "fiveHour" | "sevenDay" | "sevenDaySonnet" | "sevenDayOpus",
+  now: number,
+): RateLimit | undefined {
+  let best: RateLimit | undefined;
+  for (const s of samples) {
+    const w = liveWindow(s.rateLimits?.[key], now);
+    if (!w) continue;
+    if (
+      !best ||
+      w.resetsAt > best.resetsAt ||
+      (w.resetsAt === best.resetsAt && w.usedPct > best.usedPct)
+    )
+      best = w;
+  }
+  return best;
+}
+
 /**
  * The app-wide Account from the live statusLine captures within `staleMs` of `now`. Billing mode is
  * decided here, in one place:
  *
  * - subscription: rate-limit presence is the signal. A capture carrying rate_limits is a subscription;
- *   the account takes its windows from the freshest capture that HAS them. To avoid flapping (a
- *   subscription session before its first API response, or an API-key session running alongside, carries
- *   no rate_limits) a newer no-limits capture can't override an older with-limits one. Each window is
- *   dropped once its reset has passed, so a stale capture can't show an expired limit as current. A
- *   dormant subscriber (all windows expired) stays subscription — the rate_limits history is proof.
+ *   each window is derived independently across EVERY fresh with-limits capture (see bestWindow) —
+ *   parallel sessions carry snapshots of different ages, so no single capture is authoritative. A
+ *   no-limits capture (a subscription session before its first API response, or an API-key session
+ *   running alongside) never overrides one with them. Each window is dropped once its reset has
+ *   passed, so a stale capture can't show an expired limit as current. A dormant subscriber (all
+ *   windows expired) stays subscription — the rate_limits history is proof.
  * - api: no capture ever carried rate_limits (no subscription evidence) and at least one fresh sample
  *   exists. A capture with rate_limits — even all-expired — is proof of a subscription, so a dormant
  *   subscriber is NEVER relabeled API billing.
@@ -103,23 +128,19 @@ export function deriveAccount(
   staleMs: number,
 ): Account | null {
   let freshest: StatusLineSample | null = null;
-  let withLimits: StatusLineSample | null = null;
+  const withLimits: StatusLineSample[] = [];
   for (const s of samples) {
     if (now - s.capturedMtimeMs > staleMs) continue;
     if (!freshest || s.capturedMtimeMs > freshest.capturedMtimeMs) freshest = s;
-    if (
-      s.rateLimits &&
-      (!withLimits || s.capturedMtimeMs > withLimits.capturedMtimeMs)
-    )
-      withLimits = s;
+    if (s.rateLimits) withLimits.push(s);
   }
-  if (withLimits?.rateLimits) {
+  if (withLimits.length > 0) {
     const acc: Account = {
       billingMode: "subscription",
-      fiveHour: liveWindow(withLimits.rateLimits.fiveHour, now),
-      sevenDay: liveWindow(withLimits.rateLimits.sevenDay, now),
-      sevenDaySonnet: liveWindow(withLimits.rateLimits.sevenDaySonnet, now),
-      sevenDayOpus: liveWindow(withLimits.rateLimits.sevenDayOpus, now),
+      fiveHour: bestWindow(withLimits, "fiveHour", now),
+      sevenDay: bestWindow(withLimits, "sevenDay", now),
+      sevenDaySonnet: bestWindow(withLimits, "sevenDaySonnet", now),
+      sevenDayOpus: bestWindow(withLimits, "sevenDayOpus", now),
     };
     if (freshest?.version) acc.version = freshest.version;
     return acc;
