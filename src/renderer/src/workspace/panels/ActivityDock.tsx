@@ -239,7 +239,6 @@ function DockTally({
   shellCount: number;
   onExpand: () => void;
 }) {
-  const tasksDone = tasks.filter((t) => t.status === "completed").length;
   return (
     <button
       type="button"
@@ -250,8 +249,7 @@ function DockTally({
     >
       <SidebarPanelLabel>Activity</SidebarPanelLabel>
       <span className="min-w-0 flex-1 truncate font-mono text-[0.72rem] tabular-nums text-(--ui-text-quaternary)">
-        {tasksDone}/{tasks.length} tasks · {stats.total} subagents ·{" "}
-        {shellCount} shells
+        {tasks.length} tasks · {stats.total} subagents · {shellCount} shells
       </span>
       <Icon
         name="chevron-up"

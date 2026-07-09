@@ -67,10 +67,10 @@ function SubagentRow({
             {formatTokensShort(agent.tokens)}
           </MetricCell>
           <MetricCell
-            width="w-14"
+            width="w-20"
             tone="text-(--ui-text-secondary)"
-            unit={agent.toolCount === 1 ? "tool" : "tools"}
-            aria-label={`${agent.toolCount} tool ${agent.toolCount === 1 ? "call" : "calls"}`}
+            unit={agent.toolCount === 1 ? "tool use" : "tool uses"}
+            aria-label={`${agent.toolCount} tool ${agent.toolCount === 1 ? "use" : "uses"}`}
           >
             {agent.toolCount}
           </MetricCell>
