@@ -68,6 +68,7 @@ function SubagentRow({
           </MetricCell>
           <MetricCell
             width="w-14"
+            tone="text-(--ui-text-secondary)"
             unit={agent.toolCount === 1 ? "tool" : "tools"}
             aria-label={`${agent.toolCount} tool ${agent.toolCount === 1 ? "call" : "calls"}`}
           >
@@ -80,12 +81,12 @@ function SubagentRow({
       }
     >
       {tag && (
-        <span className="shrink-0 rounded-sm bg-(--ui-bg-tertiary) px-1 py-px font-mono text-micro text-(--ui-text-tertiary)">
+        <span className="shrink-0 font-mono text-meta text-(--ui-text-tertiary)">
           {tag}
         </span>
       )}
       <span
-        className="min-w-0 flex-1 truncate text-aux text-(--ui-text-primary)"
+        className="min-w-0 flex-1 truncate text-aux text-(--ui-text-secondary)"
         title={primary}
       >
         {primary}

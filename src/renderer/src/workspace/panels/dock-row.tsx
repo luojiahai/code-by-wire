@@ -75,7 +75,7 @@ export function DockRow({
 /** The right-aligned metric cluster shared by every dock row. */
 export function MetricRack({ children }: { children: ReactNode }) {
   return (
-    <span className="flex shrink-0 items-center gap-3 font-mono text-label tabular-nums">
+    <span className="flex shrink-0 items-center gap-3 font-mono text-meta tabular-nums">
       {children}
     </span>
   );
@@ -98,7 +98,7 @@ export function MetricCell({
   return (
     <span
       className={cx(
-        "shrink-0 text-right font-mono text-label tabular-nums",
+        "shrink-0 text-right font-mono text-meta tabular-nums",
         width,
         tone,
         className,
@@ -106,7 +106,7 @@ export function MetricCell({
       {...rest}
     >
       {children}
-      {unit && <span className="ml-0.5 text-(--ui-text-tertiary)">{unit}</span>}
+      {unit && <span className="ml-1 text-(--ui-text-tertiary)">{unit}</span>}
     </span>
   );
 }

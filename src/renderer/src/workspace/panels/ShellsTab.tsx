@@ -64,7 +64,7 @@ function ShellRow({
       >
         {shell.description ? (
           <>
-            <span className="text-(--ui-text-primary)">
+            <span className="text-(--ui-text-secondary)">
               {shell.description}
             </span>
             <span className="ml-2 font-mono text-meta text-(--ui-text-tertiary)">
@@ -72,7 +72,7 @@ function ShellRow({
             </span>
           </>
         ) : (
-          <span className="font-mono text-meta text-(--ui-text-primary)">
+          <span className="font-mono text-meta text-(--ui-text-secondary)">
             {shell.command}
           </span>
         )}

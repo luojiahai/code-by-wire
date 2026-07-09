@@ -18,9 +18,9 @@ const GLYPH_TONE: Record<Task["status"], string> = {
 };
 const SUBJECT_TONE: Record<Task["status"], string> = {
   completed: "text-(--ui-text-tertiary) line-through",
-  in_progress: "text-(--ui-text-primary)",
+  in_progress: "text-(--ui-text-secondary)",
   blocked: "text-(--ui-text-secondary)",
-  pending: "text-(--ui-text-primary)",
+  pending: "text-(--ui-text-secondary)",
 };
 
 /**
