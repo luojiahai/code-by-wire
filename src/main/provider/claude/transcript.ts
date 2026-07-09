@@ -203,7 +203,9 @@ export function parseTranscript(
         const turnId =
           typeof row.message?.id === "string" ? row.message.id : undefined;
         tail.beginAssistantTurn(turnId);
-        tail.noteUsage(usage);
+        // An API-error row can carry a partial usage block that is not the turn's real context —
+        // never let it become the current-context pick (its tokens still count toward usage totals).
+        if (!row.isApiErrorMessage) tail.noteUsage(usage);
         if (Array.isArray(content)) {
           for (const block of content) {
             if (block?.type === "tool_use" && typeof block.id === "string") {

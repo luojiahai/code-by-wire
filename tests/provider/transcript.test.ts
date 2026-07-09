@@ -38,6 +38,32 @@ describe("parseTranscript", () => {
     expect(s.contextTokens).toBe(115); // latest turn: input (100) + cache-read (10) + cache-creation (5)
   });
 
+  it("an isApiErrorMessage row never overrides the current context size", () => {
+    const real = JSON.stringify({
+      type: "assistant",
+      timestamp: "2026-06-09T03:00:00.000Z",
+      message: {
+        id: "m-real",
+        model: "claude-opus-4-8",
+        usage: { input_tokens: 100, cache_read_input_tokens: 900 },
+        content: [{ type: "text", text: "ok" }],
+      },
+    });
+    const errRow = JSON.stringify({
+      type: "assistant",
+      isApiErrorMessage: true,
+      timestamp: "2026-06-09T03:00:05.000Z",
+      message: {
+        id: "m-err",
+        model: "<synthetic>",
+        usage: { input_tokens: 3, cache_read_input_tokens: 0 },
+        content: [{ type: "text", text: "API error" }],
+      },
+    });
+    const s = parseTranscript([real, errRow].join("\n"));
+    expect(s.contextTokens).toBe(1000); // the real turn's split, not the error row's 3
+  });
+
   it("strips slash-command wrappers, skips meta lines, and tolerates malformed json", () => {
     const s = parseTranscript(
       fx(

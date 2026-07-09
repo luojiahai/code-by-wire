@@ -174,8 +174,9 @@ export function parseTranscriptEventsFromRows(
       tail.beginAssistantTurn(id);
       if (hasTs) extendClock(tsParsed);
 
-      // Current context = the latest assistant turn's prompt, split by cache state.
-      tail.noteUsage(row.message?.usage);
+      // Current context = the latest assistant turn's prompt, split by cache state. An API-error
+      // row's partial usage is not a real context split — skip it (matches the summary parser).
+      if (!row.isApiErrorMessage) tail.noteUsage(row.message?.usage);
 
       if (!Array.isArray(content)) continue;
       for (const b of content) {

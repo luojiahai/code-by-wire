@@ -1079,4 +1079,39 @@ describe("parseTranscriptEvents — current context", () => {
     );
     expect(context).toBeNull();
   });
+
+  it("an isApiErrorMessage row never overrides the current context size", () => {
+    const { context } = parseTranscriptEvents(
+      jsonl(
+        {
+          type: "assistant",
+          message: {
+            id: "m1",
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+            usage: {
+              input_tokens: 100,
+              cache_read_input_tokens: 900,
+              cache_creation_input_tokens: 0,
+            },
+          },
+        },
+        {
+          type: "assistant",
+          isApiErrorMessage: true,
+          message: {
+            id: "m2",
+            role: "assistant",
+            content: [{ type: "text", text: "API error" }],
+            usage: {
+              input_tokens: 3,
+              cache_read_input_tokens: 0,
+              cache_creation_input_tokens: 0,
+            },
+          },
+        },
+      ),
+    );
+    expect(context).toEqual({ input: 100, cacheRead: 900, cacheCreation: 0 });
+  });
 });
