@@ -73,6 +73,7 @@ export interface Subagent {
   /** Wall-clock start (epoch ms): the agent's first parseable transcript timestamp. Absent when no row
    *  carried a timestamp, so the lane can't be positioned and falls back to the timeline's left edge. */
   startMs?: number;
+  /** The CLI's per-agent token count: last assistant snapshot, cache included (see Scan.tokens). */
   tokens: number;
   durationMs: number;
   /** The agent's own tool calls: the count of tool_use ids it dispatched. A nested Task/Agent

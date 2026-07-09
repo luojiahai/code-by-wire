@@ -98,6 +98,47 @@ function streamedTurn(
 }
 
 describe("buildSubagentForest", () => {
+  it("counts tokens like the CLI: the last assistant snapshot, cache included", () => {
+    // The CLI's per-agent number (live counter and "Done (N tool uses · X tokens)") is the LAST
+    // assistant message's input + output + cache read + cache creation. An earlier turn's usage —
+    // however large — must not be summed in.
+    const forest = buildSubagentForest(main("tu-1", { is_error: false }), [
+      agent("a1", "tu-1", "Explore", [
+        {
+          type: "assistant",
+          timestamp: "2026-06-04T03:00:00.000Z",
+          message: {
+            id: "m-1",
+            model: SONNET,
+            usage: {
+              input_tokens: 3,
+              output_tokens: 900,
+              cache_read_input_tokens: 30_000,
+              cache_creation_input_tokens: 9_000,
+            },
+            content: [],
+          },
+        },
+        {
+          type: "assistant",
+          timestamp: "2026-06-04T03:00:10.000Z",
+          message: {
+            id: "m-2",
+            model: SONNET,
+            usage: {
+              input_tokens: 2,
+              output_tokens: 50,
+              cache_read_input_tokens: 40_000,
+              cache_creation_input_tokens: 200,
+            },
+            content: [],
+          },
+        },
+      ]),
+    ]);
+    expect(forest[0].tokens).toBe(2 + 50 + 40_000 + 200);
+  });
+
   it("builds a flat fan-out of roots with type/model/tokens/duration", () => {
     const forest = buildSubagentForest(
       [
@@ -144,7 +185,7 @@ describe("buildSubagentForest", () => {
         type: "Explore",
         status: "done",
         model: "sonnet",
-        tokens: 157,
+        tokens: 52, // the last snapshot (2 + 50), not a sum across turns
         durationMs: 10000,
         toolCount: 0,
         startMs: Date.parse("2026-06-04T03:00:00.000Z"),
@@ -333,7 +374,7 @@ describe("buildSubagentForest", () => {
     expect(forest[0].status).toBe("failed");
   });
 
-  it("counts a streamed turn once, keyed on message id (no per-row inflation)", () => {
+  it("counts a streamed turn once (no per-row inflation)", () => {
     const forest = buildSubagentForest(main("tu-1", { is_error: false }), [
       // 5 rows, same id + usage {3, 12}: the turn's tokens are 15, not 75.
       agent("a1", "tu-1", "Explore", streamedTurn("msg-1", SONNET, 3, 12, 5)),

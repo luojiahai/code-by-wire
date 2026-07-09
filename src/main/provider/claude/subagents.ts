@@ -4,7 +4,7 @@ import type { Family, Subagent } from "@shared/types";
 import { normalizeModelId } from "@shared/models";
 import { parseJsonlRows } from "./transcript-row";
 import { newestMtime } from "./dir-mtime";
-import { UsageAccumulator } from "./usage-accumulator";
+import { readUsage } from "./usage-accumulator";
 
 /** The `.meta.json` companion of a subagent transcript. */
 export interface SubagentMeta {
@@ -32,9 +32,11 @@ interface Scan {
   results: Map<string, boolean>;
   /** First raw model string seen on an assistant row, normalized later; undefined when none reported. */
   model: string | undefined;
-  /** Summed input + output tokens, counted at each turn's last usage snapshot (keyed on message.id,
-   *  since Claude Code writes one turn across many rows that repeat the same usage). Cache excluded —
-   *  the Cost panel owns cache. */
+  /** The Claude Code CLI's per-agent token count: the LAST assistant usage snapshot's input + output
+   *  + cache read + cache creation — the turn's full context footprint. Matches the CLI's live counter
+   *  and its "Done (N tool uses · X tokens)" line (both read findLast(assistant).usage across all four
+   *  fields), so the lane agrees with the number the CLI showed for the same agent. Cumulative billed
+   *  volume is a different metric; the Cost panel owns that. */
   tokens: number;
   /** Min / max parseable timestamp (ms); duration is their difference. */
   firstTs: number;
@@ -48,10 +50,10 @@ function scanRows(rows: any[]): Scan {
   let model: string | undefined;
   let firstTs = Infinity;
   let lastTs = -Infinity;
-  // Usage deduped per message id, LAST row wins (see UsageAccumulator): one assistant turn spans
-  // several rows, and subagent transcripts stream progressive snapshots where only the final row
-  // carries the billed usage.
-  const acc = new UsageAccumulator();
+  // The usage block of the last assistant row that carried one. Rows are file-ordered and one turn's
+  // progressive streaming snapshots repeat its message id consecutively, so this IS the final
+  // snapshot of the final turn — the same block the CLI's findLast(assistant) reads.
+  let lastUsage: unknown;
   for (const row of rows) {
     const ts =
       typeof row?.timestamp === "string" ? Date.parse(row.timestamp) : NaN;
@@ -63,9 +65,7 @@ function scanRows(rows: any[]): Scan {
     if (row?.type === "assistant") {
       if (!model && typeof msg?.model === "string") model = msg.model;
       const u = msg?.usage;
-      if (u && typeof u === "object") {
-        acc.add(typeof msg?.id === "string" ? msg.id : null, u);
-      }
+      if (u && typeof u === "object") lastUsage = u;
     }
     const content = msg?.content;
     if (Array.isArray(content)) {
@@ -79,13 +79,18 @@ function scanRows(rows: any[]): Scan {
       }
     }
   }
-  const totals = acc.totals();
+  // readUsage of an absent block is all zeros, so a usage-less agent scans to tokens: 0.
+  const last = readUsage(lastUsage);
   return {
     toolUseIds,
     dispatchMsgOf,
     results,
     model,
-    tokens: totals.inputTokens + totals.outputTokens,
+    tokens:
+      last.inputTokens +
+      last.outputTokens +
+      last.cacheReadTokens +
+      last.cacheCreationTokens,
     firstTs,
     lastTs,
   };
