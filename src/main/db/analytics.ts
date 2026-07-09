@@ -41,8 +41,13 @@ import type { WorktreeRow } from "../git/worktrees";
  * pure CREATE, no existing data touched. It also narrows the v2 backfill guard from `from >= 2` to
  * exactly `from === 2`: that seed exists to initialize the 5m/1h split when leaving v2, and re-running
  * it on a later bump would needlessly clear the high-water marks and force a full rescan.
+ *
+ * v5 ships the last-entry-wins usage dedup (progressive subagent streaming snapshots used to be
+ * counted at their first, near-zero snapshot, undercounting subagent output ~85%). It only clears
+ * processed_files so the next scan re-walks every transcript and upserts corrected usage over the
+ * stale rows in place — turns history survives.
  */
-const ANALYTICS_SCHEMA_VERSION = 4;
+const ANALYTICS_SCHEMA_VERSION = 5;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -118,6 +123,13 @@ export function migrateAnalytics(db: SqliteDb): void {
     db.exec(
       "UPDATE turns SET cache_creation_5m_tokens = cache_creation_tokens WHERE cache_creation_5m_tokens = 0 AND cache_creation_1h_tokens = 0",
     );
+    db.exec("DELETE FROM processed_files");
+  }
+
+  // v5: force the one-time full rescan for the last-entry-wins dedup fix. Scoped to 3 and 4: the
+  // from === 1 / from === 2 paths above already cleared the high-water marks, and a fresh install
+  // has nothing to re-walk.
+  if (from === 3 || from === 4) {
     db.exec("DELETE FROM processed_files");
   }
 

@@ -44,14 +44,14 @@ const turn = (
 };
 
 describe("analytics store", () => {
-  it("migrates to schema v4 and is idempotent", () => {
+  it("migrates to schema v5 and is idempotent", () => {
     const db = openTestDb();
     migrateAnalytics(db);
     migrateAnalytics(db); // second call is a no-op, not an error
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it("creates processed_files and round-trips a high-water mark", () => {
@@ -74,7 +74,7 @@ describe("analytics store", () => {
     migrateAnalytics(db);
     upsertTurns(db, [turn()]);
     upsertProcessedFile(db, "/a.jsonl", 1, 1);
-    migrateAnalytics(db); // already at v3 → the guard skips the block; nothing is wiped
+    migrateAnalytics(db); // already at v5 → migrate returns immediately; nothing is wiped
     expect(readTotals(db).turns).toBe(1);
     expect(readProcessedFiles(db).get("/a.jsonl")).toEqual({
       mtime: 1,
@@ -106,13 +106,13 @@ describe("analytics store", () => {
       (db.prepare("SELECT COUNT(*) AS n FROM turns").get() as { n: number }).n,
     ).toBe(1);
 
-    migrateAnalytics(db); // 1 → 4: clears turns so the next scan rebuilds under the new surrogate scheme
+    migrateAnalytics(db); // 1 → 5: clears turns so the next scan rebuilds under the new surrogate scheme
     expect(readTotals(db).turns).toBe(0);
     expect(readProcessedFiles(db).size).toBe(0); // new table exists and is empty
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it("only clears turns on the v1 → v2 step, never on another upgrade (no future-bump re-wipe)", () => {
@@ -136,12 +136,12 @@ describe("analytics store", () => {
        VALUES ('msg-1','sess-1',1000,'claude-opus-4-8',0,0,0,0,'/work/code-by-wire','code-by-wire','main')`,
     );
 
-    migrateAnalytics(db); // enters the block (0 < 4) but `from !== 1`, so turns survive
+    migrateAnalytics(db); // enters the block (0 < 5) but `from !== 1`, so turns survive
     expect(readTotals(db).turns).toBe(1);
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it("returns zeroed totals for an empty store", () => {
@@ -436,26 +436,60 @@ describe("analytics store", () => {
     ]);
   });
 
-  it("v3 → v4 keeps processed_files (no forced rescan)", () => {
+  it("v3 → v5 clears processed_files (v5 rescan) but does NOT re-run the v2 cache-split seed", () => {
     const db = openTestDb();
-    migrateAnalytics(db); // v4 schema
+    migrateAnalytics(db); // current schema
+    // A turn whose cache-creation total is un-split (5m = 1h = 0) — the exact shape the v2 seed backfills.
+    upsertTurns(db, [
+      turn({
+        usage: {
+          cacheCreationTokens: 30,
+          cacheCreation5mTokens: 0,
+          cacheCreation1hTokens: 0,
+        },
+      }),
+    ]);
     upsertProcessedFile(db, "/a.jsonl", 111, 3);
     db.exec("PRAGMA user_version = 3"); // pretend this store predates v4
+
     migrateAnalytics(db);
-    expect(readProcessedFiles(db).size).toBe(1);
+    // v5 forces the rescan for the last-entry-wins fix: high-water marks cleared even for a v3 origin.
+    expect(readProcessedFiles(db).size).toBe(0);
+    // The v2 seed is scoped to from === 2, so it must NOT run for a v3 store: the 5m split stays 0,
+    // not backfilled from the 30-token total.
+    const t = readTotals(db);
+    expect(t.cacheCreation5mTokens).toBe(0);
+    expect(t.cacheCreationTokens).toBe(30);
+    // Lands at the current version.
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(4);
+    ).toBe(5);
   });
 
-  it("v2 → v4 still clears processed_files to backfill the cache split", () => {
+  it("v2 → v5 still clears processed_files to backfill the cache split", () => {
     const db = openTestDb();
     migrateAnalytics(db);
     upsertProcessedFile(db, "/a.jsonl", 111, 3);
     db.exec("PRAGMA user_version = 2");
     migrateAnalytics(db);
     expect(readProcessedFiles(db).size).toBe(0);
+  });
+
+  it("v4 → v5 clears processed_files (forced rescan) but preserves turns", () => {
+    const db = openTestDb();
+    migrateAnalytics(db); // creates the current schema
+    upsertTurns(db, [turn()]);
+    upsertProcessedFile(db, "/a.jsonl", 111, 5);
+    db.exec("PRAGMA user_version = 4"); // simulate a store left at v4
+
+    migrateAnalytics(db);
+    expect(readTotals(db).turns).toBe(1); // history survives; the rescan will upsert over it
+    expect(readProcessedFiles(db).size).toBe(0); // every file re-walks under last-entry-wins
+    expect(
+      (db.prepare("PRAGMA user_version").get() as { user_version: number })
+        .user_version,
+    ).toBe(5);
   });
 });
 
