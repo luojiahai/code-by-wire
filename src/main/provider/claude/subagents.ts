@@ -52,7 +52,9 @@ function scanRows(rows: any[]): Scan {
   let lastTs = -Infinity;
   // The usage block of the last assistant row that carried one. Rows are file-ordered and one turn's
   // progressive streaming snapshots repeat its message id consecutively, so this IS the final
-  // snapshot of the final turn — the same block the CLI's findLast(assistant) reads.
+  // snapshot of the final turn — the same block the CLI's findLast(assistant) reads, EXCEPT when the
+  // literal last assistant row has no usage (e.g. a synthetic error row): the CLI would then read 0,
+  // while this deliberately keeps the last known usage instead. That's the better number, not a bug.
   let lastUsage: unknown;
   for (const row of rows) {
     const ts =
