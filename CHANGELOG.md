@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.23] - 2026-07-09
+
+### Added
+
+- A per-folder quick-add button in the sidebar creates a new session directly
+  inside that project folder.
+
+### Changed
+
+- Git-worktree sessions now merge into their parent repository's sidebar
+  folder instead of appearing as a separate, unrelated entry.
+- The Activity dock's typography is harmonized across the Tasks, Shells, and
+  Subagents tabs (metric rack sizing, label coloring, row grammar), and the
+  Session panel's Git readout drops ahead/behind counts and reduces the PR
+  row to just the number link.
+
+### Fixed
+
+- Usage accounting now dedupes each turn's usage snapshots last-entry-wins,
+  correcting subagent token totals in the sidebar and Stats page, token-speed
+  calculations, and a rounding boundary where 999,950+ tokens misread as
+  "1000.0k". The analytics database schema bumps to v5 to force a one-time
+  rescan of existing sessions under the corrected math.
+- The sidebar's session list window now stays in sync with the configured
+  cleanup period instead of drifting from it.
+- The README's Buy Me a Coffee button now uses proper markdown link syntax.
+
 ## [0.1.22] - 2026-07-06
 
 ### Changed
@@ -555,7 +582,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.22...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.23...HEAD
+[0.1.23]: https://github.com/luojiahai/code-by-wire/compare/v0.1.22...v0.1.23
 [0.1.22]: https://github.com/luojiahai/code-by-wire/compare/v0.1.21...v0.1.22
 [0.1.21]: https://github.com/luojiahai/code-by-wire/compare/v0.1.20...v0.1.21
 [0.1.20]: https://github.com/luojiahai/code-by-wire/compare/v0.1.19...v0.1.20
