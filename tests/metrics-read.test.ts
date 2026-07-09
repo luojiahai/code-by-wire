@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  mkdirSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createClaudeProvider } from "../src/main/provider/claude";
 import { _setPrRunner, _resetPrCache } from "../src/main/git/read-pr";
@@ -250,5 +256,95 @@ describe("provider.readMetrics", () => {
     expect(second.status).toBe("changed"); // git moved → token moved
     if (second.status !== "changed") return;
     expect(second.metrics.tokenSpeed?.outputTps).toBeCloseTo(100, 5); // cached by mtime, not reparsed to 999.9
+  });
+
+  it("token speed includes subagent transcript turns", () => {
+    const claudeDir = makeHome();
+    writeTranscript(
+      claudeDir,
+      "-proj",
+      "sess-sub",
+      turn("sess-sub", undefined),
+    );
+    const subDir = join(
+      claudeDir,
+      "projects",
+      "-proj",
+      "sess-sub",
+      "subagents",
+    );
+    mkdirSync(subDir, { recursive: true });
+    writeFileSync(
+      join(subDir, "agent-x.jsonl"),
+      [
+        {
+          type: "user",
+          timestamp: "2026-06-11T00:00:00.000Z",
+          message: { content: "task" },
+        },
+        {
+          type: "assistant",
+          timestamp: "2026-06-11T00:00:10.000Z",
+          message: {
+            id: "sub-m1",
+            usage: { input_tokens: 0, output_tokens: 500 },
+          },
+        },
+      ]
+        .map((r) => JSON.stringify(r))
+        .join("\n") + "\n",
+    );
+    const p = createClaudeProvider({ claudeDir });
+    const read = p.readMetrics("sess-sub", 0);
+    expect(read.status).toBe("changed");
+    if (read.status !== "changed") return;
+    // main turn: 50 output; subagent: 500 — both over the merged 0→10s interval.
+    expect(read.metrics.tokenSpeed?.outputTps).toBeCloseTo(55, 5);
+  });
+
+  it("recomputes when only a subagent transcript moves (token folds subagent mtimes)", () => {
+    const claudeDir = makeHome();
+    writeTranscript(claudeDir, "-proj", "sess-mt", turn("sess-mt", undefined));
+    const subDir = join(claudeDir, "projects", "-proj", "sess-mt", "subagents");
+    mkdirSync(subDir, { recursive: true });
+    const subPath = join(subDir, "agent-x.jsonl");
+    writeFileSync(
+      subPath,
+      JSON.stringify({
+        type: "assistant",
+        timestamp: "2026-06-11T00:00:10.000Z",
+        message: {
+          id: "sub-m1",
+          usage: { input_tokens: 0, output_tokens: 500 },
+        },
+      }) + "\n",
+    );
+    const p = createClaudeProvider({ claudeDir });
+    const first = p.readMetrics("sess-mt", 0);
+    expect(first.status).toBe("changed");
+    if (first.status !== "changed") return;
+    expect(p.readMetrics("sess-mt", first.mtimeMs).status).toBe("unchanged");
+
+    // Append a bigger final snapshot for the same id and move ONLY the subagent file's mtime forward.
+    appendFileSync(
+      subPath,
+      JSON.stringify({
+        type: "assistant",
+        timestamp: "2026-06-11T00:00:20.000Z",
+        message: {
+          id: "sub-m1",
+          usage: { input_tokens: 0, output_tokens: 900 },
+        },
+      }) + "\n",
+    );
+    const later = Date.now() + 5_000;
+    utimesSync(subPath, new Date(later), new Date(later));
+
+    const second = p.readMetrics("sess-mt", first.mtimeMs);
+    expect(second.status).toBe("changed");
+    if (second.status !== "changed") return;
+    // sub-m1's interval extends to its last snapshot: [10s, 20s] with output 900. Merged with the
+    // main turn's [0s, 10s] that is 20s of active time; (50 + 900) / 20 = 47.5.
+    expect(second.metrics.tokenSpeed?.outputTps).toBeCloseTo(47.5, 5);
   });
 });

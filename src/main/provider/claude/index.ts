@@ -14,6 +14,7 @@ import { extractToolResult } from "./tool-result";
 import { parseJsonlRows } from "./transcript-row";
 import {
   buildSubagentForest,
+  listSubagentFiles,
   readSubagentSources,
   subagentFileFor,
   subagentsDirFor,
@@ -195,13 +196,23 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
     speedById.delete(id);
   };
 
-  // Compute + cache the token speed from already-read JSONL.
+  // Compute + cache the token speed from already-read JSONL, folding in every subagent transcript —
+  // their turns are part of the session's throughput (concurrent intervals merge in the denominator).
   const cacheSpeed = (
     id: string,
     mtimeMs: number,
     jsonl: string,
+    path: string,
   ): TokenSpeed | null => {
-    const speed = computeTokenSpeed([parseJsonlRows(jsonl)], SPEED_WINDOW_MS);
+    const groups = [parseJsonlRows(jsonl)];
+    for (const { path: subPath } of listSubagentFiles(
+      subagentsDirFor(path),
+      id,
+    )) {
+      const sub = readTextOrNull(subPath);
+      if (sub !== null) groups.push(parseJsonlRows(sub));
+    }
+    const speed = computeTokenSpeed(groups, SPEED_WINDOW_MS);
     speedById.set(id, { mtimeMs, speed });
     return speed;
   };
@@ -217,7 +228,7 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
       return { gone: false, speed: cached.speed };
     const jsonl = readTextOrNull(path);
     if (jsonl === null) return { gone: true };
-    return { gone: false, speed: cacheSpeed(id, mtimeMs, jsonl) };
+    return { gone: false, speed: cacheSpeed(id, mtimeMs, jsonl, path) };
   };
 
   // Resolve the transcript file for `id`: the cached path (re-stat'd) or a fresh projects/ sweep (freshest
@@ -472,7 +483,14 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
       try {
         const resolved = resolveTranscript(id);
         if (!resolved) return { status: "absent" };
-        const { path, mtimeMs } = resolved;
+        const { path, mtimeMs: mainMtimeMs } = resolved;
+        // The change token spans the transcript AND its subagent transcripts (a running subagent
+        // appends only to its own file) — mirror readTranscript, and key the speed cache on the
+        // same folded value so a subagent-only append recomputes the speed.
+        const mtimeMs = Math.max(
+          mainMtimeMs,
+          subagentsNewestMtime(subagentsDirFor(path)),
+        );
 
         // --- fast unchanged path: cwd is known, so read the sources and token WITHOUT parsing the JSONL ---
         const cachedCwd = cwdById.get(id);
@@ -511,7 +529,7 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
         return {
           status: "changed",
           mtimeMs: hashed,
-          metrics: buildMetrics(cacheSpeed(id, mtimeMs, jsonl), sources),
+          metrics: buildMetrics(cacheSpeed(id, mtimeMs, jsonl, path), sources),
         };
       } catch {
         return { status: "error" };
