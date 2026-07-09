@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, powerSaveBlocker } from "electron";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { openDb } from "./db/sqlite";
@@ -23,6 +23,7 @@ import { readSessionWindowMs } from "./settings/session-window";
 import type { ModelDefaults } from "@shared/models";
 import { resolveClaudeDir } from "./claude-config";
 import { createAppSettingsStore } from "./app-settings";
+import { createCaffeinate } from "./caffeinate";
 import { createSessionTitleStore } from "./session-titles";
 import { createCliStatusController } from "./cli-check";
 import { createUpdater } from "./updater";
@@ -316,6 +317,7 @@ app
         renameInWindow,
       );
     };
+    const caffeinate = createCaffeinate({ blocker: powerSaveBlocker });
     const { sync } = registerIpc({
       db,
       provider,
@@ -331,6 +333,7 @@ app
       appSettings,
       settingsManager,
       statuslineLaunchFault,
+      caffeinate,
     });
 
     // One-shot launch check: packaged only, and only when the user hasn't turned it off. Deferred so it

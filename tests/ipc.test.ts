@@ -4,6 +4,7 @@ import type { PersistedSession } from "@shared/types";
 import { IPC, type OverviewData } from "@shared/ipc";
 import type { Provider } from "../src/main/provider/types";
 import type { StatusLineReader, StatusLineSample } from "@shared/statusline";
+import { createCaffeinate } from "../src/main/caffeinate";
 
 // Capture the handlers registerIpc registers, without a real Electron ipcMain.
 const { handlers } = vi.hoisted(() => ({
@@ -415,5 +416,46 @@ describe("registerIpc renameSession", () => {
     registerIpc({ db, provider: provider(() => []) });
     const o = handlers.get(IPC.overview)!() as OverviewData;
     expect(o.sessions.find((s) => s.id === "seed")!.title).toBe("Seeded");
+  });
+});
+
+describe("registerIpc caffeinate", () => {
+  it("serves off from the inert default when no caffeinate dep is wired", () => {
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider: provider(() => []) });
+    expect(handlers.get(IPC.caffeinateGet)!()).toBe(false);
+    expect(handlers.get(IPC.caffeinateSet)!({}, true)).toBe(false);
+  });
+
+  it("toggles the wired blocker via caffeinate:set and reads it back via caffeinate:get", () => {
+    const db = openTestDb();
+    migrate(db);
+    const started: string[] = [];
+    const stopped: number[] = [];
+    const caffeinate = createCaffeinate({
+      blocker: {
+        start: (type) => {
+          started.push(type);
+          return started.length;
+        },
+        stop: (id) => {
+          stopped.push(id);
+        },
+        isStarted: (id) =>
+          id >= 1 && id <= started.length && !stopped.includes(id),
+      },
+    });
+    registerIpc({ db, provider: provider(() => []), caffeinate });
+
+    const get = handlers.get(IPC.caffeinateGet)!;
+    const set = handlers.get(IPC.caffeinateSet)!;
+    expect(get()).toBe(false);
+    expect(set({}, true)).toBe(true);
+    expect(get()).toBe(true);
+    expect(started).toEqual(["prevent-app-suspension"]);
+    expect(set({}, false)).toBe(false);
+    expect(get()).toBe(false);
+    expect(stopped).toEqual([1]);
   });
 });

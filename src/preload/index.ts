@@ -44,6 +44,8 @@ const api: AppApi = {
   setStatuslineRefreshInterval: (seconds) =>
     ipcRenderer.invoke(IPC.statuslineSetRefreshInterval, seconds),
   repairStatusline: () => ipcRenderer.invoke(IPC.statuslineRepair),
+  getCaffeinate: () => ipcRenderer.invoke(IPC.caffeinateGet),
+  setCaffeinate: (on) => ipcRenderer.invoke(IPC.caffeinateSet, on),
   readSubagentTranscript: (id, agentId, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readSubagentTranscript, id, agentId, sinceMtimeMs),
   readTasks: (id, sinceMtimeMs) =>

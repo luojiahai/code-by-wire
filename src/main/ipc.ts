@@ -15,6 +15,7 @@ import type { CliStatus } from "@shared/cli-status";
 import type { CliStatusController } from "./cli-check";
 import type { Updater } from "./updater";
 import type { AppSettingsStore } from "./app-settings";
+import type { Caffeinate } from "./caffeinate";
 import {
   deriveAccount,
   overlaySessions,
@@ -106,6 +107,9 @@ export interface IpcDeps {
   settingsManager?: SettingsManager;
   /** Installer failure text from the launch attempt, surfaced as the initial fault. */
   statuslineLaunchFault?: string | null;
+  /** The keep-awake toggle. Defaults to an inert off, so harnesses that don't wire it still get
+   *  well-formed responses. */
+  caffeinate?: Caffeinate;
 }
 
 export function attachCliStatus<T extends object>(
@@ -130,6 +134,7 @@ export function registerIpc({
   appSettings,
   settingsManager,
   statuslineLaunchFault,
+  caffeinate,
 }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
@@ -160,6 +165,10 @@ export function registerIpc({
     setClaudeBinPath: () => {},
     setAutoCheckUpdates: () => {},
     setStatuslineEnabled: () => {},
+  };
+  const caff: Caffeinate = caffeinate ?? {
+    isOn: () => false,
+    set: () => false,
   };
 
   const sync = (): void => {
@@ -381,6 +390,8 @@ export function registerIpc({
   ipcMain.handle(IPC.updateSetAutoCheck, (_e, enabled: boolean): void =>
     settings.setAutoCheckUpdates(enabled),
   );
+  ipcMain.handle(IPC.caffeinateGet, (): boolean => caff.isOn());
+  ipcMain.handle(IPC.caffeinateSet, (_e, on: boolean): boolean => caff.set(on));
 
   // Slice 2 lifecycle: the Stats view polls this while open. Each call runs ONE bounded, incremental scan
   // step (the event loop breathes between calls, so pty output and IPC stay responsive) and returns the

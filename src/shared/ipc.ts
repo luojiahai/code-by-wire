@@ -51,6 +51,8 @@ export const IPC = {
   statuslineSetEnabled: "statusline:setEnabled",
   statuslineSetRefreshInterval: "statusline:setRefreshInterval",
   statuslineRepair: "statusline:repair",
+  caffeinateGet: "caffeinate:get",
+  caffeinateSet: "caffeinate:set",
   /** PUSH: main -> renderer on every update-state transition. */
   updateState: "update:state",
 } as const;
@@ -211,6 +213,11 @@ export interface IpcApi {
   /** Re-run the installer's self-heal (recovers a stripped entry / vanished record). Returns the
    *  fresh status. */
   repairStatusline(): Promise<StatuslineStatus>;
+  /** Whether the keep-awake blocker is currently active (the footer button's initial paint). */
+  getCaffeinate(): Promise<boolean>;
+  /** Turn keep-awake on or off. Resolves to the resulting state — main is the source of truth,
+   *  so the footer renders the response rather than assuming the toggle took. */
+  setCaffeinate(on: boolean): Promise<boolean>;
 }
 
 /** Everything exposed on `window.api`: the request/response surface plus the Managed-terminal surface. */
