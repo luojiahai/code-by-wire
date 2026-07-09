@@ -59,7 +59,11 @@ function SubagentRow({
           <MetricCell width="w-10">
             {agent.model ? FAMILY_LABEL[agent.model] : "—"}
           </MetricCell>
-          <MetricCell width="w-16" tone="text-(--ui-text-secondary)" unit="tok">
+          <MetricCell
+            width="w-22"
+            tone="text-(--ui-text-secondary)"
+            unit="tokens"
+          >
             {formatTokensShort(agent.tokens)}
           </MetricCell>
           <MetricCell
