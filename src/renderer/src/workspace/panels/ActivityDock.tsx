@@ -126,7 +126,7 @@ export function ActivityDock({
   if (collapsed)
     return (
       <DockTally
-        tasks={tasks}
+        taskCount={tasks.length}
         stats={stats}
         shellCount={shells.length}
         onExpand={() => setCollapseOverride({ collapsed: false, active })}
@@ -229,12 +229,12 @@ function DockTabBar({
  *  slot as the collapse chevron; only the glyph direction flips). Clickable to expand. Carries the same
  *  `lg` width gate as the expanded dock. */
 function DockTally({
-  tasks,
+  taskCount,
   stats,
   shellCount,
   onExpand,
 }: {
-  tasks: Task[];
+  taskCount: number;
   stats: SubagentStats;
   shellCount: number;
   onExpand: () => void;
@@ -249,7 +249,7 @@ function DockTally({
     >
       <SidebarPanelLabel>Activity</SidebarPanelLabel>
       <span className="min-w-0 flex-1 truncate font-mono text-[0.72rem] tabular-nums text-(--ui-text-quaternary)">
-        {tasks.length} tasks · {stats.total} subagents · {shellCount} shells
+        {taskCount} tasks · {stats.total} subagents · {shellCount} shells
       </span>
       <Icon
         name="chevron-up"
