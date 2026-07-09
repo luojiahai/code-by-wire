@@ -91,6 +91,10 @@ export function createWorktreeMap(
   }
   return {
     lookup(cwd) {
+      // A cached verdict (including a seeded row) is authoritative for the run and is NOT re-probed —
+      // that's what lets a deleted worktree's sessions keep merging. The flip side (a worktree path
+      // later reused for a different repo stays tagged to the old one until its row is removed) is an
+      // accepted cost: worktree paths are ephemeral and near-unique. Don't "fix" this into a re-probe.
       if (cache.has(cwd)) return cache.get(cwd) ?? null;
       const wt = parseWorktree(cwd, run(cwd));
       cache.set(cwd, wt);
