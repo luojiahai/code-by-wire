@@ -65,7 +65,7 @@ describe("createWorktreeMap", () => {
   };
 
   it("serves persisted rows without running git", () => {
-    const run = vi.fn((_cwd: string) => null);
+    const run = vi.fn(() => null);
     const map = createWorktreeMap({ load: () => [row], save: () => {} }, run);
     expect(map.lookup("/w/repo-wt")).toEqual({
       repoRoot: "/w/repo",
