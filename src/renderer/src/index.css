@@ -485,43 +485,21 @@ body {
   }
 }
 
-/* Thin themed scrollbars (hermes styles.css:803-876, `.scrollbar-dt` applied globally — every
-   scroll region gets this treatment rather than opting in via a wrapper class). Firefox reads
-   scrollbar-color/-width; Chromium/Electron read the ::-webkit-scrollbar-* rules below. */
+/* Thin themed native scrollbars — the fallback for scroll regions that don't use OverlayScroll, and
+   the sanctioned style for embedded content scrollers (markdown code blocks/tables, chart strips).
+   Chromium ≥121 reads these standard properties — and once scrollbar-width or scrollbar-color is set,
+   it IGNORES every ::-webkit-scrollbar-* rule on the element. Don't add webkit scrollbar rules
+   anywhere in this file: this global rule makes them dead on arrival. */
 * {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--ui-accent) 18%, transparent)
     transparent;
 }
-*::-webkit-scrollbar {
-  width: 0.5rem;
-  height: 0.5rem;
-}
-*::-webkit-scrollbar-track,
-*::-webkit-scrollbar-corner {
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--ui-accent) 18%, transparent);
-  border-radius: 9999rem;
-  border: 0.125rem solid transparent;
-  background-clip: padding-box;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--ui-accent) 40%, transparent);
-  background-clip: padding-box;
-}
-*::-webkit-scrollbar-button {
-  display: none;
-}
 
-/* OverlayScroll's scroll element hides the native scrollbar (both axes); the floating overlay thumb stands
-   in for it, so the app's scroll areas read consistently. The element still scrolls by wheel / trackpad. */
+/* OverlayScroll's scroll element hides the native scrollbar (both axes); the floating overlay thumbs
+   stand in for it, so the app's scroll areas read consistently. Wheel / trackpad still scroll it. */
 .overlay-scroll-area {
-  scrollbar-width: none; /* Firefox */
-}
-.overlay-scroll-area::-webkit-scrollbar {
-  display: none; /* Chromium / Electron */
+  scrollbar-width: none;
 }
 
 /* The VSCode-style overlay scrollbar thumbs (OverlayScroll.tsx; the vertical one is also attached
@@ -591,22 +569,18 @@ body {
   left: 0;
 }
 
-/* Transparent so the #080808 well (the container's bg-well) shows through during overscroll, instead of
-   xterm's default #000 viewport background flashing a different black. */
+/* Transparent background so the well (the container's bg) shows through during overscroll, instead of
+   xterm's default #000 viewport flashing a different black. Transparent scrollbar-color hides the native
+   bar itself: xterm owns this viewport's scrolling, and the global `scrollbar-width: thin` keeps the bar
+   reserving its right strip so terminal text stays clear of the overlay thumb — but the bar must not be
+   SEEN, because the visible scrollbar is the custom .overlay-scroll-thumb attached by
+   terminal/overlay-scrollbar.ts. (VSCode's terminal scrollbar IS xterm's own ScrollableElement widget,
+   which @xterm/xterm 5.5.0 doesn't expose, so we reproduce its overlay/fade/drag design. A webkit
+   transparent-thumb rule used to do this job — dead since Chromium 121, which is why the themed native
+   bar showed doubled next to the overlay thumb.) */
 .xterm .xterm-viewport {
   background: transparent;
-}
-
-/* xterm owns this viewport's scrolling; we keep its native scrollbar ONLY to reserve the 10px right strip
-   (matching the overlay thumb width, so terminal text stays clear of it) and render it permanently
-   invisible. The visible scrollbar is the custom .overlay-scroll-thumb attached in xterm-factory: VSCode's
-   terminal scrollbar IS xterm's own ScrollableElement widget, which @xterm/xterm 5.5.0 doesn't expose, so
-   we reproduce its overlay/fade/drag design with the app's shared overlay thumb. */
-.xterm .xterm-viewport::-webkit-scrollbar {
-  width: 10px;
-}
-.xterm .xterm-viewport::-webkit-scrollbar-thumb {
-  background: transparent;
+  scrollbar-color: transparent transparent;
 }
 
 /* The cockpit plate: flat graphite. Instrument discipline — no decorative washes; depth comes from

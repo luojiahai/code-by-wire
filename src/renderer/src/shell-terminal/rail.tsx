@@ -42,7 +42,7 @@ export function TerminalRail({ asRow }: { asRow: boolean }) {
     >
       <ul
         aria-label="Terminals"
-        className="flex min-h-0 flex-1 flex-col items-center gap-0.5 self-stretch overflow-y-auto overflow-x-hidden overscroll-contain py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex min-h-0 flex-1 flex-col items-center gap-0.5 self-stretch overflow-y-auto overflow-x-hidden overscroll-contain py-1 [scrollbar-width:none]"
         role="tablist"
       >
         {terminals.map((term, index) => (
