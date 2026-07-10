@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ToolEvent, ToolResultDetail } from "@shared/transcript";
 import { ModalShell } from "../ui/ModalShell";
 import { Icon } from "../ui/icons";
+import { OverlayScroll } from "../ui/OverlayScroll";
 import { cx } from "../ui/atoms";
 import { toolIcon } from "./tool-icon";
 import { AnsiLine } from "./panels/AnsiLine";
@@ -114,7 +115,11 @@ export function ToolResultModal({
       <div className="mb-1 mt-3 text-label uppercase tracking-wider text-fg-faint">
         Output
       </div>
-      <div className="max-h-[60vh] overflow-auto rounded-md border border-ink-800 bg-well p-3 font-mono text-meta leading-relaxed text-fg-muted">
+      <OverlayScroll
+        axis="both"
+        className="rounded-md border border-ink-800 bg-well"
+        contentClassName="max-h-[60vh] p-3 font-mono text-meta leading-relaxed text-fg-muted"
+      >
         {state.phase === "loading" && (
           <span className="text-fg-faint">Loading output…</span>
         )}
@@ -134,7 +139,7 @@ export function ToolResultModal({
               .split("\n")
               .map((line, i) => <AnsiLine key={i} text={line} />)
           ))}
-      </div>
+      </OverlayScroll>
 
       <div className="mt-3 flex items-center gap-2 text-label text-fg-faint">
         <button

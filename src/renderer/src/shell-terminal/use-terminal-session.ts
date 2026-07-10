@@ -6,6 +6,7 @@ import { Terminal } from "@xterm/xterm";
 import { useEffect, useRef, useState } from "react";
 import { newSessionId } from "@shared/terminal";
 import { createWebLinksAddon } from "../terminal/web-links";
+import { attachOverlayScrollbar } from "../terminal/overlay-scrollbar";
 import {
   cleanReviveSnapshot,
   keepEscapeSequences,
@@ -348,6 +349,11 @@ export function useTerminalSession({
     const mount = (): void => {
       if (disposed || !host.isConnected) return;
       term.open(host);
+      // The overlay thumb + hover listeners go on the instance div (host's positioned parent): the
+      // global .xterm.xterm rule anchors the terminal's absolute box to IT, not to the unpositioned
+      // host, so that's the box the thumb must align with — the same geometry as the main terminal's
+      // wrapper. Falls back to host if the markup ever changes.
+      cleanup.push(attachOverlayScrollbar(host.parentElement ?? host, term));
       term.focus();
       try {
         const webgl = new WebglAddon();

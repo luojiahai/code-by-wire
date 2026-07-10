@@ -6,6 +6,7 @@ import { SpendPanel } from "../workspace/panels/SpendPanel";
 import { TokenSpeedPanel } from "../workspace/panels/TokenSpeedPanel";
 import { DutyPanel } from "../workspace/panels/DutyPanel";
 import { SessionPanel } from "./SessionPanel";
+import { OverlayScroll } from "../ui/OverlayScroll";
 
 /**
  * The right sidebar's content (design spec §6): an empty draggable top strip — the fixed right
@@ -38,7 +39,7 @@ export function RightSidebar({
           scoped here so the Activity dock's PanelSections keep their tighter fit. Explicit
           dividers (not divide-y): their mx-2.5 matches PanelSection's px-2.5, so the hairlines
           start and end exactly where the content does. */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <OverlayScroll className="min-h-0 flex-1">
         <div className="flex flex-col px-1.5 pb-2">
           <PressurePanel
             live={session.liveContext ?? null}
@@ -62,7 +63,7 @@ export function RightSidebar({
           <SectionDivider />
           <SessionPanel session={session} git={metrics?.git} pr={metrics?.pr} />
         </div>
-      </div>
+      </OverlayScroll>
     </div>
   );
 }

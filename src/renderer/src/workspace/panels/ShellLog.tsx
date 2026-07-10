@@ -1,6 +1,7 @@
 import type { ShellOutput } from "@shared/types";
 import { truncLabel } from "./shell-view";
 import { AnsiLine } from "./AnsiLine";
+import { OverlayScroll } from "../../ui/OverlayScroll";
 
 /** A shell's full output: a source banner (live vs snapshot), an optional truncation note, then the log
  *  rendered with ANSI color. A pure renderer of the `output` it's handed (the poll lives in the hook). */
@@ -42,11 +43,15 @@ export function ShellLog({
         </span>
         {trunc && <span className="ml-auto text-accent">{trunc}</span>}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto bg-well p-4 font-mono text-meta leading-relaxed text-fg-muted">
+      <OverlayScroll
+        axis="both"
+        className="min-h-0 flex-1 bg-well"
+        contentClassName="p-4 font-mono text-meta leading-relaxed text-fg-muted"
+      >
         {output.text.split("\n").map((line, i) => (
           <AnsiLine key={i} text={line} />
         ))}
-      </div>
+      </OverlayScroll>
     </div>
   );
 }

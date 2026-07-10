@@ -10,47 +10,60 @@
 export const MIN_THUMB = 20;
 
 export interface ThumbMetrics {
-  /** Thumb height in px (0 when there's nothing to scroll). */
+  /** Thumb length along the scroll axis in px — height for a vertical bar, width for a horizontal
+   *  one (0 when there's nothing to scroll). */
   height: number;
-  /** Thumb offset from the top of the track in px. */
+  /** Thumb offset from the start of the track in px — top for vertical, left for horizontal. */
   top: number;
   /** Whether the content overflows — i.e. whether a thumb should show at all. */
   overflow: boolean;
 }
 
-/** Thumb height + position for the current scroll state. `top` ranges 0..(clientHeight - height). */
+/** Thumb length + position for the current scroll state. Axis-agnostic: pass scrollTop/scrollHeight/
+ *  clientHeight for a vertical bar, scrollLeft/scrollWidth/clientWidth for a horizontal one.
+ *  `trackLength` is the room the thumb travels in — it defaults to the viewport length and is
+ *  shortened by the other bar's thickness when both axes show (corner reservation).
+ *  `top` ranges 0..(trackLength - height). */
 export function thumbMetrics(
-  scrollTop: number,
-  scrollHeight: number,
-  clientHeight: number,
+  scrollOffset: number,
+  contentLength: number,
+  viewportLength: number,
+  trackLength: number = viewportLength,
   minThumb: number = MIN_THUMB,
 ): ThumbMetrics {
-  if (clientHeight <= 0 || scrollHeight <= clientHeight) {
+  if (
+    viewportLength <= 0 ||
+    trackLength <= 0 ||
+    contentLength <= viewportLength
+  ) {
     return { height: 0, top: 0, overflow: false };
   }
   const height = Math.min(
-    clientHeight,
+    trackLength,
     Math.max(
       minThumb,
-      Math.round((clientHeight * clientHeight) / scrollHeight),
+      Math.round((trackLength * viewportLength) / contentLength),
     ),
   );
-  const maxScroll = scrollHeight - clientHeight;
-  const maxTop = clientHeight - height;
-  const top = maxScroll <= 0 ? 0 : Math.round((scrollTop / maxScroll) * maxTop);
+  const maxScroll = contentLength - viewportLength;
+  const maxTop = trackLength - height;
+  const top =
+    maxScroll <= 0 ? 0 : Math.round((scrollOffset / maxScroll) * maxTop);
   return { height, top, overflow: true };
 }
 
-/** Inverse of `thumbMetrics`: the scrollTop that places a thumb of `thumbHeight` at `thumbTop`. Used while
- *  dragging — the pointer moves the thumb, this maps it back to a scroll position. Clamps to the track. */
+/** Inverse of `thumbMetrics`: the scroll offset that places a thumb of `thumbLength` at `thumbTop`.
+ *  Used while dragging — the pointer moves the thumb, this maps it back to a scroll position.
+ *  Clamps to the track. Axis-agnostic, same substitution as `thumbMetrics`. */
 export function scrollTopForThumbTop(
   thumbTop: number,
-  thumbHeight: number,
-  scrollHeight: number,
-  clientHeight: number,
+  thumbLength: number,
+  contentLength: number,
+  viewportLength: number,
+  trackLength: number = viewportLength,
 ): number {
-  const maxTop = clientHeight - thumbHeight;
-  const maxScroll = scrollHeight - clientHeight;
+  const maxTop = trackLength - thumbLength;
+  const maxScroll = contentLength - viewportLength;
   if (maxTop <= 0 || maxScroll <= 0) return 0;
   const clamped = Math.min(Math.max(thumbTop, 0), maxTop);
   return (clamped / maxTop) * maxScroll;

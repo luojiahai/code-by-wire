@@ -53,3 +53,37 @@ describe("scrollTopForThumbTop — inverse mapping for drag", () => {
     expect(scrollTopForThumbTop(10, 200, 200, 200)).toBe(0);
   });
 });
+
+describe("shortened track (corner reservation for a second bar)", () => {
+  it("sizes the thumb from the shortened track", () => {
+    // 200px viewport, 190px track (10px corner): thumb = round(190·200/1000) = 38.
+    expect(thumbMetrics(0, 1000, 200, 190)).toEqual({
+      height: 38,
+      top: 0,
+      overflow: true,
+    });
+  });
+
+  it("parks the thumb at the end of the shortened track when fully scrolled", () => {
+    const m = thumbMetrics(800, 1000, 200, 190);
+    expect(m.top).toBe(190 - m.height);
+  });
+
+  it("round-trips drag positions on the shortened track", () => {
+    const { height, top } = thumbMetrics(400, 1000, 200, 190);
+    expect(scrollTopForThumbTop(top, height, 1000, 200, 190)).toBe(400);
+  });
+
+  it("keeps reporting overflow from the viewport, not the track", () => {
+    expect(thumbMetrics(0, 200, 200, 190).overflow).toBe(false);
+  });
+
+  it("reports no overflow when the track has no room", () => {
+    // A container ≤ the other bar's thickness leaves trackLength ≤ 0 — guard, don't NaN.
+    expect(thumbMetrics(0, 1000, 200, 0)).toEqual({
+      height: 0,
+      top: 0,
+      overflow: false,
+    });
+  });
+});

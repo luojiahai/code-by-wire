@@ -67,18 +67,19 @@ describe("cockpit theme — graphite surfaces (not warm, not cool)", () => {
   });
 
   it("scrollbar chrome is graphite too", () => {
-    // hermes's scrollbar-dt thumb is `color-mix(in srgb, var(--ui-accent) N%, transparent)`
+    // The native scrollbar thumb is `color-mix(in srgb, var(--ui-accent) N%, transparent)` via the
+    // global scrollbar-color rule (the webkit thumb rules were dead in Chromium ≥121 and are gone)
     // rather than a literal hex, so assert on the resolved --ui-accent chain instead: it aliases
     // to --theme-midground, which must itself be neutral graphite.
     const thumbs = [
       ...css.matchAll(
-        /scrollbar-thumb[^{]*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--ui-accent\)/g,
+        /scrollbar-color:\s*color-mix\(in srgb,\s*var\(--ui-accent\)/g,
       ),
     ];
     expect(
       thumbs.length,
-      "expected thumb + hover backgrounds keyed off --ui-accent",
-    ).toBeGreaterThanOrEqual(2);
+      "expected the native thumb color keyed off --ui-accent",
+    ).toBeGreaterThanOrEqual(1);
     const midground = /--theme-midground:\s*(#[0-9a-fA-F]{6})/.exec(css);
     expect(midground, "--theme-midground hex").toBeTruthy();
     expect(

@@ -1,6 +1,7 @@
 import type { DiffEvent } from "@shared/transcript";
 import { ModalShell } from "../ui/ModalShell";
 import { Icon } from "../ui/icons";
+import { OverlayScroll } from "../ui/OverlayScroll";
 import { cx } from "../ui/atoms";
 import { useCopyFlash } from "../ui/use-copy-flash";
 import { toolIcon } from "./tool-icon";
@@ -74,7 +75,11 @@ export function DiffModal({
         </div>
       </div>
 
-      <div className="max-h-[60vh] overflow-auto rounded-md border border-ink-800 bg-well p-3 font-mono text-meta leading-relaxed">
+      <OverlayScroll
+        axis="both"
+        className="rounded-md border border-ink-800 bg-well"
+        contentClassName="max-h-[60vh] p-3 font-mono text-meta leading-relaxed"
+      >
         {empty ? (
           <span className="text-fg-faint">no changes</span>
         ) : (
@@ -91,7 +96,7 @@ export function DiffModal({
             ))}
           </>
         )}
-      </div>
+      </OverlayScroll>
 
       <div className="mt-3 flex items-center gap-2 text-label text-fg-faint">
         <button

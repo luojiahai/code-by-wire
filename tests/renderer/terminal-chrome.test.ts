@@ -36,10 +36,12 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     expect(css).toMatch(
       /\.xterm\s+\.xterm-viewport\s*\{[^}]*background:\s*transparent/,
     );
-    // The native scrollbar is kept only to reserve the right strip and is rendered transparent — the
-    // visible scrollbar is the shared overlay thumb attached over the viewport in xterm-factory.
+    // The native scrollbar is kept only to reserve the right strip (scrollbar-width: thin from the
+    // global rule) and is rendered invisible via scrollbar-color — the modern property that actually
+    // wins in Chromium ≥121, where ::-webkit-scrollbar-* rules are ignored once it's set. The visible
+    // scrollbar is the shared overlay thumb attached over the viewport in xterm-factory.
     expect(css).toMatch(
-      /\.xterm-viewport[^{]*::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*transparent/,
+      /\.xterm\s+\.xterm-viewport\s*\{[^}]*scrollbar-color:\s*transparent transparent/,
     );
     const factory = readFileSync(
       join(root, "src/renderer/src/terminal/xterm-factory.ts"),
@@ -47,6 +49,14 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     );
     expect(
       factory,
+      "factory delegates to the shared overlay scrollbar attach",
+    ).toContain('from "./overlay-scrollbar"');
+    const overlay = readFileSync(
+      join(root, "src/renderer/src/terminal/overlay-scrollbar.ts"),
+      "utf8",
+    );
+    expect(
+      overlay,
       "terminal uses the app's shared overlay-scroll-thumb",
     ).toContain("overlay-scroll-thumb");
   });
