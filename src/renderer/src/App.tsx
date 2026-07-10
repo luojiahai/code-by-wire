@@ -25,6 +25,7 @@ import { spawnGate } from "./ui/cli-gating";
 import { Icon } from "./ui/icons";
 import { StatsView } from "./stats/StatsView";
 import { OVERVIEW_ID } from "./stats/sentinel";
+import { useStatsPump } from "./stats/use-stats-pump";
 import { SettingsView, type SettingsSection } from "./settings/SettingsView";
 import { SETTINGS_ID } from "./settings/sentinel";
 import { useUpdate } from "./ui/use-update";
@@ -64,6 +65,9 @@ const NEW_SESSION_ID = "new-session";
 const SYNC_MS = 3000;
 
 export function App() {
+  // The app-lifetime analytics pump: ingests transcripts into the durable stats mirror even when the
+  // Stats view never opens, so Claude Code's transcript cleanup can't outrun ingestion.
+  useStatsPump();
   const [sessions, setSessions] = useState<Session[]>([]);
   // Optimistic Managed sessions spawned this run that discovery hasn't indexed yet. Merged into the
   // list so a new session shows + opens immediately; pruned once its real row lands.
