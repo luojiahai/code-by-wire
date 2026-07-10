@@ -86,6 +86,27 @@ describe("createStatusLineReader", () => {
     expect(s.contextWindow).toBeNull();
   });
 
+  it("A2: numeric strings coerce at the trust boundary; junk stays null", () => {
+    const home = makeHome();
+    writeCapture(home, "s-str", {
+      session_id: "s-str",
+      cost: {
+        total_cost_usd: "1.25",
+        total_lines_added: "x",
+        total_lines_removed: "",
+      },
+      context_window_size: undefined,
+      context_window: { used_percentage: "85" },
+    });
+    const s = open(home)
+      .read()
+      .find((x) => x.sessionId === "s-str");
+    expect(s?.costUsd).toBe(1.25);
+    expect(s?.contextPct).toBe(85);
+    expect(s?.linesAdded).toBeNull();
+    expect(s?.linesRemoved).toBeNull();
+  });
+
   it("skips a malformed file and a file with no session id, keeping the good ones", () => {
     const home = makeHome();
     const dir = join(home, ".code-by-wire", "statusline");
@@ -280,7 +301,7 @@ describe("createStatusLineReader — apiDurationMs and pr", () => {
     });
     writeCapture(home, "sid-badnumber", {
       session_id: "sid-badnumber",
-      pr: { number: "252", url: "https://example.com/pull/252" }, // number not numeric
+      pr: { number: "abc", url: "https://example.com/pull/252" }, // number not numeric, even post-A2 string coercion
     });
     writeCapture(home, "sid-emptyurl", {
       session_id: "sid-emptyurl",
