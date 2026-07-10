@@ -18,6 +18,7 @@ import type { CliStatusController } from "./cli-check";
 import type { Updater } from "./updater";
 import type { AppSettingsStore } from "./app-settings";
 import type { Caffeinate } from "./caffeinate";
+import type { UsageService } from "./usage/fetch";
 import {
   deriveAccount,
   overlaySessions,
@@ -116,6 +117,9 @@ export interface IpcDeps {
   /** The keep-awake toggle. Defaults to an inert off, so harnesses that don't wire it still get
    *  well-formed responses. */
   caffeinate?: Caffeinate;
+  /** The OAuth usage service — the account's rate-limit fill side. Optional like accountEmail:
+   *  when absent, the panel runs on capture windows alone. */
+  usage?: UsageService;
 }
 
 export function attachCliStatus<T extends object>(
@@ -142,6 +146,7 @@ export function registerIpc({
   settingsManager,
   statuslineLaunchFault,
   caffeinate,
+  usage,
 }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
@@ -207,8 +212,15 @@ export function registerIpc({
     const now = Date.now();
     const base = getOverview(db);
     const byId = freshestBySession(reader.read());
-    // deriveAccount owns the whole billing decision: subscription (rate_limits evidence) vs api (no evidence).
-    const account = deriveAccount(byId.values(), now, CAPTURE_STALE_MS);
+    // deriveAccount owns the whole billing decision: subscription (API response or rate_limits
+    // evidence) vs api. usage.read() is sync and non-blocking; a stale read spawns the refresh
+    // that the NEXT poll picks up — no timers in main.
+    const account = deriveAccount(
+      byId.values(),
+      now,
+      CAPTURE_STALE_MS,
+      usage?.read() ?? null,
+    );
     if (account?.billingMode === "subscription") {
       // Subscription identity: the oauthAccount email. Attached only here, only for a
       // subscription — beside gateway billing it would mislabel, so a non-subscription account never gets it.

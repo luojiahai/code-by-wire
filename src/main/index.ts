@@ -1,4 +1,4 @@
-import { app, BrowserWindow, powerSaveBlocker } from "electron";
+import { app, BrowserWindow, net, powerSaveBlocker } from "electron";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { openDb } from "./db/sqlite";
@@ -27,6 +27,8 @@ import { createCaffeinate } from "./caffeinate";
 import { createSessionTitleStore } from "./session-titles";
 import { createCliStatusController } from "./cli-check";
 import { createUpdater } from "./updater";
+import { createUsageService } from "./usage/fetch";
+import { createTokenReader } from "./usage/credentials";
 import {
   probeShellEnv,
   resolveShellPath,
@@ -300,6 +302,14 @@ app
       if (emailCache === undefined) emailCache = readAccountEmail(claudeDir);
       return emailCache;
     };
+    // Account usage via the OAuth usage API: constructed once; refreshes are spawned inside
+    // renderer polls only (window closed → polls stop → refreshes stop). net.fetch rides
+    // Chromium's stack (system proxy, OS certs). The cache file is OURS — never another tool's.
+    const usage = createUsageService({
+      fetchFn: net.fetch.bind(net),
+      readToken: createTokenReader({ claudeDir }),
+      cachePath: join(app.getPath("userData"), "usage-cache.json"),
+    });
     // Read once per app run — editing settings.json while
     // the app is running won't change the model picker until restart.
     let modelDefaultsCache: ModelDefaults | undefined;
@@ -336,6 +346,7 @@ app
       settingsManager,
       statuslineLaunchFault,
       caffeinate,
+      usage,
     });
 
     // One-shot launch check: packaged only, and only when the user hasn't turned it off. Deferred so it

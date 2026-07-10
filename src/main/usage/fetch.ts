@@ -16,8 +16,10 @@ export interface UsageService {
 }
 
 export interface UsageServiceDeps {
-  /** Electron net.fetch in prod (Chromium stack: system proxy, OS certs). */
-  fetchFn: typeof fetch;
+  /** The fetch surface the service actually uses — a string URL + init. Narrower than the global
+   *  `fetch` (no URL/Request overload) so Electron's `net.fetch` satisfies it in prod; the global
+   *  fetch and the test stubs satisfy it too (a wider parameter type is assignable here). */
+  fetchFn: (url: string, init?: RequestInit) => Promise<Response>;
   /** Read the OAuth token fresh (≤1 per TTL). See credentials.ts. */
   readToken: () => Promise<string | null>;
   /** `<userData>/usage-cache.json` in prod; a temp dir in tests. Omit for memory-only. */
