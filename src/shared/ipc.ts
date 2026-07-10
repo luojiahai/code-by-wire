@@ -15,7 +15,7 @@ import type { TerminalApi } from "./terminal";
 import type { ShellTerminalApi } from "./shell-terminal";
 import type { MetricsRead } from "./metrics";
 import type { ModelDefaults } from "./models";
-import type { StatsSnapshot, StatsRange } from "./stats";
+import type { StatsSnapshot, StatsRange, ScanProgress } from "./stats";
 import type { CliStatus } from "./cli-status";
 import type { UpdateState } from "./update";
 import type { StatuslineStatus } from "./statusline-status";
@@ -33,6 +33,7 @@ export const IPC = {
   fullscreen: "window:fullscreen",
   modelDefaults: "model:defaults",
   readStats: "stats:read",
+  pumpStats: "stats:pump",
   recheckCli: "cli:recheck",
   setClaudeBinPath: "cli:setBinPath",
   resetAnalytics: "analytics:reset",
@@ -158,6 +159,11 @@ export interface IpcApi {
     calendarYear?: number,
     since?: string,
   ): Promise<StatsRead>;
+  /** Run one bounded, incremental analytics scan step and return how far the backfill has gotten —
+   *  the background pump's poll (spec 2026-07-10). No aggregates are computed, so a caught-up tick
+   *  costs one readdir+stat walk. Polled for the app's lifetime by useStatsPump; never rejects (a
+   *  scan failure or missing store serves a done progress, parking the pump at its idle cadence). */
+  pumpStats(): Promise<ScanProgress>;
   /** Force a fresh CLI status check (the footer's Re-check button). */
   recheckCli(): Promise<CliStatus>;
   /** Persist an absolute binary-path override (null clears it) and re-check. */

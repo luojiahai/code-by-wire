@@ -526,6 +526,32 @@ export function registerIpc({
     );
     return { targets: walkCache.targets, fresh };
   };
+  // One bounded scan step against the (briefly cached) target walk — the shared engine behind
+  // stats:read and stats:pump. When a step settles `done` off a cached (possibly stale) walk, re-walk
+  // fresh once and re-step, so a file created during a backfill burst is ingested before the caller
+  // drops to its gentle cadence. Serves a done progress (wrote:false) when no store/dir is wired or
+  // the step throws, so pollers idle instead of spinning on a persistent failure.
+  const runScanStep = (now: number): ScanProgress & { wrote: boolean } => {
+    if (!analyticsDb || !claudeDir) return { ...doneProgress(), wrote: false };
+    try {
+      const walk = scanTargets(now);
+      let step = scanStep(analyticsDb, claudeDir, undefined, walk.targets);
+      if (step.done && !walk.fresh) {
+        walkCache = null;
+        const restep = scanStep(
+          analyticsDb,
+          claudeDir,
+          undefined,
+          scanTargets(now).targets,
+        );
+        step = { ...restep, wrote: step.wrote || restep.wrote };
+      }
+      return step;
+    } catch (err) {
+      console.error("stats scan step failed; serving done progress", err);
+      return { ...doneProgress(), wrote: false };
+    }
+  };
   // The poll's change token: the post-scan max turns rowid (a new turn always lands as a new row —
   // transcripts are append-only), the local day (the other input that moves the windowed output), and the
   // scan progress. Progress is in the token because a step can advance files WITHOUT moving the rowid (it
@@ -566,33 +592,9 @@ export function registerIpc({
           : { status: "changed", token, snapshot: emptySnapshot() };
       }
 
-      // One bounded scan step when there's a dir to scan; otherwise serve last-known with a done progress.
-      let progress = doneProgress();
-      let wrote = false;
-      if (claudeDir) {
-        try {
-          const walk = scanTargets(now);
-          let step = scanStep(analyticsDb, claudeDir, undefined, walk.targets);
-          // Don't settle `done` off a cached (possibly stale) walk: re-walk fresh once and re-step, so a
-          // file created during a backfill burst is ingested before we drop to the warm cadence.
-          if (step.done && !walk.fresh) {
-            walkCache = null;
-            const restep = scanStep(
-              analyticsDb,
-              claudeDir,
-              undefined,
-              scanTargets(now).targets,
-            );
-            step = { ...restep, wrote: step.wrote || restep.wrote };
-          }
-          ({ wrote, ...progress } = step);
-        } catch (err) {
-          console.error(
-            "stats scan step failed; serving last-known totals",
-            err,
-          );
-        }
-      }
+      // One bounded scan step (runScanStep absorbs a missing store/dir and scan errors into a done
+      // progress, so this poll serves last-known totals instead of rejecting).
+      const { wrote, ...progress } = runScanStep(now);
 
       // Skip every aggregate only when the token matches AND the backfill is caught up AND this step wrote
       // nothing: an in-progress backfill must keep re-rendering (its progress moves), and an in-place turn
@@ -626,6 +628,19 @@ export function registerIpc({
       };
     },
   );
+
+  // The background pump (spec 2026-07-10): the renderer drives one bounded scan step per poll for the
+  // app's lifetime, so transcripts keep landing in the durable mirror even when the Stats view never
+  // opens — before Claude Code's cleanupPeriodDays deletes them from disk. Progress only: no
+  // aggregates are built. Never rejects.
+  ipcMain.handle(IPC.pumpStats, (): ScanProgress => {
+    const step = runScanStep(Date.now());
+    return {
+      filesTotal: step.filesTotal,
+      filesDone: step.filesDone,
+      done: step.done,
+    };
+  });
 
   // The Stats "Reset" action: drop the durable store so the next poll rebuilds it from disk. Clearing
   // processed_files forces a full re-scan; clearing turns drops the change token to zero, so the renderer's
