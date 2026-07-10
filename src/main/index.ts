@@ -120,9 +120,10 @@ app
     // optional by contract — when it can't be opened (corrupt file, locked, bad permissions) stats:read
     // serves zeros — so guard the open: a failure here must never cost the user a window (same principle
     // as the statusLine install below).
+    const analyticsDbPath = join(app.getPath("userData"), "analytics.db");
     let analyticsDb: SqliteDb | undefined;
     try {
-      analyticsDb = openDb(join(app.getPath("userData"), "analytics.db"));
+      analyticsDb = openDb(analyticsDbPath);
       migrateAnalytics(analyticsDb);
     } catch (err) {
       console.error("analytics store unavailable; stats will show zeros", err);
@@ -326,6 +327,7 @@ app
       modelDefaults,
       beforeSync: reconcile,
       analyticsDb,
+      analyticsDbPath,
       claudeDir,
       cliStatus,
       sessionTitles,

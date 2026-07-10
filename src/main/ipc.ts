@@ -1,11 +1,13 @@
 import { ipcMain, shell, clipboard } from "electron";
 import { homedir } from "node:os";
+import { statSync } from "node:fs";
 import {
   IPC,
   type OverviewData,
   type StatsRead,
   type OpenInTarget,
   type UpdateState,
+  type StatsDbInfo,
 } from "@shared/ipc";
 import type { Provider } from "./provider/types";
 import type { SqliteDb } from "./db/driver";
@@ -41,6 +43,7 @@ import {
   clearAnalytics,
   readWorktrees,
   upsertWorktree,
+  readDbCounts,
 } from "./db/analytics";
 import { createWorktreeMap } from "./git/worktrees";
 import {
@@ -93,6 +96,9 @@ export interface IpcDeps {
   analyticsDb?: SqliteDb;
   /** The Claude config dir, so stats:read can run a full transcript scan before aggregating. */
   claudeDir?: string;
+  /** Where the analytics store lives on disk (userData/analytics.db), for the Settings card's
+   *  location/size readout. Optional like analyticsDb — dev harnesses may wire neither. */
+  analyticsDbPath?: string;
   /** The cached CLI-status controller. Defaults to a no-op that always returns null. */
   cliStatus?: CliStatusController;
   /** Durable user-chosen title overrides, applied over the live overlay so a rename wins over the
@@ -128,6 +134,7 @@ export function registerIpc({
   beforeSync,
   analyticsDb,
   claudeDir,
+  analyticsDbPath,
   cliStatus,
   sessionTitles,
   updater,
@@ -659,6 +666,23 @@ export function registerIpc({
     } catch (err) {
       console.error("analytics reset failed", err);
       return { ok: false };
+    }
+  });
+
+  // The Settings "Stats database" card's readout (spec 2026-07-10): one shape assembled here —
+  // location, on-disk size, and what the store holds. Never rejects: a missing store/path or a
+  // failed stat/read resolves null and the card renders its unavailable state.
+  ipcMain.handle(IPC.statsDbInfo, (): StatsDbInfo | null => {
+    if (!analyticsDb || !analyticsDbPath) return null;
+    try {
+      return {
+        path: analyticsDbPath,
+        sizeBytes: statSync(analyticsDbPath).size,
+        ...readDbCounts(analyticsDb),
+      };
+    } catch (err) {
+      console.error("stats db info read failed; serving none", err);
+      return null;
     }
   });
 
