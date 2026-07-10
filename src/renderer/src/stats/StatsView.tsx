@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import {
   type StatsSnapshot,
@@ -10,7 +10,6 @@ import {
 } from "@shared/stats";
 import { formatDayShort } from "@shared/format";
 import { Icon } from "../ui/icons";
-import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { RangeFilter, CacheToggle } from "./shared";
 import { OverviewCard } from "./OverviewCard";
 import { ModelsCard } from "./ModelsCard";
@@ -24,7 +23,7 @@ const WARM_POLL_MS = 1500;
 
 /**
  * The Overall Stats view: a shell around four cards (Overview, Models, Projects, Sessions), plus the
- * header's range/cache/reset controls and a "building history" progress banner on a first cold run. Polls
+ * header's range/cache controls and a "building history" progress banner on a first cold run. Polls
  * stats:read while mounted — each poll runs one bounded scan step in the main process — fast until the
  * backfill is done, then at the warm cadence so turns from other Sessions appear on their own. The effect's
  * cleanup stops the poll on unmount, so selecting any Session ends all scan work; the main process does
@@ -42,34 +41,9 @@ export function StatsView() {
   // switch always forces a full snapshot.
   const tokenRef = useRef<string | undefined>(undefined);
 
-  // Reset: a confirm-gated drop of the analytics store. Bumping resetNonce re-runs the poll effect, which
-  // blanks the snapshot and clears the token, so the next poll shows "Building history…" as the rebuild runs.
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [resetError, setResetError] = useState(false);
-  const [resetNonce, setResetNonce] = useState(0);
-  // Track what last drove the poll effect, so the snapshot blanks only on a range change or a reset — never
+  // Track what last drove the poll effect, so the snapshot blanks only on a range change — never
   // on a calendar-year change, which re-queries just the heatmap and would otherwise flash the whole view.
   const prevRangeRef = useRef(range);
-  const prevResetRef = useRef(resetNonce);
-  // The icon spins / disables while a backfill is in progress — the post-reset rebuild and the first cold run.
-  const rebuilding = !!snap && !snap.progress.done;
-
-  const handleReset = useCallback(async () => {
-    setConfirmReset(false);
-    try {
-      const r = await window.api.resetAnalytics();
-      // ok:false (no store / failed clear) and a thrown bridge failure both land on the error banner; on
-      // success clear any stale banner from a prior attempt and bump the nonce to re-run the poll.
-      if (r.ok) {
-        setResetError(false);
-        setResetNonce((n) => n + 1);
-      } else {
-        setResetError(true);
-      }
-    } catch {
-      setResetError(true);
-    }
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -77,15 +51,13 @@ export function StatsView() {
     let inFlight = false;
     tokenRef.current = undefined; // new range/year: force a full snapshot on the next poll
     // Blank the cards back to loading rather than show the prior range's totals under the newly-pressed
-    // button — but ONLY when the range changed or the store was reset, never on a calendar-year change. The
-    // year is independent of the page totals (it re-queries just the heatmap), so blanking everything would
-    // flash the whole view for a calendar-only change. Also skip when drilling into a day from the calendar:
-    // blanking would unmount the calendar and re-fire its scroll-to-newest effect, flashing away from the cell.
-    const rangeOrReset =
-      prevRangeRef.current !== range || prevResetRef.current !== resetNonce;
+    // button — but ONLY when the range changed, never on a calendar-year change. The year is independent
+    // of the page totals (it re-queries just the heatmap), so blanking everything would flash the whole
+    // view for a calendar-only change. Also skip when drilling into a day from the calendar: blanking
+    // would unmount the calendar and re-fire its scroll-to-newest effect, flashing away from the cell.
+    const rangeChanged = prevRangeRef.current !== range;
     prevRangeRef.current = range;
-    prevResetRef.current = resetNonce;
-    if (rangeOrReset && !isDayRange(range)) setSnap(null);
+    if (rangeChanged && !isDayRange(range)) setSnap(null);
 
     const schedule = (ms: number): void => {
       timer = setTimeout(tick, ms);
@@ -135,7 +107,7 @@ export function StatsView() {
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [range, calendarYear, resetNonce]);
+  }, [range, calendarYear]);
 
   return (
     <OverlayScroll className="h-full min-w-0 flex-1 bg-ink-950 text-fg">
@@ -156,40 +128,7 @@ export function StatsView() {
           )}
           <CacheToggle on={includeCache} onChange={setIncludeCache} />
           <RangeFilter value={range} onChange={setRange} />
-          <span aria-hidden className="h-5 w-px bg-ink-800" />
-          <button
-            type="button"
-            onClick={() => {
-              setResetError(false);
-              setConfirmReset(true);
-            }}
-            disabled={rebuilding}
-            aria-label="Reset analytics"
-            title="Reset analytics"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Icon
-              name="rotate-ccw"
-              size={14}
-              className={rebuilding ? "animate-spin" : undefined}
-            />
-          </button>
         </div>
-        {confirmReset && (
-          <ConfirmDialog
-            title="Reset analytics?"
-            body="This clears the computed stats and rebuilds them from your Claude transcripts. Nothing is permanently deleted, your history is recomputed from scratch, which takes a few seconds."
-            confirmLabel="Reset"
-            tone="danger"
-            onCancel={() => setConfirmReset(false)}
-            onConfirm={() => void handleReset()}
-          />
-        )}
-        {resetError && (
-          <div className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-meta text-danger">
-            Couldn&apos;t reset analytics. Please try again.
-          </div>
-        )}
         {/* null = first poll in flight: blank below the header (matches EmptyDetail's loading). */}
         {snap && (
           <>
