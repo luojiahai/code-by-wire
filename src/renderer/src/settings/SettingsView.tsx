@@ -3,6 +3,7 @@ import { isUpdatePending } from "@shared/update";
 import { SoftwareUpdateCard, type UpdateControls } from "./SoftwareUpdateCard";
 import { CliCard } from "./CliCard";
 import { StatuslineCard } from "./StatuslineCard";
+import { StatsDbCard } from "./StatsDbCard";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import { Icon } from "../ui/icons";
 import type { IconName } from "../ui/icon-names";
@@ -140,6 +141,7 @@ function SystemSection({
         onSetBinPath={onSetBinPath}
       />
       <StatuslineCard />
+      <StatsDbCard />
     </>
   );
 }
