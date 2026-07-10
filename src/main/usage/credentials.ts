@@ -44,7 +44,11 @@ export function parseKeychainCandidates(dump: string): KeychainCandidate[] {
   dump.split(/^keychain: /m).forEach((block, order) => {
     const svce = /"svce"<blob>="([^"]+)"/.exec(block);
     const service = svce?.[1];
-    if (!service || !service.startsWith(KEYCHAIN_SERVICE) || service === KEYCHAIN_SERVICE)
+    if (
+      !service ||
+      !service.startsWith(KEYCHAIN_SERVICE) ||
+      service === KEYCHAIN_SERVICE
+    )
       return;
     found.push({ service, modifiedAt: parseModifiedAt(block), order });
   });
@@ -93,7 +97,10 @@ export function createTokenReader(
   const claudeDir = resolveClaudeDir(deps.claudeDir);
   const run =
     deps.runSecurity ??
-    (async (args: string[], maxBuffer = 1024 * 1024): Promise<string | null> => {
+    (async (
+      args: string[],
+      maxBuffer = 1024 * 1024,
+    ): Promise<string | null> => {
       try {
         return (await execFileP("security", args, { maxBuffer })).stdout;
       } catch {
@@ -106,7 +113,9 @@ export function createTokenReader(
   };
   const fromFile = (): string | null => {
     try {
-      return tokenFromJson(readTextOrNull(join(claudeDir, ".credentials.json")));
+      return tokenFromJson(
+        readTextOrNull(join(claudeDir, ".credentials.json")),
+      );
     } catch {
       return null; // a non-ENOENT read failure still just means "no token from the file"
     }

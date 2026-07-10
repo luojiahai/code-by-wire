@@ -66,12 +66,18 @@ describe("createTokenReader", () => {
       platform: "darwin",
       runSecurity: (args) => {
         calls.push(args);
-        if (args[0] === "find-generic-password") return Promise.resolve(CRED_JSON);
+        if (args[0] === "find-generic-password")
+          return Promise.resolve(CRED_JSON);
         return Promise.resolve(null);
       },
     });
     expect(await read()).toBe("tok-123");
-    expect(calls[0]).toEqual(["find-generic-password", "-s", "Claude Code-credentials", "-w"]);
+    expect(calls[0]).toEqual([
+      "find-generic-password",
+      "-s",
+      "Claude Code-credentials",
+      "-w",
+    ]);
   });
 
   it("falls through dump-keychain candidates to the credentials file", async () => {
