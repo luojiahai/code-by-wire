@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
 import { terminalStore } from "./terminal-store-instance";
+import {
+  collectDroppedPaths,
+  quotePosixPath,
+  transferHasDropCandidates,
+} from "./file-drop";
 
 /**
  * Mounts a Managed session's kept-alive terminal into the workspace. The xterm instance lives in the
@@ -67,9 +72,41 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
     const ro = new ResizeObserver(sync);
     ro.observe(container);
 
+    // Dropping a file onto the Claude Code terminal inserts its path at the prompt, POSIX
+    // single-quoted (matching the footer shell terminal). Write to handle.id — not the
+    // closed-over sessionId — so a /clear rotation (which mutates handle.id) still lands the
+    // path in the live session. preventDefault on dragover makes this a drop target and on drop
+    // stops Electron from navigating to the file; the candidate guard lets non-file drags pass.
+    const onDragOver = (e: DragEvent): void => {
+      if (!e.dataTransfer || !transferHasDropCandidates(e.dataTransfer)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "copy";
+    };
+    const onDrop = (e: DragEvent): void => {
+      if (!e.dataTransfer || !transferHasDropCandidates(e.dataTransfer)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const paths = collectDroppedPaths(e.dataTransfer, (f) =>
+        window.api.getPathForFile(f),
+      );
+      if (!paths.length) return;
+      window.api.terminal.write(
+        handle.id,
+        `${paths.map(quotePosixPath).join(" ")} `,
+      );
+      handle.term.focus();
+    };
+    container.addEventListener("dragenter", onDragOver);
+    container.addEventListener("dragover", onDragOver);
+    container.addEventListener("drop", onDrop);
+
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      container.removeEventListener("dragenter", onDragOver);
+      container.removeEventListener("dragover", onDragOver);
+      container.removeEventListener("drop", onDrop);
       handle.wrapper.remove(); // detach, not dispose — the buffer goes back to living off-DOM in the store
     };
   }, [sessionId]);

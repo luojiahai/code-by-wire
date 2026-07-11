@@ -1,3 +1,5 @@
+import { quotePosixPath } from "../terminal/file-drop";
+
 /** Read one ANSI escape sequence starting at `index`, or null if `index` isn't ESC. CSI (ESC [)
  *  runs to its final byte; OSC (ESC ]) to BEL or ST; charset and other short ESC forms are three
  *  bytes (e.g. ESC ( B) — treating only ESC+( as the sequence would leave the final selector as
@@ -111,5 +113,5 @@ export function quotePathForShell(path: string, shellName: string): string {
   if (shell.includes("cmd")) {
     return `"${path.replace(/"/g, '""')}"`;
   }
-  return `'${path.replace(/'/g, "'\\''")}'`;
+  return quotePosixPath(path);
 }

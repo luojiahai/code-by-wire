@@ -8,6 +8,10 @@ import { newSessionId } from "@shared/terminal";
 import { createWebLinksAddon } from "../terminal/web-links";
 import { attachOverlayScrollbar } from "../terminal/overlay-scrollbar";
 import {
+  collectDroppedPaths,
+  transferHasDropCandidates,
+} from "../terminal/file-drop";
+import {
   cleanReviveSnapshot,
   keepEscapeSequences,
   quotePathForShell,
@@ -46,33 +50,6 @@ type TerminalStatus = "starting" | "open" | "closed";
 function withSurface(theme: ReturnType<typeof terminalTheme>) {
   const surface = resolveSurfaceColor(theme.background ?? "#1e1e1e");
   return { ...theme, background: surface, cursorAccent: surface };
-}
-
-function transferHasDropCandidates(t: DataTransfer): boolean {
-  if ((t.files?.length ?? 0) > 0) return true;
-  for (let i = 0; i < (t.items?.length ?? 0); i += 1) {
-    if (t.items[i]?.kind === "file") return true;
-  }
-  return false;
-}
-
-function collectDroppedPaths(t: DataTransfer): string[] {
-  const seen = new Set<string>();
-  const addFile = (file: File | null): void => {
-    if (!file) return;
-    try {
-      const path = window.api.getPathForFile(file);
-      if (typeof path === "string" && path.trim()) seen.add(path.trim());
-    } catch {
-      // File handle unavailable.
-    }
-  };
-  for (let i = 0; i < (t.files?.length ?? 0); i += 1) addFile(t.files.item(i));
-  for (let i = 0; i < (t.items?.length ?? 0); i += 1) {
-    const item = t.items[i];
-    if (item?.kind === "file") addFile(item.getAsFile());
-  }
-  return [...seen];
 }
 
 interface UseTerminalSessionOptions {
@@ -259,7 +236,9 @@ export function useTerminalSession({
       if (!e.dataTransfer || !transferHasDropCandidates(e.dataTransfer)) return;
       e.preventDefault();
       e.stopPropagation();
-      const paths = collectDroppedPaths(e.dataTransfer);
+      const paths = collectDroppedPaths(e.dataTransfer, (f) =>
+        window.api.getPathForFile(f),
+      );
       if (!paths.length) return;
       api.write(
         sessionId,
