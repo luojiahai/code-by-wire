@@ -4,7 +4,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import type { Subagent, Task, BackgroundShell } from "@shared/types";
+import type { Subagent, Task, BackgroundShell, Monitor } from "@shared/types";
 import { Icon } from "../../ui/icons";
 import { Tabs } from "../../ui/Tabs";
 import { SidebarPanelLabel } from "../../shell/SidebarPanelLabel";
@@ -12,6 +12,7 @@ import type { DocState } from "../use-transcript";
 import { DockTasks } from "./DockTasks";
 import { SubagentsTab } from "./SubagentsTab";
 import { ShellsTab } from "./ShellsTab";
+import { MonitorsTab } from "./MonitorsTab";
 import { OverlayScroll } from "../../ui/OverlayScroll";
 import {
   type DockTab,
@@ -36,20 +37,26 @@ export function ActivityDock({
   tasks,
   doc,
   shells,
+  monitors,
   now,
   activeAgentId,
   activeShellId,
+  activeMonitorId,
   onDrill,
   onDrillShell,
+  onDrillMonitor,
 }: {
   tasks: Task[];
   doc: DocState;
   shells: BackgroundShell[];
+  monitors: Monitor[];
   now: number;
   activeAgentId?: string;
   activeShellId?: string;
+  activeMonitorId?: string;
   onDrill: (agent: Subagent) => void;
   onDrillShell: (shell: BackgroundShell) => void;
+  onDrillMonitor: (monitor: Monitor) => void;
 }) {
   const [collapseOverride, setCollapseOverride] =
     useState<DockCollapseOverride | null>(null);
@@ -62,7 +69,8 @@ export function ActivityDock({
   // subagent, an in-progress task, or a running shell). A manual collapse/expand overrides that, but
   // only for the current activity phase — the override lapses when activity starts or stops, so the
   // dock re-follows (same lapsing-override shape as the tab-follow `pick` above).
-  const active = dockHasActivity(tasks, stats, shells);
+  const monitorsRunning = monitors.some((m) => m.status === "running");
+  const active = dockHasActivity(tasks, stats, shells, monitors);
   const collapsed = resolveDockCollapsed(active, collapseOverride);
   // The right tab auto-follows the live fan-out (Subagents while alive, Tasks otherwise). A manual pick
   // overrides that, but only for the current fan-out phase: `pick` records the phase (`alive`) it was
@@ -79,9 +87,11 @@ export function ActivityDock({
       ? pick.tab
       : activeShellId
         ? "shells"
-        : activeAgentId
-          ? "subagents"
-          : defaultDockTab(stats);
+        : activeMonitorId
+          ? "monitors"
+          : activeAgentId
+            ? "subagents"
+            : defaultDockTab(stats, monitorsRunning);
 
   // Drag-to-resize the expanded dock, persisted like a sidebar (shell/panes.ts, id "activity-dock").
   const heightOverride = useStore($paneHeightOverride("activity-dock"));
@@ -129,6 +139,7 @@ export function ActivityDock({
         taskCount={tasks.length}
         stats={stats}
         shellCount={shells.length}
+        monitorCount={monitors.length}
         onExpand={() => setCollapseOverride({ collapsed: false, active })}
       />
     );
@@ -155,6 +166,7 @@ export function ActivityDock({
         taskCount={tasks.length}
         subagentCount={stats.total}
         shellCount={shells.length}
+        monitorCount={monitors.length}
         onCollapse={() => setCollapseOverride({ collapsed: true, active })}
       />
       <OverlayScroll className="min-h-0 flex-1">
@@ -166,6 +178,13 @@ export function ActivityDock({
             now={now}
             activeAgentId={activeAgentId}
             onDrill={onDrill}
+          />
+        ) : tab === "monitors" ? (
+          <MonitorsTab
+            monitors={monitors}
+            now={now}
+            activeMonitorId={activeMonitorId}
+            onDrill={onDrillMonitor}
           />
         ) : (
           <ShellsTab
@@ -188,6 +207,7 @@ function DockTabBar({
   taskCount,
   subagentCount,
   shellCount,
+  monitorCount,
   onCollapse,
 }: {
   tab: DockTab;
@@ -195,6 +215,7 @@ function DockTabBar({
   taskCount: number;
   subagentCount: number;
   shellCount: number;
+  monitorCount: number;
   onCollapse: () => void;
 }) {
   return (
@@ -207,6 +228,7 @@ function DockTabBar({
           { id: "tasks", label: "Tasks", count: taskCount },
           { id: "subagents", label: "Subagents", count: subagentCount },
           { id: "shells", label: "Shells", count: shellCount },
+          { id: "monitors", label: "Monitors", count: monitorCount },
         ]}
         value={tab}
         onChange={onChange}
@@ -232,11 +254,13 @@ function DockTally({
   taskCount,
   stats,
   shellCount,
+  monitorCount,
   onExpand,
 }: {
   taskCount: number;
   stats: SubagentStats;
   shellCount: number;
+  monitorCount: number;
   onExpand: () => void;
 }) {
   return (
@@ -249,7 +273,8 @@ function DockTally({
     >
       <SidebarPanelLabel>Activity</SidebarPanelLabel>
       <span className="min-w-0 flex-1 truncate font-mono text-[0.72rem] tabular-nums text-(--ui-text-quaternary)">
-        {taskCount} tasks · {stats.total} subagents · {shellCount} shells
+        {taskCount} tasks · {stats.total} subagents · {shellCount} shells ·{" "}
+        {monitorCount} monitors
       </span>
       <Icon
         name="chevron-up"

@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Session, Subagent, BackgroundShell } from "@shared/types";
+import type {
+  Session,
+  Subagent,
+  BackgroundShell,
+  Monitor,
+} from "@shared/types";
 import { TranscriptView } from "./TranscriptView";
 import { useTranscriptModals } from "./use-transcript-modals";
 import { TerminalView } from "../terminal/TerminalView";
@@ -8,9 +13,12 @@ import { ActivityDock } from "./panels/ActivityDock";
 import { SubagentDrill, type DrillCrumb } from "./SubagentDrill";
 import { indexByDispatch, type DispatchDrill } from "./drill-index";
 import { ShellDetailModal } from "./ShellDetailModal";
+import { MonitorDetailModal } from "./MonitorDetailModal";
 import { useSubagentTranscript } from "./use-subagent-transcript";
 import { useShells } from "./use-shells";
 import { useShellOutput } from "./use-shell-output";
+import { useMonitors } from "./use-monitors";
+import { useMonitorOutput } from "./use-monitor-output";
 import { useTasks } from "./use-tasks";
 import { ObservedTerminal } from "./ObservedTerminal";
 import { OverlayScroll } from "../ui/OverlayScroll";
@@ -120,6 +128,7 @@ function WorkspaceBody({
   const doc = useTranscript(s.id);
   const tasks = useTasks(s.id);
   const shells = useShells(s.id);
+  const monitors = useMonitors(s.id);
   // The drill-stack is subagent-only: empty = the Session transcript; a crumb = a drilled Subagent.
   const [drill, setDrill] = useState<DrillCrumb[]>([]);
   const top = drill[drill.length - 1];
@@ -137,6 +146,15 @@ function WorkspaceBody({
   // (a running shell flips to completed on its own); falls back to the stored snapshot if it was reaped.
   const activeShell = activeShellId
     ? (shells?.find((sh) => sh.id === activeShellId) ?? modalShell ?? undefined)
+    : undefined;
+  // A monitor opens in a modal too, mutually exclusive with the shell modal (only one is set at a time).
+  const [modalMonitor, setModalMonitor] = useState<Monitor | null>(null);
+  const activeMonitorId = modalMonitor?.id;
+  const monitorOutput = useMonitorOutput(s.id, activeMonitorId);
+  const activeMonitor = activeMonitorId
+    ? (monitors?.find((m) => m.id === activeMonitorId) ??
+      modalMonitor ??
+      undefined)
     : undefined;
   // Resolve an inline dispatch by its tool_use_id against the session's full nested forest, rebuilt each
   // poll. A dispatch is drillable iff it's a key; clicking PUSHES the resolved subagent (deep), unlike a
@@ -185,9 +203,11 @@ function WorkspaceBody({
         tasks={tasks ?? []}
         doc={doc}
         shells={shells ?? []}
+        monitors={monitors ?? []}
         now={now}
         activeAgentId={activeAgentId}
         activeShellId={activeShellId}
+        activeMonitorId={activeMonitorId}
         onDrill={(agent: Subagent) =>
           setDrill([
             {
@@ -198,7 +218,14 @@ function WorkspaceBody({
             },
           ])
         }
-        onDrillShell={(shell: BackgroundShell) => setModalShell(shell)}
+        onDrillShell={(shell: BackgroundShell) => {
+          setModalMonitor(null);
+          setModalShell(shell);
+        }}
+        onDrillMonitor={(monitor: Monitor) => {
+          setModalShell(null);
+          setModalMonitor(monitor);
+        }}
       />
       {activeShell && (
         <ShellDetailModal
@@ -206,6 +233,14 @@ function WorkspaceBody({
           output={shellOutput}
           now={now}
           onClose={() => setModalShell(null)}
+        />
+      )}
+      {activeMonitor && (
+        <MonitorDetailModal
+          monitor={activeMonitor}
+          output={monitorOutput}
+          now={now}
+          onClose={() => setModalMonitor(null)}
         />
       )}
     </div>
