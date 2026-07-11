@@ -37,6 +37,31 @@ export function shellStatusPill(
   return { glyph: char, label, tone };
 }
 
+/** The Status + Runtime display strings for the Shell details modal. Pure so the modal's only real logic
+ *  is unit-testable without a component-render harness. Status reuses shellStatusPill's glyph/word/tone,
+ *  appending " (exit N)" on a non-zero exit; Runtime is the elapsed time while running, the final duration
+ *  once done, or an em dash when no timestamp is known. */
+export function shellDetailMeta(
+  shell: Pick<
+    BackgroundShell,
+    "status" | "exitCode" | "durationMs" | "startMs"
+  >,
+  now: number,
+): { statusGlyph: string; statusText: string; statusTone: string; runtime: string } {
+  const pill = shellStatusPill(shell);
+  const statusText =
+    shell.status === "completed" && shell.exitCode
+      ? `${pill.label} (exit ${shell.exitCode})`
+      : pill.label;
+  const runtime =
+    shell.status === "running" && shell.startMs !== undefined
+      ? formatDuration(now - shell.startMs)
+      : shell.durationMs !== undefined
+        ? formatDuration(shell.durationMs)
+        : "—";
+  return { statusGlyph: pill.glyph, statusText, statusTone: pill.tone, runtime };
+}
+
 /** The Bash-background trigger in words, for the header meta row. */
 export function triggerLabel(trigger: BackgroundShell["trigger"]): string {
   switch (trigger) {

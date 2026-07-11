@@ -7,6 +7,7 @@ import {
   shellStatusPill,
   triggerLabel,
   shellMetaSegments,
+  shellDetailMeta,
 } from "../../src/renderer/src/workspace/panels/shell-view";
 
 describe("shellGlyph", () => {
@@ -137,5 +138,65 @@ describe("shellMetaSegments", () => {
         1000,
       ),
     ).toEqual(["5s", "Ctrl-B"]);
+  });
+});
+
+describe("shellDetailMeta", () => {
+  it("running: elapsed from now, teal running word, no exit", () => {
+    expect(
+      shellDetailMeta({ status: "running", startMs: 82_000 }, 100_000),
+    ).toEqual({
+      statusGlyph: "●",
+      statusText: "running",
+      statusTone: "text-working-bright",
+      runtime: "18s",
+    });
+  });
+  it("clean completion: green completed word, final duration", () => {
+    expect(
+      shellDetailMeta(
+        { status: "completed", exitCode: 0, durationMs: 2400 },
+        1000,
+      ),
+    ).toEqual({
+      statusGlyph: "✓",
+      statusText: "completed",
+      statusTone: "text-ok",
+      runtime: "2s",
+    });
+  });
+  it("failure: red failed word carries the non-zero exit", () => {
+    expect(
+      shellDetailMeta(
+        { status: "completed", exitCode: 1, durationMs: 2400 },
+        1000,
+      ),
+    ).toEqual({
+      statusGlyph: "✕",
+      statusText: "failed (exit 1)",
+      statusTone: "text-danger",
+      runtime: "2s",
+    });
+  });
+  it("killed: grey killed word, final duration", () => {
+    expect(
+      shellDetailMeta(
+        { status: "killed", exitCode: 137, durationMs: 5000 },
+        1000,
+      ),
+    ).toEqual({
+      statusGlyph: "■",
+      statusText: "killed",
+      statusTone: "text-fg-faint",
+      runtime: "5s",
+    });
+  });
+  it("missing timestamps: runtime falls back to an em dash", () => {
+    expect(shellDetailMeta({ status: "running" }, 1000)).toEqual({
+      statusGlyph: "●",
+      statusText: "running",
+      statusTone: "text-working-bright",
+      runtime: "—",
+    });
   });
 });
