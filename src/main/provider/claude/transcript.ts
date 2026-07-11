@@ -32,8 +32,16 @@ export interface TranscriptSummary {
   effortLevel?: string;
 }
 
-/** First non-empty user prompt (slash commands shown by name), else the project basename. */
-export function deriveTitle(userPrompts: string[], cwd: string): string {
+/** The transcript-derived title: the newest `custom-title` entry (a `/rename` persisted into the
+ *  transcript — A7), else the first non-empty user prompt (slash commands shown by name), else the
+ *  project basename. A live capture's session_name and the user's own rename override layer above. */
+export function deriveTitle(
+  userPrompts: string[],
+  cwd: string,
+  customTitle?: string,
+): string {
+  const custom = customTitle?.trim();
+  if (custom) return custom;
   for (const raw of userPrompts) {
     const label = promptLabel(raw);
     if (label) return label;
@@ -158,6 +166,7 @@ export function parseTranscript(
   let lastActivityMs = 0;
   let createdMs = 0; // 0 = no parseable timestamp seen yet
   let effortLevel: string | undefined;
+  let customTitle: string | undefined;
   const userPrompts: string[] = [];
 
   // Token usage summed over every assistant turn (cost is billed per turn), deduped per message id
@@ -180,6 +189,9 @@ export function parseTranscript(
 
     if (typeof row.cwd === "string") cwd = row.cwd;
     if (typeof row.gitBranch === "string") branch = row.gitBranch;
+    // A7: a /rename writes a custom-title row; the newest one is the transcript's own title tier.
+    if (row.type === "custom-title" && typeof row.customTitle === "string")
+      customTitle = row.customTitle;
 
     if (typeof row.timestamp === "string") {
       const ms = Date.parse(row.timestamp);
@@ -264,7 +276,7 @@ export function parseTranscript(
   }
 
   return {
-    title: deriveTitle(userPrompts, cwd),
+    title: deriveTitle(userPrompts, cwd, customTitle),
     project: basename(cwd) || "unknown",
     cwd,
     branch,
