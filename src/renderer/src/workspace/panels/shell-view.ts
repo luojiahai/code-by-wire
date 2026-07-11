@@ -47,7 +47,12 @@ export function shellDetailMeta(
     "status" | "exitCode" | "durationMs" | "startMs"
   >,
   now: number,
-): { statusGlyph: string; statusText: string; statusTone: string; runtime: string } {
+): {
+  statusGlyph: string;
+  statusText: string;
+  statusTone: string;
+  runtime: string;
+} {
   const pill = shellStatusPill(shell);
   const statusText =
     shell.status === "completed" && shell.exitCode
@@ -59,7 +64,12 @@ export function shellDetailMeta(
       : shell.durationMs !== undefined
         ? formatDuration(shell.durationMs)
         : "—";
-  return { statusGlyph: pill.glyph, statusText, statusTone: pill.tone, runtime };
+  return {
+    statusGlyph: pill.glyph,
+    statusText,
+    statusTone: pill.tone,
+    runtime,
+  };
 }
 
 /** The Bash-background trigger in words, for the header meta row. */
