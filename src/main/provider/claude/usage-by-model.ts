@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import type { ModelUsage } from "@shared/types";
 import type { AnalyticsTurn } from "../../db/analytics";
 import { extractTurns, foldTurnsByModel, dedupeTurnsById } from "./turns";
-import { subagentsDirFor, listSubagentFiles } from "./subagents";
+import {
+  collectReferencedAgentIds,
+  listSessionSubagentFiles,
+} from "./subagents";
 
 /**
  * A session's per-model token breakdown: its main transcript folded with every subagent transcript, each
@@ -19,8 +22,13 @@ export function usageByModelFor(
   sessionId: string,
 ): ModelUsage[] {
   const turns: AnalyticsTurn[] = extractTurns(mainJsonl, sessionId);
-  const dir = subagentsDirFor(transcriptPath);
-  for (const { path, keyPrefix } of listSubagentFiles(dir, sessionId)) {
+  // Both layouts, flat gated on this transcript's own agentId references (A3) — the main JSONL is
+  // already in hand, so the reference walk costs no extra read.
+  for (const { path, keyPrefix } of listSessionSubagentFiles(
+    transcriptPath,
+    sessionId,
+    () => collectReferencedAgentIds(mainJsonl),
+  )) {
     let jsonl: string;
     try {
       jsonl = readFileSync(path, "utf8");

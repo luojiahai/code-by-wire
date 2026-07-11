@@ -236,6 +236,68 @@ export function subagentsDirFor(transcriptPath: string): string {
   );
 }
 
+/** projects/<proj>/<sid>.jsonl → projects/<proj>/subagents — the FLAT layout some CLI builds write
+ *  (ccstatusline probes both, jsonl-metrics.ts:442-491). Shared by every session in the project
+ *  dir, so its files count only when referenced by this session's transcript — see
+ *  listSessionSubagentFiles. */
+export function subagentsFlatDirFor(transcriptPath: string): string {
+  return join(dirname(transcriptPath), "subagents");
+}
+
+/** Every `agentId` string referenced anywhere in the transcript's rows (deep walk — ccstatusline's
+ *  getReferencedSubagentIds). This set is what scopes the shared flat subagents dir to ONE session. */
+export function collectReferencedAgentIds(jsonl: string): Set<string> {
+  const ids = new Set<string>();
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    for (const [key, nested] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      if (
+        key === "agentId" &&
+        typeof nested === "string" &&
+        nested.trim() !== ""
+      )
+        ids.add(nested);
+      walk(nested);
+    }
+  };
+  for (const row of parseJsonlRows(jsonl)) walk(row);
+  return ids;
+}
+
+/**
+ * A session's subagent files across BOTH layouts: the per-session dir unguarded (the dir is owned
+ * by the session — gating it on references would regress usage-accuracy coverage), the flat dir
+ * gated on referenced agent ids (it is shared — an unreferenced file there belongs to another
+ * session). `referencedIds` is a thunk, paid only when flat files exist. Deduped by path.
+ */
+export function listSessionSubagentFiles(
+  transcriptPath: string,
+  sessionId: string,
+  referencedIds: () => Set<string>,
+): SubagentFileEntry[] {
+  const out = listSubagentFiles(subagentsDirFor(transcriptPath), sessionId);
+  const flat = listSubagentFiles(
+    subagentsFlatDirFor(transcriptPath),
+    sessionId,
+  );
+  if (flat.length > 0) {
+    const ids = referencedIds();
+    const seen = new Set(out.map((e) => e.path));
+    for (const entry of flat) {
+      const agentId = entry.name.slice("agent-".length, -".jsonl".length);
+      if (!ids.has(agentId) || seen.has(entry.path)) continue;
+      out.push(entry);
+    }
+  }
+  return out;
+}
+
 /** One agent-*.jsonl entry in a session's subagents dir, ready to read or stat. */
 export interface SubagentFileEntry {
   name: string;

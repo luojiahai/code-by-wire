@@ -2,7 +2,9 @@ import { execFile } from "node:child_process";
 import type { PrInfo } from "@shared/metrics";
 import { branchRowKey } from "@shared/stats";
 
-const TTL_MS = 60_000;
+// 30 s, ccstatusline's GIT_REVIEW_CACHE_TTL (A8). Misses are cached for the same TTL (entry.value =
+// null below), so a branch with no PR doesn't shell out every poll.
+const TTL_MS = 30_000;
 
 /** Runs `gh pr view` for a repo and returns raw stdout, or null on any failure. A seam so the cache
  *  logic is unit-testable and the integration tests never spawn gh. */
@@ -18,15 +20,16 @@ interface Entry {
 
 const cache = new Map<string, Entry>();
 
-/** Default runner: `gh pr view --json number,url` in `cwd`, with GH_HOST stripped so gh auto-detects the
- *  host from the repo's remote (the work-vs-personal fix). No shell; resolves null on any error. */
+/** Default runner: `gh pr view --json url,number,title,state,reviewDecision` in `cwd`, with GH_HOST
+ *  stripped so gh auto-detects the host from the repo's remote (the work-vs-personal fix). No shell;
+ *  resolves null on any error. */
 function defaultRun(cwd: string): Promise<string | null> {
   return new Promise((resolve) => {
     const env = { ...process.env };
     delete env.GH_HOST;
     execFile(
       "gh",
-      ["pr", "view", "--json", "number,url"],
+      ["pr", "view", "--json", "url,number,title,state,reviewDecision"],
       { cwd, env, timeout: 8000 },
       (err, stdout) => resolve(err ? null : stdout),
     );
@@ -35,7 +38,8 @@ function defaultRun(cwd: string): Promise<string | null> {
 
 let runner: Runner = defaultRun;
 
-/** Parse `gh pr view --json number,url` stdout into a PrInfo, or null when absent/malformed. */
+/** Parse `gh pr view --json url,number,title,state,reviewDecision` stdout into a PrInfo, or null when
+ *  absent/malformed. */
 function parsePr(out: string | null): PrInfo | null {
   if (!out) return null;
   try {
@@ -46,8 +50,19 @@ function parsePr(out: string | null): PrInfo | null {
       typeof (j as { number?: unknown }).number === "number" &&
       typeof (j as { url?: unknown }).url === "string"
     ) {
-      const o = j as { number: number; url: string };
-      return { number: o.number, url: o.url };
+      const o = j as {
+        number: number;
+        url: string;
+        title?: unknown;
+        state?: unknown;
+        reviewDecision?: unknown;
+      };
+      const pr: PrInfo = { number: o.number, url: o.url };
+      if (typeof o.title === "string" && o.title) pr.title = o.title;
+      if (typeof o.state === "string" && o.state) pr.state = o.state;
+      if (typeof o.reviewDecision === "string" && o.reviewDecision)
+        pr.reviewDecision = o.reviewDecision;
+      return pr;
     }
   } catch {
     // not JSON
@@ -57,7 +72,7 @@ function parsePr(out: string | null): PrInfo | null {
 
 /** The branch's pull request for `cwd`, best-effort. Synchronous and non-blocking: returns the cached
  *  value (or null) immediately, and when the entry is stale/absent kicks a fire-and-forget gh fetch that
- *  populates the cache for the next poll. Cached per cwd+branch on a 60s TTL; null on every failure. */
+ *  populates the cache for the next poll. Cached per cwd+branch on a 30s TTL; null on every failure. */
 export function readPr(
   cwd: string,
   branch: string | null,

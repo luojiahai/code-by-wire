@@ -197,14 +197,16 @@ describe("registerIpc overview — statusLine overlay", () => {
     });
 
     const o = handlers.get(IPC.overview)!() as OverviewData;
-    expect(o.account).toEqual({
-      billingMode: "subscription",
-      fiveHour: { usedPct: 20, resetsAt: expect.any(Number) },
-      sevenDay: undefined,
-    });
+    // Account windows are the usage-API pass-through only (no usage service wired here), so they are
+    // absent; the "subscription" mode is still proven by the capture's rate_limits evidence. The
+    // capture's own window is now per-session — it lands on the session, not the account.
+    expect(o.account).toEqual({ billingMode: "subscription" });
     const s = o.sessions.find((x) => x.id === "seed")!;
     expect(s.linesAdded).toBe(10);
     expect(s.contextPct).toBe(47);
+    expect(s.rateLimits).toEqual({
+      fiveHour: { usedPct: 20, resetsAt: expect.any(Number) },
+    });
   });
 
   it("serves account null when there is no statusLine data (AC #4)", () => {

@@ -42,6 +42,8 @@ function mergedDurationMs(intervals: Interval[]): number {
  * double-counted. With `windowMs > 0` only requests whose assistant timestamp falls within
  * `[latest - windowMs, latest]` count, and their intervals are clipped to that window's start.
  * `windowMs === 0` is the full-session average.
+ * Rows flagged `isApiErrorMessage` never count; `isSidechain` rows are skipped in the first group
+ * (the main transcript) only — subagent groups count in full (A4).
  * Returns null when no completed request remains or the merged active duration is zero.
  */
 export function computeTokenSpeed(
@@ -52,12 +54,17 @@ export function computeTokenSpeed(
   const byId = new Map<string, Interval>();
   let latest = 0;
 
-  for (const rows of rowGroups) {
+  for (const [groupIndex, rows] of rowGroups.entries()) {
     let pendingUserTs: number | null = null; // pairing state never crosses a group boundary
     for (const row of rows) {
       const ts =
         typeof row?.timestamp === "string" ? Date.parse(row.timestamp) : NaN;
       if (Number.isNaN(ts)) continue;
+      // A4 (ccstatusline jsonl-metrics.ts:306, 516-525): an API-error row's partial usage is not
+      // throughput; a MAIN-transcript sidechain row is a subagent echo whose real rows arrive in
+      // their own group — counting both would double-count. Subagent groups count in full.
+      if (row.isApiErrorMessage) continue;
+      if (groupIndex === 0 && row.isSidechain) continue;
       if (row.type === "user" && !row.isMeta) {
         pendingUserTs = ts;
         continue;

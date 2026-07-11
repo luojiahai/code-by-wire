@@ -18,9 +18,16 @@ function statusLineDir(claudeDir: string): string {
   return join(claudeDir, ".code-by-wire", "statusline");
 }
 
-/** A finite number, or null — the trust-boundary coercion for every numeric field. */
+/** A finite number, or null — the trust-boundary coercion for every numeric field. Accepts a
+ *  non-empty numeric STRING too (ccstatusline's CoercedNumberSchema exists because some CLI builds
+ *  emitted numeric strings — A2): "85" → 85; ""/"x"/Infinity → null. */
 function num(v: unknown): number | null {
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
 
 /** One window of the raw `rate_limits` block → RateLimit, converting resets_at (epoch s) to epoch ms.

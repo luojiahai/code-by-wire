@@ -1,6 +1,14 @@
-import type { Account, RateLimit, Session, SessionPr } from "./types";
+import type {
+  Account,
+  ExtraUsage,
+  RateLimit,
+  RateLimitWindows,
+  Session,
+  SessionPr,
+} from "./types";
 import type { ContextBreakdown } from "./transcript";
 import { contextTotal } from "./context";
+import { parseContextWindowSize } from "./models";
 
 /** One normalized statusLine capture for a Session, parsed from a side-channel file. Plain data so it
  *  crosses IPC cleanly. `null` fields are "the statusLine didn't report this", distinct from 0. */
@@ -41,12 +49,7 @@ export interface StatusLineSample {
    *  API response). null when absent: a subscription before that response, or a session whose billing the
    *  app can't determine. Each window may be independently absent. The two weekly sub-buckets join the
    *  existing five_hour / seven_day windows. */
-  rateLimits: {
-    fiveHour?: RateLimit;
-    sevenDay?: RateLimit;
-    sevenDaySonnet?: RateLimit;
-    sevenDayOpus?: RateLimit;
-  } | null;
+  rateLimits: RateLimitWindows | null;
 }
 
 /** The seam ipc.ts depends on: the live captures the wrapper writes. Implemented in main by a file reader. */
@@ -81,67 +84,58 @@ function liveWindow(
   return w && w.resetsAt > now ? w : undefined;
 }
 
-/** The best live view of one window across every fresh with-limits sample: the latest resetsAt wins
- *  (a newer window generation supersedes the old one), and within one generation the highest usedPct
- *  wins. Usage only grows during a window, so each session's snapshot is a lower bound on the
- *  account-wide value — an idle session keeps rewriting its capture (fresh mtime) with the % from its
- *  last API call (stale data), so picking by file mtime flapped between parallel sessions' numbers. */
-function bestWindow(
-  samples: StatusLineSample[],
-  key: "fiveHour" | "sevenDay" | "sevenDaySonnet" | "sevenDayOpus",
+/** The usage API's account-wide answer: the four windows plus extra-usage credits. The fill side of
+ *  the per-session merge — the panel never renders it without first consulting the selected session. */
+export interface AccountUsage extends RateLimitWindows {
+  extraUsage?: ExtraUsage;
+}
+
+/** ccstatusline's mergeUsageData, per window: the selected session's own capture window wins, the
+ *  API-fetched window fills an absent (or expired) one, both absent → undefined (a dashed row).
+ *  Granularity note (audit): ccs merges per FIELD; ours is per window because RateLimit requires both
+ *  fields and parseWindow discards half-formed capture windows — documented micro-deviation. */
+export function pickWindow(
+  session: RateLimit | undefined,
+  api: RateLimit | undefined,
   now: number,
 ): RateLimit | undefined {
-  let best: RateLimit | undefined;
-  for (const s of samples) {
-    const w = liveWindow(s.rateLimits?.[key], now);
-    if (!w) continue;
-    if (
-      !best ||
-      w.resetsAt > best.resetsAt ||
-      (w.resetsAt === best.resetsAt && w.usedPct > best.usedPct)
-    )
-      best = w;
-  }
-  return best;
+  return liveWindow(session, now) ?? liveWindow(api, now);
 }
 
 /**
- * The app-wide Account from the live statusLine captures within `staleMs` of `now`. Billing mode is
- * decided here, in one place:
+ * The app-wide Account. Windows are a pass-through of the usage-API fetch (each through the
+ * liveWindow guard so a reset elapsing inside the TTL drops rather than shows stale); they exist
+ * solely as the per-session merge's fill side — the panel never renders them without first
+ * consulting the selected session (see pickWindow). Captures are consulted only as evidence:
  *
- * - subscription: rate-limit presence is the signal. A capture carrying rate_limits is a subscription;
- *   each window is derived independently across EVERY fresh with-limits capture (see bestWindow) —
- *   parallel sessions carry snapshots of different ages, so no single capture is authoritative. A
- *   no-limits capture (a subscription session before its first API response, or an API-key session
- *   running alongside) never overrides one with them. Each window is dropped once its reset has
- *   passed, so a stale capture can't show an expired limit as current. A dormant subscriber (all
- *   windows expired) stays subscription — the rate_limits history is proof.
- * - api: no capture ever carried rate_limits (no subscription evidence) and at least one fresh sample
- *   exists. A capture with rate_limits — even all-expired — is proof of a subscription, so a dormant
- *   subscriber is NEVER relabeled API billing.
+ * - subscription: an OAuth usage response is direct proof, OR any fresh capture carries rate_limits
+ *   (even all-expired — the history is proof, so a dormant subscriber is never relabeled).
+ * - api: no evidence, but at least one fresh sample exists.
  *
- * Returns null when there's no recent statusLine data at all (the UI reads null as "no bars").
+ * Returns null when there's no API usage and no recent statusLine data at all.
  */
 export function deriveAccount(
   samples: Iterable<StatusLineSample>,
   now: number,
   staleMs: number,
+  apiUsage?: AccountUsage | null,
 ): Account | null {
   let freshest: StatusLineSample | null = null;
-  const withLimits: StatusLineSample[] = [];
+  let sawRateLimits = false;
   for (const s of samples) {
     if (now - s.capturedMtimeMs > staleMs) continue;
     if (!freshest || s.capturedMtimeMs > freshest.capturedMtimeMs) freshest = s;
-    if (s.rateLimits) withLimits.push(s);
+    if (s.rateLimits) sawRateLimits = true;
   }
-  if (withLimits.length > 0) {
+  if (apiUsage || sawRateLimits) {
     const acc: Account = {
       billingMode: "subscription",
-      fiveHour: bestWindow(withLimits, "fiveHour", now),
-      sevenDay: bestWindow(withLimits, "sevenDay", now),
-      sevenDaySonnet: bestWindow(withLimits, "sevenDaySonnet", now),
-      sevenDayOpus: bestWindow(withLimits, "sevenDayOpus", now),
+      fiveHour: liveWindow(apiUsage?.fiveHour, now),
+      sevenDay: liveWindow(apiUsage?.sevenDay, now),
+      sevenDaySonnet: liveWindow(apiUsage?.sevenDaySonnet, now),
+      sevenDayOpus: liveWindow(apiUsage?.sevenDayOpus, now),
     };
+    if (apiUsage?.extraUsage) acc.extraUsage = apiUsage.extraUsage;
     if (freshest?.version) acc.version = freshest.version;
     return acc;
   }
@@ -167,7 +161,10 @@ export function overlaySessions(
   return sessions.map((s) => {
     const sample = byId.get(s.id);
     if (!sample) return s;
-    const window = sample.contextWindow ?? s.contextWindow;
+    const window =
+      sample.contextWindow ??
+      parseContextWindowSize(sample.modelId, sample.modelDisplayName) ??
+      s.contextWindow;
     // When the capture carries a live split but no used_percentage, fill from those exact tokens over
     // the window rather than the stale transcript %. The Context panel shows the live split's total/window
     // beside this %, so a transcript number there would visibly contradict the tokens next to it.
@@ -188,12 +185,13 @@ export function overlaySessions(
       modelDisplayName: sample.modelDisplayName ?? undefined,
       linesAdded: sample.linesAdded ?? undefined,
       linesRemoved: sample.linesRemoved ?? undefined,
-      effortLevel: sample.effortLevel ?? undefined,
-      sessionClockMs: sample.sessionClockMs ?? undefined,
+      effortLevel: sample.effortLevel ?? s.effortLevel,
+      sessionClockMs: sample.sessionClockMs ?? s.sessionClockMs,
       cwd: sample.cwd ?? s.cwd,
       costUsd: sample.costUsd ?? undefined,
       apiDurationMs: sample.apiDurationMs ?? undefined,
       pr: sample.pr ?? undefined,
+      rateLimits: sample.rateLimits ?? undefined,
     };
   });
 }

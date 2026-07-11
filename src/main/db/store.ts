@@ -1,5 +1,9 @@
 import type { Session, PersistedSession, ModelUsage } from "@shared/types";
-import { contextWindowFor, normalizeModelId } from "@shared/models";
+import {
+  contextWindowFor,
+  normalizeModelId,
+  parseContextWindowSize,
+} from "@shared/models";
 import type { IndexOverview } from "@shared/ipc";
 import { isResumable } from "@shared/resumable";
 import { transaction, type SqliteDb } from "./driver";
@@ -7,8 +11,9 @@ import { transaction, type SqliteDb } from "./driver";
 /** Bump when the schema changes OR when summarize's math changes and cached rows must rebuild —
  *  v9 forces the one-time re-summarize for the last-entry-wins usage dedup (usage_by_model rows
  *  cached under first-entry-wins undercounted subagent output). `migrate` rebuilds the index (a
- *  disposable cache) to match. */
-const SCHEMA_VERSION = 9;
+ *  disposable cache) to match — v10 adds effort_level (A6 transcript scan) — v11 adds the A9
+ *  compaction columns. */
+const SCHEMA_VERSION = 11;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -45,7 +50,10 @@ export function migrate(db: SqliteDb): void {
         cache_creation_5m_tokens INTEGER NOT NULL DEFAULT 0,
         cache_creation_1h_tokens INTEGER NOT NULL DEFAULT 0,
         usage_by_model TEXT,
-        context_tokens INTEGER NOT NULL DEFAULT 0
+        effort_level TEXT,
+        context_tokens INTEGER NOT NULL DEFAULT 0,
+        compaction_count INTEGER NOT NULL DEFAULT 0,
+        compaction_reclaimed_tokens INTEGER NOT NULL DEFAULT 0
       );
       PRAGMA user_version = ${SCHEMA_VERSION};
     `);
@@ -74,6 +82,9 @@ interface Row {
   cache_creation_1h_tokens: number;
   usage_by_model: string | null;
   context_tokens: number;
+  effort_level: string | null;
+  compaction_count: number;
+  compaction_reclaimed_tokens: number;
 }
 
 /** Parse the persisted usageByModel JSON column into ModelUsage[], or [] when the column is null (an old
@@ -115,6 +126,9 @@ function rowToPersisted(r: Row): PersistedSession {
     },
     usageByModel: parseUsageByModel(r.usage_by_model),
     contextTokens: r.context_tokens,
+    effortLevel: r.effort_level ?? undefined,
+    compactionCount: r.compaction_count,
+    compactionTokensReclaimed: r.compaction_reclaimed_tokens,
   };
 }
 
@@ -127,10 +141,14 @@ function pctOfWindow(tokens: number, window: number): number {
 /**
  * Turn a persisted snapshot into a renderer-facing Session, computing the derived display values
  * (context window, context %) from the stored raw numbers + model — the single place those formulas
- * live. The window is a fixed per-family property of the model, so it's derived here, not stored.
+ * live. The window is derived here, never stored: a window tag parsed off the stored model id
+ * (`[1m]`, A1) wins when present, else the flat per-family default.
  */
 export function hydrate(p: PersistedSession): Session {
-  const contextWindow = contextWindowFor(p.model);
+  // A1: a window tag in the stored raw model id (`[1m]`) beats the flat family default, so an
+  // uncaptured 1M session's % isn't measured against 200k.
+  const contextWindow =
+    parseContextWindowSize(p.modelRaw) ?? contextWindowFor(p.model);
   // The panel reads usageByModel for everything. A session summarized with the column carries its real
   // per-model breakdown; an old cached row (pre-column) or an empty transcript falls back to a single
   // main-thread entry, so the panel still renders main-only until the next re-summarize. The fallback's
@@ -141,6 +159,13 @@ export function hydrate(p: PersistedSession): Session {
     p.usageByModel?.length && p.usageByModel.some((mu) => mu.modelRaw !== null)
       ? p.usageByModel
       : [{ modelRaw: p.modelRaw ?? p.model, usage: p.usage }];
+  // A5 (ccstatusline getSessionDuration): with no capture clock, the transcript's first→last
+  // timestamp delta IS the session clock — Ended/Observed sessions get a Clock row instead of "-".
+  // Guarded: both timestamps positive, delta non-negative.
+  const sessionClockMs =
+    p.createdMs > 0 && p.lastActivityMs > 0 && p.lastActivityMs >= p.createdMs
+      ? p.lastActivityMs - p.createdMs
+      : undefined;
   return {
     id: p.id,
     title: p.title,
@@ -158,16 +183,22 @@ export function hydrate(p: PersistedSession): Session {
     usageByModel: models,
     lastActivityMs: p.lastActivityMs,
     createdMs: p.createdMs,
+    sessionClockMs,
+    effortLevel: p.effortLevel,
+    compactionCount: p.compactionCount,
+    compactionTokensReclaimed: p.compactionTokensReclaimed,
   };
 }
 
 const UPSERT = `
   INSERT INTO sessions
     (id, title, project, cwd, branch, state, management, model, model_raw, last_activity_ms, created_ms, awaiting_user, transcript_mtime_ms,
-     input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, usage_by_model, context_tokens)
+     input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, usage_by_model, context_tokens, effort_level,
+     compaction_count, compaction_reclaimed_tokens)
   VALUES
     (@id, @title, @project, @cwd, @branch, @state, @management, @model, @model_raw, @last_activity_ms, @created_ms, @awaiting_user, @transcript_mtime_ms,
-     @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @usage_by_model, @context_tokens)
+     @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @usage_by_model, @context_tokens, @effort_level,
+     @compaction_count, @compaction_reclaimed_tokens)
   ON CONFLICT(id) DO UPDATE SET
     title = excluded.title,
     project = excluded.project,
@@ -192,7 +223,10 @@ const UPSERT = `
     cache_creation_5m_tokens = excluded.cache_creation_5m_tokens,
     cache_creation_1h_tokens = excluded.cache_creation_1h_tokens,
     usage_by_model = excluded.usage_by_model,
-    context_tokens = excluded.context_tokens
+    context_tokens = excluded.context_tokens,
+    effort_level = excluded.effort_level,
+    compaction_count = excluded.compaction_count,
+    compaction_reclaimed_tokens = excluded.compaction_reclaimed_tokens
 `;
 
 /**
@@ -229,6 +263,9 @@ export function upsertSessions(
         cache_creation_1h_tokens: s.usage.cacheCreation1hTokens,
         usage_by_model: JSON.stringify(s.usageByModel ?? []),
         context_tokens: s.contextTokens,
+        effort_level: s.effortLevel ?? null,
+        compaction_count: s.compactionCount ?? 0,
+        compaction_reclaimed_tokens: s.compactionTokensReclaimed ?? 0,
       });
     }
   });

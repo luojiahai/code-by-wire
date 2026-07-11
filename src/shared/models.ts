@@ -77,3 +77,34 @@ export function isKnownModelString(raw: string | undefined): boolean {
 export function contextWindowFor(model: Family): number {
   return specByFamily(model).contextWindow;
 }
+
+// A1 (ccstatusline model-context.ts:38-70): a window size embedded in the model string. The
+// delimited form is authoritative-looking punctuation — `(1M)` / `[200k]`; the bare form catches
+// `1M context` / a trailing `200k`. `m` → ×1e6, `k` → ×1e3; commas/underscores inside the number
+// are separators. Sits BETWEEN a capture-supplied context_window_size and the 200k family default.
+const DELIMITED_WINDOW_RE =
+  /[([]\s*(\d+(?:[,_]\d+)*(?:\.\d+)?)\s*([km])\s*[)\]]/i;
+const BARE_WINDOW_RE =
+  /\b(\d+(?:[,_]\d+)*(?:\.\d+)?)\s*([km])(?:\s*(?:token\s*)?context)?\b/i;
+
+function windowFromMatch(m: RegExpExecArray | null): number | null {
+  if (!m) return null;
+  const value = Number(m[1].replace(/[,_]/g, ""));
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.round(value * (m[2].toLowerCase() === "m" ? 1_000_000 : 1_000));
+}
+
+/** The first candidate string carrying a parseable window size, else null. Fixes the transcript-
+ *  fallback % for `[1m]` sessions (a 1M session with no live capture was measured against 200k). */
+export function parseContextWindowSize(
+  ...candidates: (string | null | undefined)[]
+): number | null {
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const size =
+      windowFromMatch(DELIMITED_WINDOW_RE.exec(raw)) ??
+      windowFromMatch(BARE_WINDOW_RE.exec(raw));
+    if (size !== null) return size;
+  }
+  return null;
+}

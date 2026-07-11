@@ -35,6 +35,8 @@ const snap = (over: Partial<PersistedSession> = {}): PersistedSession => ({
   },
   contextTokens: 0,
   usageByModel: [],
+  compactionCount: 0,
+  compactionTokensReclaimed: 0,
   ...over,
 });
 
@@ -46,7 +48,7 @@ describe("store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(9);
+    ).toBe(11);
   });
 
   it("round-trips a snapshot, coercing missing branch and the awaitingUser flag", () => {

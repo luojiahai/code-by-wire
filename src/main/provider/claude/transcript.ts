@@ -27,10 +27,25 @@ export interface TranscriptSummary {
   usage: Usage;
   /** Latest turn's full prompt (input + cache-read + cache-creation): the current context size, for context %. */
   contextTokens: number;
+  /** Thinking effort scanned from `/effort` / `/model` stdout markers, newest wins (A6). Absent
+   *  when the transcript carries none — the capture, then settings.json, layer above/below this. */
+  effortLevel?: string;
+  /** Non-sidechain compact_boundary rows (A9): how many times this session compacted. */
+  compactionCount: number;
+  /** Σ max(0, preTokens − postTokens) across boundaries whose compactMetadata carried both. */
+  compactionTokensReclaimed: number;
 }
 
-/** First non-empty user prompt (slash commands shown by name), else the project basename. */
-export function deriveTitle(userPrompts: string[], cwd: string): string {
+/** The transcript-derived title: the newest `custom-title` entry (a `/rename` persisted into the
+ *  transcript — A7), else the first non-empty user prompt (slash commands shown by name), else the
+ *  project basename. A live capture's session_name and the user's own rename override layer above. */
+export function deriveTitle(
+  userPrompts: string[],
+  cwd: string,
+  customTitle?: string,
+): string {
+  const custom = customTitle?.trim();
+  if (custom) return custom;
   for (const raw of userPrompts) {
     const label = promptLabel(raw);
     if (label) return label;
@@ -132,6 +147,14 @@ export function transcriptSessionKind(path: string): string | undefined {
  *  carry a zero usage block. They're not a real model and don't represent the session's context. */
 const SYNTHETIC_MODEL = "<synthetic>";
 
+// A6 (ccstatusline jsonl-metadata.ts:17-19): the two stdout markers a /effort or /model command
+// leaves in the transcript. Forward scan latches the LAST match — same answer as ccs's
+// scan-from-the-end, one pass.
+const EFFORT_STDOUT_RE =
+  /^<local-command-stdout>Set effort level to ([a-zA-Z0-9-]+)\b/i;
+const MODEL_STDOUT_EFFORT_RE =
+  /^<local-command-stdout>Set model to[\s\S]*? with ([a-zA-Z0-9-]+) effort<\/local-command-stdout>$/i;
+
 /**
  * Reduce a transcript's JSONL into a normalized summary. Parses line by line and
  * skips any unparseable line, so a transcript being appended to right now (a
@@ -146,6 +169,10 @@ export function parseTranscript(
   let lastModelRaw: string | undefined;
   let lastActivityMs = 0;
   let createdMs = 0; // 0 = no parseable timestamp seen yet
+  let effortLevel: string | undefined;
+  let customTitle: string | undefined;
+  let compactionCount = 0;
+  let compactionTokensReclaimed = 0;
   const userPrompts: string[] = [];
 
   // Token usage summed over every assistant turn (cost is billed per turn), deduped per message id
@@ -168,6 +195,31 @@ export function parseTranscript(
 
     if (typeof row.cwd === "string") cwd = row.cwd;
     if (typeof row.gitBranch === "string") branch = row.gitBranch;
+    // A7: a /rename writes a custom-title row; the newest one is the transcript's own title tier.
+    if (row.type === "custom-title" && typeof row.customTitle === "string")
+      customTitle = row.customTitle;
+
+    // A9 (ccstatusline compaction.ts:35-70): a compact boundary is a system row; sidechain
+    // boundaries are a subagent's own compactions, not this session's.
+    if (
+      row.type === "system" &&
+      row.subtype === "compact_boundary" &&
+      !row.isSidechain
+    ) {
+      compactionCount++;
+      const meta = row.compactMetadata;
+      if (meta && typeof meta === "object") {
+        const pre = (meta as Record<string, unknown>).preTokens;
+        const post = (meta as Record<string, unknown>).postTokens;
+        if (
+          typeof pre === "number" &&
+          Number.isFinite(pre) &&
+          typeof post === "number" &&
+          Number.isFinite(post)
+        )
+          compactionTokensReclaimed += Math.max(0, pre - post);
+      }
+    }
 
     if (typeof row.timestamp === "string") {
       const ms = Date.parse(row.timestamp);
@@ -238,16 +290,21 @@ export function parseTranscript(
           }
         }
       }
-      // Only real (non-meta) user turns are prompts that can title the session.
-      if (!row.isMeta) {
-        const text = userText(content);
-        if (text) userPrompts.push(text);
+      // A6: the /effort and /model stdout markers land in meta rows, so this scan must run before
+      // the non-meta guard below (marker rows ARE meta and would otherwise be skipped entirely).
+      const text = userText(content);
+      if (text) {
+        const m =
+          EFFORT_STDOUT_RE.exec(text) ?? MODEL_STDOUT_EFFORT_RE.exec(text);
+        if (m?.[1]) effortLevel = m[1].toLowerCase();
       }
+      // Only real (non-meta) user turns are prompts that can title the session.
+      if (!row.isMeta && text) userPrompts.push(text);
     }
   }
 
   return {
-    title: deriveTitle(userPrompts, cwd),
+    title: deriveTitle(userPrompts, cwd, customTitle),
     project: basename(cwd) || "unknown",
     cwd,
     branch,
@@ -258,5 +315,8 @@ export function parseTranscript(
     awaitingUser: tail.awaitingUser,
     usage: usageAcc.totals(),
     contextTokens: tail.context ? contextTotal(tail.context) : 0,
+    effortLevel,
+    compactionCount,
+    compactionTokensReclaimed,
   };
 }

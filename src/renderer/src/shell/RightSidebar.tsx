@@ -47,6 +47,7 @@ export function RightSidebar({
             contextPct={session.contextPct}
             contextWindow={session.contextWindow}
             account={account}
+            rateLimits={session.rateLimits ?? null}
           />
           <SectionDivider />
           <SpendPanel

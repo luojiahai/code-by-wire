@@ -25,6 +25,13 @@ export interface GitInfo {
 export interface PrInfo {
   number: number;
   url: string;
+  /** gh `--json title` — the PR row's tooltip. Absent when gh omitted it. */
+  title?: string;
+  /** gh state: OPEN | CLOSED | MERGED. Raw — the renderer formats. */
+  state?: string;
+  /** gh reviewDecision: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | "" — the closest gh
+   *  analogue of the capture's review_state; the capture (fresher) still wins per-session. */
+  reviewDecision?: string;
 }
 
 /** The expensive, per-selected-session metrics, computed lazily off the main thread of the overview. Any

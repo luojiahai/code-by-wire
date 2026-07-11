@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 import type { Session } from "@shared/types";
 import type { GitInfo, PrInfo } from "@shared/metrics";
-import { formatClock, formatRelativeTime } from "@shared/format";
+import {
+  formatClock,
+  formatRelativeTime,
+  formatTokensShort,
+} from "@shared/format";
 import { modelLabel } from "../ui/meta";
 import { PanelSection, PanelHeading } from "../workspace/panels/chrome";
 import { GitReadout } from "./GitReadout";
@@ -30,6 +34,10 @@ export function SessionPanel({
   const clock = s.sessionClockMs != null ? formatClock(s.sessionClockMs) : null;
   const hasLines = s.linesAdded != null || s.linesRemoved != null;
   const prView = s.pr ?? pr ?? null;
+  const prStatus =
+    ((s.pr?.reviewState ?? pr?.reviewDecision) || pr?.state)
+      ?.toLowerCase()
+      .replace(/_/g, " ") ?? null;
   return (
     <PanelSection>
       <PanelHeading icon="id-card">Session</PanelHeading>
@@ -44,13 +52,19 @@ export function SessionPanel({
       </SessionRow>
       <SessionRow label="PR">
         {prView ? (
-          <button
-            type="button"
-            onClick={() => void window.api.openExternal(prView.url)}
-            className="cursor-pointer text-fg hover:underline"
-          >
-            #{prView.number}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => void window.api.openExternal(prView.url)}
+              className="cursor-pointer text-fg hover:underline"
+              title={pr?.title ?? prView.url}
+            >
+              #{prView.number}
+            </button>
+            {prStatus && (
+              <span className="text-(--ui-text-quaternary)">{prStatus}</span>
+            )}
+          </>
         ) : (
           "-"
         )}
@@ -66,6 +80,19 @@ export function SessionPanel({
         )}
       </SessionRow>
       <SessionRow label="Clock">{clock ?? "-"}</SessionRow>
+      {(s.compactionCount ?? 0) > 0 && (
+        <SessionRow label="Compactions">
+          <span
+            title={
+              s.compactionTokensReclaimed
+                ? `${formatTokensShort(s.compactionTokensReclaimed)} tokens reclaimed`
+                : undefined
+            }
+          >
+            {s.compactionCount}
+          </span>
+        </SessionRow>
+      )}
       <SessionRow label="Active">
         {formatRelativeTime(s.lastActivityMs, Date.now())}
       </SessionRow>

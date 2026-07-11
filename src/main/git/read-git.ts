@@ -149,8 +149,11 @@ export function readGit(cwd: string): GitInfo | null {
   if (fresh && hit.token === token) return hit.value;
 
   // Recompute: a moved token, or the TTL expired (the unstaged-edit backstop).
-  const branchRaw = git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
-  const branch = branchRaw && branchRaw !== "HEAD" ? branchRaw : null;
+  // A10: ccstatusline runs symbolic-ref, which ERRORS on detached HEAD (→ null → the readout falls
+  // back to the sha) — result-identical to the old rev-parse + "HEAD" check, switched for literal
+  // parity. Cache keying, GIT_OPTIONAL_LOCKS=0, and every other field are untouched.
+  const branchRaw = git(cwd, ["symbolic-ref", "--short", "HEAD"]);
+  const branch = branchRaw || null;
   const sha = git(cwd, ["rev-parse", "--short", "HEAD"]);
   const unstaged = parseShortstat(git(cwd, ["diff", "--shortstat"]));
   const staged = parseShortstat(git(cwd, ["diff", "--cached", "--shortstat"]));

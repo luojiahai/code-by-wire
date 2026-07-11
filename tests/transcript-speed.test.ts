@@ -189,4 +189,35 @@ describe("computeTokenSpeed", () => {
     // the denominator to 110s and giving a different (~13.6) tps.
     expect(s!.outputTps).toBeCloseTo(150, 5);
   });
+
+  it("A4: an isApiErrorMessage assistant row contributes no interval or tokens", () => {
+    const t0 = Date.parse("2026-07-10T00:00:00Z");
+    const rows = [
+      { type: "user", timestamp: new Date(t0).toISOString() },
+      {
+        type: "assistant",
+        isApiErrorMessage: true,
+        timestamp: new Date(t0 + 5_000).toISOString(),
+        message: { id: "m1", usage: { input_tokens: 100, output_tokens: 100 } },
+      },
+    ];
+    expect(computeTokenSpeed([rows], 60_000)).toBeNull();
+  });
+
+  it("A4: main-transcript sidechain rows are skipped; subagent-group rows count", () => {
+    const t0 = Date.parse("2026-07-10T00:00:00Z");
+    const side = {
+      type: "assistant",
+      isSidechain: true,
+      timestamp: new Date(t0 + 5_000).toISOString(),
+      message: { id: "m2", usage: { input_tokens: 60, output_tokens: 60 } },
+    };
+    const user = { type: "user", timestamp: new Date(t0).toISOString() };
+    // In the main group (index 0) the sidechain row is invisible → no completed request …
+    expect(computeTokenSpeed([[user, side]], 60_000)).toBeNull();
+    // … but the SAME row inside a subagent group (index > 0) is real throughput. The subagent group
+    // carries its own leading user row so the sidechain row has a non-zero interval to be measured over.
+    const subUser = { type: "user", timestamp: new Date(t0).toISOString() };
+    expect(computeTokenSpeed([[user], [subUser, side]], 60_000)).not.toBeNull();
+  });
 });

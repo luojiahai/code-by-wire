@@ -7,8 +7,8 @@ import {
 } from "../db/analytics";
 import { indexTranscripts } from "../provider/claude/discover";
 import {
-  subagentsDirFor,
-  listSubagentFiles,
+  listSessionSubagentFiles,
+  collectReferencedAgentIds,
 } from "../provider/claude/subagents";
 import { extractTurns } from "../provider/claude/turns";
 import { planFileScan } from "./incremental";
@@ -55,6 +55,24 @@ export function freshTargets(
   return { targets: walk(), atMs: nowMs };
 }
 
+// A3: the flat subagents layout needs the main transcript's agentId references to scope its files
+// to a session. The walk must stay cheap, so the (rare) reference read is memoized on the parent's
+// mtime — re-read only when the transcript actually changed.
+const refIdCache = new Map<string, { mtimeMs: number; ids: Set<string> }>();
+
+function referencedIdsFor(path: string, mtimeMs: number): Set<string> {
+  const hit = refIdCache.get(path);
+  if (hit && hit.mtimeMs === mtimeMs) return hit.ids;
+  let ids: Set<string>;
+  try {
+    ids = collectReferencedAgentIds(readFileSync(path, "utf8"));
+  } catch {
+    ids = new Set();
+  }
+  refIdCache.set(path, { mtimeMs, ids });
+  return ids;
+}
+
 /**
  * Every file the analytics scan ingests, with its current mtime — the cheap walk (readdir + stat, no
  * parse). Parent Transcripts come from indexTranscripts (the full, unpruned projects/ sweep, unlike the
@@ -66,10 +84,10 @@ export function collectScanTargets(claudeDir: string): ScanTarget[] {
   const out: ScanTarget[] = [];
   for (const [sessionId, { path, mtimeMs }] of indexTranscripts(claudeDir)) {
     out.push({ path, mtimeMs, sessionId, keyPrefix: sessionId });
-    const dir = subagentsDirFor(path);
-    for (const { path: subPath, keyPrefix } of listSubagentFiles(
-      dir,
+    for (const { path: subPath, keyPrefix } of listSessionSubagentFiles(
+      path,
       sessionId,
+      () => referencedIdsFor(path, mtimeMs),
     )) {
       let mtime: number;
       try {

@@ -18,6 +18,7 @@ import type { CliStatusController } from "./cli-check";
 import type { Updater } from "./updater";
 import type { AppSettingsStore } from "./app-settings";
 import type { Caffeinate } from "./caffeinate";
+import type { UsageService } from "./usage/fetch";
 import {
   deriveAccount,
   overlaySessions,
@@ -27,6 +28,7 @@ import {
 import { deriveStatuslineStatus } from "@shared/statusline-status";
 import type { StatuslineStatus } from "@shared/statusline-status";
 import type { SettingsManager } from "./settings/manager";
+import { readDefaultEffort } from "./settings/default-effort";
 import { applyTitleOverrides } from "@shared/title-override";
 import type { SessionTitleStore } from "./session-titles";
 import { getOverview, readSessionTitles } from "./db/store";
@@ -116,6 +118,9 @@ export interface IpcDeps {
   /** The keep-awake toggle. Defaults to an inert off, so harnesses that don't wire it still get
    *  well-formed responses. */
   caffeinate?: Caffeinate;
+  /** The OAuth usage service — the account's rate-limit fill side. Optional like accountEmail:
+   *  when absent, the panel runs on capture windows alone. */
+  usage?: UsageService;
 }
 
 export function attachCliStatus<T extends object>(
@@ -142,6 +147,7 @@ export function registerIpc({
   settingsManager,
   statuslineLaunchFault,
   caffeinate,
+  usage,
 }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
@@ -200,6 +206,10 @@ export function registerIpc({
       : { load: () => [], save: () => {} },
   );
 
+  // A6 last tier: the user's global default effort. Read once per app run (edits apply on relaunch,
+  // like readModelDefaults); applied only where no per-session source answered.
+  const defaultEffort = claudeDir ? readDefaultEffort(claudeDir) : null;
+
   /** The index snapshot enriched with the live statusLine overlay: per-session cost/context/lines, plus
    *  the app-wide account. Both handlers go through here so the list and the account share one read. The
    *  freshest-per-session map feeds both the overlay and the account, so the captures are walked once. */
@@ -207,8 +217,15 @@ export function registerIpc({
     const now = Date.now();
     const base = getOverview(db);
     const byId = freshestBySession(reader.read());
-    // deriveAccount owns the whole billing decision: subscription (rate_limits evidence) vs api (no evidence).
-    const account = deriveAccount(byId.values(), now, CAPTURE_STALE_MS);
+    // deriveAccount owns the whole billing decision: subscription (API response or rate_limits
+    // evidence) vs api. usage.read() is sync and non-blocking; a stale read spawns the refresh
+    // that the NEXT poll picks up — no timers in main.
+    const account = deriveAccount(
+      byId.values(),
+      now,
+      CAPTURE_STALE_MS,
+      usage?.read() ?? null,
+    );
     if (account?.billingMode === "subscription") {
       // Subscription identity: the oauthAccount email. Attached only here, only for a
       // subscription — beside gateway billing it would mislabel, so a non-subscription account never gets it.
@@ -219,9 +236,16 @@ export function registerIpc({
     // Claude's live session_name. Read fresh each call so a just-persisted rename shows immediately.
     const overlaid = overlaySessions(base.sessions, byId);
     const named = applyTitleOverrides(overlaid, sessionTitles?.read() ?? {});
+    // A6 last tier: fill the settings.json default only where no per-session source (capture or
+    // transcript scan) answered.
+    const withEffort = defaultEffort
+      ? named.map((s) =>
+          s.effortLevel ? s : { ...s, effortLevel: defaultEffort },
+        )
+      : named;
     // Worktree sessions merge into their main repo's sidebar folder; tag them here, after the
     // overlay and renames, so the lookup sees the best-known cwd.
-    const withWorktrees = named.map((s) => {
+    const withWorktrees = withEffort.map((s) => {
       const wt = s.cwd ? worktreeMap.lookup(s.cwd) : null;
       return wt ? { ...s, worktree: wt } : s;
     });
