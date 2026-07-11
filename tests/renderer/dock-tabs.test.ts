@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Subagent, Task, BackgroundShell } from "@shared/types";
+import type { Subagent, Task, BackgroundShell, Monitor } from "@shared/types";
 import {
   defaultDockTab,
   dockHasActivity,
@@ -67,6 +67,16 @@ describe("defaultDockTab", () => {
     );
     expect(defaultDockTab(subagentStats([sub("a", "done")]))).toBe("tasks");
   });
+  it("defaults to monitors when one is running and no fan-out is alive", () => {
+    expect(
+      defaultDockTab({ total: 0, working: 0, done: 0, failed: 0 }, true),
+    ).toBe("monitors");
+  });
+  it("prefers subagents over a running monitor while a fan-out is alive", () => {
+    expect(defaultDockTab(subagentStats([sub("a", "working")]), true)).toBe(
+      "subagents",
+    );
+  });
 });
 
 describe("flattenSubagents", () => {
@@ -97,6 +107,7 @@ describe("flattenSubagents", () => {
 const task = (status: Task["status"]): Task => ({ status }) as Task;
 const shell = (status: BackgroundShell["status"]): BackgroundShell =>
   ({ status }) as BackgroundShell;
+const monitor = (status: Monitor["status"]): Monitor => ({ status }) as Monitor;
 
 describe("dockHasActivity", () => {
   const idle = { total: 0, working: 0, done: 0, failed: 0 };
@@ -119,6 +130,12 @@ describe("dockHasActivity", () => {
   });
   it("is true when a shell is running", () => {
     expect(dockHasActivity([], idle, [shell("running")])).toBe(true);
+  });
+  it("is true when a monitor is running", () => {
+    expect(dockHasActivity([], idle, [], [monitor("running")])).toBe(true);
+  });
+  it("is false when the only monitor has ended", () => {
+    expect(dockHasActivity([], idle, [], [monitor("completed")])).toBe(false);
   });
 });
 

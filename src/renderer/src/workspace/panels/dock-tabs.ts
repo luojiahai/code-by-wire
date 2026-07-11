@@ -1,9 +1,9 @@
-import type { Subagent, Task, BackgroundShell } from "@shared/types";
+import type { Subagent, Task, BackgroundShell, Monitor } from "@shared/types";
 
 // JSX-free dock logic, so the tests can import it under tsconfig.node.json (mirrors open-in-items.ts).
 
 /** The dock's tabs. */
-export type DockTab = "tasks" | "subagents" | "shells";
+export type DockTab = "tasks" | "subagents" | "shells" | "monitors";
 
 /** The forest tallies the dock needs, gathered in a single walk: total nodes (the Subagents count badge)
  *  and the per-status counts (the live-fan-out signal, the collapsed tally's working count, and the
@@ -39,22 +39,31 @@ export function subagentStats(subagents: Subagent[]): SubagentStats {
   }, ZERO_STATS);
 }
 
-/** The dock's tab default: Subagents while a fan-out is alive (any node working); otherwise Tasks. */
-export function defaultDockTab(stats: SubagentStats): DockTab {
-  return stats.working > 0 ? "subagents" : "tasks";
+/** The dock's tab default: Subagents while a fan-out is alive; else Monitors while one runs (a lone
+ *  monitor shouldn't auto-expand into an empty Tasks tab); else Tasks. */
+export function defaultDockTab(
+  stats: SubagentStats,
+  monitorsRunning = false,
+): DockTab {
+  if (stats.working > 0) return "subagents";
+  if (monitorsRunning) return "monitors";
+  return "tasks";
 }
 
-/** Whether any dock tab has a live entry — a task in progress, a working subagent, or a running shell.
- *  Drives the dock's auto-expand: the dock shows itself exactly while something is active. */
+/** Whether any dock tab has a live entry — a task in progress, a working subagent, a running shell, or a
+ *  running monitor. Drives the dock's auto-expand: the dock shows itself exactly while something is
+ *  active. */
 export function dockHasActivity(
   tasks: Task[],
   stats: SubagentStats,
   shells: BackgroundShell[],
+  monitors: Monitor[] = [],
 ): boolean {
   return (
     stats.working > 0 ||
     tasks.some((t) => t.status === "in_progress") ||
-    shells.some((s) => s.status === "running")
+    shells.some((s) => s.status === "running") ||
+    monitors.some((m) => m.status === "running")
   );
 }
 
