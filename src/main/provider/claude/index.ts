@@ -27,6 +27,11 @@ import {
   stitchSnapshots,
   toBackgroundShell,
 } from "./shells";
+import {
+  reconstructMonitors,
+  stitchMonitorEvents,
+  toMonitor,
+} from "./monitors";
 import { tailOutput } from "./task-notifications";
 import { resolveAdoptTarget, resolveSessionCwd } from "./adopt-target";
 import { computeTokenSpeed, SPEED_WINDOW_MS } from "./transcript-speed";
@@ -42,7 +47,12 @@ import type {
   SessionMetrics,
   TokenSpeed,
 } from "@shared/metrics";
-import type { ShellsRead, ShellOutputRead } from "@shared/ipc";
+import type {
+  ShellsRead,
+  ShellOutputRead,
+  MonitorsRead,
+  MonitorOutputRead,
+} from "@shared/ipc";
 
 export interface ClaudeProviderDeps {
   claudeDir?: string;
@@ -472,6 +482,87 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
           return { status: "unchanged", mtimeMs: tMtime };
         const { text, truncatedBytes } = tailOutput(
           stitchSnapshots(rows, shellId),
+        );
+        return {
+          status: "changed",
+          mtimeMs: tMtime,
+          output: { text, source: "snapshot", truncatedBytes },
+        };
+      } catch {
+        return { status: "error" };
+      }
+    },
+    readMonitors: (id, sinceMtimeMs): MonitorsRead => {
+      try {
+        const resolved = resolveTranscript(id);
+        if (!resolved) return { status: "absent" };
+        const { path, mtimeMs } = resolved;
+        if (mtimeMs === sinceMtimeMs) return { status: "unchanged", mtimeMs };
+        const jsonl = readTextOrNull(path);
+        if (jsonl === null) {
+          forgetSession(id);
+          return { status: "absent" };
+        }
+        // Strip outputFile: the list is renderer-facing; the log path stays server-side (readMonitorOutput).
+        const monitors = reconstructMonitors(parseJsonlRows(jsonl)).map(
+          toMonitor,
+        );
+        return { status: "changed", mtimeMs, monitors };
+      } catch {
+        return { status: "error" };
+      }
+    },
+    readMonitorOutput: (id, monitorId, sinceMtimeMs): MonitorOutputRead => {
+      try {
+        // `monitorId` crosses IPC. A real id is alphanumeric (a taskId), so reject a path separator
+        // rather than risk an escape, even though the path comes from the transcript itself.
+        if (/[/\\]/.test(monitorId)) return { status: "absent" };
+        const path = pathById.get(id) ?? resolveTranscript(id)?.path;
+        if (path === undefined) return { status: "absent" };
+        const jsonl = readTextOrNull(path);
+        if (jsonl === null) return { status: "absent" };
+        const rows = parseJsonlRows(jsonl);
+        const monitor = reconstructMonitors(rows).find(
+          (m) => m.id === monitorId,
+        );
+        if (!monitor) return { status: "absent" };
+
+        // Prefer the authoritative .output file (path from the terminal notification) when it exists. The
+        // path is "" while the monitor runs and gone for old sessions (ephemeral tmp) — both fall through
+        // to the stitched-events snapshot below.
+        let outMtime = 0;
+        if (monitor.outputFile) {
+          try {
+            outMtime = statSync(monitor.outputFile).mtimeMs;
+          } catch (err) {
+            // ENOENT → the file is gone; fall back to the snapshot. A non-ENOENT stat failure (EACCES,
+            // EIO) is transient, not absence: rethrow so the outer catch degrades to `error` and the
+            // renderer keeps its last value. Mirrors readShellOutput.
+            if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") throw err;
+            outMtime = 0;
+          }
+        }
+        if (outMtime > 0) {
+          if (outMtime === sinceMtimeMs)
+            return { status: "unchanged", mtimeMs: outMtime };
+          const raw = readTextOrNull(monitor.outputFile);
+          if (raw !== null) {
+            const { text, truncatedBytes } = tailOutput(raw);
+            return {
+              status: "changed",
+              mtimeMs: outMtime,
+              output: { text, source: "live", truncatedBytes },
+            };
+          }
+          // vanished between stat and read — fall through to the snapshot fallback
+        }
+
+        // Snapshot fallback: stitch the transcript's event bodies. Token = transcript mtime.
+        const tMtime = statSync(path).mtimeMs;
+        if (tMtime === sinceMtimeMs)
+          return { status: "unchanged", mtimeMs: tMtime };
+        const { text, truncatedBytes } = tailOutput(
+          stitchMonitorEvents(rows, monitorId),
         );
         return {
           status: "changed",

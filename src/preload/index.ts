@@ -56,6 +56,10 @@ const api: AppApi = {
     ipcRenderer.invoke(IPC.readShells, id, sinceMtimeMs),
   readShellOutput: (id, shellId, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readShellOutput, id, shellId, sinceMtimeMs),
+  readMonitors: (id, sinceMtimeMs) =>
+    ipcRenderer.invoke(IPC.readMonitors, id, sinceMtimeMs),
+  readMonitorOutput: (id, monitorId, sinceMtimeMs) =>
+    ipcRenderer.invoke(IPC.readMonitorOutput, id, monitorId, sinceMtimeMs),
   readMetrics: (id, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readMetrics, id, sinceMtimeMs),
   platform: process.platform,

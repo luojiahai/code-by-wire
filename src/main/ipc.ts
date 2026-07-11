@@ -390,6 +390,14 @@ export function registerIpc({
     (_e, id: string, shellId: string, sinceMtimeMs?: number) =>
       provider.readShellOutput(id, shellId, sinceMtimeMs),
   );
+  ipcMain.handle(IPC.readMonitors, (_e, id: string, sinceMtimeMs?: number) =>
+    provider.readMonitors(id, sinceMtimeMs),
+  );
+  ipcMain.handle(
+    IPC.readMonitorOutput,
+    (_e, id: string, monitorId: string, sinceMtimeMs?: number) =>
+      provider.readMonitorOutput(id, monitorId, sinceMtimeMs),
+  );
   ipcMain.handle(IPC.readMetrics, (_e, id: string, sinceMtimeMs?: number) =>
     provider.readMetrics(id, sinceMtimeMs),
   );

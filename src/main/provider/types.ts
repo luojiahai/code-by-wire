@@ -4,7 +4,13 @@ import type {
   SessionCandidate,
 } from "@shared/types";
 import type { TranscriptRead, ToolResultDetail } from "@shared/transcript";
-import type { TaskRead, ShellsRead, ShellOutputRead } from "@shared/ipc";
+import type {
+  TaskRead,
+  ShellsRead,
+  ShellOutputRead,
+  MonitorsRead,
+  MonitorOutputRead,
+} from "@shared/ipc";
 import type { MetricsRead } from "@shared/metrics";
 
 export interface Provider {
@@ -55,6 +61,17 @@ export interface Provider {
     shellId: string,
     sinceMtimeMs?: number,
   ): ShellOutputRead;
+  /** List one session's monitors — the on-demand read behind the Monitors tab. `sinceMtimeMs` is the
+   *  change token (the transcript mtime); an unchanged transcript skips the read. */
+  readMonitors(id: string, sinceMtimeMs?: number): MonitorsRead;
+  /** Read one monitor's output — the read behind drilling into a monitor. `sinceMtimeMs` is the change
+   *  token (the `.output` mtime, or the transcript mtime for the stitched-events fallback). Mirrors
+   *  readShellOutput's changed / unchanged / absent / error contract. */
+  readMonitorOutput(
+    id: string,
+    monitorId: string,
+    sinceMtimeMs?: number,
+  ): MonitorOutputRead;
   /** Read one session's lazy metrics (token speed, git, voice, remote). Mirrors readTranscript's path
    *  resolution + change token; skips the recompute when `sinceMtimeMs` still matches. */
   readMetrics(id: string, sinceMtimeMs?: number): MetricsRead;

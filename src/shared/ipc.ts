@@ -5,6 +5,7 @@ import type {
   Task,
   BackgroundShell,
   ShellOutput,
+  Monitor,
 } from "./types";
 import type {
   TranscriptRead,
@@ -29,6 +30,8 @@ export const IPC = {
   readTasks: "tasks:read",
   readShells: "shells:read",
   readShellOutput: "shellOutput:read",
+  readMonitors: "monitors:read",
+  readMonitorOutput: "monitorOutput:read",
   readMetrics: "metrics:read",
   fullscreen: "window:fullscreen",
   modelDefaults: "model:defaults",
@@ -96,6 +99,18 @@ export type ShellOutputRead =
   | { status: "changed"; mtimeMs: number; output: ShellOutput }
   | ReadSettled;
 
+/** The result of a monitors list read: the session's monitors with a change token, or a settled outcome.
+ *  The list omits each monitor's output path; the log is read separately via readMonitorOutput. */
+export type MonitorsRead =
+  | { status: "changed"; mtimeMs: number; monitors: Monitor[] }
+  | ReadSettled;
+
+/** The result of a drilled monitor-output read: the output with a change token, or a settled outcome.
+ *  Polled only while a monitor is open (gated like the shell read). */
+export type MonitorOutputRead =
+  | { status: "changed"; mtimeMs: number; output: ShellOutput }
+  | ReadSettled;
+
 /** The result of a Stats poll: a fresh snapshot with a change token the renderer echoes back as `since`,
  *  or `unchanged` when nothing the snapshot depends on has moved (no new turn, same local day, scan caught
  *  up, no in-place rewrite) — so the handler skips every aggregate and the renderer skips the re-render.
@@ -156,6 +171,17 @@ export interface IpcApi {
     shellId: string,
     sinceMtimeMs?: number,
   ): Promise<ShellOutputRead>;
+  /** List one session's monitors (compact metadata for the dock). `sinceMtimeMs` is the change token;
+   *  an unchanged transcript skips the read. */
+  readMonitors(id: string, sinceMtimeMs?: number): Promise<MonitorsRead>;
+  /** Read one monitor's output — the read behind drilling into a monitor. Prefers the authoritative
+   *  `.output` file (known at stream-end), falls back to de-duplicated stitched events. `sinceMtimeMs`
+   *  is the change token. */
+  readMonitorOutput(
+    id: string,
+    monitorId: string,
+    sinceMtimeMs?: number,
+  ): Promise<MonitorOutputRead>;
   /** Read one session's lazy metrics (token speed, git, voice, remote). `sinceMtimeMs` is the change
    *  token from the last read; an unchanged token skips the recompute. */
   readMetrics(id: string, sinceMtimeMs?: number): Promise<MetricsRead>;

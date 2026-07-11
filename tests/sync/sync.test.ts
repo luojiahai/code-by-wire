@@ -70,6 +70,8 @@ function fakeProvider(candidates: SessionCandidate[]): {
       readTasks: () => ({ status: "absent" }),
       readShells: () => ({ status: "absent" }),
       readShellOutput: () => ({ status: "absent" }),
+      readMonitors: () => ({ status: "absent" }),
+      readMonitorOutput: () => ({ status: "absent" }),
       readMetrics: () => ({ status: "absent" }),
       resolveAdoptTarget: () => null,
       resolveSessionCwd: () => null,
