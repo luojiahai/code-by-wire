@@ -43,6 +43,18 @@ describe("readGit", () => {
     expect(g.behind).toBeNull();
   });
 
+  it("falls back to a null branch (sha still populated) on detached HEAD", () => {
+    const dir = initRepo();
+    const sha = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: dir,
+      encoding: "utf8",
+    }).trim();
+    git(dir, "checkout", "-q", "--detach", sha);
+    const g = readGit(dir)!;
+    expect(g.branch).toBeNull();
+    expect(g.sha).toMatch(/^[0-9a-f]{7,}$/);
+  });
+
   it("counts working-tree insertions/deletions and flips to dirty", () => {
     const dir = initRepo();
     writeFileSync(join(dir, "a.txt"), "one\ntwo\nthree\n"); // +2 lines
