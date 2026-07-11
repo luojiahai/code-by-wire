@@ -65,10 +65,14 @@ interface TaskNotification {
   ts: number;
 }
 
-const NOTIFICATION_RE =
-  /<task-notification>[\s\S]*?<task-id>([^<]+)<\/task-id>[\s\S]*?<status>([^<]+)<\/status>/g;
+const NOTIFICATION_BLOCK_RE =
+  /<task-notification>([\s\S]*?)<\/task-notification>/g;
+const NOTIFICATION_FIELDS_RE =
+  /<task-id>([^<]+)<\/task-id>[\s\S]*?<status>([^<]+)<\/status>/;
 
-/** Parse every <task-notification> block in `text`. The CLI writes each notification twice — a
+/** Parse every <task-notification> block in `text`. Each block is isolated by its own closing tag
+ *  before <task-id>/<status> are extracted, so a malformed block (missing one of the two fields)
+ *  can never bleed into its neighbor's fields. The CLI writes each notification twice — a
  *  queue-operation row at enqueue, a user row at dequeue — and the status fold is idempotent, so
  *  parsing duplicates is harmless. */
 function pushNotifications(
@@ -77,8 +81,11 @@ function pushNotifications(
   out: TaskNotification[],
 ): void {
   if (!text.includes("<task-notification>")) return;
-  for (const m of text.matchAll(NOTIFICATION_RE))
-    out.push({ taskId: m[1].trim(), status: m[2].trim(), ts });
+  for (const block of text.matchAll(NOTIFICATION_BLOCK_RE)) {
+    const fields = NOTIFICATION_FIELDS_RE.exec(block[1]);
+    if (fields)
+      out.push({ taskId: fields[1].trim(), status: fields[2].trim(), ts });
+  }
 }
 
 function scanRows(rows: any[]): Scan {

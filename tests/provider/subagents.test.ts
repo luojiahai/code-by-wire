@@ -720,6 +720,35 @@ describe("buildSubagentForest", () => {
     expect(forest[0].status).toBe("working");
   });
 
+  it("does not let a malformed block (missing <status>) steal the next block's status, nor lose the next block's own notification", () => {
+    // Two <task-notification> blocks in ONE row's text: the first is malformed (no <status>), the
+    // second is well-formed for a DIFFERENT agent. A regex that isn't scoped per-block can let its
+    // lazy match skip past the first block's own closing tag and grab the second block's <status> —
+    // misattributing it to the first agent's task-id, and losing the second block's own notification
+    // (matchAll resumes scanning past it). Each block must be isolated by its own closing tag first.
+    const malformedThenWellFormed =
+      "<task-notification>\n<task-id>a1</task-id>\n<tool-use-id>tu-x</tool-use-id>\n<output-file>/tmp/a1.output</output-file>\n<summary>Agent finished</summary>\n</task-notification>\n" +
+      "<task-notification>\n<task-id>a2</task-id>\n<tool-use-id>tu-y</tool-use-id>\n<output-file>/tmp/a2.output</output-file>\n<status>completed</status>\n<summary>Agent finished</summary>\n</task-notification>";
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        ...asyncMain("tu-2", "a2"),
+        {
+          type: "user",
+          timestamp: "2026-06-04T03:05:00.000Z",
+          message: { role: "user", content: malformedThenWellFormed },
+        },
+      ],
+      [
+        agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")]),
+        agent("a2", "tu-2", "Explore", [ar("2026-06-04T03:00:03.000Z")]),
+      ],
+    );
+    const byId = Object.fromEntries(forest.map((n) => [n.id, n]));
+    expect(byId.a1.status).toBe("working"); // malformed block must not falsely settle a1
+    expect(byId.a2.status).toBe("done"); // a2's own well-formed notification must not be lost
+  });
+
   it("does not parse notification text quoted inside an assistant row", () => {
     // An assistant echoing notification text (e.g. discussing one) is not a real stop signal.
     const forest = buildSubagentForest(
