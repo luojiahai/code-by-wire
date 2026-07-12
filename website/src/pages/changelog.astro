@@ -1,0 +1,68 @@
+---
+// website/src/pages/changelog.astro
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { renderChangelog } from '../lib/changelog';
+// Vite resolves `?raw` imports against this module's own source location and
+// inlines the file content at build time, so it is immune to Astro 7's
+// "prerender" build step relocating this page's frontmatter into
+// dist/.prerender/chunks/ (which breaks any fileURLToPath(import.meta.url)-based
+// relative path — that path would resolve against the *chunk's* location, not
+// this file's, since Rollup emits it under a different directory depth).
+import changelogRaw from '../../../CHANGELOG.md?raw';
+
+const changelogHtml = renderChangelog(changelogRaw);
+---
+<BaseLayout title="Changelog — Code-by-wire" description="Every notable change to Code-by-wire.">
+  <main class="changelog">
+    <h1>Changelog</h1>
+    <div class="changelog-body" set:html={changelogHtml} />
+  </main>
+</BaseLayout>
+
+<style>
+  .changelog {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 96px 48px;
+  }
+  .changelog h1 {
+    font-weight: 600;
+    font-size: 40px;
+    margin-bottom: 40px;
+  }
+  .changelog-body :global(h2) {
+    font-weight: 600;
+    font-size: 24px;
+    margin: 48px 0 16px;
+  }
+  .changelog-body :global(h2:first-child) {
+    margin-top: 0;
+  }
+  .changelog-body :global(h3) {
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    margin: 24px 0 12px;
+  }
+  .changelog-body :global(ul) {
+    padding-left: 20px;
+    margin-bottom: 16px;
+  }
+  .changelog-body :global(li) {
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    line-height: 1.7;
+  }
+  .changelog-body :global(a) {
+    text-decoration: underline;
+  }
+  .changelog-body :global(code) {
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 0.9em;
+    background: var(--bg-raised);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+</style>
