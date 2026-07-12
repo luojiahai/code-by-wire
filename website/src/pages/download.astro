@@ -40,7 +40,7 @@ const groups = [
     so there are sessions to observe and control.
   </p>
 
-  <div id="platform-groups">
+  <div>
     {
       groups.map((group) => (
         <section id={group.id} class="platform-group">
@@ -132,21 +132,3 @@ const groups = [
     }
   }
 </style>
-
-<script>
-  import { detectPrimaryPlatform } from '../lib/detect-os';
-
-  function applyPlatformOrder() {
-    const platform = detectPrimaryPlatform(navigator.userAgent);
-    if (platform === 'windows') {
-      const container = document.getElementById('platform-groups');
-      const macos = document.getElementById('macos');
-      const windows = document.getElementById('windows');
-      if (container && macos && windows) {
-        container.insertBefore(windows, macos);
-      }
-    }
-  }
-
-  document.addEventListener('astro:page-load', applyPlatformOrder);
-</script>

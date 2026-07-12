@@ -47,18 +47,7 @@ const features = [
       telemetry.
     </p>
     <div class="hero-ctas">
-      <a id="primary-download" href={`${base}download/#macos`} class="btn-primary">
-        <svg id="primary-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zm3.415-3.132c.845-1.026 1.4-2.454 1.245-3.882-1.207.052-2.662.805-3.532 1.831-.78.907-1.454 2.36-1.273 3.75 1.375.104 2.715-.688 3.56-1.7z" />
-        </svg>
-        <span id="primary-label">Download for macOS</span>
-      </a>
-      <a id="secondary-download" href={`${base}download/#windows`} class="btn-secondary">
-        <svg id="secondary-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.851" />
-        </svg>
-        <span id="secondary-label">Download for Windows</span>
-      </a>
+      <a href={`${base}download/`} class="btn-primary">Download</a>
     </div>
   </section>
 
@@ -130,31 +119,7 @@ const features = [
     color: #0a0a0c;
     padding: 14px 24px;
     border-radius: 8px;
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-  }
-  .btn-secondary {
-    font-weight: 600;
-    font-size: 15px;
-    line-height: 1;
-    color: var(--text);
-    background: transparent;
-    border: 1px solid var(--border-strong);
-    padding: 14px 24px;
-    border-radius: 8px;
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-  }
-  .btn-secondary:hover {
-    border-color: var(--text-dim);
-    background: var(--bg-raised);
-  }
-  .btn-primary svg,
-  .btn-secondary svg {
-    display: block;
-    flex-shrink: 0;
+    display: inline-block;
   }
 </style>
 
@@ -252,35 +217,3 @@ const features = [
     }
   }
 </style>
-
-<script>
-  import { detectPrimaryPlatform } from '../lib/detect-os';
-
-  const APPLE_PATH =
-    'M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zm3.415-3.132c.845-1.026 1.4-2.454 1.245-3.882-1.207.052-2.662.805-3.532 1.831-.78.907-1.454 2.36-1.273 3.75 1.375.104 2.715-.688 3.56-1.7z';
-  const WINDOWS_PATH =
-    'M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.851';
-
-  function applyPlatformOrder() {
-    const base = import.meta.env.BASE_URL;
-    const platform = detectPrimaryPlatform(navigator.userAgent);
-    const primary = document.getElementById('primary-download');
-    const secondary = document.getElementById('secondary-download');
-    const primaryIcon = document.getElementById('primary-icon');
-    const primaryLabel = document.getElementById('primary-label');
-    const secondaryIcon = document.getElementById('secondary-icon');
-    const secondaryLabel = document.getElementById('secondary-label');
-
-    if (platform === 'windows' && primary && secondary && primaryIcon && primaryLabel && secondaryIcon && secondaryLabel) {
-      primary.setAttribute('href', `${base}download/#windows`);
-      primaryLabel.textContent = 'Download for Windows';
-      primaryIcon.innerHTML = `<path d="${WINDOWS_PATH}" />`;
-
-      secondary.setAttribute('href', `${base}download/#macos`);
-      secondaryLabel.textContent = 'Download for macOS';
-      secondaryIcon.innerHTML = `<path d="${APPLE_PATH}" />`;
-    }
-  }
-
-  document.addEventListener('astro:page-load', applyPlatformOrder);
-</script>

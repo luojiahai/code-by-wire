@@ -8,6 +8,7 @@
 }
 
 :root {
+  color-scheme: dark;
   --bg: #0a0a0c;
   --bg-raised: #111114;
   --border: rgba(255, 255, 255, 0.1);

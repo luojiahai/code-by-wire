@@ -25,8 +25,10 @@ const { title, description, currentId, headings } = Astro.props;
 const docs = sortDocsNav(await getCollection('docs'));
 const { prev, next } = getPrevNext(docs, currentId);
 const tocItems = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const base = import.meta.env.BASE_URL;
+const canonical = new URL(`${base}docs/${currentId}/`, Astro.site).href;
 ---
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} canonical={canonical}>
   <div class:list={['docs-shell', { 'no-toc': tocItems.length === 0 }]}>
     <DocsSidebar docs={docs} currentId={currentId} />
     <main class="docs-content">
