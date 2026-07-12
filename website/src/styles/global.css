@@ -35,6 +35,50 @@ a {
   text-decoration: none;
 }
 
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
 .mono {
   font-family: "JetBrains Mono Variable", monospace;
+}
+
+.prose h2 {
+  font-weight: 600;
+  font-size: 22px;
+  margin: 40px 0 16px;
+}
+
+.prose p {
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+.prose ul {
+  padding-left: 20px;
+  margin-bottom: 16px;
+}
+
+.prose li {
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+
+.prose a {
+  text-decoration: underline;
+}
+
+.prose strong {
+  color: var(--text);
+}
+
+.prose code {
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 0.9em;
+  background: var(--bg-raised);
+  padding: 2px 6px;
+  border-radius: 4px;
 }

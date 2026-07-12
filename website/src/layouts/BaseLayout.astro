@@ -3,6 +3,8 @@
 import '../styles/global.css';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
+import { ClientRouter } from 'astro:transitions';
+import Analytics from '@vercel/analytics/astro';
 
 interface Props {
   title: string;
@@ -19,6 +21,8 @@ const base = import.meta.env.BASE_URL;
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <ClientRouter />
+    <Analytics />
   </head>
   <body>
     <Nav />

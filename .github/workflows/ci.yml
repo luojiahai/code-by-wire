@@ -46,3 +46,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm lint
+
+  # website/ is a standalone project (own package.json, own lockfile, not a
+  # pnpm workspace member) that the jobs above never touch — only repo-wide
+  # `format:check` in `lint` incidentally reaches it. This job runs its own
+  # typecheck and test suite so those aren't silently unchecked in CI.
+  website:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
+      - run: pnpm test

@@ -2,35 +2,39 @@
 // website/src/components/Footer.astro
 const base = import.meta.env.BASE_URL;
 ---
-<footer>
-  <a href={base} class="brand">
-    <img src={`${base}mark.svg`} alt="" class="brand-mark" width="35" height="20" />
-    <span class="brand-name">Code-by-wire</span>
-  </a>
-  <div class="footer-cols">
-    <div class="footer-col">
-      <h4>Product</h4>
-      <a href={`${base}download/`}>Download</a>
-      <a href={`${base}docs/`}>Docs</a>
-      <a href={`${base}changelog/`}>Changelog</a>
+<div class="footer-bar">
+  <footer>
+    <a href={base} class="brand">
+      <img src={`${base}mark.svg`} alt="" class="brand-mark" width="35" height="20" />
+      <span class="brand-name">Code-by-wire</span>
+    </a>
+    <div class="footer-cols">
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href={`${base}download/`}>Download</a>
+        <a href={`${base}docs/`}>Docs</a>
+        <a href={`${base}changelog/`}>Changelog</a>
+      </div>
+      <div class="footer-col">
+        <h4>Community</h4>
+        <a href={`${base}blog/`}>Blog</a>
+        <a href="https://github.com/luojiahai/code-by-wire">GitHub</a>
+        <a href={`${base}sponsor/`}>Sponsor</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="https://github.com/luojiahai/code-by-wire/blob/main/LICENSE">MIT License</a>
+      </div>
     </div>
-    <div class="footer-col">
-      <h4>Community</h4>
-      <a href={`${base}blog/`}>Blog</a>
-      <a href="https://github.com/luojiahai/code-by-wire">GitHub</a>
-      <a href={`${base}sponsor/`}>Sponsor</a>
-    </div>
-    <div class="footer-col">
-      <h4>Legal</h4>
-      <a href="https://github.com/luojiahai/code-by-wire/blob/main/LICENSE">MIT License</a>
-    </div>
-  </div>
-  <div class="footer-meta">© 2026 luojiahai</div>
-</footer>
+    <div class="footer-meta">© 2026 luojiahai</div>
+  </footer>
+</div>
 
 <style>
-  footer {
+  .footer-bar {
     border-top: 1px solid var(--border);
+  }
+  footer {
     padding: 56px 48px;
     max-width: 1280px;
     margin: 0 auto;

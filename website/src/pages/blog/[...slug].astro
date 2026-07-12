@@ -1,7 +1,7 @@
 ---
 // website/src/pages/blog/[...slug].astro
 import { getCollection, render } from 'astro:content';
-import BaseLayout from '../../layouts/BaseLayout.astro';
+import NarrowLayout from '../../layouts/NarrowLayout.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
@@ -14,23 +14,16 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 const { Content } = await render(post);
 ---
-<BaseLayout title={`${post.data.title} — Code-by-wire blog`} description={post.data.description}>
-  <main class="content-page">
-    <h1>{post.data.title}</h1>
-    <time class="mono post-date">{post.data.publishDate}</time>
-    <div class="content-body">
-      <Content />
-    </div>
-  </main>
-</BaseLayout>
+<NarrowLayout title={`${post.data.title} — Code-by-wire blog`} description={post.data.description}>
+  <h1>{post.data.title}</h1>
+  <time class="mono post-date">{post.data.publishDate}</time>
+  <div class="prose">
+    <Content />
+  </div>
+</NarrowLayout>
 
 <style>
-  .content-page {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 96px 48px;
-  }
-  .content-page h1 {
+  h1 {
     font-weight: 600;
     font-size: 36px;
     margin-bottom: 12px;
@@ -41,43 +34,8 @@ const { Content } = await render(post);
     display: block;
     margin-bottom: 40px;
   }
-  .content-body :global(h2) {
-    font-weight: 600;
-    font-size: 22px;
-    margin: 40px 0 16px;
-  }
-  .content-body :global(p) {
-    color: var(--text-dim);
-    line-height: 1.7;
-    margin-bottom: 16px;
-  }
-  .content-body :global(ul) {
-    padding-left: 20px;
-    margin-bottom: 16px;
-  }
-  .content-body :global(li) {
-    color: var(--text-dim);
-    line-height: 1.7;
-    margin-bottom: 8px;
-  }
-  .content-body :global(a) {
-    text-decoration: underline;
-  }
-  .content-body :global(strong) {
-    color: var(--text);
-  }
-  .content-body :global(code) {
-    font-family: 'JetBrains Mono Variable', monospace;
-    font-size: 0.9em;
-    background: var(--bg-raised);
-    padding: 2px 6px;
-    border-radius: 4px;
-  }
   @media (max-width: 640px) {
-    .content-page {
-      padding: 64px 20px;
-    }
-    .content-page h1 {
+    h1 {
       font-size: 30px;
     }
   }

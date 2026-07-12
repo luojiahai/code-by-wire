@@ -1,6 +1,6 @@
 ---
 // website/src/pages/changelog.astro
-import BaseLayout from '../layouts/BaseLayout.astro';
+import NarrowLayout from '../layouts/NarrowLayout.astro';
 import { renderChangelog } from '../lib/changelog';
 // Vite resolves `?raw` imports against this module's own source location and
 // inlines the file content at build time, so it is immune to Astro 7's
@@ -15,33 +15,25 @@ import changelogRaw from '../../../CHANGELOG.md?raw';
 // everything else (the intro paragraph, then every version section).
 const changelogHtml = renderChangelog(changelogRaw.replace(/^# Changelog\n+/, ''));
 ---
-<BaseLayout title="Changelog — Code-by-wire" description="Every notable change to Code-by-wire.">
-  <main class="changelog">
-    <h1>Changelog</h1>
-    <div class="changelog-body" set:html={changelogHtml} />
-  </main>
-</BaseLayout>
+<NarrowLayout title="Changelog — Code-by-wire" description="Every notable change to Code-by-wire.">
+  <h1>Changelog</h1>
+  <div class="prose" set:html={changelogHtml} />
+</NarrowLayout>
 
 <style>
-  .changelog {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 96px 48px;
-  }
-  .changelog h1 {
+  h1 {
     font-weight: 600;
     font-size: 40px;
     margin-bottom: 40px;
   }
-  .changelog-body :global(h2) {
-    font-weight: 600;
+  .prose :global(h2) {
     font-size: 24px;
     margin: 48px 0 16px;
   }
-  .changelog-body :global(h2:first-child) {
+  .prose :global(h2:first-child) {
     margin-top: 0;
   }
-  .changelog-body :global(h3) {
+  .prose :global(h3) {
     font-family: 'JetBrains Mono Variable', monospace;
     font-size: 13px;
     text-transform: uppercase;
@@ -49,35 +41,8 @@ const changelogHtml = renderChangelog(changelogRaw.replace(/^# Changelog\n+/, ''
     color: var(--text-faint);
     margin: 24px 0 12px;
   }
-  .changelog-body :global(p) {
-    color: var(--text-dim);
-    line-height: 1.7;
-    margin-bottom: 16px;
-  }
-  .changelog-body :global(ul) {
-    padding-left: 20px;
-    margin-bottom: 16px;
-  }
-  .changelog-body :global(li) {
-    color: var(--text-dim);
-    margin-bottom: 8px;
-    line-height: 1.7;
-  }
-  .changelog-body :global(a) {
-    text-decoration: underline;
-  }
-  .changelog-body :global(code) {
-    font-family: 'JetBrains Mono Variable', monospace;
-    font-size: 0.9em;
-    background: var(--bg-raised);
-    padding: 2px 6px;
-    border-radius: 4px;
-  }
   @media (max-width: 640px) {
-    .changelog {
-      padding: 64px 20px;
-    }
-    .changelog h1 {
+    h1 {
       font-size: 32px;
     }
   }

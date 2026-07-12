@@ -1,76 +1,66 @@
 ---
 // website/src/pages/blog/index.astro
 import { getCollection } from 'astro:content';
-import BaseLayout from '../../layouts/BaseLayout.astro';
+import NarrowLayout from '../../layouts/NarrowLayout.astro';
 
 const base = import.meta.env.BASE_URL;
 const posts = (await getCollection('blog')).sort(
   (a, b) => new Date(b.data.publishDate).getTime() - new Date(a.data.publishDate).getTime(),
 );
 ---
-<BaseLayout title="Blog — Code-by-wire" description="News and updates from Code-by-wire.">
-  <main class="index-page">
-    <h1>Blog</h1>
-    <ul>
-      {
-        posts.map((post) => (
-          <li>
-            <a href={`${base}blog/${post.id}/`}>{post.data.title}</a>
-            <p>{post.data.description}</p>
-            <time class="mono">{post.data.publishDate}</time>
-          </li>
-        ))
-      }
-    </ul>
-  </main>
-</BaseLayout>
+<NarrowLayout title="Blog — Code-by-wire" description="News and updates from Code-by-wire.">
+  <h1>Blog</h1>
+  <ul>
+    {
+      posts.map((post) => (
+        <li>
+          <a href={`${base}blog/${post.id}/`}>{post.data.title}</a>
+          <p>{post.data.description}</p>
+          <time class="mono">{post.data.publishDate}</time>
+        </li>
+      ))
+    }
+  </ul>
+</NarrowLayout>
 
 <style>
-  .index-page {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 96px 48px;
-  }
-  .index-page h1 {
+  h1 {
     font-weight: 600;
     font-size: 40px;
     margin-bottom: 40px;
   }
-  .index-page ul {
+  ul {
     list-style: none;
     padding: 0;
     margin: 0;
   }
-  .index-page li {
+  li {
     border-top: 1px solid var(--border);
     padding: 24px 0;
   }
-  .index-page li:last-child {
+  li:last-child {
     border-bottom: 1px solid var(--border);
   }
-  .index-page a {
+  a {
     font-size: 18px;
     font-weight: 600;
   }
-  .index-page a:hover {
+  a:hover {
     color: var(--text-dim);
   }
-  .index-page p {
+  p {
     color: var(--text-dim);
     font-size: 14px;
     margin-top: 6px;
   }
-  .index-page time {
+  time {
     color: var(--text-faint);
     font-size: 12px;
     display: block;
     margin-top: 10px;
   }
   @media (max-width: 640px) {
-    .index-page {
-      padding: 64px 20px;
-    }
-    .index-page h1 {
+    h1 {
       font-size: 32px;
     }
   }

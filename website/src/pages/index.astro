@@ -1,6 +1,8 @@
 ---
 // website/src/pages/index.astro
+import { Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import screenshot from '../assets/screenshot.png';
 const base = import.meta.env.BASE_URL;
 const features = [
   {
@@ -63,9 +65,11 @@ const features = [
   <section class="screenshot-section">
     <div class="screenshot-frame">
       <div class="chrome"><span></span><span></span><span></span></div>
-      <img
-        src={`${base}screenshot.png`}
+      <Image
+        src={screenshot}
         alt="Code-by-wire showing a live Claude Code session with the session rail, transcript, and telemetry panels"
+        width={1600}
+        priority
       />
     </div>
   </section>
@@ -77,9 +81,8 @@ const features = [
     </div>
     <div class="feature-grid">
       {
-        features.map((feature, i) => (
+        features.map((feature) => (
           <div class="feature">
-            <div class="num mono">{String(i + 1).padStart(2, '0')}</div>
             <h3>{feature.title}</h3>
             <p>{feature.description}</p>
           </div>
@@ -179,7 +182,7 @@ const features = [
     border-radius: 50%;
     background: var(--border-strong);
   }
-  .screenshot-frame img {
+  .screenshot-frame :global(img) {
     width: 100%;
     display: block;
   }
@@ -213,11 +216,6 @@ const features = [
   .feature {
     background: var(--bg);
     padding: 32px;
-  }
-  .feature .num {
-    font-size: 12px;
-    color: var(--text-faint);
-    margin-bottom: 16px;
   }
   .feature h3 {
     font-size: 17px;
@@ -263,22 +261,26 @@ const features = [
   const WINDOWS_PATH =
     'M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.851';
 
-  const base = import.meta.env.BASE_URL;
-  const platform = detectPrimaryPlatform(navigator.userAgent);
-  const primary = document.getElementById('primary-download');
-  const secondary = document.getElementById('secondary-download');
-  const primaryIcon = document.getElementById('primary-icon');
-  const primaryLabel = document.getElementById('primary-label');
-  const secondaryIcon = document.getElementById('secondary-icon');
-  const secondaryLabel = document.getElementById('secondary-label');
+  function applyPlatformOrder() {
+    const base = import.meta.env.BASE_URL;
+    const platform = detectPrimaryPlatform(navigator.userAgent);
+    const primary = document.getElementById('primary-download');
+    const secondary = document.getElementById('secondary-download');
+    const primaryIcon = document.getElementById('primary-icon');
+    const primaryLabel = document.getElementById('primary-label');
+    const secondaryIcon = document.getElementById('secondary-icon');
+    const secondaryLabel = document.getElementById('secondary-label');
 
-  if (platform === 'windows' && primary && secondary && primaryIcon && primaryLabel && secondaryIcon && secondaryLabel) {
-    primary.setAttribute('href', `${base}download/#windows`);
-    primaryLabel.textContent = 'Download for Windows';
-    primaryIcon.innerHTML = `<path d="${WINDOWS_PATH}" />`;
+    if (platform === 'windows' && primary && secondary && primaryIcon && primaryLabel && secondaryIcon && secondaryLabel) {
+      primary.setAttribute('href', `${base}download/#windows`);
+      primaryLabel.textContent = 'Download for Windows';
+      primaryIcon.innerHTML = `<path d="${WINDOWS_PATH}" />`;
 
-    secondary.setAttribute('href', `${base}download/#macos`);
-    secondaryLabel.textContent = 'Download for macOS';
-    secondaryIcon.innerHTML = `<path d="${APPLE_PATH}" />`;
+      secondary.setAttribute('href', `${base}download/#macos`);
+      secondaryLabel.textContent = 'Download for macOS';
+      secondaryIcon.innerHTML = `<path d="${APPLE_PATH}" />`;
+    }
   }
+
+  document.addEventListener('astro:page-load', applyPlatformOrder);
 </script>

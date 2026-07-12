@@ -1,40 +1,33 @@
 ---
 // website/src/pages/sponsor.astro
-import BaseLayout from '../layouts/BaseLayout.astro';
+import NarrowLayout from '../layouts/NarrowLayout.astro';
 ---
-<BaseLayout title="Sponsor — Code-by-wire" description="Support Code-by-wire development.">
-  <main class="sponsor">
-    <h1>Sponsor</h1>
-    <p class="lead">
-      Code-by-wire is a personal project, built and maintained in spare time. If it's useful to
-      you, here's how to support it.
-    </p>
-    <div class="sponsor-links">
-      <a href="https://github.com/sponsors/luojiahai" class="sponsor-card">
-        <span class="sponsor-icon">♥</span>
-        <span>
-          <strong>GitHub Sponsors</strong>
-          <span class="sponsor-desc">Recurring or one-time, through GitHub.</span>
-        </span>
-      </a>
-      <a href="https://buymeacoffee.com/luojiahai" class="sponsor-card">
-        <span class="sponsor-icon">☕</span>
-        <span>
-          <strong>Buy Me a Coffee</strong>
-          <span class="sponsor-desc">A one-off way to say thanks.</span>
-        </span>
-      </a>
-    </div>
-  </main>
-</BaseLayout>
+<NarrowLayout title="Sponsor — Code-by-wire" description="Support Code-by-wire development.">
+  <h1>Sponsor</h1>
+  <p class="lead">
+    Code-by-wire is a personal project, built and maintained in spare time. If it's useful to
+    you, here's how to support it.
+  </p>
+  <div class="sponsor-links">
+    <a href="https://github.com/sponsors/luojiahai" class="sponsor-card">
+      <span class="sponsor-icon">♥</span>
+      <span>
+        <strong>GitHub Sponsors</strong>
+        <span class="sponsor-desc">Recurring or one-time, through GitHub.</span>
+      </span>
+    </a>
+    <a href="https://buymeacoffee.com/luojiahai" class="sponsor-card">
+      <span class="sponsor-icon">☕</span>
+      <span>
+        <strong>Buy Me a Coffee</strong>
+        <span class="sponsor-desc">A one-off way to say thanks.</span>
+      </span>
+    </a>
+  </div>
+</NarrowLayout>
 
 <style>
-  .sponsor {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 96px 48px;
-  }
-  .sponsor h1 {
+  h1 {
     font-weight: 600;
     font-size: 40px;
     margin-bottom: 24px;
@@ -74,10 +67,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     font-size: 14px;
   }
   @media (max-width: 640px) {
-    .sponsor {
-      padding: 64px 20px;
-    }
-    .sponsor h1 {
+    h1 {
       font-size: 32px;
     }
     .sponsor-card {

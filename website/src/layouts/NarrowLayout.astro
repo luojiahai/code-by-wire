@@ -1,0 +1,29 @@
+---
+// website/src/layouts/NarrowLayout.astro
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+<BaseLayout title={title} description={description}>
+  <main class="narrow-shell">
+    <slot />
+  </main>
+</BaseLayout>
+
+<style>
+  .narrow-shell {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 96px 48px;
+  }
+  @media (max-width: 640px) {
+    .narrow-shell {
+      padding: 64px 20px;
+    }
+  }
+</style>

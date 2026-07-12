@@ -21,7 +21,7 @@ const { Content, headings } = await render(page);
   headings={headings}
 >
   <h1>{page.data.title}</h1>
-  <div class="content-body">
+  <div class="prose">
     <Content />
   </div>
 </DocsLayout>
@@ -31,38 +31,6 @@ const { Content, headings } = await render(page);
     font-weight: 600;
     font-size: 36px;
     margin-bottom: 40px;
-  }
-  .content-body :global(h2) {
-    font-weight: 600;
-    font-size: 22px;
-    margin: 40px 0 16px;
-  }
-  .content-body :global(p) {
-    color: var(--text-dim);
-    line-height: 1.7;
-    margin-bottom: 16px;
-  }
-  .content-body :global(ul) {
-    padding-left: 20px;
-    margin-bottom: 16px;
-  }
-  .content-body :global(li) {
-    color: var(--text-dim);
-    line-height: 1.7;
-    margin-bottom: 8px;
-  }
-  .content-body :global(a) {
-    text-decoration: underline;
-  }
-  .content-body :global(strong) {
-    color: var(--text);
-  }
-  .content-body :global(code) {
-    font-family: 'JetBrains Mono Variable', monospace;
-    font-size: 0.9em;
-    background: var(--bg-raised);
-    padding: 2px 6px;
-    border-radius: 4px;
   }
   @media (max-width: 640px) {
     h1 {
