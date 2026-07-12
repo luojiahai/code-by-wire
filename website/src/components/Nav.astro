@@ -2,7 +2,7 @@
 // website/src/components/Nav.astro
 const base = import.meta.env.BASE_URL;
 const links = [
-  { href: `${base}docs/`, label: 'Docs' },
+  { href: `${base}docs/`, label: 'Docs', reload: true },
   { href: `${base}blog/`, label: 'Blog' },
   { href: `${base}changelog/`, label: 'Changelog' },
   { href: `${base}download/`, label: 'Download' },
@@ -17,7 +17,7 @@ const links = [
     </a>
     <div class="nav-right">
       <div class="nav-links">
-        {links.map((link) => <a href={link.href}>{link.label}</a>)}
+        {links.map((link) => <a href={link.href} data-astro-reload={link.reload}>{link.label}</a>)}
       </div>
       <a
         href="https://github.com/luojiahai/code-by-wire"

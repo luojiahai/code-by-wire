@@ -7,5 +7,5 @@ const base = import.meta.env.BASE_URL;
 const docs = sortDocsNav(await getCollection('docs'));
 const firstPage = docs[0];
 
-return Astro.redirect(`${base}docs/${firstPage.id}/`);
+return Astro.redirect(`${base}docs/${firstPage.id}/`, 301);
 ---

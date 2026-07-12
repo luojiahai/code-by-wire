@@ -25,8 +25,8 @@ const base = import.meta.env.BASE_URL;
     <Analytics />
   </head>
   <body>
-    <Nav />
+    <Nav transition:persist />
     <slot />
-    <Footer />
+    <Footer transition:persist />
   </body>
 </html>
