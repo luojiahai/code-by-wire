@@ -26,7 +26,7 @@ body {
 }
 
 body {
-  font-family: 'Inter Variable', system-ui, sans-serif;
+  font-family: "Inter Variable", system-ui, sans-serif;
   line-height: 1.5;
 }
 
@@ -36,5 +36,5 @@ a {
 }
 
 .mono {
-  font-family: 'JetBrains Mono Variable', monospace;
+  font-family: "JetBrains Mono Variable", monospace;
 }
