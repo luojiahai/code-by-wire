@@ -135,39 +135,43 @@ const { docs, currentId } = Astro.props;
 </style>
 
 <script>
-  const toggle = document.getElementById('docs-sidebar-toggle');
-  const sidebar = document.getElementById('docs-sidebar');
-  const backdrop = document.getElementById('docs-sidebar-backdrop');
-
-  function openDrawer() {
-    sidebar?.classList.add('is-open');
-    backdrop?.classList.add('is-open');
-    toggle?.setAttribute('aria-expanded', 'true');
-    document.body.style.overflow = 'hidden';
-  }
-
   function closeDrawer() {
-    sidebar?.classList.remove('is-open');
-    backdrop?.classList.remove('is-open');
-    toggle?.setAttribute('aria-expanded', 'false');
+    document.getElementById('docs-sidebar')?.classList.remove('is-open');
+    document.getElementById('docs-sidebar-backdrop')?.classList.remove('is-open');
+    document.getElementById('docs-sidebar-toggle')?.setAttribute('aria-expanded', 'false');
     document.body.style.overflow = '';
   }
 
-  toggle?.addEventListener('click', () => {
-    if (sidebar?.classList.contains('is-open')) {
-      closeDrawer();
-    } else {
-      openDrawer();
-    }
-  });
-
-  backdrop?.addEventListener('click', closeDrawer);
-
+  // document persists across client-side navigations, so this is registered once;
+  // the sidebar/toggle/backdrop nodes it looks up are re-queried fresh on every keypress.
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeDrawer();
   });
 
-  sidebar?.querySelectorAll('a').forEach((link) => {
-    link.addEventListener('click', closeDrawer);
+  document.addEventListener('astro:page-load', () => {
+    const toggle = document.getElementById('docs-sidebar-toggle');
+    const sidebar = document.getElementById('docs-sidebar');
+    const backdrop = document.getElementById('docs-sidebar-backdrop');
+
+    function openDrawer() {
+      sidebar?.classList.add('is-open');
+      backdrop?.classList.add('is-open');
+      toggle?.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+    }
+
+    toggle?.addEventListener('click', () => {
+      if (sidebar?.classList.contains('is-open')) {
+        closeDrawer();
+      } else {
+        openDrawer();
+      }
+    });
+
+    backdrop?.addEventListener('click', closeDrawer);
+
+    sidebar?.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', closeDrawer);
+    });
   });
 </script>
