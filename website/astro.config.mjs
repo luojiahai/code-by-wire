@@ -9,7 +9,7 @@ export default defineConfig({
   base: "/",
   trailingSlash: "always",
   output: "static",
-  adapter: vercel({ imageService: true }),
+  adapter: vercel(),
   integrations: [sitemap()],
   vite: {
     plugins: [tailwindcss()],
