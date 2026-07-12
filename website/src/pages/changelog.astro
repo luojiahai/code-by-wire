@@ -15,7 +15,7 @@ import changelogRaw from '../../../CHANGELOG.md?raw';
 // everything else (the intro paragraph, then every version section).
 const changelogHtml = renderChangelog(changelogRaw.replace(/^# Changelog\n+/, ''));
 ---
-<NarrowLayout title="Changelog — Code-by-wire" description="Every notable change to Code-by-wire.">
+<NarrowLayout title="Changelog · Code-by-wire" description="Every notable change to Code-by-wire.">
   <h1>Changelog</h1>
   <div class="prose" set:html={changelogHtml} />
 </NarrowLayout>

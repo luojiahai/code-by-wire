@@ -2,7 +2,7 @@
   "name": "code-by-wire",
   "private": true,
   "version": "0.1.29",
-  "description": "The cockpit for local Claude Code.",
+  "description": "Pilot every Claude Code session on your machine.",
   "author": "luojiahai",
   "license": "MIT",
   "homepage": "https://github.com/luojiahai/code-by-wire",
