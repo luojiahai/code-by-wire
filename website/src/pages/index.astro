@@ -1,6 +1,8 @@
 ---
 // website/src/pages/index.astro
+import { Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import screenshot from '../assets/screenshot.png';
 const base = import.meta.env.BASE_URL;
 const features = [
   {
@@ -63,9 +65,11 @@ const features = [
   <section class="screenshot-section">
     <div class="screenshot-frame">
       <div class="chrome"><span></span><span></span><span></span></div>
-      <img
-        src={`${base}screenshot.png`}
+      <Image
+        src={screenshot}
         alt="Code-by-wire showing a live Claude Code session with the session rail, transcript, and telemetry panels"
+        width={1600}
+        priority
       />
     </div>
   </section>
@@ -179,7 +183,7 @@ const features = [
     border-radius: 50%;
     background: var(--border-strong);
   }
-  .screenshot-frame img {
+  .screenshot-frame :global(img) {
     width: 100%;
     display: block;
   }
