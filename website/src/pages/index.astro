@@ -81,9 +81,8 @@ const features = [
     </div>
     <div class="feature-grid">
       {
-        features.map((feature, i) => (
+        features.map((feature) => (
           <div class="feature">
-            <div class="num mono">{String(i + 1).padStart(2, '0')}</div>
             <h3>{feature.title}</h3>
             <p>{feature.description}</p>
           </div>
@@ -217,11 +216,6 @@ const features = [
   .feature {
     background: var(--bg);
     padding: 32px;
-  }
-  .feature .num {
-    font-size: 12px;
-    color: var(--text-faint);
-    margin-bottom: 16px;
   }
   .feature h3 {
     font-size: 17px;
