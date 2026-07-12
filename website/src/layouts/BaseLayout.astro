@@ -1,6 +1,8 @@
 ---
 // website/src/layouts/BaseLayout.astro
 import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
 
 interface Props {
   title: string;
@@ -19,6 +21,8 @@ const base = import.meta.env.BASE_URL;
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
   </head>
   <body>
+    <Nav />
     <slot />
+    <Footer />
   </body>
 </html>
