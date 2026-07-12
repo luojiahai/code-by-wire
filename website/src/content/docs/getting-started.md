@@ -9,7 +9,7 @@ order: 1
 Code-by-wire needs [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 installed locally — that's what it reads sessions from.
 
-Grab the build for your platform from the [Download page](/code-by-wire/download/).
+Grab the build for your platform from the [Download page](/download/).
 On macOS, open the `.dmg` and drag Code-by-wire to Applications — the app is signed
 and notarized, so it opens straight away. On Windows, run the `.exe`; it's unsigned
 for now, so if SmartScreen warns, click **More info → Run anyway**.

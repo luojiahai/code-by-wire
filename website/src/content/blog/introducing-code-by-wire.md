@@ -24,5 +24,5 @@ terminal to drive or take over, and the telemetry the terminal hides.
   duty cycle, git, tasks, subagents, and background shells — live, per
   session.
 
-[Download it](/code-by-wire/download/) and open it — every session already
+[Download it](/download/) and open it — every session already
 running on your machine is there.
