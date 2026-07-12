@@ -9,6 +9,11 @@ English | [简体中文](README.zh-CN.md)
 
 [![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=luojiahai&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/luojiahai)
 
+**[Website](https://luojiahai.github.io/code-by-wire/)** ·
+[Docs](https://luojiahai.github.io/code-by-wire/docs/) ·
+[Blog](https://luojiahai.github.io/code-by-wire/blog/) ·
+[Changelog](https://luojiahai.github.io/code-by-wire/changelog/)
+
 Claude Code writes a rich trail to the `.claude` directory as it works: every
 turn, every token, every tool call, the running cost, the context window. The
 CLI shows you almost none of it.

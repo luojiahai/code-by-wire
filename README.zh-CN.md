@@ -9,6 +9,11 @@
 
 [![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=luojiahai&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/luojiahai)
 
+**[网站](https://luojiahai.github.io/code-by-wire/)**（英文） ·
+[文档](https://luojiahai.github.io/code-by-wire/docs/) ·
+[博客](https://luojiahai.github.io/code-by-wire/blog/) ·
+[更新日志](https://luojiahai.github.io/code-by-wire/changelog/)
+
 Claude Code 一边工作，一边把丰富的轨迹写进 `.claude` 目录：每一个回合、每一个 token、每一次工具
 调用、实时花费、上下文窗口。可 CLI 几乎什么都不给你看。
 
