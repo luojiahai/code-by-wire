@@ -6,7 +6,9 @@ export interface DocsNavEntry {
 }
 
 export function sortDocsNav<T extends DocsNavEntry>(pages: T[]): T[] {
-  return [...pages].sort((a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id));
+  return [...pages].sort(
+    (a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id),
+  );
 }
 
 export interface PrevNext<T> {

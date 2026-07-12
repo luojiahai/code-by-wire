@@ -46,7 +46,10 @@ describe("getPrevNext", () => {
   });
 
   it("returns a prev and a next for a middle page", () => {
-    expect(getPrevNext(sorted, "b")).toEqual({ prev: sorted[0], next: sorted[2] });
+    expect(getPrevNext(sorted, "b")).toEqual({
+      prev: sorted[0],
+      next: sorted[2],
+    });
   });
 
   it("returns a prev and null next for the last page", () => {
