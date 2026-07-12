@@ -9,6 +9,9 @@ export default defineConfig({
   base: "/",
   trailingSlash: "always",
   output: "static",
+  build: {
+    inlineStylesheets: "always",
+  },
   adapter: vercel(),
   integrations: [sitemap()],
   vite: {
