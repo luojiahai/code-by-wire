@@ -14,7 +14,7 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 const { Content } = await render(post);
 ---
-<NarrowLayout title={`${post.data.title} — Code-by-wire blog`} description={post.data.description}>
+<NarrowLayout title={`${post.data.title} · Code-by-wire blog`} description={post.data.description}>
   <h1>{post.data.title}</h1>
   <time class="mono post-date">{post.data.publishDate}</time>
   <div class="prose">

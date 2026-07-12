@@ -8,7 +8,7 @@ const posts = (await getCollection('blog')).sort(
   (a, b) => new Date(b.data.publishDate).getTime() - new Date(a.data.publishDate).getTime(),
 );
 ---
-<NarrowLayout title="Blog — Code-by-wire" description="News and updates from Code-by-wire.">
+<NarrowLayout title="Blog · Code-by-wire" description="News and updates from Code-by-wire.">
   <h1>Blog</h1>
   <ul>
     {
