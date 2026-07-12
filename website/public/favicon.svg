@@ -1,9 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220" role="img" aria-label="Code-by-wire">
-  <rect x="10" y="10" width="200" height="200" rx="46" fill="#17191f"/>
-  <rect x="11.5" y="11.5" width="197" height="197" rx="44.5" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="3"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="tileClip">
+      <rect x="100" y="100" width="824" height="824" rx="185"/>
+    </clipPath>
+  </defs>
 
-  <rect x="41" y="70" width="17" height="79" rx="3" fill="#ffffff" opacity="0.16"/>
-  <rect x="70" y="70" width="17" height="79" rx="3" fill="#ffffff" opacity="0.35"/>
-  <rect x="100" y="70" width="17" height="79" rx="3" fill="#ffffff" opacity="0.60"/>
-  <rect x="129" y="70" width="50" height="79" rx="4" fill="#ffffff"/>
+  <g clip-path="url(#tileClip)">
+    <rect x="100" y="100" width="824" height="824" fill="#17191f"/>
+  </g>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="3"/>
+
+  <rect x="229" y="349" width="69" height="326" rx="13" fill="#ffffff" opacity="0.16"/>
+  <rect x="349" y="349" width="69" height="326" rx="13" fill="#ffffff" opacity="0.35"/>
+  <rect x="469" y="349" width="69" height="326" rx="13" fill="#ffffff" opacity="0.60"/>
+  <rect x="589" y="349" width="206" height="326" rx="17" fill="#ffffff"/>
 </svg>

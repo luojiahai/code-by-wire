@@ -4,7 +4,7 @@ const base = import.meta.env.BASE_URL;
 ---
 <footer>
   <a href={base} class="brand">
-    <span class="brand-mark"><span></span><span></span><span></span><span></span></span>
+    <img src={`${base}favicon.svg`} alt="" class="brand-mark" width="20" height="20" />
     <span class="brand-name">Code-by-wire</span>
   </a>
   <div class="footer-cols">
@@ -49,31 +49,8 @@ const base = import.meta.env.BASE_URL;
     gap: 12px;
   }
   .brand-mark {
-    display: flex;
-    gap: 3px;
-    align-items: flex-end;
-    height: 20px;
-  }
-  .brand-mark span {
-    width: 5px;
-    background: #fff;
-    border-radius: 1px;
-  }
-  .brand-mark span:nth-child(1) {
-    height: 35%;
-    opacity: 0.16;
-  }
-  .brand-mark span:nth-child(2) {
-    height: 60%;
-    opacity: 0.35;
-  }
-  .brand-mark span:nth-child(3) {
-    height: 80%;
-    opacity: 0.6;
-  }
-  .brand-mark span:nth-child(4) {
-    height: 100%;
-    opacity: 1;
+    display: block;
+    border-radius: 5px;
   }
   .brand-name {
     font-weight: 600;
