@@ -133,11 +133,22 @@ function harness(
     },
     createBufferer: over.createBufferer ?? passthroughBufferer,
     createRecorder: recorders.create,
-    env: () => ({ PATH: "/usr/bin" }),
+    // CBW_SHELL steers resolvePosixShellPath's override branch straight to the fake below, without
+    // it, resolution falls through to the hardcoded zsh/bash/sh candidates, none of which the fake
+    // (deliberately not a real shell path) would ever match.
+    env: () => ({ PATH: "/usr/bin", CBW_SHELL: "/bin/fake-shell" }),
     statDir: over.statDir ?? (() => true),
     // Pin POSIX so the bare-`claude` command and `/work/app` fixtures aren't reshaped by the Windows
-    // launch shim when the test runs on a Windows host; the win32 launch form is covered in spawn-bin.
+    // launch shim when the test runs on a Windows host; the win32 launch form is covered by the
+    // "launch (shell terminals)" describe block below and by command.test.ts's toSpawnForm tests.
     platform: "linux",
+    // A deterministic fake shell resolver — the real one touches the filesystem (which POSIX shells
+    // actually exist on this machine), which would make these assertions host-dependent. Only
+    // resolves when CBW_SHELL (above) points the override check at exactly this path.
+    posixShell: {
+      isExecutable: (p: string) => p === "/bin/fake-shell",
+      findOnPath: () => null,
+    },
   });
   return {
     manager,
@@ -171,7 +182,7 @@ const FORK_REQ = {
 };
 
 describe("createTerminalManager", () => {
-  it("spawns a pty, registers the id as Managed, and passes cwd/env/size through", () => {
+  it("spawns a pty wrapped in the login shell, registers the id as Managed, and passes cwd/env/size through", () => {
     const h = harness();
     h.manager.spawn(REQ);
     expect(h.spawned).toEqual(["sess-1"]);
@@ -182,11 +193,10 @@ describe("createTerminalManager", () => {
       rows: 30,
       env: { PATH: "/usr/bin" },
     });
+    expect(h.ptys[0].state.spawnedWith!.file).toBe("/bin/fake-shell");
     expect(h.ptys[0].state.spawnedWith!.args).toEqual([
-      "--session-id",
-      "sess-1",
-      "--model",
-      "sonnet",
+      "-ic",
+      "'claude' '--session-id' 'sess-1' '--model' 'sonnet'",
     ]);
   });
 
@@ -194,8 +204,8 @@ describe("createTerminalManager", () => {
     const h = harness();
     h.manager.spawn({ ...REQ, model: "default" });
     expect(h.ptys[0].state.spawnedWith!.args).toEqual([
-      "--session-id",
-      "sess-1",
+      "-ic",
+      "'claude' '--session-id' 'sess-1'",
     ]);
     // A default spawn has no known family yet — the registry fronts nothing until the
     // first transcript turn lands (same as Adopt).
@@ -334,12 +344,16 @@ describe("createTerminalManager", () => {
     expect(h.sent).toEqual([["sess-1", "x"]]); // unchanged
   });
 
-  it("adopt: resumes under the same id with no --model, and registers it Managed", () => {
+  it("adopt: resumes under the same id with no --model, wrapped in the login shell, and registers it Managed", () => {
     const h = harness();
     h.manager.adopt(ADOPT_REQ);
     expect(h.spawned).toEqual(["sess-1"]);
     expect(h.ptys).toHaveLength(1);
-    expect(h.ptys[0].state.spawnedWith!.args).toEqual(["--resume", "sess-1"]);
+    expect(h.ptys[0].state.spawnedWith!.file).toBe("/bin/fake-shell");
+    expect(h.ptys[0].state.spawnedWith!.args).toEqual([
+      "-ic",
+      "'claude' '--resume' 'sess-1'",
+    ]);
     expect(h.ptys[0].state.spawnedWith).toMatchObject({
       cwd: "/work/app",
       cols: 80,
@@ -355,17 +369,15 @@ describe("createTerminalManager", () => {
     expect(h.spawned).toEqual(["sess-1"]);
   });
 
-  it("fork: resumes the source under a NEW id with --fork-session (no --model in argv), and registers it Managed under the new id with the source model as its picked alias", () => {
+  it("fork: resumes the source under a NEW id with --fork-session (no --model in argv), wrapped in the login shell, and registers it Managed under the new id with the source model as its picked alias", () => {
     const h = harness();
     h.manager.fork(FORK_REQ);
     expect(h.spawned).toEqual(["fork-1"]); // the new id, not the source id
     expect(h.ptys).toHaveLength(1);
+    expect(h.ptys[0].state.spawnedWith!.file).toBe("/bin/fake-shell");
     expect(h.ptys[0].state.spawnedWith!.args).toEqual([
-      "--resume",
-      "sess-1",
-      "--session-id",
-      "fork-1",
-      "--fork-session",
+      "-ic",
+      "'claude' '--resume' 'sess-1' '--session-id' 'fork-1' '--fork-session'",
     ]);
     expect(h.ptys[0].state.spawnedWith).toMatchObject({
       cwd: "/work/app",
