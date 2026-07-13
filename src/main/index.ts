@@ -15,8 +15,11 @@ import { createSettingsManager } from "./settings/manager";
 import { createStatusLineReader } from "./statusline/reader";
 import { registerTerminalIpc } from "./terminal/ipc";
 import { registerShellTerminalIpc } from "./terminal/shell-ipc";
-import { buildChildEnv } from "./terminal/child-env";
-import { buildShellEnv } from "./terminal/shell-command";
+import {
+  buildShellEnv,
+  isExecutableFile,
+  findOnPath,
+} from "./terminal/shell-command";
 import { readAccountEmail } from "./settings/account-email";
 import { readModelDefaults } from "./settings/model-defaults";
 import { readSessionWindowMs } from "./settings/session-window";
@@ -48,8 +51,6 @@ function createWindow(
   managed: ManagedRegistry,
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null,
   registerRename: (rename: (from: string, to: string) => void) => void,
-  childEnv: (() => NodeJS.ProcessEnv) | undefined,
-  resolveBin: (() => string | null) | undefined,
   shellEnv: () => NodeJS.ProcessEnv,
 ): void {
   // The renderer header is a fixed HEADER_HEIGHT_PX tall and doubles as the title bar. On macOS we hide
@@ -94,8 +95,7 @@ function createWindow(
     window: win,
     managed,
     resolveAdoptTarget,
-    env: childEnv,
-    resolveBin,
+    posixShell: { isExecutable: isExecutableFile, findOnPath },
   });
   registerRename(rename);
 
@@ -142,38 +142,14 @@ app
     ): void => {
       renameInWindow = rename;
     };
-    // Inputs for the spawned-session env, late-bound after the startup login-shell probe resolves
-    // claudeDir + the recovered PATH below. childEnv is read lazily at the first spawn — always after
-    // this holder is populated — so the window can still open before the (synchronous) probe runs.
-    let childEnvInputs: {
-      claudeDir: string;
-      correctedPath: string | null;
-    } | null = null;
-    let childEnvMemo: NodeJS.ProcessEnv | undefined;
-    // Env for every spawned/resumed `claude`: pins CLAUDE_CONFIG_DIR to the dir the app reads from (no
-    // split brain) and, when packaged, corrects PATH so a Finder-launched .app can find `claude`.
-    // childEnv is only ever invoked at first spawn, always after the holder below is populated. If that
-    // ordering ever broke, fail loud here rather than silently pinning a different dir than the readers
-    // use (the very split brain this env exists to prevent).
-    const childEnv = (): NodeJS.ProcessEnv => {
-      if (!childEnvInputs) {
-        throw new Error(
-          "childEnv invoked before the startup probe populated its inputs",
-        );
-      }
-      return (childEnvMemo ??= buildChildEnv({
-        baseEnv: process.env,
-        claudeDir: childEnvInputs.claudeDir,
-        correctedPath: childEnvInputs.correctedPath,
-      }));
-    };
     // Env for user shells in the footer terminal: process.env with the recovered PATH (packaged,
-    // Finder-launched) run through buildShellEnv's scrub/declare. Unlike childEnv it does NOT pin
-    // CLAUDE_CONFIG_DIR — a user's interactive shell keeps their own config (hermes parity).
+    // Finder-launched) run through buildShellEnv's scrub/declare. Does NOT pin CLAUDE_CONFIG_DIR — a
+    // user's interactive shell keeps their own config (hermes parity). `correctedPath` is populated by
+    // the startup probe below; this closure is only ever invoked after that probe has run.
     const shellTermEnv = (): NodeJS.ProcessEnv =>
       buildShellEnv({
-        baseEnv: childEnvInputs?.correctedPath
-          ? { ...process.env, PATH: childEnvInputs.correctedPath }
+        baseEnv: correctedPath
+          ? { ...process.env, PATH: correctedPath }
           : process.env,
         appVersion: app.getVersion(),
       });
@@ -194,8 +170,6 @@ app
         managed,
         (id) => services.provider?.resolveAdoptTarget(id) ?? null,
         registerRename,
-        childEnv,
-        () => services.cliStatus?.resolvedPath() ?? null,
         shellTermEnv,
       );
     openWindow();
@@ -231,22 +205,21 @@ app
       );
     }
     const recoveredConfigDir = shellEnv?.configDir ?? null;
+    // claudeDir feeds the settings/transcript readers below (settingsManager, statusLine, provider) —
+    // where THIS APP reads Claude Code's own data from, independent of how sessions are spawned.
     const claudeDir = resolveClaudeDir(undefined, recoveredConfigDir);
-    // Freeze the spawned-session env inputs now that the probe has run: the same dir the readers use,
-    // and (packaged only) the recovered PATH — reusing shellEnv.path from the one startup probe instead
-    // of spawning a second login shell.
-    childEnvInputs = {
-      claudeDir,
-      correctedPath: shouldCorrectPath(process.platform, app.isPackaged)
-        ? resolveShellPath({
-            platform: process.platform,
-            shell: process.env.SHELL,
-            home: homedir(),
-            currentPath: process.env.PATH,
-            probe: () => shellEnv?.path ?? null,
-          })
-        : null,
-    };
+    // correctedPath feeds only the footer terminal's env (shellTermEnv above); Managed sessions no
+    // longer need it — they spawn through the user's own login shell, which resolves PATH for itself
+    // (see command.ts's toSpawnForm).
+    const correctedPath = shouldCorrectPath(process.platform, app.isPackaged)
+      ? resolveShellPath({
+          platform: process.platform,
+          shell: process.env.SHELL,
+          home: homedir(),
+          currentPath: process.env.PATH,
+          probe: () => shellEnv?.path ?? null,
+        })
+      : null;
     const appSettings = createAppSettingsStore({
       dir: app.getPath("userData"),
     });
@@ -283,12 +256,7 @@ app
       dir: app.getPath("userData"),
     });
     const cliStatus = createCliStatusController({
-      settings: appSettings,
       activeConfigDir: claudeDir,
-      recoveredConfigDir,
-      // Same gate as the startup probe above: only spawn a login shell to resolve the binary when packaged
-      // (dev inherits the shell env, so PATH/`command -v` already see `claude`).
-      probeShell: app.isPackaged,
     });
     services.cliStatus = cliStatus;
     // Warm the verdict in the background; the check is async and the window is already up.
