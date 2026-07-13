@@ -13,6 +13,9 @@ export interface AppSettings {
   /** Whether the statusLine capture wrapper is installed at launch and active. Missing means on;
    *  callers read `read().statuslineEnabled ?? true`. */
   statuslineEnabled?: boolean;
+  /** Whether to fire a native notification when a session starts awaiting input. Missing means on;
+   *  callers read `read().notifyOnAwaiting ?? true`. */
+  notifyOnAwaiting?: boolean;
 }
 
 export interface AppSettingsStore {
@@ -20,6 +23,7 @@ export interface AppSettingsStore {
   setClaudeBinPath(path: string | null): void;
   setAutoCheckUpdates(enabled: boolean): void;
   setStatuslineEnabled(enabled: boolean): void;
+  setNotifyOnAwaiting(enabled: boolean): void;
 }
 
 export interface AppSettingsDeps {
@@ -58,6 +62,9 @@ export function createAppSettingsStore(
     },
     setStatuslineEnabled(enabled) {
       write({ ...read(), statuslineEnabled: enabled });
+    },
+    setNotifyOnAwaiting(enabled) {
+      write({ ...read(), notifyOnAwaiting: enabled });
     },
   };
 }

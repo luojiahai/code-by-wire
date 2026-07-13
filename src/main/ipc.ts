@@ -8,6 +8,7 @@ import {
   type OpenInTarget,
   type UpdateState,
   type StatsDbInfo,
+  type NotifyShowRequest,
 } from "@shared/ipc";
 import type { Provider } from "./provider/types";
 import type { SqliteDb } from "./db/driver";
@@ -18,6 +19,7 @@ import type { CliStatusController } from "./cli-check";
 import type { Updater } from "./updater";
 import type { AppSettingsStore } from "./app-settings";
 import type { Caffeinate } from "./caffeinate";
+import type { Notifier } from "./notify";
 import type { UsageService } from "./usage/fetch";
 import {
   deriveAccount,
@@ -118,6 +120,9 @@ export interface IpcDeps {
   /** The keep-awake toggle. Defaults to an inert off, so harnesses that don't wire it still get
    *  well-formed responses. */
   caffeinate?: Caffeinate;
+  /** Native session notifications (show + click-to-focus). Defaults to an inert no-op, so
+   *  harnesses that don't wire it still get well-formed responses. */
+  notifier?: Notifier;
   /** The OAuth usage service — the account's rate-limit fill side. Optional like accountEmail:
    *  when absent, the panel runs on capture windows alone. */
   usage?: UsageService;
@@ -148,6 +153,7 @@ export function registerIpc({
   statuslineLaunchFault,
   caffeinate,
   usage,
+  notifier,
 }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
@@ -178,6 +184,7 @@ export function registerIpc({
     setClaudeBinPath: () => {},
     setAutoCheckUpdates: () => {},
     setStatuslineEnabled: () => {},
+    setNotifyOnAwaiting: () => {},
   };
   const caff: Caffeinate = caffeinate ?? {
     isOn: () => false,
@@ -431,6 +438,16 @@ export function registerIpc({
   );
   ipcMain.handle(IPC.caffeinateGet, (): boolean => caff.isOn());
   ipcMain.handle(IPC.caffeinateSet, (_e, on: boolean): boolean => caff.set(on));
+  ipcMain.handle(IPC.notifyShow, (_e, req: NotifyShowRequest): void =>
+    notifier?.show(req),
+  );
+  ipcMain.handle(
+    IPC.notifyGetOnAwaiting,
+    (): boolean => settings.read().notifyOnAwaiting ?? true,
+  );
+  ipcMain.handle(IPC.notifySetOnAwaiting, (_e, enabled: boolean): void =>
+    settings.setNotifyOnAwaiting(enabled),
+  );
 
   // Slice 2 lifecycle: the Stats view polls this while open. Each call runs ONE bounded, incremental scan
   // step (the event loop breathes between calls, so pty output and IPC stay responsive) and returns the

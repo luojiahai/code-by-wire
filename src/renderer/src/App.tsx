@@ -29,6 +29,7 @@ import { useStatsPump } from "./stats/use-stats-pump";
 import { SettingsView, type SettingsSection } from "./settings/SettingsView";
 import { SETTINGS_ID } from "./settings/sentinel";
 import { useUpdate } from "./ui/use-update";
+import { useAwaitingNotifications } from "./notifications/use-awaiting-notifications";
 import { Pane, PaneMain, PaneShell } from "./shell/pane-shell";
 import { TitlebarControls } from "./shell/TitlebarControls";
 import { AppFooter } from "./shell/AppFooter";
@@ -405,6 +406,15 @@ export function App() {
       ),
     [sessions, drafts, adopting, ending, titleOverrides],
   );
+  // System notifications for sessions that just started awaiting input. Fed the same overlaid list
+  // the UI renders (so an optimistic End can't notify) and the live selection (so the open, focused
+  // session is suppressed). The click push selects the session — main already focused the window.
+  useAwaitingNotifications({
+    sessions: all,
+    selectedId,
+    onActivate: setSelectedId,
+  });
+
   const isOverview = selectedId === OVERVIEW_ID;
   const isSettings = selectedId === SETTINGS_ID;
   const isNewSession = selectedId === NEW_SESSION_ID;

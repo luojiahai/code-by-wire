@@ -48,6 +48,10 @@ const api: AppApi = {
   repairStatusline: () => ipcRenderer.invoke(IPC.statuslineRepair),
   getCaffeinate: () => ipcRenderer.invoke(IPC.caffeinateGet),
   setCaffeinate: (on) => ipcRenderer.invoke(IPC.caffeinateSet, on),
+  showNotification: (req) => ipcRenderer.invoke(IPC.notifyShow, req),
+  getNotifyOnAwaiting: () => ipcRenderer.invoke(IPC.notifyGetOnAwaiting),
+  setNotifyOnAwaiting: (enabled) =>
+    ipcRenderer.invoke(IPC.notifySetOnAwaiting, enabled),
   readSubagentTranscript: (id, agentId, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readSubagentTranscript, id, agentId, sinceMtimeMs),
   readTasks: (id, sinceMtimeMs) =>
@@ -77,6 +81,11 @@ const api: AppApi = {
     ) => cb(state);
     ipcRenderer.on(IPC.updateState, handler);
     return () => ipcRenderer.removeListener(IPC.updateState, handler);
+  },
+  onNotifyActivate: (cb) => {
+    const handler = (_e: IpcRendererEvent, sessionId: string) => cb(sessionId);
+    ipcRenderer.on(IPC.notifyActivate, handler);
+    return () => ipcRenderer.removeListener(IPC.notifyActivate, handler);
   },
   terminal: {
     spawn: (req) => ipcRenderer.invoke(TERMINAL.spawn, req),

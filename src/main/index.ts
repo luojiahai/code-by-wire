@@ -24,6 +24,7 @@ import type { ModelDefaults } from "@shared/models";
 import { resolveClaudeDir } from "./claude-config";
 import { createAppSettingsStore } from "./app-settings";
 import { createCaffeinate } from "./caffeinate";
+import { createNotifier } from "./notify";
 import { createSessionTitleStore } from "./session-titles";
 import { createCliStatusController } from "./cli-check";
 import { createUpdater } from "./updater";
@@ -329,6 +330,10 @@ app
       );
     };
     const caffeinate = createCaffeinate({ blocker: powerSaveBlocker });
+    // Session notifications: shown on the renderer's request only (its poll detects the
+    // awaiting-input transition), so the request/response invariant holds. A click resolves the
+    // window at click time and pushes the session id back (IPC.notifyActivate).
+    const notifier = createNotifier();
     const { sync } = registerIpc({
       db,
       provider,
@@ -347,6 +352,7 @@ app
       statuslineLaunchFault,
       caffeinate,
       usage,
+      notifier,
     });
 
     // One-shot launch check: packaged only, and only when the user hasn't turned it off. Deferred so it
