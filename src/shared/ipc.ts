@@ -58,8 +58,15 @@ export const IPC = {
   statuslineRepair: "statusline:repair",
   caffeinateGet: "caffeinate:get",
   caffeinateSet: "caffeinate:set",
+  notifyShow: "notify:show",
+  notifyGetOnAwaiting: "notify:getOnAwaiting",
+  notifySetOnAwaiting: "notify:setOnAwaiting",
   /** PUSH: main -> renderer on every update-state transition. */
   updateState: "update:state",
+  /** PUSH: main -> renderer when the user clicks a session notification — carries the session id
+   *  to select. Sent only from the notification click handler, never on a timer, so the
+   *  request/response invariant holds. */
+  notifyActivate: "notify:activate",
 } as const;
 
 /** The index-only slice: the indexed session list from one SQLite read. The SQLite index holds no
@@ -142,6 +149,18 @@ export type OpenInResult = { ok: true } | { ok: false; error: string };
 /** The message both the main handler and the renderer fall back to when an open fails without a more
  *  specific reason. Defined once here, the only module both layers import, so the two can't drift. */
 export const OPEN_IN_FAILED_MESSAGE = "Couldn't open.";
+
+/** One native-notification request, renderer -> main. The renderer owns the decision (transition
+ *  detection + suppression live in its poll — see notifications/decide.ts); main only renders the
+ *  OS notification and, on click, focuses the window and pushes `sessionId` back via notifyActivate. */
+export interface NotifyShowRequest {
+  /** The session to select when the notification is clicked. */
+  sessionId: string;
+  /** Notification title: the session's display title (falls back to the project upstream). */
+  title: string;
+  /** Short reason line, e.g. "Waiting for your input". */
+  body: string;
+}
 
 export interface IpcApi {
   /** Read-only: the indexed sessions as they stand, no sync — fast initial paint. */
@@ -261,6 +280,13 @@ export interface IpcApi {
   /** Re-run the installer's self-heal (recovers a stripped entry / vanished record). Returns the
    *  fresh status. */
   repairStatusline(): Promise<StatuslineStatus>;
+  /** Show a native OS notification for a session that just started awaiting input. Fire-and-forget
+   *  from the renderer's poll; a platform without Notification support resolves as a no-op. */
+  showNotification(req: NotifyShowRequest): Promise<void>;
+  /** Whether the awaiting-input notification is enabled (missing setting reads as true). */
+  getNotifyOnAwaiting(): Promise<boolean>;
+  /** Persist the awaiting-input notification preference. */
+  setNotifyOnAwaiting(enabled: boolean): Promise<void>;
   /** Whether the keep-awake blocker is currently active (the footer button's initial paint). */
   getCaffeinate(): Promise<boolean>;
   /** Turn keep-awake on or off. Resolves to the resulting state — main is the source of truth,
@@ -291,4 +317,7 @@ export type AppApi = IpcApi & {
   /** Subscribe to update-state pushes. Main sends on every transition (including download progress);
    *  the returned fn unsubscribes. Mirrors onFullscreenChange. */
   onUpdateState(cb: (state: UpdateState) => void): () => void;
+  /** Subscribe to notification-click pushes: main sends the clicked notification's session id after
+   *  focusing the window, and the renderer selects that session. Mirrors onUpdateState. */
+  onNotifyActivate(cb: (sessionId: string) => void): () => void;
 };
