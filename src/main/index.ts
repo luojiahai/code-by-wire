@@ -163,8 +163,8 @@ app
     // Stand the window up FIRST, before the synchronous login-shell probe + claudeDir-dependent wiring
     // below. The probe (and the initial sync) run in this same synchronous turn, so the renderer's first
     // overview() invoke just queues until registerIpc runs a few lines down — but the window has already
-    // painted, so a slow login shell no longer blanks the screen on launch. Mirrors the lazy childEnv above
-    // and the setTimeout'd CLI check below.
+    // painted, so a slow login shell no longer blanks the screen on launch. Mirrors the lazy
+    // correctedPath/shellTermEnv closure above and the setTimeout'd CLI check below.
     const openWindow = (): void =>
       createWindow(
         managed,
