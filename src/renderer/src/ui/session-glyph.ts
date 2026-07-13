@@ -31,3 +31,12 @@ export function glyphTitle(
 ): string {
   return `${STATE_META[state].label.toLowerCase()} · ${management}`;
 }
+
+/** The rail's provider marker: a tiny dimmed label on sessions a foreign CLI owns, styled like the
+ *  worktree hint so it reads as metadata, not state. Claude rows (and pre-field cached rows, whose
+ *  providerId is absent) carry none — the default provider needs no callout. Kept in this JSX-free
+ *  module so the encoding stays unit-tested. */
+export function providerBadge(providerId?: string): string | null {
+  if (providerId === undefined || providerId === "claude") return null;
+  return providerId;
+}

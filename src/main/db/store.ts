@@ -13,8 +13,9 @@ import { transaction, type SqliteDb } from "./driver";
  *  v9 forces the one-time re-summarize for the last-entry-wins usage dedup (usage_by_model rows
  *  cached under first-entry-wins undercounted subagent output). `migrate` rebuilds the index (a
  *  disposable cache) to match — v10 adds effort_level (A6 transcript scan) — v11 adds the A9
- *  compaction columns — v12 adds provider_id (multi-provider ownership). */
-const SCHEMA_VERSION = 12;
+ *  compaction columns — v12 adds provider_id (multi-provider ownership) — v13 adds context_window
+ *  (a provider-reported window for models whose id carries no size tag, e.g. Codex). */
+const SCHEMA_VERSION = 13;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -54,6 +55,7 @@ export function migrate(db: SqliteDb): void {
         usage_by_model TEXT,
         effort_level TEXT,
         context_tokens INTEGER NOT NULL DEFAULT 0,
+        context_window INTEGER,
         compaction_count INTEGER NOT NULL DEFAULT 0,
         compaction_reclaimed_tokens INTEGER NOT NULL DEFAULT 0
       );
@@ -85,6 +87,7 @@ interface Row {
   cache_creation_1h_tokens: number;
   usage_by_model: string | null;
   context_tokens: number;
+  context_window: number | null;
   effort_level: string | null;
   compaction_count: number;
   compaction_reclaimed_tokens: number;
@@ -130,6 +133,7 @@ function rowToPersisted(r: Row): PersistedSession {
     },
     usageByModel: parseUsageByModel(r.usage_by_model),
     contextTokens: r.context_tokens,
+    contextWindow: r.context_window ?? undefined,
     effortLevel: r.effort_level ?? undefined,
     compactionCount: r.compaction_count,
     compactionTokensReclaimed: r.compaction_reclaimed_tokens,
@@ -149,10 +153,13 @@ function pctOfWindow(tokens: number, window: number): number {
  * (`[1m]`, A1) wins when present, else the flat per-family default.
  */
 export function hydrate(p: PersistedSession): Session {
+  // A provider-reported window (Codex's model_context_window) is authoritative when stored. Else
   // A1: a window tag in the stored raw model id (`[1m]`) beats the flat family default, so an
   // uncaptured 1M session's % isn't measured against 200k.
   const contextWindow =
-    parseContextWindowSize(p.modelRaw) ?? contextWindowFor(p.model);
+    p.contextWindow ??
+    parseContextWindowSize(p.modelRaw) ??
+    contextWindowFor(p.model);
   // The panel reads usageByModel for everything. A session summarized with the column carries its real
   // per-model breakdown; an old cached row (pre-column) or an empty transcript falls back to a single
   // main-thread entry, so the panel still renders main-only until the next re-summarize. The fallback's
@@ -203,11 +210,11 @@ export function hydrate(p: PersistedSession): Session {
 const UPSERT = `
   INSERT INTO sessions
     (id, provider_id, title, project, cwd, branch, state, management, model, model_raw, last_activity_ms, created_ms, awaiting_user, transcript_mtime_ms,
-     input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, usage_by_model, context_tokens, effort_level,
+     input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, usage_by_model, context_tokens, context_window, effort_level,
      compaction_count, compaction_reclaimed_tokens)
   VALUES
     (@id, @provider_id, @title, @project, @cwd, @branch, @state, @management, @model, @model_raw, @last_activity_ms, @created_ms, @awaiting_user, @transcript_mtime_ms,
-     @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @usage_by_model, @context_tokens, @effort_level,
+     @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @usage_by_model, @context_tokens, @context_window, @effort_level,
      @compaction_count, @compaction_reclaimed_tokens)
   ON CONFLICT(id) DO UPDATE SET
     provider_id = excluded.provider_id,
@@ -235,6 +242,7 @@ const UPSERT = `
     cache_creation_1h_tokens = excluded.cache_creation_1h_tokens,
     usage_by_model = excluded.usage_by_model,
     context_tokens = excluded.context_tokens,
+    context_window = excluded.context_window,
     effort_level = excluded.effort_level,
     compaction_count = excluded.compaction_count,
     compaction_reclaimed_tokens = excluded.compaction_reclaimed_tokens
@@ -275,6 +283,7 @@ export function upsertSessions(
         cache_creation_1h_tokens: s.usage.cacheCreation1hTokens,
         usage_by_model: JSON.stringify(s.usageByModel ?? []),
         context_tokens: s.contextTokens,
+        context_window: s.contextWindow ?? null,
         effort_level: s.effortLevel ?? null,
         compaction_count: s.compactionCount ?? 0,
         compaction_reclaimed_tokens: s.compactionTokensReclaimed ?? 0,

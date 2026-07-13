@@ -6,6 +6,7 @@ import type { SqliteDb } from "./db/driver";
 import { migrate } from "./db/store";
 import { migrateAnalytics } from "./db/analytics";
 import { createClaudeProvider } from "./provider/claude";
+import { createCodexProvider } from "./provider/codex";
 import { createMultiProvider } from "./provider/multi";
 import { createManagedRegistry } from "./managed-registry";
 import type { ManagedRegistry } from "./managed-registry";
@@ -276,12 +277,16 @@ app
     const statusLine = createStatusLineReader({ claudeDir });
     // The app-facing provider is the aggregate: Claude first (the primary — its capabilities remain
     // the app-level IPC.capabilities contract, and per-session reads for pre-multi cached rows fall
-    // back to it). Additional providers contribute their own sessions; per-session dispatch and the
-    // providerId stamp live in createMultiProvider.
+    // back to it), then the read-only Codex observer, which contributes zero sessions and zero
+    // errors when ~/.codex doesn't exist. Per-session dispatch and the providerId stamp live in
+    // createMultiProvider.
     const provider = createMultiProvider([
       createClaudeProvider({
         managed,
         claudeDir,
+        recentWindowMs: readSessionWindowMs(claudeDir),
+      }),
+      createCodexProvider({
         recentWindowMs: readSessionWindowMs(claudeDir),
       }),
     ]);

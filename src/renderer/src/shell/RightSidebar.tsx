@@ -1,4 +1,5 @@
 import type { Account, Session } from "@shared/types";
+import { capabilitiesOf } from "@shared/providers";
 import { useTranscript } from "../workspace/use-transcript";
 import type { MetricsState } from "../workspace/use-metrics";
 import { PressurePanel } from "../workspace/panels/PressurePanel";
@@ -28,6 +29,11 @@ export function RightSidebar({
   account: Account | null;
 }) {
   const doc = useTranscript(session.id);
+  // Per-session degradation: the account's rate-limit windows are *Claude* windows, so on a session
+  // whose provider has none (Codex) the Pressure rows must not fill from them — withhold both merge
+  // sides and the rows render their existing missing-data dashes. Context fill still renders: the
+  // session's own transcript/window are provider-honest.
+  const caps = capabilitiesOf(session.providerId);
   return (
     <div className="flex h-full flex-col border-l border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) text-(--ui-text-tertiary) shadow-[inset_0.0625rem_0_0_color-mix(in_srgb,white_12%,transparent)]">
       <div
@@ -46,8 +52,10 @@ export function RightSidebar({
             context={doc?.context ?? null}
             contextPct={session.contextPct}
             contextWindow={session.contextWindow}
-            account={account}
-            rateLimits={session.rateLimits ?? null}
+            account={caps.hasRateLimits ? account : null}
+            rateLimits={
+              caps.hasRateLimits ? (session.rateLimits ?? null) : null
+            }
           />
           <SectionDivider />
           <SpendPanel

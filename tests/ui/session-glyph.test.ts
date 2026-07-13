@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { LAMP, glyphTitle } from "../../src/renderer/src/ui/session-glyph";
+import {
+  LAMP,
+  glyphTitle,
+  providerBadge,
+} from "../../src/renderer/src/ui/session-glyph";
 
 describe("LAMP — filled = live, hollow = quiet", () => {
   it("working is an 11px spinning arc with a static teal core", () => {
@@ -39,5 +43,13 @@ describe("glyphTitle — hover tooltip spells the lamp out", () => {
   it('reads "state · management", lowercased', () => {
     expect(glyphTitle("waiting", "observed")).toBe("waiting · observed");
     expect(glyphTitle("working", "managed")).toBe("working · managed");
+  });
+});
+
+describe("providerBadge — foreign-CLI marker", () => {
+  it("marks codex sessions and stays silent for claude (including pre-field rows)", () => {
+    expect(providerBadge("codex")).toBe("codex");
+    expect(providerBadge("claude")).toBeNull();
+    expect(providerBadge(undefined)).toBeNull();
   });
 });

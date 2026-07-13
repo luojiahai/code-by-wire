@@ -1,14 +1,15 @@
 import type { Session } from "@shared/types";
 import { cx, Lamp } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { providerBadge } from "../ui/session-glyph";
 
 /**
  * The hermes single-line sidebar row: a 26px-tall strip with a state `Lamp` and the title — one
  * plain select button, no hover extras. The relative-time stamp moved to the right sidebar's
  * Session panel (Active row), and the copy-ID button is gone with it; no project·branch line and
- * no context-% chip either, which also live in the right sidebar now. The only extra is the
- * dimmed worktree hint on sessions that merged into their repo's folder (2026-07-09
- * worktree-merge spec).
+ * no context-% chip either, which also live in the right sidebar now. The extras are the dimmed
+ * worktree hint on sessions that merged into their repo's folder (2026-07-09 worktree-merge spec)
+ * and the provider badge on sessions a foreign CLI owns (Codex), styled to match.
  */
 export function SessionRow({
   session,
@@ -19,6 +20,7 @@ export function SessionRow({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const badge = providerBadge(session.providerId);
   return (
     <button
       type="button"
@@ -48,6 +50,14 @@ export function SessionRow({
         <span className="flex min-w-0 shrink-[2] items-center gap-1 text-[0.72rem] leading-none text-(--ui-text-quaternary)">
           <Icon name="git-branch" size={10} className="shrink-0" />
           <span className="truncate">{session.worktree.name}</span>
+        </span>
+      )}
+      {badge && (
+        <span
+          title={`${badge} session — read-only`}
+          className="shrink-0 font-mono text-[0.62rem] uppercase leading-none tracking-wider text-(--ui-text-quaternary)"
+        >
+          {badge}
         </span>
       )}
     </button>
