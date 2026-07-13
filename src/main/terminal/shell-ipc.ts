@@ -1,6 +1,6 @@
 import { app, ipcMain, type BrowserWindow, type IpcMainEvent } from "electron";
-import { accessSync, constants, statSync } from "node:fs";
-import { delimiter, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { statSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { homedir } from "node:os";
 import {
   SHELL_TERMINAL,
@@ -10,7 +10,12 @@ import {
 import { createTerminalManager } from "./manager";
 import { createPtyProcess } from "./pty-process";
 import type { Recorder } from "./recorder";
-import { resolveShellCommand, safeShellCwd } from "./shell-command";
+import {
+  resolveShellCommand,
+  safeShellCwd,
+  isExecutableFile,
+  findOnPath,
+} from "./shell-command";
 
 /** Shell sessions revive scrollback renderer-side (hermes-style, localStorage) and this surface
  *  has no reattach handler, so the manager's required recorder dep would be a headless xterm
@@ -21,53 +26,6 @@ const stubRecorder = (): Recorder => ({
   snapshot: () => Promise.resolve({ data: "", offset: 0 }),
   dispose: () => {},
 });
-
-/** Absolute path to an executable file (hermes isExecutableFile). */
-function isExecutableFile(filePath: string): boolean {
-  if (!filePath || !isAbsolute(filePath)) return false;
-  try {
-    accessSync(filePath, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function fileExists(p: string): boolean {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
-
-/** Resolve a command name against a PATH (hermes findOnPath, trimmed to what shells need). On
- *  Windows, PATHEXT extensions are tried BEFORE the bare name — Windows command resolution
- *  consults PATHEXT, so an extensionless shim must not shadow `pwsh.exe`; the bare entry stays
- *  LAST so names that already carry their extension still resolve. */
-function findOnPath(command: string, env: NodeJS.ProcessEnv): string | null {
-  if (!command) return null;
-  if (isAbsolute(command) || command.includes(sep) || command.includes("/")) {
-    return fileExists(command) ? command : null;
-  }
-  const entries = String(env.PATH || "")
-    .split(delimiter)
-    .filter(Boolean);
-  const extensions =
-    process.platform === "win32"
-      ? [
-          ...(env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean),
-          "",
-        ]
-      : [""];
-  for (const entry of entries) {
-    for (const extension of extensions) {
-      const candidate = join(entry, `${command}${extension}`);
-      if (fileExists(candidate)) return candidate;
-    }
-  }
-  return null;
-}
 
 function statKind(p: string): "dir" | "file" | null {
   try {
