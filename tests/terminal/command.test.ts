@@ -3,30 +3,19 @@ import {
   buildClaudeCommand,
   buildResumeCommand,
   buildForkCommand,
+  wrapInLoginShell,
+  toSpawnForm,
 } from "../../src/main/terminal/command";
 import { newSessionId } from "../../src/shared/terminal";
 
 describe("buildClaudeCommand", () => {
-  it("uses the resolved absolute bin when given", () => {
-    const c = buildClaudeCommand({
-      id: "abc",
-      model: "opus",
-      bin: "/real/claude",
+  it("always uses the bare 'claude' command — resolution is the login shell's job, not this app's", () => {
+    expect(buildClaudeCommand({ id: "abc", model: "opus" })).toEqual({
+      file: "claude",
+      args: ["--session-id", "abc", "--model", "opus"],
     });
-    expect(c.file).toBe("/real/claude");
-    expect(c.args).toEqual(["--session-id", "abc", "--model", "opus"]);
-  });
-  it("falls back to the bare name when no bin is given", () => {
-    delete process.env.CBW_CLAUDE_BIN;
-    expect(buildClaudeCommand({ id: "abc", model: "opus" }).file).toBe(
-      "claude",
-    );
   });
   it("pins the session id and maps the model to a stable CLI alias", () => {
-    expect(buildClaudeCommand({ id: "sid-1", model: "opus" })).toEqual({
-      file: "claude",
-      args: ["--session-id", "sid-1", "--model", "opus"],
-    });
     expect(buildClaudeCommand({ id: "sid-2", model: "sonnet" }).args).toEqual([
       "--session-id",
       "sid-2",
@@ -37,17 +26,6 @@ describe("buildClaudeCommand", () => {
       "haiku",
     );
   });
-
-  it("honors an explicit bin override (the executable, not the args)", () => {
-    const cmd = buildClaudeCommand({
-      id: "x",
-      model: "opus",
-      bin: "/opt/bin/claude",
-    });
-    expect(cmd.file).toBe("/opt/bin/claude");
-    expect(cmd.args[0]).toBe("--session-id");
-  });
-
   it("omits --model entirely for the 'default' selection", () => {
     expect(buildClaudeCommand({ id: "sid-d", model: "default" }).args).toEqual([
       "--session-id",
@@ -57,22 +35,11 @@ describe("buildClaudeCommand", () => {
 });
 
 describe("buildResumeCommand", () => {
-  it("uses the resolved bin and resume argv", () => {
-    const c = buildResumeCommand({ id: "abc", bin: "/real/claude" });
-    expect(c.file).toBe("/real/claude");
-    expect(c.args).toEqual(["--resume", "abc"]);
-  });
   it("resumes the session under its own id, with no --model (resume restores the model)", () => {
     expect(buildResumeCommand({ id: "sid-9" })).toEqual({
       file: "claude",
       args: ["--resume", "sid-9"],
     });
-  });
-
-  it("honors an explicit bin override (the executable, not the args)", () => {
-    const cmd = buildResumeCommand({ id: "x", bin: "/opt/bin/claude" });
-    expect(cmd.file).toBe("/opt/bin/claude");
-    expect(cmd.args).toEqual(["--resume", "x"]);
   });
 });
 
@@ -83,26 +50,53 @@ describe("buildForkCommand", () => {
       args: ["--resume", "src-1", "--session-id", "new-1", "--fork-session"],
     });
   });
+});
 
-  it("uses the resolved absolute bin when given (the executable, not the args)", () => {
-    const c = buildForkCommand({
-      sourceId: "a",
-      newId: "b",
-      bin: "/real/claude",
+describe("wrapInLoginShell", () => {
+  const deps = {
+    env: {},
+    isExecutable: (p: string) => p === "/bin/zsh",
+    findOnPath: () => null,
+  };
+
+  it("wraps the claude command in the resolved shell's -ilc form, quoting every token", () => {
+    const cmd = {
+      file: "claude",
+      args: ["--session-id", "abc", "--model", "opus"],
+    };
+    expect(wrapInLoginShell(cmd, deps)).toEqual({
+      file: "/bin/zsh",
+      args: ["-ilc", "'claude' '--session-id' 'abc' '--model' 'opus'"],
     });
-    expect(c.file).toBe("/real/claude");
-    expect(c.args).toEqual([
-      "--resume",
-      "a",
-      "--session-id",
-      "b",
-      "--fork-session",
-    ]);
+  });
+});
+
+describe("toSpawnForm", () => {
+  const posixShell = {
+    env: {},
+    isExecutable: (p: string) => p === "/bin/zsh",
+    findOnPath: () => null,
+  };
+
+  it("routes through the Windows shim on win32, ignoring posixShell", () => {
+    const cmd = { file: "claude", args: ["--session-id", "abc"] };
+    expect(toSpawnForm(cmd, "win32", posixShell)).toEqual({
+      file: "cmd.exe",
+      args: ["/c", "claude", "--session-id", "abc"],
+    });
   });
 
-  it("falls back to the bare name when no bin is given", () => {
-    delete process.env.CBW_CLAUDE_BIN;
-    expect(buildForkCommand({ sourceId: "a", newId: "b" }).file).toBe("claude");
+  it("wraps in the login shell on darwin/linux", () => {
+    const cmd = { file: "claude", args: ["--session-id", "abc"] };
+    expect(toSpawnForm(cmd, "darwin", posixShell)).toEqual({
+      file: "/bin/zsh",
+      args: ["-ilc", "'claude' '--session-id' 'abc'"],
+    });
+  });
+
+  it("throws if posixShell is missing on a non-win32 platform (fail loud, never silently pass through)", () => {
+    const cmd = { file: "claude", args: [] };
+    expect(() => toSpawnForm(cmd, "darwin", undefined)).toThrow(/posixShell/);
   });
 });
 
