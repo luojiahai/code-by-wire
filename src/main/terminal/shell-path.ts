@@ -1,5 +1,4 @@
 import {
-  spawn,
   spawnSync,
   type SpawnSyncOptionsWithStringEncoding,
 } from "node:child_process";
@@ -141,50 +140,4 @@ export function probeShellEnv(shell: string): ShellEnv | null {
   // timeout's kill (signal), or a nonzero shell exit (status) all mean no usable env.
   if (r.error || r.signal || r.status !== 0) return null;
   return parseShellEnv(r.stdout);
-}
-
-/** Async sibling of probeShellEnv: the same one-shot login-shell env probe, but non-blocking so a
- *  user-triggered re-check doesn't freeze the main process. Uses `spawn` (not execFile) so it can apply the
- *  same stdio discipline as the sync probe — ignore stdin and DISCARD the child's stderr. execFile has no
- *  stdio option and would buffer a chatty login rc's stderr into its (1 MB) maxBuffer, rejecting the whole
- *  probe → a spurious notFound. Null on any failure or the timeout. Untested (spawns a real shell). */
-export function probeShellEnvAsync(shell: string): Promise<ShellEnv | null> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = (v: ShellEnv | null): void => {
-      if (settled) return;
-      settled = true;
-      resolve(v);
-    };
-    try {
-      const child = spawn(shell, ["-ilc", SHELL_ENV_SCRIPT], {
-        stdio: ["ignore", "pipe", "ignore"],
-        env: {
-          ...process.env,
-          TERM: "dumb",
-          DISABLE_AUTO_UPDATE: "true",
-          GIT_TERMINAL_PROMPT: "0",
-        },
-      });
-      const timer = setTimeout(() => {
-        child.kill();
-        done(null);
-      }, SHELL_PROBE_TIMEOUT_MS);
-      let out = "";
-      child.stdout?.setEncoding("utf8");
-      child.stdout?.on("data", (chunk: string) => {
-        out += chunk;
-      });
-      child.on("error", () => {
-        clearTimeout(timer);
-        done(null);
-      });
-      child.on("close", () => {
-        clearTimeout(timer);
-        done(parseShellEnv(out));
-      });
-    } catch {
-      done(null);
-    }
-  });
 }
