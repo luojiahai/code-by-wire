@@ -62,11 +62,16 @@ interface StatusEvent {
  *  background agent. `taskId` is the agent's id; `status` is the raw <status> text —
  *  "completed" | "failed" | "killed" | "stopped" today ("killed" is a live user/Claude stop,
  *  "stopped" an agent orphaned by a CLI exit); unknown values settle as stopped unless deny-listed
- *  (NON_TERMINAL_STATUSES). */
+ *  (NON_TERMINAL_STATUSES). `kind` distinguishes the row this twin was parsed from: "enqueue" (the
+ *  queue-operation row, timestamped when the agent actually stopped) or "dequeue" (the user row,
+ *  timestamped only when the CLI delivered it — which can lag the real stop by minutes). The fold
+ *  prefers the enqueue twin's timestamp when both are present; see the dedup in
+ *  buildSubagentForest. */
 interface TaskNotification {
   taskId: string;
   status: string;
   ts: number;
+  kind: "enqueue" | "dequeue";
 }
 
 /** Status values that do NOT mean the agent stopped. A <task-notification> only fires when an agent
@@ -91,18 +96,24 @@ const NOTIFICATION_FIELDS_RE =
 /** Parse every <task-notification> block in `text`. Each block is isolated by its own closing tag
  *  before <task-id>/<status> are extracted, so a malformed block (missing one of the two fields)
  *  can never bleed into its neighbor's fields. The CLI writes each notification twice — a
- *  queue-operation row at enqueue, a user row at dequeue — and the status fold is idempotent, so
- *  parsing duplicates is harmless. */
+ *  queue-operation row at enqueue, a user row at dequeue — tagged here via `kind` so the fold can
+ *  prefer the enqueue twin's timestamp over a delayed dequeue twin's. */
 function pushNotifications(
   text: string,
   ts: number,
+  kind: "enqueue" | "dequeue",
   out: TaskNotification[],
 ): void {
   if (!text.includes("<task-notification>")) return;
   for (const block of text.matchAll(NOTIFICATION_BLOCK_RE)) {
     const fields = NOTIFICATION_FIELDS_RE.exec(block[1]);
     if (fields)
-      out.push({ taskId: fields[1].trim(), status: fields[2].trim(), ts });
+      out.push({
+        taskId: fields[1].trim(),
+        status: fields[2].trim(),
+        ts,
+        kind,
+      });
   }
 }
 
@@ -143,7 +154,7 @@ function scanRows(rows: any[]): Scan {
     const evTs = Number.isNaN(ts) ? 0 : ts;
     // The enqueue twin of a notification lives at the row's top level, before any message exists.
     if (row?.type === "queue-operation" && typeof row.content === "string")
-      pushNotifications(row.content, evTs, notifications);
+      pushNotifications(row.content, evTs, "enqueue", notifications);
     const msg = row?.message;
     if (row?.type === "assistant") {
       if (!model && typeof msg?.model === "string") model = msg.model;
@@ -152,7 +163,7 @@ function scanRows(rows: any[]): Scan {
     }
     const content = msg?.content;
     if (row?.type === "user" && typeof content === "string")
-      pushNotifications(content, evTs, notifications);
+      pushNotifications(content, evTs, "dequeue", notifications);
     if (Array.isArray(content)) {
       let resultBlocks = 0;
       let firstResultId: string | undefined;
@@ -173,7 +184,7 @@ function scanRows(rows: any[]): Scan {
           b?.type === "text" &&
           typeof b.text === "string"
         )
-          pushNotifications(b.text, evTs, notifications);
+          pushNotifications(b.text, evTs, "dequeue", notifications);
       }
       // toolUseResult is row-level, so it can only be attributed to a single-result row.
       const tur = row?.toolUseResult;
@@ -286,6 +297,12 @@ export function buildSubagentForest(
     notifications.push(...scans.get(a.agentId)!.notifications);
   notifications.push(...mainScan.notifications);
 
+  // (taskId, status) pairs that have an enqueue twin — its timestamp is the true stop time, so any
+  // dequeue twin sharing the same pair is stale, delivery-lagged news and gets skipped in statusOf.
+  const enqueuedKeys = new Set<string>();
+  for (const n of notifications)
+    if (n.kind === "enqueue") enqueuedKeys.add(`${n.taskId}\u0000${n.status}`);
+
   // Successful SendMessage deliveries merged across every transcript, the same way as notifications.
   const resumes: SendResume[] = [];
   for (const a of agents) resumes.push(...scans.get(a.agentId)!.resumes);
@@ -312,6 +329,11 @@ export function buildSubagentForest(
       events.push({ ts: r.ts, status: r.isError ? "failed" : "done" });
     for (const n of notifications) {
       if (n.taskId !== agentId) continue;
+      if (
+        n.kind === "dequeue" &&
+        enqueuedKeys.has(`${n.taskId}\u0000${n.status}`)
+      )
+        continue; // stale twin — the enqueue already captured the true stop time
       if (n.status === "completed") events.push({ ts: n.ts, status: "done" });
       else if (n.status === "failed")
         events.push({ ts: n.ts, status: "failed" });
