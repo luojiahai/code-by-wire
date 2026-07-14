@@ -1,12 +1,17 @@
 import type { ITheme } from "@xterm/xterm";
 
 /** VS Code's default integrated-terminal DARK palette (terminalColorRegistry.ts) — a fixed table,
- *  not luminance-derived. */
+ *  not luminance-derived — except background/cursorAccent, which VS Code ships as #1e1e1e but cbw
+ *  overrides to #0e0e0e to match the app's own dark chrome (--theme-neutral-chrome) exactly: the
+ *  terminal-pane frame around this canvas already follows that same literal (see index.css's
+ *  --terminal-editor-surface-background, 2026-07-15 terminal-retheme fix), so leaving VS Code's own
+ *  slightly-lighter default here would reintroduce a visible seam between the frame and the canvas
+ *  whenever both themes are Dark. */
 const DARK_THEME: ITheme = {
-  background: "#1e1e1e",
+  background: "#0e0e0e",
   foreground: "#cccccc",
   cursor: "#cccccc",
-  cursorAccent: "#1e1e1e",
+  cursorAccent: "#0e0e0e",
   selectionBackground: "#264f7866",
   black: "#000000",
   red: "#cd3131",

@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import { terminalTheme } from "../../src/renderer/src/shell-terminal/theme";
 
 describe("shell-terminal terminalTheme(mode)", () => {
-  it('returns the existing dark VS Code palette for "dark"', () => {
+  it('returns the existing dark VS Code palette for "dark", with background/cursorAccent overridden to match the app chrome', () => {
     const dark = terminalTheme("dark");
-    expect(dark.background).toBe("#1e1e1e");
+    expect(dark.background).toBe("#0e0e0e");
+    expect(dark.cursorAccent).toBe("#0e0e0e");
     expect(dark.foreground).toBe("#cccccc");
   });
 
