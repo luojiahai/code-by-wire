@@ -940,4 +940,63 @@ describe("buildSubagentForest", () => {
     );
     expect(forest[0].status).toBe("working");
   });
+
+  it("does not flap back to stopped when a stale dequeue twin lands after a resume (issue #326)", () => {
+    // The enqueue twin (queue-operation, ts=03:05) fires the instant the agent actually stops. The
+    // user resumes it via SendMessage before the CLI delivers that SAME notification's dequeue twin
+    // (user row, ts=03:08) — the late twin must not un-resume the agent.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        queueNotificationRow("a1", "stopped", "2026-06-04T03:05:00.000Z"),
+        ...sendMessageRows("sm-1", "a1", "a1", "2026-06-04T03:06:00.000Z"),
+        notificationRow("a1", "stopped", "2026-06-04T03:08:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("working");
+  });
+
+  it.each(["completed", "failed"])(
+    "does not flap back on a stale dequeue twin of a %s notification after a resume",
+    (status) => {
+      const forest = buildSubagentForest(
+        [
+          ...asyncMain("tu-1", "a1"),
+          queueNotificationRow("a1", status, "2026-06-04T03:05:00.000Z"),
+          ...sendMessageRows("sm-1", "a1", "a1", "2026-06-04T03:06:00.000Z"),
+          notificationRow("a1", status, "2026-06-04T03:08:00.000Z"),
+        ],
+        [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+      );
+      expect(forest[0].status).toBe("working");
+    },
+  );
+
+  it("still settles to the terminal status when enqueue and dequeue twins have no resume between them", () => {
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        queueNotificationRow("a1", "stopped", "2026-06-04T03:05:00.000Z"),
+        notificationRow("a1", "stopped", "2026-06-04T03:05:18.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("stopped");
+  });
+
+  it("resolves a second stop/resume cycle sharing the same status after the first cycle's twins are deduped", () => {
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        queueNotificationRow("a1", "stopped", "2026-06-04T03:05:00.000Z"),
+        notificationRow("a1", "stopped", "2026-06-04T03:05:05.000Z"),
+        ...sendMessageRows("sm-1", "a1", "a1", "2026-06-04T03:06:00.000Z"),
+        queueNotificationRow("a1", "stopped", "2026-06-04T03:07:00.000Z"),
+        notificationRow("a1", "stopped", "2026-06-04T03:07:05.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("stopped");
+  });
 });
