@@ -19,17 +19,38 @@ function spread(hex: string): number {
   return Math.max(r, g, b) - Math.min(r, g, b);
 }
 
-/**
- * Read a `--color-<name>` value out of the @theme block, as a hex triplet. Most tokens are a
- * plain hex; the hermes Mono text tiers (fg/fg-muted/fg-faint) are `color-mix(in srgb, #hex N%,
- * transparent)` — the regex tolerates the color-mix() wrapper and pulls out its hex argument.
- */
+/** Extract a `--<name>: <value>;` declaration's raw right-hand side — the FIRST such declaration in
+ *  the file, i.e. the base `:root`/`@theme` block, not a later `[data-theme="light"]` override. */
+function rawVar(name: string): string {
+  const m = new RegExp(`--${name}:\\s*([^;]+);`).exec(css);
+  if (!m) throw new Error(`custom property --${name} not found in index.css`);
+  return m[1].trim();
+}
+
+/** Resolve a token's value down to a literal #hex, following `var(--x)` indirection (through as
+ *  many layers as needed — e.g. --color-fg -> --ui-text-primary -> --ui-base -> --theme-foreground)
+ *  until a literal hex is reached. */
+function resolveToHex(expr: string): string {
+  const varMatch = /var\(--([a-z0-9-]+)\)/i.exec(expr);
+  if (varMatch) return resolveToHex(rawVar(varMatch[1]));
+  const hex = /#[0-9a-fA-F]{6}/.exec(expr);
+  if (hex) return hex[0];
+  throw new Error(`could not resolve a hex color from: ${expr}`);
+}
+
+/** Read a `--color-<name>` token all the way down to its literal hex value. */
 function token(name: string): string {
-  const m = new RegExp(
-    `--color-${name}:\\s*(?:color-mix\\([^,]+,\\s*)?(#[0-9a-fA-F]{6})`,
-  ).exec(css);
-  if (!m) throw new Error(`token --color-${name} not found in index.css`);
-  return m[1];
+  return resolveToHex(rawVar(`color-${name}`));
+}
+
+/** Extract a `--<name>: <value>;` declaration's raw right-hand side specifically from within the
+ *  `:root[data-theme="light"]` override block (not the base :root block above it). */
+function lightVar(name: string): string {
+  const block = /:root\[data-theme="light"\]\s*\{([^}]*)\}/.exec(css);
+  if (!block) throw new Error('no :root[data-theme="light"] block found');
+  const m = new RegExp(`--${name}:\\s*([^;]+);`).exec(block[1]);
+  if (!m) throw new Error(`--${name} not found in the light override block`);
+  return m[1].trim();
 }
 
 // The surface/border stack — the "background colors", darkest to lightest. ink-600 is excluded:
@@ -142,5 +163,41 @@ describe("packaged build renders sRGB (mascot color matches dev)", () => {
     expect(main).toMatch(
       /appendSwitch\(\s*['"]force-color-profile['"]\s*,\s*['"]srgb['"]\s*\)/,
     );
+  });
+});
+
+describe("token consolidation (no duplicate light-blind literals)", () => {
+  it("--color-primary aliases --theme-primary instead of duplicating a literal", () => {
+    expect(rawVar("color-primary")).toBe("var(--theme-primary)");
+  });
+
+  it("--color-fg/-fg-muted/-fg-faint alias the --ui-text-* tiers instead of duplicating a literal", () => {
+    expect(rawVar("color-fg")).toBe("var(--ui-text-primary)");
+    expect(rawVar("color-fg-muted")).toBe("var(--ui-text-secondary)");
+    expect(rawVar("color-fg-faint")).toBe("var(--ui-text-tertiary)");
+  });
+
+  it("--color-ink-950/-925 alias the chrome/card neutrals instead of duplicating a literal", () => {
+    expect(rawVar("color-ink-950")).toBe("var(--theme-neutral-chrome)");
+    expect(rawVar("color-ink-925")).toBe("var(--theme-neutral-card)");
+  });
+});
+
+describe("light theme overrides", () => {
+  it("light foreground/primary invert to near-black, mirroring dark's own foreground=primary rule", () => {
+    expect(lightVar("theme-foreground")).toBe("#161616");
+    expect(lightVar("theme-primary")).toBe("#161616");
+  });
+
+  it("light neutrals are near-white surfaces", () => {
+    expect(lightVar("theme-neutral-chrome")).toBe("#ffffff");
+    expect(lightVar("theme-neutral-sidebar")).toBe("#f5f5f5");
+    expect(lightVar("theme-neutral-card")).toBe("#ffffff");
+  });
+
+  it("light red/green/cyan use hermes-agent's light-mode hues, distinct from the dark overrides", () => {
+    expect(lightVar("ui-red")).toBe("#cf2d56");
+    expect(lightVar("ui-green")).toBe("#1f8a65");
+    expect(lightVar("ui-cyan")).toBe("#4c7f8c");
   });
 });

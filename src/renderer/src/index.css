@@ -4,26 +4,17 @@
    neutral surfaces, no accent hue — primary = foreground. Amber still reserved for Waiting,
    red/green for failed/done. Token names kept, values re-mapped to the hermes --ui-* layer below. */
 @theme {
-  /* Surface stack (neutral grayscale). */
+  /* Surface stack (neutral grayscale). ink-950/ink-925 moved to the `@theme inline` block below —
+     they now alias the seed layer (--theme-neutral-chrome/-card) instead of a literal, so the
+     `:root[data-theme="light"]` override (added below) drives both this stack and the --ui-* layer
+     from one source instead of two disconnected literals that could silently drift. */
   --color-well: #080808; /* sunken: terminal, inputs, code blocks */
-  --color-ink-950: #0e0e0e; /* app canvas / middle */
-  --color-ink-925: #141414; /* cards, rails, panels */
   --color-ink-900: #181818; /* raised: headers, chips, menus, popover */
   --color-ink-850: #1e1e1e; /* subtle hover / faint divider */
   --color-ink-800: #2a2a2a; /* default hairline border */
   --color-ink-750: #303030; /* hover on raised surfaces */
   --color-ink-700: #3a3a3a; /* strong border */
   --color-ink-600: #4a4a4a; /* Ended state, dim glyphs (was bluish #49525f) */
-
-  /* Text — hermes Mono text tiers (alias re-point; out-of-scope pages inherit). */
-  --color-fg: color-mix(in srgb, #eaeaea 94%, transparent);
-  --color-fg-muted: color-mix(in srgb, #eaeaea 74%, transparent);
-  --color-fg-faint: color-mix(in srgb, #eaeaea 54%, transparent);
-
-  /* Primary — hermes Mono is grayscale: primary = foreground. Teal retired. */
-  --color-primary: #eaeaea;
-  --color-primary-bright: #ffffff;
-  --color-primary-deep: #c8c8c8;
 
   /* Status hues — reserved for session state, never decorative */
   --color-working: #2dd4bf; /* live = the teal accent (was blue #2f95f5) */
@@ -114,6 +105,22 @@
   --radius-2xl: calc(var(--radius-scalar) * 1.5rem); /* 7.2px */
   --radius-3xl: calc(var(--radius-scalar) * 2rem); /* 9.6px */
   --radius-4xl: calc(var(--radius-scalar) * 2.5rem); /* 12px */
+
+  /* Theme-dependent tokens: alias the seed/--ui-* layer instead of a literal, so the single
+     `:root[data-theme="light"]` override below drives both the Tailwind utility layer and the
+     --ui-* layer from one source (2026-07-14 light-theme design doc). */
+  --color-ink-950: var(--theme-neutral-chrome); /* app canvas / middle */
+  --color-ink-925: var(--theme-neutral-card); /* cards, rails, panels */
+  --color-fg: var(--ui-text-primary);
+  --color-fg-muted: var(--ui-text-secondary);
+  --color-fg-faint: var(--ui-text-tertiary);
+  --color-primary: var(--theme-primary);
+  /* Self-computing hover/press states instead of separate light-mode literals: hover lightens,
+     press darkens, in either mode. Approximate the original dark literals (#ffffff/#c8c8c8);
+     exact percentages are cosmetic and were spot-checked in the manual smoke test (see the plan's
+     final task). */
+  --color-primary-bright: color-mix(in srgb, var(--theme-primary), white 40%);
+  --color-primary-deep: color-mix(in srgb, var(--theme-primary), black 15%);
 }
 
 :root {
@@ -320,6 +327,42 @@
     0 0.5rem 0.75rem -0.375rem color-mix(in srgb, #000 6%, transparent),
     0 1.25rem 1.75rem -0.875rem color-mix(in srgb, #000 6%, transparent),
     0 2.25rem 3rem -1.75rem color-mix(in srgb, #000 0%, transparent);
+}
+
+/* Light theme override — the light variant of hermes-agent's Mono skin. hermes-agent never
+   hand-authored a light Mono palette; its light mode is synthesized at runtime from the dark seed
+   via synthLightColors() (apps/desktop/src/themes/context.tsx). These are the exact values that
+   function computes for Mono, with one deliberate deviation: --theme-primary is set to = foreground
+   (mirroring the dark theme's own hand-authored rule, presets.ts's monoTheme.colors), not to
+   synthLightColors()'s accent-gray output (an unreviewed synthesis artifact, not a hermes-agent
+   design decision) — see the 2026-07-14 light-theme design doc §4.
+   Only the seeds + the three dark-tuned accent hues need overriding; every --ui-* token below this
+   derives from them automatically via the color-mix() formulas already in the :root block above,
+   and the mix-ratio knobs (--theme-mix-chrome etc.) stay numerically identical in both modes: for
+   the Mono skin, seed always equals neutral, so the mix percentage is a no-op either way. */
+:root[data-theme="light"] {
+  --theme-foreground: #161616;
+  --theme-primary: #161616;
+  --theme-neutral-chrome: #ffffff;
+  --theme-neutral-sidebar: #f5f5f5;
+  --theme-neutral-card: #ffffff;
+  --ui-red: #cf2d56;
+  --ui-green: #1f8a65;
+  --ui-cyan: #4c7f8c;
+
+  /* The plain surface ladder and --color-well aren't part of the --ui-*/--theme-* derivation chain
+     (see Task 1's design doc §2), so they get their own literals here. ink-800/ink-750 are
+     hermes-sourced (its synthesized border/input surfaces); the rest of the ladder and --color-well
+     are a reasonable descending-lightness ramp, spot-checked in the manual smoke test. */
+  --color-well: #f2f2f2;
+  --color-ink-900: #f5f5f5; /* raised: headers, chips, menus, popover */
+  --color-ink-850: #eeeeee; /* subtle hover / faint divider */
+  --color-ink-800: #e1e1e3; /* default hairline border (hermes's synthesized border) */
+  --color-ink-750: #d5d5d8; /* hover on raised surfaces (hermes's synthesized input) */
+  --color-ink-700: #c4c4c8; /* strong border */
+  --color-ink-600: #a8a8ac; /* Ended state, dim glyphs */
+  --color-sidebar: #f5f5f5;
+  --color-sidebar-border: #d8d8db;
 }
 
 html,
