@@ -73,3 +73,51 @@ describe("statuslineEnabled preference", () => {
     expect(store.read().statuslineEnabled).toBe(false);
   });
 });
+
+describe("appTheme preference", () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+  function tmp(): string {
+    const d = mkdtempSync(join(tmpdir(), "cbw-app-settings-"));
+    dirs.push(d);
+    return d;
+  }
+
+  it('is undefined by default (callers read ?? "dark"), persists, and round-trips', () => {
+    const dir = tmp();
+    const store = createAppSettingsStore({ dir });
+    expect(store.read().appTheme).toBeUndefined();
+
+    store.setAppTheme("light");
+    expect(store.read().appTheme).toBe("light");
+    expect(
+      JSON.parse(readFileSync(join(dir, "settings.json"), "utf8")).appTheme,
+    ).toBe("light");
+
+    store.setAppTheme("dark");
+    expect(store.read().appTheme).toBe("dark");
+  });
+});
+
+describe("terminalTheme preference", () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+  function tmp(): string {
+    const d = mkdtempSync(join(tmpdir(), "cbw-app-settings-"));
+    dirs.push(d);
+    return d;
+  }
+
+  it("is independent of appTheme and persists separately", () => {
+    const dir = tmp();
+    const store = createAppSettingsStore({ dir });
+    store.setAppTheme("light");
+    store.setTerminalTheme("dark");
+    expect(store.read().appTheme).toBe("light");
+    expect(store.read().terminalTheme).toBe("dark");
+  });
+});

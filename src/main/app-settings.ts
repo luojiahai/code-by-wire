@@ -10,12 +10,20 @@ export interface AppSettings {
   /** Whether the statusLine capture wrapper is installed at launch and active. Missing means on;
    *  callers read `read().statuslineEnabled ?? true`. */
   statuslineEnabled?: boolean;
+  /** The app chrome's theme (panels, sidebar, settings, markdown code blocks). Missing means dark;
+   *  callers read `read().appTheme ?? "dark"`. */
+  appTheme?: "dark" | "light";
+  /** The terminal panels' theme (interactive shell rail + observed session terminal), independent
+   *  of appTheme. Missing means dark; callers read `read().terminalTheme ?? "dark"`. */
+  terminalTheme?: "dark" | "light";
 }
 
 export interface AppSettingsStore {
   read(): AppSettings;
   setAutoCheckUpdates(enabled: boolean): void;
   setStatuslineEnabled(enabled: boolean): void;
+  setAppTheme(theme: "dark" | "light"): void;
+  setTerminalTheme(theme: "dark" | "light"): void;
 }
 
 export interface AppSettingsDeps {
@@ -51,6 +59,12 @@ export function createAppSettingsStore(
     },
     setStatuslineEnabled(enabled) {
       write({ ...read(), statuslineEnabled: enabled });
+    },
+    setAppTheme(theme) {
+      write({ ...read(), appTheme: theme });
+    },
+    setTerminalTheme(theme) {
+      write({ ...read(), terminalTheme: theme });
     },
   };
 }
