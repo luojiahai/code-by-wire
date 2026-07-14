@@ -294,36 +294,44 @@
   );
   --stroke-nous: color-mix(in srgb, currentColor 3%, transparent);
 
-  /* Surface aliases (hermes styles.css:256-268). */
+  /* Surface aliases (hermes styles.css:256-268). --ui-editor-surface-background stays a plain
+     App-theme alias: it backs the terminal Pane's OUTER wrapper (App.tsx), the tab rail, and the
+     persistent overlay (shell-terminal/{rail,persistent}.tsx) — chrome that borders the rest of the
+     app on its outer edges, not the xterm canvas itself, so it stays App-themed like everything else
+     around it. (An earlier version of this fix aliased this token to
+     --terminal-editor-surface-background below instead, making ALL FOUR consumers Terminal-themed —
+     reverted 2026-07-15: pixel-sampling the original bug traced it entirely to instance.tsx's own
+     wrapper, so repointing the rail/Pane/overlay too was unnecessary scope that would have required a
+     second set of Terminal-theme-scoped foreground/stroke/hover tokens just to keep the rail's icons
+     legible against its own newly-Terminal-themed background — solved instead by not moving the rail
+     off App theme in the first place.) */
   --ui-surface-background: var(--ui-bg-editor);
   --ui-sidebar-surface-background: var(--ui-bg-sidebar);
   --ui-chat-surface-background: var(--ui-bg-chrome);
+  --ui-editor-surface-background: var(--ui-bg-chrome);
 
-  /* --ui-editor-surface-background is consumed ONLY by the terminal pane's own chrome (App.tsx's
-     terminal Pane wrapper, shell-terminal/{rail,instance,persistent}.tsx) and the observed-session
-     terminal's container (terminal/TerminalView.tsx, via --terminal-well-background below) — never
-     a real "editor" surface despite the name. It used to alias --ui-bg-chrome (App theme), which was
-     fine back when the terminal had no theme of its own, but silently breaks Terminal theme (an
-     independent setting — 2026-07-14 light-theme design doc §7).
-     Pixel-verified root cause (live Playwright, before this fix): xterm's OWN canvas — the actual
-     text grid, `.xterm-screen`/`.xterm-viewport`'s content — already repaints correctly the instant
+  /* Backs ONLY shell-terminal/instance.tsx's own wrapper — the ~8-16px padding (`px-2 pb-2`)
+     immediately around the xterm host, plus its `.xterm-screen`/`.xterm-viewport` !important
+     overrides — referenced directly (not through --ui-editor-surface-background above, which stays
+     App-theme; see that comment for why the two diverge).
+     Pixel-verified root cause (live Playwright, 2026-07-15): xterm's OWN canvas — the actual text
+     grid, `.xterm-screen`/`.xterm-viewport`'s content — already repaints correctly the instant
      `term.options.theme` is reassigned; there was never a WebGL/xterm repaint bug. What's ACTUALLY
-     wrong is this chrome: the ~8-16px padding this token backs (instance.tsx's `px-2 pb-2` on the
-     wrapper around the xterm host, plus the matching rail/pane-wrapper surface) stayed locked to
+     wrong is this one wrapper's own padding, which — before this token existed — stayed locked to
      App theme's dark/light value, producing a persistent wrong-colored FRAME around an otherwise
      correctly-repainted terminal. At a glance (especially in a small/downscaled screenshot) that
      frame reads as "the terminal didn't repaint at all" — which is exactly how this was first
-     reported — but a pixel-level crop shows the interior was white/light the whole time; only this
-     ~8-16px border stayed on the app's color. Sourced from --terminal-editor-surface-background
-     below instead, a seed scoped to Terminal theme (:root[data-terminal-theme], set from
-     $terminalTheme in ui/appearance-store.ts), not App theme (:root[data-theme]). Dark literal
-     matches the app's own dark --theme-neutral-chrome (#0e0e0e) so today's blended look is unchanged
-     when both themes are dark; the light override two blocks down matches the terminal JS themes'
-     own literal `background` (#ffffff in both shell-terminal/theme.ts and terminal/xterm-factory.ts)
-     exactly, per that same spec section's "use the terminal theme table's own literal background
-     value unconditionally". */
+     reported — but a pixel-level crop of instance.tsx's own `data-terminal` bounding box shows the
+     interior was white/light the whole time; only an ~8-16px border stayed on the app's color,
+     confirming the bug lives entirely inside this one wrapper.
+     Scoped to Terminal theme (:root[data-terminal-theme], set from $terminalTheme in
+     ui/appearance-store.ts), not App theme (:root[data-theme]). Dark literal matches the app's own
+     dark --theme-neutral-chrome (#0e0e0e) so today's blended look is unchanged when both themes are
+     dark; the light override two blocks down matches the terminal JS themes' own literal
+     `background` (#ffffff in both shell-terminal/theme.ts and terminal/xterm-factory.ts) exactly,
+     per the 2026-07-14 light-theme design doc §7's "use the terminal theme table's own literal
+     background value unconditionally". */
   --terminal-editor-surface-background: #0e0e0e;
-  --ui-editor-surface-background: var(--terminal-editor-surface-background);
 
   /* Backs terminal/TerminalView.tsx's container (the observed-session terminal, a completely
      different UI region from the shell-terminal pane above) — same Terminal-theme-scoped rationale,

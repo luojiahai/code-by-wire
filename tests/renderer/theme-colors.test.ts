@@ -157,10 +157,15 @@ describe("terminal well matches the theme", () => {
 
 describe("terminal-pane chrome tokens follow Terminal theme, not App theme", () => {
   // Regression coverage for the 2026-07-15 terminal-retheme fix: --terminal-editor-surface-background
-  // and --terminal-well-background were introduced so the terminal's own chrome (padding, tab rail,
-  // pane overlay, observed-session container) follows $terminalTheme instead of App theme. Their
-  // literals were chosen to match specific sources of truth "exactly" per the fix's own CSS comments —
-  // pin that relationship here so a future edit to any one side can't silently desync from the others.
+  // and --terminal-well-background were introduced so the terminal's own inset (instance.tsx's
+  // padding, directly touching the xterm canvas) and the observed-session container follow
+  // $terminalTheme instead of App theme. Their literals were chosen to match specific sources of
+  // truth "exactly" per the fix's own CSS comments — pin that relationship here so a future edit to
+  // any one side can't silently desync from the others.
+  //
+  // Deliberately NOT Terminal-themed (an earlier version of this fix moved these too, then reverted
+  // it same-day): the Pane's outer wrapper, the tab rail, and the persistent overlay all stay on the
+  // plain App-theme --ui-editor-surface-background alias — see that token's own comment in index.css.
 
   /** Extract a `--<name>: <value>;` declaration's raw right-hand side specifically from within the
    *  `:root[data-terminal-theme="light"]` override block. */
@@ -182,6 +187,10 @@ describe("terminal-pane chrome tokens follow Terminal theme, not App theme", () 
     expect(rawVar("terminal-editor-surface-background").toLowerCase()).toBe(
       rawVar("theme-neutral-chrome").toLowerCase(),
     );
+  });
+
+  it("--ui-editor-surface-background stays a plain App-theme alias, NOT the Terminal-theme token (rail/Pane/overlay stay App-themed)", () => {
+    expect(rawVar("ui-editor-surface-background")).toBe("var(--ui-bg-chrome)");
   });
 
   it("dark --terminal-well-background equals xterm-factory's own DARK_THEME background", () => {
