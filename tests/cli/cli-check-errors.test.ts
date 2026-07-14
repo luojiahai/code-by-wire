@@ -13,7 +13,10 @@ describe("classifyVersionError", () => {
   it("maps ENOENT (spawn failure) to spawnError — the binary isn't really there", () => {
     expect(classifyVersionError("ENOENT")).toEqual({ status: "spawnError" });
   });
-  it("maps a non-zero exit code to failed", () => {
+  it("maps exit 127 (a POSIX shell's 'command not found') to spawnError — the outer execFile succeeded (the shell itself ran fine), so ENOENT never fires; 127 is how a shell-wrapped probe reports the same 'not really there'", () => {
+    expect(classifyVersionError(127)).toEqual({ status: "spawnError" });
+  });
+  it("maps a non-zero exit code (other than 127) to failed", () => {
     expect(classifyVersionError(1)).toEqual({ status: "failed" });
   });
   it("maps a timeout (null code) to failed", () => {
