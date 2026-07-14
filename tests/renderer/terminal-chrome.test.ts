@@ -16,15 +16,24 @@ const workspace = readFileSync(
 );
 
 describe("terminal chrome — borderless, padded, edge scrollbar", () => {
-  it("the container has no border or radius and keeps the well background", () => {
-    const m = /className="([^"]*\bbg-well\b[^"]*)"/.exec(view);
-    expect(m, "TerminalView container className with bg-well").toBeTruthy();
+  it("the container has no border or radius and follows Terminal theme, not the app well", () => {
+    // Was plain `bg-well` (an App-theme token shared with inputs/code blocks) until the 2026-07-15
+    // terminal-retheme fix: that coupling left this container's padding gutter locked to App theme,
+    // producing a wrong-colored frame around the terminal whenever Terminal theme diverged from App
+    // theme (and, since xterm's own canvas already repaints correctly on a theme change, made an
+    // otherwise-correctly-repainted terminal LOOK stale — the frame is what actually didn't move).
+    // --terminal-well-background is the Terminal-theme-scoped seed (index.css) that replaces it —
+    // #080808 in dark mode, matching --color-well's own dark literal exactly, so this assertion's
+    // original intent (padding gutter stays #080808 in dark mode) still holds.
+    const m =
+      /className="([^"]*\bbg-\(--terminal-well-background\)[^"]*)"/.exec(view);
+    expect(
+      m,
+      "TerminalView container className with bg-(--terminal-well-background)",
+    ).toBeTruthy();
     const cls = m![1];
     expect(cls, "hairline border removed").not.toMatch(/\bborder\b/);
     expect(cls, "corner radius removed (square)").not.toMatch(/\brounded/);
-    expect(cls, "well kept so the padding gutter stays #080808").toContain(
-      "bg-well",
-    );
   });
 
   it("pads the .xterm element so FitAddon fits the content inside the padding", () => {

@@ -298,7 +298,43 @@
   --ui-surface-background: var(--ui-bg-editor);
   --ui-sidebar-surface-background: var(--ui-bg-sidebar);
   --ui-chat-surface-background: var(--ui-bg-chrome);
-  --ui-editor-surface-background: var(--ui-bg-chrome);
+
+  /* --ui-editor-surface-background is consumed ONLY by the terminal pane's own chrome (App.tsx's
+     terminal Pane wrapper, shell-terminal/{rail,instance,persistent}.tsx) and the observed-session
+     terminal's container (terminal/TerminalView.tsx, via --terminal-well-background below) — never
+     a real "editor" surface despite the name. It used to alias --ui-bg-chrome (App theme), which was
+     fine back when the terminal had no theme of its own, but silently breaks Terminal theme (an
+     independent setting — 2026-07-14 light-theme design doc §7).
+     Pixel-verified root cause (live Playwright, before this fix): xterm's OWN canvas — the actual
+     text grid, `.xterm-screen`/`.xterm-viewport`'s content — already repaints correctly the instant
+     `term.options.theme` is reassigned; there was never a WebGL/xterm repaint bug. What's ACTUALLY
+     wrong is this chrome: the ~8-16px padding this token backs (instance.tsx's `px-2 pb-2` on the
+     wrapper around the xterm host, plus the matching rail/pane-wrapper surface) stayed locked to
+     App theme's dark/light value, producing a persistent wrong-colored FRAME around an otherwise
+     correctly-repainted terminal. At a glance (especially in a small/downscaled screenshot) that
+     frame reads as "the terminal didn't repaint at all" — which is exactly how this was first
+     reported — but a pixel-level crop shows the interior was white/light the whole time; only this
+     ~8-16px border stayed on the app's color. Sourced from --terminal-editor-surface-background
+     below instead, a seed scoped to Terminal theme (:root[data-terminal-theme], set from
+     $terminalTheme in ui/appearance-store.ts), not App theme (:root[data-theme]). Dark literal
+     matches the app's own dark --theme-neutral-chrome (#0e0e0e) so today's blended look is unchanged
+     when both themes are dark; the light override two blocks down matches the terminal JS themes'
+     own literal `background` (#ffffff in both shell-terminal/theme.ts and terminal/xterm-factory.ts)
+     exactly, per that same spec section's "use the terminal theme table's own literal background
+     value unconditionally". */
+  --terminal-editor-surface-background: #0e0e0e;
+  --ui-editor-surface-background: var(--terminal-editor-surface-background);
+
+  /* Backs terminal/TerminalView.tsx's container (the observed-session terminal, a completely
+     different UI region from the shell-terminal pane above) — same Terminal-theme-scoped rationale,
+     kept as its own token rather than reusing --terminal-editor-surface-background because the two
+     terminal instances' JS themes disagree on the dark literal (xterm-factory.ts's DARK_THEME.
+     background is #080808, not #1e1e1e/#0e0e0e); this dark default matches that exactly (it's also
+     --color-well's own dark literal — deliberately, since this container replaces a --color-well
+     bg-well class that had the same blend-with-app-theme bug). The light override two blocks down is
+     #ffffff — xterm-factory's LIGHT_THEME.background, NOT --color-well's own light literal
+     (#f2f2f2) — per the same "use the terminal theme's own literal background" rule. */
+  --terminal-well-background: #080808;
 
   /* Sidebar aliases (hermes styles.css:379-388), using the dark 12% variant
      for --sidebar-edge-border (styles.css:415). */
@@ -365,6 +401,17 @@
   /* Primary hover/press state overrides for light mode — lighter gray for hover, pure black for press */
   --color-primary-bright: #2e2e2e;
   --color-primary-deep: #000000;
+}
+
+/* Terminal theme override — independent of App theme above (:root[data-theme]); driven by
+   $terminalTheme via document.documentElement.dataset.terminalTheme (ui/appearance-store.ts), so a
+   Dark app + Light terminal (or vice versa) is a real, supported combination, not an edge case.
+   Both literals are #ffffff because both terminal JS themes' own LIGHT_THEME.background are #ffffff
+   (shell-terminal/theme.ts and terminal/xterm-factory.ts) — see the two seeds' definitions above for
+   why they diverge on the dark side but agree here. */
+:root[data-terminal-theme="light"] {
+  --terminal-editor-surface-background: #ffffff;
+  --terminal-well-background: #ffffff;
 }
 
 html,

@@ -29,4 +29,18 @@ describe("appearance-store", () => {
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(document.documentElement.style.colorScheme).toBe("dark");
   });
+
+  it("setting $terminalTheme updates document.documentElement's data-terminal-theme, independent of data-theme/color-scheme", () => {
+    // Regression test for the terminal-retheme fix: index.css's terminal-pane chrome
+    // (--terminal-editor-surface-background/--terminal-well-background) reads this attribute, not
+    // data-theme, so it must move independently of App theme's own attribute/colorScheme writes.
+    $appTheme.set("dark");
+    $terminalTheme.set("light");
+    expect(document.documentElement.dataset.terminalTheme).toBe("light");
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement.style.colorScheme).toBe("dark");
+
+    $terminalTheme.set("dark");
+    expect(document.documentElement.dataset.terminalTheme).toBe("dark");
+  });
 });

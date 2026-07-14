@@ -44,4 +44,15 @@ if (typeof document !== "undefined") {
     document.documentElement.dataset.theme = mode;
     document.documentElement.style.colorScheme = mode;
   });
+  // Terminal theme is JS-only otherwise — use-terminal-session.ts/xterm-factory.ts subscribe
+  // $terminalTheme to re-theme their own Terminal instances, but nothing mirrors it into the DOM, so
+  // CSS has no way to tell the two themes apart. A handful of CSS surfaces need to follow Terminal
+  // theme instead of App theme (the terminal pane's own chrome + the observed-session terminal's
+  // container — see index.css's --terminal-editor-surface-background/--terminal-well-background),
+  // so mirror $appTheme's own data-theme pattern with a second, independent attribute. No
+  // colorScheme write here — that's a document-wide (native form controls/scrollbars) concern that
+  // belongs to App theme alone.
+  $terminalTheme.subscribe((mode) => {
+    document.documentElement.dataset.terminalTheme = mode;
+  });
 }
