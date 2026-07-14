@@ -624,6 +624,7 @@ function MiddleNonSession({
         transcriptOn={false}
         onToggleTranscript={() => {}}
         onExitDrill={() => {}}
+        drilled={false}
         leftEdgeExposed={leftEdgeExposed}
         rightEdgeExposed={false}
         menu={null}

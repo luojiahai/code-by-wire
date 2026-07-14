@@ -56,6 +56,13 @@ export function SubagentDrill({
   return (
     <div className="flex h-full flex-col">
       <Breadcrumb crumbs={crumbs} onNavigate={onNavigate} />
+      {/* MiddleHeader's own bottom shadow is suppressed while drilled (its `drilled` prop) — the
+       *  breadcrumb bar sits where that shadow would otherwise land, so this is a second copy
+       *  positioned one level lower, over the feed's own top padding instead. */}
+      <div
+        aria-hidden
+        className="pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b from-(--ui-chat-surface-background) to-transparent"
+      />
       <OverlayScroll className="min-h-0 flex-1">
         {doc === null ? (
           <Center>No transcript on disk for this subagent yet.</Center>
@@ -83,7 +90,7 @@ function Breadcrumb({
   onNavigate: (depth: number) => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-(--ui-chat-surface-background) px-4 pb-2 pt-4 text-meta">
+    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-4 py-2 text-meta">
       <button
         type="button"
         onClick={() => onNavigate(0)}

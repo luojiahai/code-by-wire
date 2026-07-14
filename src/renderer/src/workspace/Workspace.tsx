@@ -84,6 +84,7 @@ export function Workspace({
         transcriptOn={transcriptOn}
         onToggleTranscript={() => setTranscriptOn((v) => !v)}
         onExitDrill={() => setDrill([])}
+        drilled={drill.length > 0}
         leftEdgeExposed={leftEdgeExposed}
         rightEdgeExposed={rightEdgeExposed}
         menu={
