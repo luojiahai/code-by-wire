@@ -1,6 +1,6 @@
 import { Center, TranscriptFeed } from "./TranscriptView";
 import type { DocState } from "./use-transcript";
-import { cx, focusRing } from "../ui/atoms";
+import { cx, focusRing, ScrollHintShadow } from "../ui/atoms";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import type { DispatchDrill } from "./drill-index";
 import { useTranscriptModals } from "./use-transcript-modals";
@@ -56,13 +56,10 @@ export function SubagentDrill({
   return (
     <div className="flex h-full flex-col">
       <Breadcrumb crumbs={crumbs} onNavigate={onNavigate} />
-      {/* MiddleHeader's own bottom shadow is suppressed while drilled (its `drilled` prop) — the
-       *  breadcrumb bar sits where that shadow would otherwise land, so this is a second copy
-       *  positioned one level lower, over the feed's own top padding instead. */}
-      <div
-        aria-hidden
-        className="pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b from-(--ui-chat-surface-background) to-transparent"
-      />
+      {/* MiddleHeader's own ScrollHintShadow is suppressed while drilled (its `drilled` prop) — the
+       *  breadcrumb bar sits where that shadow would otherwise land, so this is the same shared
+       *  shadow positioned one level lower, over the feed's own top padding instead. */}
+      <ScrollHintShadow />
       <OverlayScroll className="min-h-0 flex-1">
         {doc === null ? (
           <Center>No transcript on disk for this subagent yet.</Center>

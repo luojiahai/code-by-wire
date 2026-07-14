@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Session } from "@shared/types";
 import { isMacPlatform } from "@shared/platform";
-import { cx } from "../ui/atoms";
+import { cx, ScrollHintShadow } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
 import { useFullscreen } from "../ui/use-fullscreen";
 import { headerRightPaddingPx, titlebarContentInsetPx } from "./titlebar";
@@ -104,12 +104,7 @@ export function MiddleHeader({
           )}
         </div>
       </header>
-      {!drilled && (
-        <div
-          aria-hidden
-          className="pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b from-(--ui-chat-surface-background) to-transparent"
-        />
-      )}
+      {!drilled && <ScrollHintShadow />}
     </>
   );
 }
