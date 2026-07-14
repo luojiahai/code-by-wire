@@ -79,10 +79,10 @@ interface TaskNotification {
 /** A level observation read directly off a `TaskOutput` poll's structured result
  *  (`toolUseResult.task`) — present on EVERY poll, blocking or not, terminal or not. Unlike a
  *  <task-notification> (an edge event that only fires once, at the moment an agent stops), a poll
- *  reports "this task's status was `status` as of `ts`" — so a non-terminal value here is real
- *  evidence the agent is alive, not noise; `statusOf`'s poll loop folds it differently for exactly
- *  that reason. `taskId` is the polled task's id (an agent id, or a foreign task the fold's
- *  `taskId !== agentId` filter drops). */
+ *  reports "this task's status was `status` as of `ts`" — so in `statusOf`'s poll loop, a
+ *  NON-terminal value pushes a `working` event (the agent is observably alive) rather than being a
+ *  no-op like it is for a notification. `taskId` is the polled task's id (an agent id, or a foreign
+ *  task the fold's `taskId !== agentId` filter drops). */
 interface PollObservation {
   taskId: string;
   status: string;
@@ -297,9 +297,11 @@ function reaches(
  * root subagent is dispatched from the main transcript; a nested one is dispatched from inside its
  * parent agent's transcript. Status folds the agent's lifecycle events in timestamp order (last wins):
  * the dispatch's tool_result (is_error ⇒ failed, else done — but a background launch ack, toolUseResult
- * "async_launched", is a receipt and contributes nothing), and its <task-notification> stop signals
- * (completed ⇒ done, failed ⇒ failed, any other stop word ⇒ stopped, known non-terminal names ⇒
- * no-op), and successful SendMessage deliveries (⇒ working again until the next stop); no events ⇒
+ * "async_launched", is a receipt and contributes nothing), its <task-notification> stop signals and
+ * TaskOutput poll observations (terminalStatusFor: completed ⇒ done, failed ⇒ failed, any other stop
+ * word ⇒ stopped — a notification's non-terminal value is a no-op, but a poll's is a live "still
+ * working" observation, since a poll can be read many times while a notification only fires once at
+ * stop), and successful SendMessage deliveries (⇒ working again until the next stop); no events ⇒
  * working. The output is always an acyclic forest, even on malformed input. Pure: same input, same
  * output.
  */
@@ -391,8 +393,14 @@ export function buildSubagentForest(
     }
     for (const p of pollObservations) {
       if (p.taskId !== agentId) continue;
-      const mapped = terminalStatusFor(p.status);
-      if (mapped) events.push({ ts: p.ts, status: mapped });
+      // Unlike a notification (a one-shot edge event fired only at stop), a poll can be read many
+      // times while the agent is still running — a non-terminal status here is a live "still
+      // working" observation, not noise, so it reasserts working rather than being dropped as a
+      // no-op.
+      events.push({
+        ts: p.ts,
+        status: terminalStatusFor(p.status) ?? "working",
+      });
     }
     for (const rs of resumes) {
       const target = knownIds.has(rs.to) ? rs.to : rs.resolvedId;

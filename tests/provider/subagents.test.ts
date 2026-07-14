@@ -827,7 +827,13 @@ describe("buildSubagentForest", () => {
     const forest = buildSubagentForest(
       [
         ...asyncMain("tu-1", "a1"),
-        ...pollRow("tu-poll", "a1", "completed", "2026-06-04T03:05:00.000Z", false),
+        ...pollRow(
+          "tu-poll",
+          "a1",
+          "completed",
+          "2026-06-04T03:05:00.000Z",
+          false,
+        ),
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
     );
@@ -1027,6 +1033,22 @@ describe("buildSubagentForest", () => {
         ...asyncMain("tu-1", "a1"),
         notificationRow("a1", "completed", "2026-06-04T03:05:00.000Z"),
         ...sendMessageRows("sm-1", "a1", "a1", "2026-06-04T03:10:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("working");
+  });
+
+  it("a poll observing running overrides an earlier stop signal back to working", () => {
+    // A poll result is a level observation ("status was S as of t"), not a one-shot edge event
+    // like a notification — so a later `running` poll must reassert liveness, not no-op like it
+    // does for notifications. (Also partially self-heals issue #326's stale dequeue-twin hazard:
+    // any poll observed after a wrongly-applied stop corrects it.)
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        notificationRow("a1", "stopped", "2026-06-04T03:04:00.000Z"),
+        ...pollRow("tu-poll", "a1", "running", "2026-06-04T03:05:00.000Z"),
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
     );
