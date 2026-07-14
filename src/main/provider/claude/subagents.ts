@@ -301,7 +301,7 @@ export function buildSubagentForest(
   // dequeue twin sharing the same pair is stale, delivery-lagged news and gets skipped in statusOf.
   const enqueuedKeys = new Set<string>();
   for (const n of notifications)
-    if (n.kind === "enqueue") enqueuedKeys.add(`${n.taskId} ${n.status}`);
+    if (n.kind === "enqueue") enqueuedKeys.add(`${n.taskId}\u0000${n.status}`);
 
   // Successful SendMessage deliveries merged across every transcript, the same way as notifications.
   const resumes: SendResume[] = [];
@@ -329,7 +329,10 @@ export function buildSubagentForest(
       events.push({ ts: r.ts, status: r.isError ? "failed" : "done" });
     for (const n of notifications) {
       if (n.taskId !== agentId) continue;
-      if (n.kind === "dequeue" && enqueuedKeys.has(`${n.taskId} ${n.status}`))
+      if (
+        n.kind === "dequeue" &&
+        enqueuedKeys.has(`${n.taskId}\u0000${n.status}`)
+      )
         continue; // stale twin — the enqueue already captured the true stop time
       if (n.status === "completed") events.push({ ts: n.ts, status: "done" });
       else if (n.status === "failed")
