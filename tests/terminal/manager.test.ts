@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { FLOW } from "../../src/shared/terminal";
 import { createTerminalManager } from "../../src/main/terminal/manager";
 import type {
@@ -504,13 +504,6 @@ describe("createTerminalManager", () => {
 });
 
 describe("launch (shell terminals)", () => {
-  // A developer's local CBW_CLAUDE_BIN would make buildClaudeCommand return an absolute,
-  // extensioned path instead of the bare `"claude"` fallback the shim tests below rely on —
-  // clear it so the bare-claude fallback (and hence the shim behavior under test) is deterministic.
-  beforeEach(() => {
-    delete process.env.CBW_CLAUDE_BIN;
-  });
-
   function shellHarness(platform: NodeJS.Platform = "darwin") {
     const ptys: ReturnType<typeof fakePty>[] = [];
     const recorders = recorderFactory();
