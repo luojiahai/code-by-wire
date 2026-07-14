@@ -1,3 +1,6 @@
+import { accessSync, constants, statSync } from "node:fs";
+import { delimiter, isAbsolute, join, sep } from "node:path";
+
 /** How to spawn a shell: the executable, its interactive argv, and its basename (the tab label). */
 export interface ShellSpec {
   file: string;
@@ -48,14 +51,14 @@ export interface ResolveShellDeps {
 export function resolveShellCommand(deps: ResolveShellDeps): ShellSpec {
   const { env, platform } = deps;
   const isWin = platform === "win32";
-  const override = (env.CBW_SHELL || (isWin ? "" : env.SHELL) || "").trim();
-  if (override) {
-    const resolved = deps.isExecutable(override)
-      ? override
-      : deps.findOnPath(override);
-    if (resolved) return shellSpecFor(resolved);
-  }
   if (isWin) {
+    const override = (env.CBW_SHELL || "").trim();
+    if (override) {
+      const resolved = deps.isExecutable(override)
+        ? override
+        : deps.findOnPath(override);
+      if (resolved) return shellSpecFor(resolved);
+    }
     // Windows PowerShell 5.1 ships at a fixed System32 path on every Windows box; prefer it only
     // after PowerShell 7+ (pwsh).
     const systemRoot = env.SystemRoot || env.windir || "C:\\Windows";
@@ -70,10 +73,52 @@ export function resolveShellCommand(deps: ResolveShellDeps): ShellSpec {
       "cmd.exe";
     return shellSpecFor(command);
   }
-  const found = ["/bin/zsh", "/bin/bash", "/bin/sh"].find((c) =>
-    deps.isExecutable(c),
+  return shellSpecFor(resolvePosixShellPath(deps));
+}
+
+/** Which POSIX shell binary to use: CBW_SHELL/$SHELL override (if it resolves), else the first of
+ *  zsh → bash → sh found on disk. Shared by resolveShellCommand's POSIX branch and
+ *  resolvePosixLoginCommand below, which both need "which shell" before deciding how to invoke it. */
+function resolvePosixShellPath(deps: {
+  env: NodeJS.ProcessEnv;
+  isExecutable: (p: string) => boolean;
+  findOnPath: (name: string) => string | null;
+}): string {
+  const override = (deps.env.CBW_SHELL || deps.env.SHELL || "").trim();
+  if (override) {
+    const resolved = deps.isExecutable(override)
+      ? override
+      : deps.findOnPath(override);
+    if (resolved) return resolved;
+  }
+  return (
+    ["/bin/zsh", "/bin/bash", "/bin/sh"].find((c) => deps.isExecutable(c)) ??
+    "/bin/sh"
   );
-  return posixShellSpec(found ?? "/bin/sh");
+}
+
+/** Deps for resolving the POSIX login shell for a one-shot command — narrower than ResolveShellDeps
+ *  (no `platform`: only ever called from a POSIX code path). */
+export interface PosixShellDeps {
+  env: NodeJS.ProcessEnv;
+  isExecutable: (p: string) => boolean;
+  findOnPath: (name: string) => string | null;
+}
+
+/** Resolve the POSIX login shell and wrap a one-shot command in it: `-ilc <command>` for zsh/bash (zsh
+ *  sources .zshrc only for interactive shells and .zprofile/.zlogin only for login shells — both flags
+ *  are needed to fully replicate what typing the command into a real terminal does), `-ic <command>`
+ *  for anything else (no rc-file split to replicate). Used by command.ts's wrapInLoginShell so a
+ *  Managed session resolves PATH/CLAUDE_CONFIG_DIR/everything else exactly like a plain terminal,
+ *  instead of the app recovering and pinning individual vars. */
+export function resolvePosixLoginCommand(
+  deps: PosixShellDeps,
+  command: string,
+): ShellSpec {
+  const shellPath = resolvePosixShellPath(deps);
+  const name = baseName(shellPath);
+  const flags = name.includes("zsh") || name.includes("bash") ? "-ilc" : "-ic";
+  return { file: shellPath, args: [flags, command], name };
 }
 
 /**
@@ -128,4 +173,55 @@ export function buildShellEnv(opts: {
   env.TERM_PROGRAM = "Code-by-wire";
   env.TERM_PROGRAM_VERSION = opts.appVersion;
   return env;
+}
+
+/** Absolute path is an executable file (hermes isExecutableFile). Moved here from shell-ipc.ts so
+ *  Managed-session login-shell resolution (command.ts's toSpawnForm) can share it. */
+export function isExecutableFile(filePath: string): boolean {
+  if (!filePath || !isAbsolute(filePath)) return false;
+  try {
+    accessSync(filePath, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function fileExistsAsFile(p: string): boolean {
+  try {
+    return statSync(p).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/** Resolve a command name against a PATH (hermes findOnPath, trimmed to what shells need). On Windows,
+ *  PATHEXT extensions are tried BEFORE the bare name — Windows command resolution consults PATHEXT, so
+ *  an extensionless shim must not shadow `pwsh.exe`; the bare entry stays LAST so names that already
+ *  carry their extension still resolve. */
+export function findOnPath(
+  command: string,
+  env: NodeJS.ProcessEnv,
+): string | null {
+  if (!command) return null;
+  if (isAbsolute(command) || command.includes(sep) || command.includes("/")) {
+    return fileExistsAsFile(command) ? command : null;
+  }
+  const entries = String(env.PATH || "")
+    .split(delimiter)
+    .filter(Boolean);
+  const extensions =
+    process.platform === "win32"
+      ? [
+          ...(env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean),
+          "",
+        ]
+      : [""];
+  for (const entry of entries) {
+    for (const extension of extensions) {
+      const candidate = join(entry, `${command}${extension}`);
+      if (fileExistsAsFile(candidate)) return candidate;
+    }
+  }
+  return null;
 }

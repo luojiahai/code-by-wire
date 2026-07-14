@@ -1,4 +1,7 @@
-import { execFileSync, spawn } from "node:child_process";
+import {
+  spawnSync,
+  type SpawnSyncOptionsWithStringEncoding,
+} from "node:child_process";
 
 /**
  * A macOS .app launched from Finder/Spotlight/Dock inherits launchd's bare PATH
@@ -55,9 +58,9 @@ export function resolveShellPath(deps: ResolvePathDeps): string {
  * Whether spawned-session env should override PATH. PATH correction is a macOS-only fix: a
  * Finder-launched .app inherits launchd's bare PATH, so the packaged mac build recovers the login-shell
  * PATH (see resolveShellPath). Off darwin the inherited PATH is already correct — and on Windows the real
- * env key is `Path`, so adding a `PATH` key (what buildChildEnv does when correctedPath is non-null) would
- * leave the child env carrying both `Path` and `PATH`, a case-insensitive collision. Returning false here
- * keeps that from happening. Pure + tested.
+ * env key is `Path`, so adding a `PATH` key (what the footer terminal's shellTermEnv does when
+ * correctedPath is non-null) would leave the child env carrying both `Path` and `PATH`, a
+ * case-insensitive collision. Returning false here keeps that from happening. Pure + tested.
  */
 export function shouldCorrectPath(
   platform: NodeJS.Platform,
@@ -111,66 +114,30 @@ export function parseShellEnv(out: string): ShellEnv | null {
 /** Real wiring: run the login+interactive shell once and parse its env. Null on any failure. Untested
  *  (spawns a real shell). */
 export function probeShellEnv(shell: string): ShellEnv | null {
-  try {
-    const out = execFileSync(shell, ["-ilc", SHELL_ENV_SCRIPT], {
-      encoding: "utf8",
-      timeout: SHELL_PROBE_TIMEOUT_MS,
-      stdio: ["ignore", "pipe", "ignore"],
-      env: {
-        ...process.env,
-        TERM: "dumb",
-        DISABLE_AUTO_UPDATE: "true",
-        GIT_TERMINAL_PROMPT: "0",
-      },
-    });
-    return parseShellEnv(out);
-  } catch {
-    return null;
-  }
-}
-
-/** Async sibling of probeShellEnv: the same one-shot login-shell env probe, but non-blocking so a
- *  user-triggered re-check doesn't freeze the main process. Uses `spawn` (not execFile) so it can apply the
- *  same stdio discipline as the sync probe — ignore stdin and DISCARD the child's stderr. execFile has no
- *  stdio option and would buffer a chatty login rc's stderr into its (1 MB) maxBuffer, rejecting the whole
- *  probe → a spurious notFound. Null on any failure or the timeout. Untested (spawns a real shell). */
-export function probeShellEnvAsync(shell: string): Promise<ShellEnv | null> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = (v: ShellEnv | null): void => {
-      if (settled) return;
-      settled = true;
-      resolve(v);
-    };
-    try {
-      const child = spawn(shell, ["-ilc", SHELL_ENV_SCRIPT], {
-        stdio: ["ignore", "pipe", "ignore"],
-        env: {
-          ...process.env,
-          TERM: "dumb",
-          DISABLE_AUTO_UPDATE: "true",
-          GIT_TERMINAL_PROMPT: "0",
-        },
-      });
-      const timer = setTimeout(() => {
-        child.kill();
-        done(null);
-      }, SHELL_PROBE_TIMEOUT_MS);
-      let out = "";
-      child.stdout?.setEncoding("utf8");
-      child.stdout?.on("data", (chunk: string) => {
-        out += chunk;
-      });
-      child.on("error", () => {
-        clearTimeout(timer);
-        done(null);
-      });
-      child.on("close", () => {
-        clearTimeout(timer);
-        done(parseShellEnv(out));
-      });
-    } catch {
-      done(null);
-    }
-  });
+  // Own session, no controlling terminal: the -i shell would otherwise enable job control and
+  // seize the launching terminal's foreground process group, permanently eating that terminal's
+  // Ctrl+C if the probe is interrupted (see cli-check.ts's createProbeExec for the full story).
+  // Only reachable when the packaged binary is launched FROM a terminal — Finder launches carry
+  // no controlling tty — but the flag costs nothing. `detached` on the SYNC spawn is real but
+  // undocumented: the implementation shares async spawn's option normalization and forwards it to
+  // the same libuv flag (verified on Node 24), while the docs and @types/node list it only for
+  // async spawn — hence the widened option type. If Node ever aligns the sync implementation with
+  // its docs the flag would drop silently, so re-verify with a pty harness on major Node upgrades.
+  const opts: SpawnSyncOptionsWithStringEncoding & { detached: boolean } = {
+    encoding: "utf8",
+    timeout: SHELL_PROBE_TIMEOUT_MS,
+    stdio: ["ignore", "pipe", "ignore"],
+    detached: true,
+    env: {
+      ...process.env,
+      TERM: "dumb",
+      DISABLE_AUTO_UPDATE: "true",
+      GIT_TERMINAL_PROMPT: "0",
+    },
+  };
+  const r = spawnSync(shell, ["-ilc", SHELL_ENV_SCRIPT], opts);
+  // Same nulls execFileSync's throw/catch produced here before: a spawn failure (error), the
+  // timeout's kill (signal), or a nonzero shell exit (status) all mean no usable env.
+  if (r.error || r.signal || r.status !== 0) return null;
+  return parseShellEnv(r.stdout);
 }

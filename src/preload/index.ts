@@ -19,7 +19,6 @@ const api: AppApi = {
   pumpStats: () => ipcRenderer.invoke(IPC.pumpStats),
   statsDbInfo: () => ipcRenderer.invoke(IPC.statsDbInfo),
   recheckCli: () => ipcRenderer.invoke(IPC.recheckCli),
-  setClaudeBinPath: (path) => ipcRenderer.invoke(IPC.setClaudeBinPath, path),
   resetAnalytics: () => ipcRenderer.invoke(IPC.resetAnalytics),
   openExternal: (url) => ipcRenderer.invoke(IPC.openExternal, url),
   openIn: (id, target) => ipcRenderer.invoke(IPC.openIn, id, target),

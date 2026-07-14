@@ -5,12 +5,8 @@ import type { CliStatus } from "../../src/shared/cli-status";
 const mk = (kind: CliStatus["kind"]): CliStatus => ({
   kind,
   version: null,
-  path: null,
-  source: null,
   floor: "2.0.0",
-  installMethod: "unknown",
-  duplicates: [],
-  configDir: { active: "/c", recovered: null, mismatch: false },
+  configDir: { active: "/c" },
   checkedAt: 1,
 });
 

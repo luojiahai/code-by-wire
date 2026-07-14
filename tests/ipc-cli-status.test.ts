@@ -10,12 +10,8 @@ import { attachCliStatus } from "../src/main/ipc";
 const ready: CliStatus = {
   kind: "ready",
   version: "2.1.178",
-  path: "/Users/me/.local/bin/claude",
-  source: "shell",
   floor: "2.0.0",
-  installMethod: "native",
-  duplicates: ["/Users/me/.local/bin/claude"],
-  configDir: { active: "/Users/me/.claude", recovered: null, mismatch: false },
+  configDir: { active: "/Users/me/.claude" },
   detail: "ready",
   checkedAt: 1,
 };

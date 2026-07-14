@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildShellEnv,
   resolveShellCommand,
+  resolvePosixLoginCommand,
   safeShellCwd,
   shellSpecFor,
 } from "../../src/main/terminal/shell-command";
@@ -122,6 +123,62 @@ describe("resolveShellCommand", () => {
     });
     expect(ps51.file).toBe(builtin);
     expect(ps51.args).toEqual(["-NoLogo"]);
+  });
+});
+
+describe("resolvePosixLoginCommand", () => {
+  it("wraps zsh/bash with -ilc (interactive AND login: zsh only sources .zshrc when interactive, .zprofile only when login — both are needed to fully replicate a real terminal)", () => {
+    const spec = resolvePosixLoginCommand(
+      {
+        env: {},
+        isExecutable: (p) => p === "/bin/zsh",
+        findOnPath: () => null,
+      },
+      "claude --version",
+    );
+    expect(spec).toEqual({
+      file: "/bin/zsh",
+      args: ["-ilc", "claude --version"],
+      name: "zsh",
+    });
+  });
+
+  it("wraps a non-zsh/bash POSIX shell with -ic (no login/interactive rc-file split to replicate)", () => {
+    const spec = resolvePosixLoginCommand(
+      { env: {}, isExecutable: () => false, findOnPath: () => null },
+      "claude --version",
+    );
+    expect(spec).toEqual({
+      file: "/bin/sh",
+      args: ["-ic", "claude --version"],
+      name: "sh",
+    });
+  });
+
+  it("honors CBW_SHELL/$SHELL overrides, same precedence as resolveShellCommand", () => {
+    const spec = resolvePosixLoginCommand(
+      {
+        env: { SHELL: "/bin/bash" },
+        isExecutable: (p) => p === "/bin/bash",
+        findOnPath: () => null,
+      },
+      "claude --version",
+    );
+    expect(spec.file).toBe("/bin/bash");
+    expect(spec.args[0]).toBe("-ilc");
+  });
+
+  it("resolves a bare CBW_SHELL name on PATH", () => {
+    const spec = resolvePosixLoginCommand(
+      {
+        env: { CBW_SHELL: "fish" },
+        isExecutable: () => false,
+        findOnPath: (n) => (n === "fish" ? "/usr/local/bin/fish" : null),
+      },
+      "claude --version",
+    );
+    expect(spec.file).toBe("/usr/local/bin/fish");
+    expect(spec.args).toEqual(["-ic", "claude --version"]);
   });
 });
 

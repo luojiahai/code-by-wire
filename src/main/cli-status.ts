@@ -1,4 +1,4 @@
-import type { BinSource, CliStatus, InstallMethod } from "@shared/cli-status";
+import type { CliStatus } from "@shared/cli-status";
 import { compareSemver, parseSemver } from "./cli-version";
 
 /** The minimum Claude Code version the app supports. A one-line maintainer lever — bump it when the app
@@ -8,44 +8,25 @@ export const MIN_CLAUDE_VERSION = "2.1.177";
 
 /** The raw probe results the pure evaluator classifies. Mirrors shell-path.ts's pure/wiring split. */
 export interface CliProbeInput {
-  path: string | null;
-  source: BinSource | null;
-  isRegularFile: boolean;
-  duplicates: string[];
   version:
     | { status: "ok"; raw: string }
-    | { status: "spawnError" } // ENOENT — binary not actually there
+    | { status: "spawnError" } // the binary isn't actually there (ENOENT, or a shell's exit 127)
     | { status: "failed" }; // ran but non-zero / timeout / garbage
   auth: { status: "ok" } | { status: "loggedOut" } | { status: "unknown" };
   floor: string;
-  installMethod: InstallMethod;
-  configDir: { active: string; recovered: string | null };
+  /** Where THIS APP reads Claude Code's own data from — display only, carried straight through. */
+  configDir: { active: string };
   now: number;
 }
 
 export function evaluateCliStatus(p: CliProbeInput): CliStatus {
-  const configDir = {
-    active: p.configDir.active,
-    recovered: p.configDir.recovered,
-    mismatch:
-      p.configDir.recovered !== null &&
-      p.configDir.recovered !== p.configDir.active,
-  };
   const common = {
-    path: p.path,
-    source: p.source,
     floor: p.floor,
-    installMethod: p.installMethod,
-    duplicates: p.duplicates,
-    configDir,
+    configDir: p.configDir,
     checkedAt: p.now,
   };
 
-  if (
-    p.path === null ||
-    !p.isRegularFile ||
-    p.version.status === "spawnError"
-  ) {
+  if (p.version.status === "spawnError") {
     return {
       ...common,
       kind: "notFound",

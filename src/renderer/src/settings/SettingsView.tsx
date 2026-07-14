@@ -22,13 +22,12 @@ const NAV: { key: SettingsSection; label: string; icon: IconName }[] = [
  * The Settings view: a full Workspace-pane view (like the Overview) reached from the title-bar gear. A left
  * sub-nav switches between System (CLI/engine health) and About.
  * The Sys lamp and the title-bar gear both route here; System is the new home for the Claude Code CLI
- * status (it replaced the standalone modal), so the binary override and remedy commands live in it too.
+ * status (it replaced the standalone modal), so the remedy commands live in it too.
  */
 export function SettingsView({
   cliStatus,
   checking,
   onRecheck,
-  onSetBinPath,
   section,
   onSectionChange,
   update,
@@ -36,7 +35,6 @@ export function SettingsView({
   cliStatus: CliStatus | null;
   checking: boolean;
   onRecheck: () => void;
-  onSetBinPath: (path: string | null) => void;
   section: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   update?: UpdateControls;
@@ -93,21 +91,13 @@ export function SettingsView({
       <OverlayScroll className="min-w-0 flex-1">
         <div className="mx-auto flex max-w-[640px] flex-col gap-5 px-8 py-7">
           {section === "system" && (
-            // Remount System when the values its useState initializers read change, so a recheck can't
-            // leave the remedy's install-tab default or the binary-override prefill stale. kind +
-            // installMethod pick the default tab; source + path prefill the override. A no-op recheck
-            // keeps the same tuple, so the instance (and any typed path) survives. Mirrors the keying the
-            // old CliStatusModal carried before this view absorbed it.
+            // Remount System when kind changes, so a recheck can't leave the remedy's install-tab
+            // default stale. A no-op recheck keeps the same kind, so the instance survives.
             <SystemSection
-              key={
-                cliStatus
-                  ? `${cliStatus.kind}:${cliStatus.installMethod}:${cliStatus.source}:${cliStatus.path ?? ""}`
-                  : "pending"
-              }
+              key={cliStatus ? cliStatus.kind : "pending"}
               cliStatus={cliStatus}
               checking={checking}
               onRecheck={onRecheck}
-              onSetBinPath={onSetBinPath}
             />
           )}
           {section === "about" && <AboutSection update={update} />}
@@ -121,12 +111,10 @@ function SystemSection({
   cliStatus,
   checking,
   onRecheck,
-  onSetBinPath,
 }: {
   cliStatus: CliStatus | null;
   checking: boolean;
   onRecheck: () => void;
-  onSetBinPath: (path: string | null) => void;
 }) {
   return (
     <>
@@ -138,7 +126,6 @@ function SystemSection({
         cliStatus={cliStatus}
         checking={checking}
         onRecheck={onRecheck}
-        onSetBinPath={onSetBinPath}
       />
       <StatuslineCard />
       <StatsDbCard />
