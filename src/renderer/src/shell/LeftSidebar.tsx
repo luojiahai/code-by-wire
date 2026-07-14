@@ -43,6 +43,10 @@ export function LeftSidebar({
   onNew,
   onQuickAdd,
   canSpawn,
+  onAdopt,
+  onFork,
+  onEnd,
+  onRename,
   updatePending,
   route,
   onRoute,
@@ -57,6 +61,10 @@ export function LeftSidebar({
    *  App surfaces failures in the New session view — so this only gates the busy mark. */
   onQuickAdd: (cwd: string) => Promise<void>;
   canSpawn: boolean;
+  onAdopt: (id: string) => Promise<void>;
+  onFork: (session: Session) => Promise<void>;
+  onEnd: (id: string) => void;
+  onRename: (id: string, title: string | null) => void;
   /** True while a software update is pending (available/downloading/downloaded) —
    *  badges the Settings gear (design spec 2026-07-09-update-dot). */
   updatePending: boolean;
@@ -334,6 +342,11 @@ export function LeftSidebar({
                           session={s}
                           selected={s.id === selectedId}
                           onSelect={() => onSelect(s.id)}
+                          canSpawn={canSpawn}
+                          onAdopt={onAdopt}
+                          onFork={onFork}
+                          onEnd={onEnd}
+                          onRename={onRename}
                         />
                       ))}
                     </div>

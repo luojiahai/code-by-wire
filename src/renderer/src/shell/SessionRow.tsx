@@ -1,55 +1,129 @@
+import { MAX_SESSION_TITLE_LEN } from "@shared/title-override";
 import type { Session } from "@shared/types";
 import { cx, Lamp } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { useSessionMenu } from "./use-session-menu";
+import { SessionMenuDropdown } from "./SessionMenuDropdown";
 
 /**
- * The hermes single-line sidebar row: a 26px-tall strip with a state `Lamp` and the title — one
- * plain select button, no hover extras. The relative-time stamp moved to the right sidebar's
- * Session panel (Active row), and the copy-ID button is gone with it; no project·branch line and
- * no context-% chip either, which also live in the right sidebar now. The only extra is the
- * dimmed worktree hint on sessions that merged into their repo's folder (2026-07-09
- * worktree-merge spec).
+ * The hermes single-line sidebar row: a 26px-tall strip with a state `Lamp` and the title. A
+ * hover-revealed 3-dot button opens the same menu as the session header's title menu (Copy ID,
+ * Rename, Adopt, Fork, End session, Open in), sharing its state machine via `useSessionMenu` — see
+ * `SessionMenu.tsx` for the header's own trigger over the same hook. Renaming swaps this row's
+ * select-button for a plain (non-button) container so the inline `<input>` never nests inside a
+ * `<button>`, which HTML disallows. The relative-time stamp and context-% chip live in the right
+ * sidebar's Session panel; the only extra here is the dimmed worktree hint on sessions that merged
+ * into their repo's folder (2026-07-09 worktree-merge spec).
  */
 export function SessionRow({
   session,
   selected,
   onSelect,
+  canSpawn,
+  onAdopt,
+  onFork,
+  onEnd,
+  onRename,
 }: {
   session: Session;
   selected: boolean;
   onSelect: () => void;
+  canSpawn: boolean;
+  onAdopt: (id: string) => Promise<void>;
+  onFork: (session: Session) => Promise<void>;
+  onEnd: (id: string) => void;
+  onRename: (id: string, title: string | null) => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      aria-label={`Open ${session.title}`}
-      className={cx(
-        "group flex min-h-[1.625rem] min-w-0 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-2 text-left transition-colors duration-100 ease-out hover:transition-none",
-        selected
-          ? "bg-(--ui-row-active-background)"
-          : "hover:bg-(--ui-row-hover-background)",
-      )}
-    >
-      <span className="grid size-3.5 shrink-0 place-items-center">
-        <Lamp state={session.state} management={session.management} />
-      </span>
-      <span
-        className={cx(
-          "min-w-0 flex-1 truncate text-[0.8125rem] leading-none text-(--ui-text-secondary) group-hover:text-fg",
-          selected && "text-fg",
-        )}
-        title={session.title}
-      >
-        {session.title}
-      </span>
-      {session.worktree && (
-        <span className="flex min-w-0 shrink-[2] items-center gap-1 text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-          <Icon name="git-branch" size={10} className="shrink-0" />
-          <span className="truncate">{session.worktree.name}</span>
+  const menu = useSessionMenu(session, canSpawn, {
+    onAdopt,
+    onFork,
+    onEnd,
+    onRename,
+  });
+
+  if (menu.editing) {
+    return (
+      <div className="flex min-h-[1.625rem] min-w-0 items-center gap-1.5 rounded-md py-0.5 pl-2 pr-2">
+        <span className="grid size-3.5 shrink-0 place-items-center">
+          <Lamp state={session.state} management={session.management} />
         </span>
-      )}
-    </button>
+        <input
+          ref={menu.renameField.inputRef}
+          aria-label="Rename session"
+          value={menu.renameField.value}
+          maxLength={MAX_SESSION_TITLE_LEN}
+          onChange={menu.renameField.onChange}
+          onBlur={menu.renameField.onBlur}
+          onKeyDown={menu.renameField.onKeyDown}
+          className="h-5 min-w-0 flex-1 rounded-xs border border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) px-1.5 text-[0.8125rem] text-fg outline-none"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        aria-label={`Open ${session.title}`}
+        className={cx(
+          "flex min-h-[1.625rem] w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-2 text-left transition-colors duration-100 ease-out hover:transition-none",
+          selected
+            ? "bg-(--ui-row-active-background)"
+            : "hover:bg-(--ui-row-hover-background)",
+        )}
+      >
+        <span className="grid size-3.5 shrink-0 place-items-center">
+          <Lamp state={session.state} management={session.management} />
+        </span>
+        <span
+          className={cx(
+            "min-w-0 flex-1 truncate text-[0.8125rem] leading-none text-(--ui-text-secondary) group-hover:text-fg",
+            selected && "text-fg",
+          )}
+          title={session.title}
+        >
+          {session.title}
+        </span>
+        {session.worktree && (
+          <span className="flex min-w-0 shrink-[2] items-center gap-1 text-[0.72rem] leading-none text-(--ui-text-quaternary)">
+            <Icon name="git-branch" size={10} className="shrink-0" />
+            <span className="truncate">{session.worktree.name}</span>
+          </span>
+        )}
+      </button>
+      {/* Fade so the 3-dot button doesn't land on abruptly-truncated worktree text on hover. */}
+      <span
+        aria-hidden
+        className={cx(
+          "pointer-events-none absolute right-0.5 top-0 bottom-0 w-8 rounded-r-md bg-linear-to-l to-transparent opacity-0 transition-opacity duration-100 ease-out group-hover:opacity-100",
+          selected
+            ? "from-(--ui-row-active-background)"
+            : "from-(--ui-row-hover-background)",
+        )}
+      />
+      <div
+        ref={menu.rootRef}
+        className="absolute right-1 top-1/2 -translate-y-1/2"
+      >
+        <button
+          type="button"
+          onClick={() => menu.toggleMenu()}
+          aria-label="Session actions"
+          aria-expanded={menu.open}
+          aria-haspopup="menu"
+          className={cx(
+            "grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:opacity-100 group-hover:opacity-100",
+            menu.open &&
+              "opacity-100 bg-(--ui-control-active-background) text-fg",
+          )}
+        >
+          <Icon name="ellipsis" size={13} />
+        </button>
+      </div>
+      <SessionMenuDropdown session={session} menu={menu} />
+    </div>
   );
 }
