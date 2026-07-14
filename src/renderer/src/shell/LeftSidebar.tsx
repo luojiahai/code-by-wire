@@ -133,7 +133,7 @@ export function LeftSidebar({
               : "cursor-not-allowed text-(--ui-text-quaternary)",
           )}
         >
-          <Icon name="plus" size={16} className="shrink-0 opacity-70" />
+          <Icon name="rocket" size={16} className="shrink-0 opacity-70" />
           New session
         </button>
         <button
@@ -214,7 +214,7 @@ export function LeftSidebar({
       </div>
 
       <div className="flex shrink-0 items-center justify-between gap-1 px-2.5 pb-1 pt-1.5">
-        <SidebarPanelLabel icon="messages-square" className="pl-2">
+        <SidebarPanelLabel className="pl-2">
           Sessions
         </SidebarPanelLabel>
         <div className="flex items-center gap-0.5">
@@ -247,7 +247,7 @@ export function LeftSidebar({
                 : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
             )}
           >
-            <Icon name="activity" size={12} />
+            <Icon name="filter" size={12} />
           </button>
         </div>
       </div>

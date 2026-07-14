@@ -227,7 +227,7 @@ function SubagentDispatch({
   const body = (
     <>
       <Icon
-        name="git-branch"
+        name="bot"
         size={13}
         className="shrink-0 text-primary-bright"
       />
