@@ -1,5 +1,4 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { spawn } from "node:child_process";
 import type { CliStatus } from "@shared/cli-status";
 import {
   evaluateCliStatus,
@@ -9,17 +8,87 @@ import {
 import { toSpawnForm, type ClaudeCommand } from "./terminal/command";
 import { isExecutableFile, findOnPath } from "./terminal/shell-command";
 
-const execFileAsync = promisify(execFile);
-
-/** The execFile seam the probes call through; injected in tests to record the invocation without spawning. */
+/** The exec seam the probes call through; injected in tests to record the invocation without spawning. */
 export type ProbeExec = (
   file: string,
   args: string[],
   opts: { encoding: "utf8"; timeout: number },
 ) => Promise<{ stdout: string }>;
 
-const realExec: ProbeExec = (file, args, opts) =>
-  execFileAsync(file, args, opts);
+/** The child surface createProbeExec drives — the narrow slice of node's ChildProcess it needs.
+ *  Method syntax on purpose: TS checks method parameters bivariantly, so both the real ChildProcess
+ *  and a loosely-typed test fake satisfy it. */
+export interface ProbeChild {
+  stdout: {
+    setEncoding(enc: string): void;
+    on(ev: "data", cb: (d: string) => void): void;
+  } | null;
+  on(ev: "error", cb: (err: Error) => void): void;
+  on(ev: "close", cb: (code: number | null) => void): void;
+  kill(): boolean | void;
+}
+
+/** The spawn seam under createProbeExec; injected in tests to steer a fake child through its
+ *  lifecycle without real processes. */
+export type ProbeSpawn = (
+  file: string,
+  args: string[],
+  opts: { detached: boolean; stdio: ["ignore", "pipe", "ignore"] },
+) => ProbeChild;
+
+const realSpawn: ProbeSpawn = (file, args, opts) => spawn(file, args, opts);
+
+/**
+ * Build the real ProbeExec on raw spawn, NOT execFile: the probes wrap `claude` in the user's
+ * interactive login shell (`zsh -ilc`, see probeSpawnForm), and an interactive shell enables job
+ * control — it opens its controlling terminal and seizes the foreground process group. Under
+ * `pnpm dev` that controlling terminal is the developer's own terminal, so a Ctrl+C that lands
+ * mid-probe kills only the probe shell and leaves the foreground pointing at a dead group,
+ * permanently eating every later Ctrl+C. `detached` gives the probe its own session with no
+ * controlling terminal, so the shell skips job control entirely. execFile can't do this — it
+ * forwards only a whitelist of options to spawn and silently drops `detached` (verified on
+ * Node 24). POSIX-only: Windows has no foreground group to defend, and a detached child there
+ * gets its own console window.
+ */
+export function createProbeExec(
+  spawnFn: ProbeSpawn = realSpawn,
+  platform: NodeJS.Platform = process.platform,
+): ProbeExec {
+  return (file, args, opts) =>
+    new Promise((resolve, reject) => {
+      const child = spawnFn(file, args, {
+        detached: platform !== "win32",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      let stdout = "";
+      let settled = false;
+      const timer = setTimeout(() => child.kill(), opts.timeout);
+      const settle = (fn: () => void): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        fn();
+      };
+      child.stdout?.setEncoding(opts.encoding);
+      child.stdout?.on("data", (d: string) => {
+        stdout += d;
+      });
+      child.on("error", (err: Error) => settle(() => reject(err)));
+      // Mirror execFile's error shape: a nonzero exit rejects with `.code` = the exit code, and a
+      // signal death (the timeout kill) rejects with `.code` = null — classify maps that to "failed".
+      child.on("close", (code: number | null) =>
+        settle(() => {
+          if (code === 0) resolve({ stdout });
+          else
+            reject(
+              Object.assign(new Error(`probe exited with ${code}`), { code }),
+            );
+        }),
+      );
+    });
+}
+
+const realExec: ProbeExec = createProbeExec();
 
 const realPosixShell = { isExecutable: isExecutableFile, findOnPath };
 
