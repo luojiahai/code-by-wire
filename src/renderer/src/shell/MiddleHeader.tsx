@@ -25,6 +25,7 @@ export function MiddleHeader({
   session,
   transcriptOn,
   onToggleTranscript,
+  onExitDrill,
   leftEdgeExposed,
   rightEdgeExposed,
   menu,
@@ -33,6 +34,9 @@ export function MiddleHeader({
   session: Session | null;
   transcriptOn: boolean;
   onToggleTranscript: () => void;
+  /** Clears any active subagent drill. Called when the user explicitly leaves the Transcript side via
+   *  "Claude Code", so returning to Transcript later always shows the main session, never a stale drill. */
+  onExitDrill: () => void;
   /** True whenever the left pane isn't actually docked next to this header — closed by the user,
    *  or force-collapsed by a narrow window. Rendered state, not the stored preference. */
   leftEdgeExposed: boolean;
@@ -78,7 +82,10 @@ export function MiddleHeader({
                 label="Claude Code"
                 active={!transcriptOn}
                 onSelect={() => {
-                  if (transcriptOn) onToggleTranscript();
+                  if (transcriptOn) {
+                    onToggleTranscript();
+                    onExitDrill();
+                  }
                 }}
               />
               <ViewSegment
