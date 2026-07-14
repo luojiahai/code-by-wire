@@ -60,12 +60,28 @@ interface StatusEvent {
 
 /** A <task-notification> parsed from a user or queue-operation row: the stop signal for a
  *  background agent. `taskId` is the agent's id; `status` is the raw <status> text —
- *  "completed" | "failed" | "killed" today, folded conservatively so future values are no-ops. */
+ *  "completed" | "failed" | "killed" | "stopped" today ("killed" is a live user/Claude stop,
+ *  "stopped" an agent orphaned by a CLI exit); unknown values settle as stopped unless deny-listed
+ *  (NON_TERMINAL_STATUSES). */
 interface TaskNotification {
   taskId: string;
   status: string;
   ts: number;
 }
+
+/** Status values that do NOT mean the agent stopped. A <task-notification> only fires when an agent
+ *  stops (the CLI's own embedded note), so any status outside this set settles the agent as stopped —
+ *  the transcript format is officially unstable, and the two misread modes aren't symmetric: a wrong
+ *  settle self-heals on the agent's next event, a status left as "working" sticks forever. The set
+ *  hedges the one break in that contract — the CLI someday repurposing notifications for progress —
+ *  with the documented task-registry non-terminal names plus close cousins. */
+const NON_TERMINAL_STATUSES = new Set([
+  "running",
+  "pending",
+  "waiting",
+  "in_progress",
+  "queued",
+]);
 
 const NOTIFICATION_BLOCK_RE =
   /<task-notification>([\s\S]*?)<\/task-notification>/g;
@@ -230,10 +246,10 @@ function reaches(
  * parent agent's transcript. Status folds the agent's lifecycle events in timestamp order (last wins):
  * the dispatch's tool_result (is_error ⇒ failed, else done — but a background launch ack, toolUseResult
  * "async_launched", is a receipt and contributes nothing), and its <task-notification> stop signals
- * (completed ⇒ done, failed/killed ⇒ failed, others no-op), and successful SendMessage deliveries
- * (⇒ working again until the next stop); no events ⇒ working. The output is always an
- * acyclic forest, even on malformed input. Pure: same input,
- * same output.
+ * (completed ⇒ done, failed ⇒ failed, any other stop word ⇒ stopped, known non-terminal names ⇒
+ * no-op), and successful SendMessage deliveries (⇒ working again until the next stop); no events ⇒
+ * working. The output is always an acyclic forest, even on malformed input. Pure: same input, same
+ * output.
  */
 export function buildSubagentForest(
   mainRows: any[],
@@ -297,9 +313,12 @@ export function buildSubagentForest(
     for (const n of notifications) {
       if (n.taskId !== agentId) continue;
       if (n.status === "completed") events.push({ ts: n.ts, status: "done" });
-      else if (n.status === "failed" || n.status === "killed")
+      else if (n.status === "failed")
         events.push({ ts: n.ts, status: "failed" });
-      // Any other status value is a no-op: a future CLI status can't wrongly settle an agent.
+      else if (!NON_TERMINAL_STATUSES.has(n.status))
+        events.push({ ts: n.ts, status: "stopped" });
+      // A deny-listed status is a no-op; every other value (killed, stopped, and whatever the CLI
+      // says next) settles the agent as stopped — see NON_TERMINAL_STATUSES for the asymmetry.
     }
     for (const rs of resumes) {
       const target = knownIds.has(rs.to) ? rs.to : rs.resolvedId;

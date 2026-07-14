@@ -717,7 +717,8 @@ describe("buildSubagentForest", () => {
     expect(forest[0].status).toBe("failed");
   });
 
-  it("maps a killed notification to failed", () => {
+  it("maps a killed notification to stopped", () => {
+    // A kill is the user's call, not the agent erring — same calm treatment as a stop.
     const forest = buildSubagentForest(
       [
         ...asyncMain("tu-1", "a1"),
@@ -725,7 +726,20 @@ describe("buildSubagentForest", () => {
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
     );
-    expect(forest[0].status).toBe("failed");
+    expect(forest[0].status).toBe("stopped");
+  });
+
+  it("maps a stopped notification to stopped", () => {
+    // The CLI emits <status>stopped</status> when the user stops a background agent, and for
+    // agents left running when a previous CLI process exited — terminal either way.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        notificationRow("a1", "stopped", "2026-06-04T03:05:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("stopped");
   });
 
   it("reads a notification present only as a queue-operation row", () => {
@@ -752,16 +766,34 @@ describe("buildSubagentForest", () => {
     expect(forest[0].status).toBe("working");
   });
 
-  it("treats an unknown notification status as a no-op", () => {
-    // A future CLI status value must never wrongly finish or fail an agent.
+  it.each(["running", "pending", "waiting", "in_progress", "queued"])(
+    "keeps a non-terminal notification status (%s) as a no-op",
+    (status) => {
+      // The deny-list hedges the one case where "a notification means a stop" could break:
+      // the CLI repurposing notifications for progress updates.
+      const forest = buildSubagentForest(
+        [
+          ...asyncMain("tu-1", "a1"),
+          notificationRow("a1", status, "2026-06-04T03:05:00.000Z"),
+        ],
+        [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+      );
+      expect(forest[0].status).toBe("working");
+    },
+  );
+
+  it("settles an unknown notification status as stopped", () => {
+    // A notification only fires when an agent stops (the CLI's own embedded note), so a future
+    // terminal vocabulary word must settle the agent. A wrong settle self-heals on the agent's
+    // next event; a stuck "working" never does.
     const forest = buildSubagentForest(
       [
         ...asyncMain("tu-1", "a1"),
-        notificationRow("a1", "running", "2026-06-04T03:05:00.000Z"),
+        notificationRow("a1", "timed_out", "2026-06-04T03:05:00.000Z"),
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
     );
-    expect(forest[0].status).toBe("working");
+    expect(forest[0].status).toBe("stopped");
   });
 
   it("does not let a malformed block (missing <status>) steal the next block's status, nor lose the next block's own notification", () => {
@@ -822,6 +854,20 @@ describe("buildSubagentForest", () => {
     const forest = buildSubagentForest(
       [
         ...main("tu-1", { is_error: false }),
+        ...sendMessageRows("sm-1", "a1", "a1", "2026-06-04T03:10:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("working");
+  });
+
+  it("flips a stopped agent back to working on a SendMessage resume", () => {
+    // The self-heal that justifies settling unknown statuses: any wrong settle is undone by the
+    // agent's next event.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        notificationRow("a1", "stopped", "2026-06-04T03:05:00.000Z"),
         ...sendMessageRows("sm-1", "a1", "a1", "2026-06-04T03:10:00.000Z"),
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],

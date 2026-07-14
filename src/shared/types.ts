@@ -95,7 +95,8 @@ export interface ShellOutput {
 export interface Subagent {
   id: string;
   type: string;
-  status: "working" | "done" | "failed";
+  /** stopped = ended by the user's hand (stop/kill) or a CLI process exit — not the agent erring. */
+  status: "working" | "done" | "failed" | "stopped";
   /** Absent until an assistant turn reports a model (a just-spawned agent has none yet). */
   model?: Family;
   /** Wall-clock start (epoch ms): the agent's first parseable transcript timestamp. Absent when no row
