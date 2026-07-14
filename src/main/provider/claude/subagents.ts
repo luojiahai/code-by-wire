@@ -231,7 +231,7 @@ function reaches(
  * parent agent's transcript. Status folds the agent's lifecycle events in timestamp order (last wins):
  * the dispatch's tool_result (is_error ⇒ failed, else done — but a background launch ack, toolUseResult
  * "async_launched", is a receipt and contributes nothing), and its <task-notification> stop signals
- * (completed ⇒ done, failed/killed/stopped ⇒ failed, others no-op), and successful SendMessage deliveries
+ * (completed ⇒ done, failed ⇒ failed, killed/stopped ⇒ stopped, others no-op), and successful SendMessage deliveries
  * (⇒ working again until the next stop); no events ⇒ working. The output is always an
  * acyclic forest, even on malformed input. Pure: same input,
  * same output.
@@ -298,12 +298,10 @@ export function buildSubagentForest(
     for (const n of notifications) {
       if (n.taskId !== agentId) continue;
       if (n.status === "completed") events.push({ ts: n.ts, status: "done" });
-      else if (
-        n.status === "failed" ||
-        n.status === "killed" ||
-        n.status === "stopped"
-      )
+      else if (n.status === "failed")
         events.push({ ts: n.ts, status: "failed" });
+      else if (n.status === "killed" || n.status === "stopped")
+        events.push({ ts: n.ts, status: "stopped" });
       // Any other status value is a no-op: a future CLI status can't wrongly settle an agent.
     }
     for (const rs of resumes) {

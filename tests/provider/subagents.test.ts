@@ -717,7 +717,8 @@ describe("buildSubagentForest", () => {
     expect(forest[0].status).toBe("failed");
   });
 
-  it("maps a killed notification to failed", () => {
+  it("maps a killed notification to stopped", () => {
+    // A kill is the user's call, not the agent erring — same calm treatment as a stop.
     const forest = buildSubagentForest(
       [
         ...asyncMain("tu-1", "a1"),
@@ -725,10 +726,10 @@ describe("buildSubagentForest", () => {
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
     );
-    expect(forest[0].status).toBe("failed");
+    expect(forest[0].status).toBe("stopped");
   });
 
-  it("maps a stopped notification to failed", () => {
+  it("maps a stopped notification to stopped", () => {
     // The CLI emits <status>stopped</status> when the user stops a background agent, and for
     // agents left running when a previous CLI process exited — terminal either way.
     const forest = buildSubagentForest(
@@ -738,7 +739,7 @@ describe("buildSubagentForest", () => {
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
     );
-    expect(forest[0].status).toBe("failed");
+    expect(forest[0].status).toBe("stopped");
   });
 
   it("reads a notification present only as a queue-operation row", () => {

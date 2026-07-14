@@ -7,12 +7,13 @@ export type DockTab = "tasks" | "subagents" | "shells" | "monitors";
 
 /** The forest tallies the dock needs, gathered in a single walk: total nodes (the Subagents count badge)
  *  and the per-status counts (the live-fan-out signal, the collapsed tally's working count, and the
- *  Subagents tab's running / done / failed tally). */
+ *  Subagents tab's running / done / failed / stopped tally). */
 export interface SubagentStats {
   total: number;
   working: number;
   done: number;
   failed: number;
+  stopped: number;
 }
 
 /** A zeroed tally, frozen: the shared reduce seed and no-children base, so the two can't drift and the
@@ -22,6 +23,7 @@ const ZERO_STATS: SubagentStats = Object.freeze({
   working: 0,
   done: 0,
   failed: 0,
+  stopped: 0,
 });
 
 /** Fold the subagent forest once — children included — into its total and per-status node counts. One
@@ -35,6 +37,7 @@ export function subagentStats(subagents: Subagent[]): SubagentStats {
       working: acc.working + (a.status === "working" ? 1 : 0) + child.working,
       done: acc.done + (a.status === "done" ? 1 : 0) + child.done,
       failed: acc.failed + (a.status === "failed" ? 1 : 0) + child.failed,
+      stopped: acc.stopped + (a.status === "stopped" ? 1 : 0) + child.stopped,
     };
   }, ZERO_STATS);
 }

@@ -32,6 +32,7 @@ describe("subagentStats", () => {
       working: 0,
       done: 0,
       failed: 0,
+      stopped: 0,
     });
   });
   it("counts the whole forest by status, children included", () => {
@@ -39,8 +40,9 @@ describe("subagentStats", () => {
       subagentStats([
         sub("a", "working", [sub("a1", "done"), sub("a2", "working")]),
         sub("b", "failed"),
+        sub("c", "stopped"),
       ]),
-    ).toEqual({ total: 4, working: 2, done: 1, failed: 1 });
+    ).toEqual({ total: 5, working: 2, done: 1, failed: 1, stopped: 1 });
   });
   it("counts a nested working child", () => {
     expect(subagentStats([sub("a", "done", [sub("a1", "working")])])).toEqual({
@@ -48,6 +50,7 @@ describe("subagentStats", () => {
       working: 1,
       done: 1,
       failed: 0,
+      stopped: 0,
     });
   });
 });
@@ -62,14 +65,17 @@ describe("defaultDockTab", () => {
     ).toBe("subagents");
   });
   it("defaults to tasks when idle (no working subagent)", () => {
-    expect(defaultDockTab({ total: 0, working: 0, done: 0, failed: 0 })).toBe(
-      "tasks",
-    );
+    expect(
+      defaultDockTab({ total: 0, working: 0, done: 0, failed: 0, stopped: 0 }),
+    ).toBe("tasks");
     expect(defaultDockTab(subagentStats([sub("a", "done")]))).toBe("tasks");
   });
   it("defaults to monitors when one is running and no fan-out is alive", () => {
     expect(
-      defaultDockTab({ total: 0, working: 0, done: 0, failed: 0 }, true),
+      defaultDockTab(
+        { total: 0, working: 0, done: 0, failed: 0, stopped: 0 },
+        true,
+      ),
     ).toBe("monitors");
   });
   it("prefers subagents over a running monitor while a fan-out is alive", () => {
@@ -110,7 +116,7 @@ const shell = (status: BackgroundShell["status"]): BackgroundShell =>
 const monitor = (status: Monitor["status"]): Monitor => ({ status }) as Monitor;
 
 describe("dockHasActivity", () => {
-  const idle = { total: 0, working: 0, done: 0, failed: 0 };
+  const idle = { total: 0, working: 0, done: 0, failed: 0, stopped: 0 };
   it("is false when nothing is in progress, working, or running", () => {
     expect(dockHasActivity([], idle, [])).toBe(false);
     expect(
@@ -119,6 +125,11 @@ describe("dockHasActivity", () => {
         shell("killed"),
       ]),
     ).toBe(false);
+  });
+  it("is false when the only subagent was stopped", () => {
+    expect(dockHasActivity([], subagentStats([sub("a", "stopped")]), [])).toBe(
+      false,
+    );
   });
   it("is true when a subagent is working", () => {
     expect(dockHasActivity([], subagentStats([sub("a", "working")]), [])).toBe(

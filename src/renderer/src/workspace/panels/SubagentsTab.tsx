@@ -8,12 +8,14 @@ import { flattenSubagents } from "./dock-tabs";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
 
 /** Per-status glyph + tone. Working pulses via its bright tone; done stays calm so working (blue) and
- *  failed (red) read as the states worth acting on. */
+ *  failed (red) read as the states worth acting on. Stopped is the user's own call, so it gets the same
+ *  calm grey square as a killed/stopped monitor (monitorGlyph) — terminal, but nothing to act on. */
 const STATUS_META: Record<Subagent["status"], { char: string; tone: string }> =
   {
     working: { char: "◐", tone: "text-working-bright" },
     done: { char: "✓", tone: "text-(--ui-text-secondary)" },
     failed: { char: "✕", tone: "text-danger" },
+    stopped: { char: "■", tone: "text-fg-faint" },
   };
 
 /** One Subagent as a plain list row: a status glyph, the label (description, falling back to the type,
