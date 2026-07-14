@@ -49,6 +49,16 @@ export function MiddleHeader({
   const paddingRight = headerRightPaddingPx(
     Boolean(session) && rightEdgeExposed,
   );
+  // The live in-app terminal (Workspace's TerminalView, via terminal/xterm-factory.ts) is the one
+  // panel below this header whose background follows Terminal theme instead of App theme — every
+  // other case below (Transcript, ObservedTerminal, or no session) stays on this header's own
+  // --ui-chat-surface-background, so fading to transparent there is already correct. Mirrors
+  // Workspace.tsx's own hasLiveTerminal check (management === "managed" && state !== "ended").
+  const terminalBelow =
+    !transcriptOn &&
+    session !== null &&
+    session.management === "managed" &&
+    session.state !== "ended";
 
   return (
     <>
@@ -95,7 +105,16 @@ export function MiddleHeader({
       </header>
       <div
         aria-hidden
-        className="pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b from-(--ui-chat-surface-background) to-transparent"
+        className={cx(
+          "pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b from-(--ui-chat-surface-background)",
+          // Fading to fully transparent reveals whatever's actually beneath this strip. That's
+          // correct when it matches the header's own App-theme color (Transcript, ObservedTerminal,
+          // no session) — but the live terminal's own background is Terminal-theme-scoped and can
+          // independently be the opposite mode, in which case "transparent" bottoms out on a jarring
+          // color jump (reported as a "dark shadow" over a Light terminal below a Dark header).
+          // Fading to the terminal's own token instead keeps the blend smooth in every combination.
+          terminalBelow ? "to-(--terminal-well-background)" : "to-transparent",
+        )}
       />
     </>
   );

@@ -14,6 +14,10 @@ const workspace = readFileSync(
   join(root, "src/renderer/src/workspace/Workspace.tsx"),
   "utf8",
 );
+const middleHeader = readFileSync(
+  join(root, "src/renderer/src/shell/MiddleHeader.tsx"),
+  "utf8",
+);
 
 describe("terminal chrome — borderless, padded, edge scrollbar", () => {
   it("the container has no border or radius and follows Terminal theme, not the app well", () => {
@@ -105,5 +109,36 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
       wrapM![1],
       "no outer padding/margin on the terminal wrapper",
     ).not.toMatch(/\b[pm][xytrbl]?-/);
+  });
+});
+
+describe("MiddleHeader's fade strip follows Terminal theme, not App theme, over the live terminal", () => {
+  // Regression coverage for the 2026-07-15 "dark shadow" fix: the header's bottom fade blends
+  // from its own (App-theme) background to transparent, revealing whatever's beneath it — correct
+  // for Transcript/ObservedTerminal/no-session (all App-theme-colored, matching the header), but a
+  // visible color jump when the live terminal below is independently Terminal-themed. Fading to the
+  // terminal's own token instead keeps the blend smooth in every App/Terminal theme combination.
+
+  it("computes terminalBelow from the same hasLiveTerminal shape Workspace.tsx uses", () => {
+    expect(middleHeader).toMatch(
+      /const terminalBelow =\s*\n\s*!transcriptOn &&\s*\n\s*session !== null &&\s*\n\s*session\.management === "managed" &&\s*\n\s*session\.state !== "ended";/,
+    );
+  });
+
+  it("fades to the terminal's own background only when terminalBelow, else to transparent", () => {
+    const m =
+      /className=\{cx\(\s*"([^"]*bg-linear-to-b[^"]*)",([\s\S]*?)\)\}/.exec(
+        middleHeader,
+      );
+    expect(m, "fade strip's cx(...) className").toBeTruthy();
+    expect(m![1], "always fades from the header's own background").toMatch(
+      /\bfrom-\(--ui-chat-surface-background\)$/,
+    );
+    expect(
+      m![2],
+      "ternary keyed on terminalBelow, to-(--terminal-well-background) vs to-transparent",
+    ).toMatch(
+      /terminalBelow \? "to-\(--terminal-well-background\)" : "to-transparent"/,
+    );
   });
 });
