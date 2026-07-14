@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import type { PersistedSession } from "@shared/types";
 import { IPC, type OverviewData } from "@shared/ipc";
 import type { Provider } from "../src/main/provider/types";
 import type { StatusLineReader, StatusLineSample } from "@shared/statusline";
 import { createCaffeinate } from "../src/main/caffeinate";
+import { createAppSettingsStore } from "../src/main/app-settings";
 
 // Capture the handlers registerIpc registers, without a real Electron ipcMain.
 const { handlers } = vi.hoisted(() => ({
@@ -15,6 +18,7 @@ vi.mock("electron", () => ({
     handle: (channel: string, fn: (...a: unknown[]) => unknown) =>
       handlers.set(channel, fn),
   },
+  nativeTheme: { themeSource: "system" },
 }));
 
 import { registerIpc } from "../src/main/ipc";
@@ -461,5 +465,47 @@ describe("registerIpc caffeinate", () => {
     expect(set({}, false)).toBe(false);
     expect(get()).toBe(false);
     expect(stopped).toEqual([1]);
+  });
+});
+
+describe("registerIpc appearance", () => {
+  it("serves dark from the inert default when no appSettings dep is wired", () => {
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider: provider(() => []) });
+    expect(handlers.get(IPC.appearanceGetAppTheme)!()).toBe("dark");
+    expect(handlers.get(IPC.appearanceGetTerminalTheme)!()).toBe("dark");
+  });
+
+  it("persists appTheme and syncs nativeTheme.themeSource", async () => {
+    const db = openTestDb();
+    migrate(db);
+    const dir = mkdtempSync(join(tmpdir(), "cbw-ipc-appearance-"));
+    const appSettings = createAppSettingsStore({ dir });
+    registerIpc({ db, provider: provider(() => []), appSettings });
+
+    const { nativeTheme } = await import("electron");
+    handlers.get(IPC.appearanceSetAppTheme)!({}, "light");
+    expect(handlers.get(IPC.appearanceGetAppTheme)!()).toBe("light");
+    expect(nativeTheme.themeSource).toBe("light");
+
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("persists terminalTheme independently of appTheme, without touching nativeTheme", async () => {
+    const db = openTestDb();
+    migrate(db);
+    const dir = mkdtempSync(join(tmpdir(), "cbw-ipc-appearance-"));
+    const appSettings = createAppSettingsStore({ dir });
+    registerIpc({ db, provider: provider(() => []), appSettings });
+
+    const { nativeTheme } = await import("electron");
+    nativeTheme.themeSource = "system"; // reset before asserting it stays untouched below
+    handlers.get(IPC.appearanceSetTerminalTheme)!({}, "light");
+    expect(handlers.get(IPC.appearanceGetTerminalTheme)!()).toBe("light");
+    expect(handlers.get(IPC.appearanceGetAppTheme)!()).toBe("dark");
+    expect(nativeTheme.themeSource).toBe("system");
+
+    rmSync(dir, { recursive: true, force: true });
   });
 });
