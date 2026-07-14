@@ -19,7 +19,8 @@ import {
   stripInitialPromptGap,
 } from "./revive";
 import { shellRouter } from "./router-instance";
-import { resolveSurfaceColor, terminalTheme } from "./theme";
+import { terminalTheme } from "./theme";
+import { $terminalTheme } from "../ui/appearance-store";
 import { closeTerminal, updateTerminalReviveBuffer } from "./terminals";
 
 // How many scrollback lines to serialize for relaunch restore (VS Code's
@@ -44,13 +45,6 @@ if (typeof window !== "undefined") {
 }
 
 type TerminalStatus = "starting" | "open" | "closed";
-
-// Bind the palette to the live app surface so the terminal blends in (and the contrast clamp has
-// a real background to work against).
-function withSurface(theme: ReturnType<typeof terminalTheme>) {
-  const surface = resolveSurfaceColor(theme.background ?? "#1e1e1e");
-  return { ...theme, background: surface, cursorAccent: surface };
-}
 
 interface UseTerminalSessionOptions {
   /** Renderer-side tab id (keys the tab store; NOT the pty session id). */
@@ -102,8 +96,8 @@ export function useTerminalSession({
 
     const term = new Terminal({
       allowProposedApi: true,
-      // Opaque canvas = WebGL's crisp fast-path (VS Code keeps transparency off; our surface is
-      // opaque anyway, so withSurface paints it solid).
+      // Opaque canvas = WebGL's crisp fast-path (VS Code keeps transparency off; the terminal
+      // theme's own background is always opaque).
       allowTransparency: false,
       convertEol: true,
       cursorBlink: true,
@@ -122,7 +116,7 @@ export function useTerminalSession({
       // which paints the raw saturated ANSI palette.
       minimumContrastRatio: 4.5,
       scrollback: 1000,
-      theme: withSurface(terminalTheme()),
+      theme: terminalTheme($terminalTheme.get()),
     });
 
     const fit = new FitAddon();
@@ -136,6 +130,14 @@ export function useTerminalSession({
       createWebLinksAddon((url) => void window.api.openExternal(url)),
     );
     term.unicode.activeVersion = "11";
+
+    // Live re-theme: this Terminal instance is long-lived (survives tab switches), so a later
+    // Settings change must reassign its theme, not just affect newly-created terminals.
+    cleanup.push(
+      $terminalTheme.subscribe((mode) => {
+        term.options.theme = terminalTheme(mode);
+      }),
+    );
 
     // Replay last run's scrollback before the fresh shell boots. The process is NOT revived — a
     // new shell starts one line below the restored history.
