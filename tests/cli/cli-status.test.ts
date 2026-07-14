@@ -6,15 +6,10 @@ import {
 } from "../../src/main/cli-status";
 
 const base: CliProbeInput = {
-  path: "/Users/me/.local/bin/claude",
-  source: "shell",
-  isRegularFile: true,
-  duplicates: ["/Users/me/.local/bin/claude"],
   version: { status: "ok", raw: "2.1.178 (Claude Code)" },
   auth: { status: "ok" },
   floor: MIN_CLAUDE_VERSION,
-  installMethod: "native",
-  configDir: { active: "/Users/me/.claude", recovered: null },
+  configDir: { active: "/Users/me/.claude" },
   now: 1_000,
 };
 
@@ -22,15 +17,7 @@ describe("evaluateCliStatus", () => {
   it("ready when found, runs, >= floor, logged in", () => {
     expect(evaluateCliStatus(base).kind).toBe("ready");
   });
-  it("notFound when the path is null", () => {
-    expect(evaluateCliStatus({ ...base, path: null }).kind).toBe("notFound");
-  });
-  it("notFound when the resolved target is not a regular file (an alias/function)", () => {
-    expect(evaluateCliStatus({ ...base, isRegularFile: false }).kind).toBe(
-      "notFound",
-    );
-  });
-  it("notFound when the binary vanished between resolve and run (spawn error)", () => {
+  it("notFound when the binary isn't there (spawn error)", () => {
     expect(
       evaluateCliStatus({ ...base, version: { status: "spawnError" } }).kind,
     ).toBe("notFound");
@@ -86,11 +73,9 @@ describe("evaluateCliStatus", () => {
       evaluateCliStatus({ ...base, auth: { status: "unknown" } }).kind,
     ).toBe("ready");
   });
-  it("flags a config-dir mismatch we could not resolve", () => {
-    const r = evaluateCliStatus({
-      ...base,
-      configDir: { active: "/Users/me/.claude", recovered: "/custom/claude" },
+  it("carries the active config dir straight through for display", () => {
+    expect(evaluateCliStatus(base).configDir).toEqual({
+      active: "/Users/me/.claude",
     });
-    expect(r.configDir.mismatch).toBe(true);
   });
 });
