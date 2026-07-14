@@ -158,6 +158,48 @@ function sendMessageRows(
   ];
 }
 
+// A TaskOutput poll result: a tool_use (name "TaskOutput") plus its tool_result, whose row-level
+// toolUseResult carries the CLI's structured { task_id, status } — present on EVERY poll, blocking
+// or not, terminal or not (confirmed against a real transcript: a not_ready/timeout poll still
+// carries status:"running"). `toolUseId` only needs to be unique within the transcript.
+function pollRow(
+  toolUseId: string,
+  taskId: string,
+  status: string,
+  ts: string,
+  blocking = true,
+): any[] {
+  return [
+    {
+      type: "assistant",
+      timestamp: ts,
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            id: toolUseId,
+            name: "TaskOutput",
+            input: { task_id: taskId, block: blocking, timeout: 60000 },
+          },
+        ],
+      },
+    },
+    {
+      type: "user",
+      timestamp: ts,
+      message: {
+        content: [
+          { type: "tool_result", tool_use_id: toolUseId, is_error: false },
+        ],
+      },
+      toolUseResult: {
+        retrieval_status: status === "running" ? "not_ready" : "success",
+        task: { task_id: taskId, status },
+      },
+    },
+  ];
+}
+
 // A minimal positioned assistant row for a subagent transcript.
 const ar = (ts: string): any => ({
   type: "assistant",
@@ -748,6 +790,56 @@ describe("buildSubagentForest", () => {
       [
         ...asyncMain("tu-1", "a1"),
         queueNotificationRow("a1", "completed", "2026-06-04T03:05:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("done");
+  });
+
+  it("settles an agent done on a TaskOutput poll's terminal status alone (issue #328)", () => {
+    // The CLI hands a completion straight to an active poll without ALSO queuing a
+    // <task-notification> when a waiter is parked on the task — so the poll result can be the
+    // agent's ONLY terminal lifecycle event.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        ...pollRow("tu-poll", "a1", "completed", "2026-06-04T03:05:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("done");
+  });
+
+  it("leaves an otherwise-eventless agent working on a lone running poll", () => {
+    // Exercises the new poll-observation event explicitly (Task 2 makes it a real `working` push)
+    // rather than relying only on the "0 events ⇒ working" default it happens to agree with here.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        ...pollRow("tu-poll", "a1", "running", "2026-06-04T03:01:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("working");
+  });
+
+  it("folds a non-blocking poll's terminal status the same as a blocking poll's", () => {
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        ...pollRow("tu-poll", "a1", "completed", "2026-06-04T03:05:00.000Z", false),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("done");
+  });
+
+  it("resolves consistently to done when both a poll and a notification observe the same completion", () => {
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        ...pollRow("tu-poll", "a1", "completed", "2026-06-04T03:05:00.000Z"),
+        notificationRow("a1", "completed", "2026-06-04T03:05:00.500Z"),
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
     );

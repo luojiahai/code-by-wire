@@ -36,6 +36,8 @@ interface Scan {
   asyncLaunched: Set<string>;
   /** Task-notifications recorded in this transcript (user + queue-operation rows). */
   notifications: TaskNotification[];
+  /** TaskOutput poll results recorded in this transcript — see PollObservation. */
+  pollObservations: PollObservation[];
   /** Successful SendMessage deliveries recorded in this transcript — each resumes its target. */
   resumes: SendResume[];
   /** First raw model string seen on an assistant row, normalized later; undefined when none reported. */
@@ -74,6 +76,19 @@ interface TaskNotification {
   kind: "enqueue" | "dequeue";
 }
 
+/** A level observation read directly off a `TaskOutput` poll's structured result
+ *  (`toolUseResult.task`) — present on EVERY poll, blocking or not, terminal or not. Unlike a
+ *  <task-notification> (an edge event that only fires once, at the moment an agent stops), a poll
+ *  reports "this task's status was `status` as of `ts`" — so a non-terminal value here is real
+ *  evidence the agent is alive, not noise; `statusOf`'s poll loop folds it differently for exactly
+ *  that reason. `taskId` is the polled task's id (an agent id, or a foreign task the fold's
+ *  `taskId !== agentId` filter drops). */
+interface PollObservation {
+  taskId: string;
+  status: string;
+  ts: number;
+}
+
 /** Status values that do NOT mean the agent stopped. A <task-notification> only fires when an agent
  *  stops (the CLI's own embedded note), so any status outside this set settles the agent as stopped —
  *  the transcript format is officially unstable, and the two misread modes aren't symmetric: a wrong
@@ -87,6 +102,18 @@ const NON_TERMINAL_STATUSES = new Set([
   "in_progress",
   "queued",
 ]);
+
+/** Map a notification/poll `status` string to the `Subagent` status it settles as, or `undefined`
+ *  when the value is one of the known non-terminal names (`NON_TERMINAL_STATUSES`). Shared by both
+ *  the notification and poll loops in `statusOf` — they agree on what a TERMINAL value means
+ *  (completed ⇒ done, failed ⇒ failed, any other stop word ⇒ stopped) and only diverge on what a
+ *  NON-terminal value means for their own source. */
+function terminalStatusFor(status: string): Subagent["status"] | undefined {
+  if (status === "completed") return "done";
+  if (status === "failed") return "failed";
+  if (NON_TERMINAL_STATUSES.has(status)) return undefined;
+  return "stopped";
+}
 
 const NOTIFICATION_BLOCK_RE =
   /<task-notification>([\s\S]*?)<\/task-notification>/g;
@@ -132,6 +159,7 @@ function scanRows(rows: any[]): Scan {
   const results = new Map<string, { isError: boolean; ts: number }>();
   const asyncLaunched = new Set<string>();
   const notifications: TaskNotification[] = [];
+  const pollObservations: PollObservation[] = [];
   const resumes: SendResume[] = [];
   // tool_use id → SendMessage target, awaiting its result row later in the file.
   const sendTargets = new Map<string, string>();
@@ -192,6 +220,18 @@ function scanRows(rows: any[]): Scan {
       if (resultBlocks === 1 && firstResultId !== undefined) {
         if (turObj?.status === "async_launched")
           asyncLaunched.add(firstResultId);
+        const task = turObj?.task;
+        if (
+          task &&
+          typeof task === "object" &&
+          typeof task.task_id === "string" &&
+          typeof task.status === "string"
+        )
+          pollObservations.push({
+            taskId: task.task_id,
+            status: task.status,
+            ts: evTs,
+          });
         const to = sendTargets.get(firstResultId);
         if (
           to !== undefined &&
@@ -217,6 +257,7 @@ function scanRows(rows: any[]): Scan {
     results,
     asyncLaunched,
     notifications,
+    pollObservations,
     resumes,
     model,
     tokens:
@@ -297,6 +338,15 @@ export function buildSubagentForest(
     notifications.push(...scans.get(a.agentId)!.notifications);
   notifications.push(...mainScan.notifications);
 
+  // Poll observations (TaskOutput's structured toolUseResult.task) merged across every transcript,
+  // the same way as notifications. No dedup needed: a poll's ts has no delivery lag (unlike a
+  // dequeue twin), so a poll-observed stop and a notification-observed stop for the same event
+  // coexist harmlessly under statusOf's last-write-wins fold.
+  const pollObservations: PollObservation[] = [];
+  for (const a of agents)
+    pollObservations.push(...scans.get(a.agentId)!.pollObservations);
+  pollObservations.push(...mainScan.pollObservations);
+
   // (taskId, status) pairs that have an enqueue twin — its timestamp is the true stop time, so any
   // dequeue twin sharing the same pair is stale, delivery-lagged news and gets skipped in statusOf.
   const enqueuedKeys = new Set<string>();
@@ -334,13 +384,15 @@ export function buildSubagentForest(
         enqueuedKeys.has(`${n.taskId}\u0000${n.status}`)
       )
         continue; // stale twin — the enqueue already captured the true stop time
-      if (n.status === "completed") events.push({ ts: n.ts, status: "done" });
-      else if (n.status === "failed")
-        events.push({ ts: n.ts, status: "failed" });
-      else if (!NON_TERMINAL_STATUSES.has(n.status))
-        events.push({ ts: n.ts, status: "stopped" });
+      const mapped = terminalStatusFor(n.status);
+      if (mapped) events.push({ ts: n.ts, status: mapped });
       // A deny-listed status is a no-op; every other value (killed, stopped, and whatever the CLI
       // says next) settles the agent as stopped — see NON_TERMINAL_STATUSES for the asymmetry.
+    }
+    for (const p of pollObservations) {
+      if (p.taskId !== agentId) continue;
+      const mapped = terminalStatusFor(p.status);
+      if (mapped) events.push({ ts: p.ts, status: mapped });
     }
     for (const rs of resumes) {
       const target = knownIds.has(rs.to) ? rs.to : rs.resolvedId;
