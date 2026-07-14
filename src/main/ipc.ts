@@ -158,10 +158,6 @@ export function registerIpc({
     recheck: () => {
       throw new Error("CLI status not wired");
     },
-    setBinPath: () => {
-      throw new Error("CLI status not wired");
-    },
-    resolvedPath: () => null,
   };
   const inertState: UpdateState = {
     currentVersion: "",
@@ -175,7 +171,6 @@ export function registerIpc({
   };
   const settings: AppSettingsStore = appSettings ?? {
     read: () => ({}),
-    setClaudeBinPath: () => {},
     setAutoCheckUpdates: () => {},
     setStatuslineEnabled: () => {},
   };
@@ -363,9 +358,6 @@ export function registerIpc({
   ipcMain.handle(IPC.capabilities, () => provider.capabilities);
   ipcMain.handle(IPC.modelDefaults, () => readDefaults());
   ipcMain.handle(IPC.recheckCli, () => cli.recheck());
-  ipcMain.handle(IPC.setClaudeBinPath, (_e, path: string | null) =>
-    cli.setBinPath(path),
-  );
   ipcMain.handle(IPC.readTranscript, (_e, id: string, sinceMtimeMs?: number) =>
     provider.readTranscript(id, sinceMtimeMs),
   );
