@@ -226,11 +226,7 @@ function SubagentDispatch({
     "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-meta";
   const body = (
     <>
-      <Icon
-        name="bot"
-        size={13}
-        className="shrink-0 text-primary-bright"
-      />
+      <Icon name="bot" size={13} className="shrink-0 text-primary-bright" />
       <span className="shrink-0 text-primary-bright">Subagent</span>
       <span className="font-mono text-fg">{agentType}</span>
       {description && (

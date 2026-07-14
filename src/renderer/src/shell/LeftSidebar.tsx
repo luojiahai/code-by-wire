@@ -214,9 +214,7 @@ export function LeftSidebar({
       </div>
 
       <div className="flex shrink-0 items-center justify-between gap-1 px-2.5 pb-1 pt-1.5">
-        <SidebarPanelLabel className="pl-2">
-          Sessions
-        </SidebarPanelLabel>
+        <SidebarPanelLabel className="pl-2">Sessions</SidebarPanelLabel>
         <div className="flex items-center gap-0.5">
           <button
             type="button"
