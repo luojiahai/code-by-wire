@@ -181,6 +181,13 @@ describe("token consolidation (no duplicate light-blind literals)", () => {
     expect(rawVar("color-ink-950")).toBe("var(--theme-neutral-chrome)");
     expect(rawVar("color-ink-925")).toBe("var(--theme-neutral-card)");
   });
+
+  it("--color-primary-bright/-deep are exact per-mode literals, not a color-mix formula", () => {
+    expect(token("primary-bright")).toBe("#ffffff");
+    expect(token("primary-deep")).toBe("#c8c8c8");
+    expect(lightVar("color-primary-bright")).toBe("#2e2e2e");
+    expect(lightVar("color-primary-deep")).toBe("#000000");
+  });
 });
 
 describe("light theme overrides", () => {
