@@ -348,7 +348,7 @@
   --ui-green: #1f8a65;
   --ui-cyan: #4c7f8c;
 
-  /* The plain surface ladder and --color-well aren't part of the --ui-*/--theme-* derivation chain
+  /* The plain surface ladder and --color-well aren't part of the --ui-* or --theme-* derivation chain
      (see Task 1's design doc §2), so they get their own literals here. ink-800/ink-750 are
      hermes-sourced (its synthesized border/input surfaces); the rest of the ladder and --color-well
      are a reasonable descending-lightness ramp, spot-checked in the manual smoke test. */
