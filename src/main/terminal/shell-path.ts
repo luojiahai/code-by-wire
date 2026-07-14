@@ -1,4 +1,8 @@
-import { execFileSync, spawn } from "node:child_process";
+import {
+  spawn,
+  spawnSync,
+  type SpawnSyncOptionsWithStringEncoding,
+} from "node:child_process";
 
 /**
  * A macOS .app launched from Finder/Spotlight/Dock inherits launchd's bare PATH
@@ -111,22 +115,32 @@ export function parseShellEnv(out: string): ShellEnv | null {
 /** Real wiring: run the login+interactive shell once and parse its env. Null on any failure. Untested
  *  (spawns a real shell). */
 export function probeShellEnv(shell: string): ShellEnv | null {
-  try {
-    const out = execFileSync(shell, ["-ilc", SHELL_ENV_SCRIPT], {
-      encoding: "utf8",
-      timeout: SHELL_PROBE_TIMEOUT_MS,
-      stdio: ["ignore", "pipe", "ignore"],
-      env: {
-        ...process.env,
-        TERM: "dumb",
-        DISABLE_AUTO_UPDATE: "true",
-        GIT_TERMINAL_PROMPT: "0",
-      },
-    });
-    return parseShellEnv(out);
-  } catch {
-    return null;
-  }
+  // Own session, no controlling terminal: the -i shell would otherwise enable job control and
+  // seize the launching terminal's foreground process group, permanently eating that terminal's
+  // Ctrl+C if the probe is interrupted (see cli-check.ts's createProbeExec for the full story).
+  // Only reachable when the packaged binary is launched FROM a terminal — Finder launches carry
+  // no controlling tty — but the flag costs nothing. `detached` on the SYNC spawn is real but
+  // undocumented: the implementation shares async spawn's option normalization and forwards it to
+  // the same libuv flag (verified on Node 24), while the docs and @types/node list it only for
+  // async spawn — hence the widened option type. If Node ever aligns the sync implementation with
+  // its docs the flag would drop silently, so re-verify with a pty harness on major Node upgrades.
+  const opts: SpawnSyncOptionsWithStringEncoding & { detached: boolean } = {
+    encoding: "utf8",
+    timeout: SHELL_PROBE_TIMEOUT_MS,
+    stdio: ["ignore", "pipe", "ignore"],
+    detached: true,
+    env: {
+      ...process.env,
+      TERM: "dumb",
+      DISABLE_AUTO_UPDATE: "true",
+      GIT_TERMINAL_PROMPT: "0",
+    },
+  };
+  const r = spawnSync(shell, ["-ilc", SHELL_ENV_SCRIPT], opts);
+  // Same nulls execFileSync's throw/catch produced here before: a spawn failure (error), the
+  // timeout's kill (signal), or a nonzero shell exit (status) all mean no usable env.
+  if (r.error || r.signal || r.status !== 0) return null;
+  return parseShellEnv(r.stdout);
 }
 
 /** Async sibling of probeShellEnv: the same one-shot login-shell env probe, but non-blocking so a
