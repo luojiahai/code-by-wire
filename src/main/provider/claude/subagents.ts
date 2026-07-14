@@ -80,6 +80,7 @@ const NON_TERMINAL_STATUSES = new Set([
   "pending",
   "waiting",
   "in_progress",
+  "queued",
 ]);
 
 const NOTIFICATION_BLOCK_RE =
@@ -246,10 +247,9 @@ function reaches(
  * the dispatch's tool_result (is_error ⇒ failed, else done — but a background launch ack, toolUseResult
  * "async_launched", is a receipt and contributes nothing), and its <task-notification> stop signals
  * (completed ⇒ done, failed ⇒ failed, any other stop word ⇒ stopped, known non-terminal names ⇒
- * no-op), and successful SendMessage deliveries
- * (⇒ working again until the next stop); no events ⇒ working. The output is always an
- * acyclic forest, even on malformed input. Pure: same input,
- * same output.
+ * no-op), and successful SendMessage deliveries (⇒ working again until the next stop); no events ⇒
+ * working. The output is always an acyclic forest, even on malformed input. Pure: same input, same
+ * output.
  */
 export function buildSubagentForest(
   mainRows: any[],

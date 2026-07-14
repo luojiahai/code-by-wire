@@ -5,9 +5,9 @@ import type { Subagent, Task, BackgroundShell, Monitor } from "@shared/types";
 /** The dock's tabs. */
 export type DockTab = "tasks" | "subagents" | "shells" | "monitors";
 
-/** The forest tallies the dock needs, gathered in a single walk: total nodes (the Subagents count badge)
- *  and the per-status counts (the live-fan-out signal, the collapsed tally's working count, and the
- *  Subagents tab's running / done / failed / stopped tally). */
+/** The forest tallies the dock needs, gathered in a single walk. Only `total` (the Subagents count
+ *  badge) and `working` (the live-fan-out signal: auto-expand, default tab) have UI consumers today;
+ *  done / failed / stopped are kept so the tally stays symmetric with the status union. */
 export interface SubagentStats {
   total: number;
   working: number;

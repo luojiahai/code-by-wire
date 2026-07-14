@@ -766,7 +766,7 @@ describe("buildSubagentForest", () => {
     expect(forest[0].status).toBe("working");
   });
 
-  it.each(["running", "pending", "waiting", "in_progress"])(
+  it.each(["running", "pending", "waiting", "in_progress", "queued"])(
     "keeps a non-terminal notification status (%s) as a no-op",
     (status) => {
       // The deny-list hedges the one case where "a notification means a stop" could break:
@@ -854,6 +854,20 @@ describe("buildSubagentForest", () => {
     const forest = buildSubagentForest(
       [
         ...main("tu-1", { is_error: false }),
+        ...sendMessageRows("sm-1", "a1", "a1", "2026-06-04T03:10:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("working");
+  });
+
+  it("flips a stopped agent back to working on a SendMessage resume", () => {
+    // The self-heal that justifies settling unknown statuses: any wrong settle is undone by the
+    // agent's next event.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        notificationRow("a1", "stopped", "2026-06-04T03:05:00.000Z"),
         ...sendMessageRows("sm-1", "a1", "a1", "2026-06-04T03:10:00.000Z"),
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
