@@ -38,6 +38,12 @@ export type ProbeSpawn = (
 
 const realSpawn: ProbeSpawn = (file, args, opts) => spawn(file, args, opts);
 
+/** Stdout budget for a probe, preserving the maxBuffer guard the old promisified execFile applied:
+ *  without a cap, a pathological rc file that streams to stdout could accumulate without bound for
+ *  the whole timeout window. Killing the child classifies as "failed", the same verdict execFile's
+ *  ERR_CHILD_PROCESS_STDIO_MAXBUFFER produced. 1 MiB, execFile's default. */
+const PROBE_MAX_BUFFER = 1_048_576;
+
 /**
  * Build the real ProbeExec on raw spawn, NOT execFile: the probes wrap `claude` in the user's
  * interactive login shell (`zsh -ilc`, see probeSpawnForm), and an interactive shell enables job
@@ -72,6 +78,7 @@ export function createProbeExec(
       child.stdout?.setEncoding(opts.encoding);
       child.stdout?.on("data", (d: string) => {
         stdout += d;
+        if (stdout.length > PROBE_MAX_BUFFER) child.kill();
       });
       child.on("error", (err: Error) => settle(() => reject(err)));
       // Mirror execFile's error shape: a nonzero exit rejects with `.code` = the exit code, and a

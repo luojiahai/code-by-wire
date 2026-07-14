@@ -133,4 +133,45 @@ describe("createProbeExec settlement", () => {
     f.emit("close", 1);
     await expect(p).rejects.toMatchObject({ code: "ENOENT" });
   });
+
+  it("settles once: a late error after a close doesn't double-settle", async () => {
+    const f = fakeSpawn();
+    const p = createProbeExec(f.spawn, "darwin")(
+      "/bin/zsh",
+      ["-ilc", "x"],
+      OPTS,
+    );
+    f.emit("close", 127);
+    f.emit("error", Object.assign(new Error("late"), { code: "ENOENT" }));
+    await expect(p).rejects.toMatchObject({ code: 127 });
+  });
+
+  it("cancels the timeout once settled — no kill fires after a clean close", async () => {
+    vi.useFakeTimers();
+    const f = fakeSpawn();
+    const p = createProbeExec(f.spawn, "darwin")(
+      "/bin/zsh",
+      ["-ilc", "x"],
+      OPTS,
+    );
+    f.emit("close", 0);
+    vi.advanceTimersByTime(60_000);
+    expect(f.child.killed.length).toBe(0);
+    await expect(p).resolves.toEqual({ stdout: "" });
+  });
+
+  it("kills the child when stdout exceeds the 1 MiB cap, mirroring execFile's maxBuffer guard", async () => {
+    const f = fakeSpawn();
+    const p = createProbeExec(f.spawn, "darwin")(
+      "/bin/zsh",
+      ["-ilc", "x"],
+      OPTS,
+    );
+    f.emitData("y".repeat(1_048_576 + 1));
+    expect(f.child.killed.length).toBe(1);
+    // The kill lands as a signal exit, so the reject carries no not-found code — classified "failed",
+    // the same verdict execFile's ERR_CHILD_PROCESS_STDIO_MAXBUFFER produced.
+    f.emit("close", null);
+    await expect(p).rejects.toMatchObject({ code: null });
+  });
 });

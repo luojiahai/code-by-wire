@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { runVersion, runAuth } from "../../src/main/cli-check";
 
-/** A recording stand-in for the promisified execFile. The reject branch mirrors a real execFile failure,
- *  which rejects with an Error carrying a `.code`. */
+/** A recording stand-in for the probe exec (createProbeExec's spawn wrapper). The reject branch mirrors
+ *  a real probe failure, which rejects with an Error carrying a `.code`. */
 function recorder(result: { stdout: string } | { throw: Error }) {
   const calls: { file: string; args: string[]; opts: unknown }[] = [];
   const exec = (
@@ -49,7 +49,7 @@ describe("runVersion probe invocation", () => {
     expect(await runVersion(exec, "win32")).toEqual({ status: "spawnError" });
   });
 
-  it("classifies a posix 'command not found' exit (127) as spawnError, same as ENOENT — the outer execFile succeeds (it ran the shell fine), so ENOENT never fires; the shell itself reports the miss via exit 127", async () => {
+  it("classifies a posix 'command not found' exit (127) as spawnError, same as ENOENT — the outer spawn succeeds (it ran the shell fine), so ENOENT never fires; the shell itself reports the miss via exit 127", async () => {
     const { exec } = recorder({
       throw: Object.assign(new Error("not found"), { code: 127 }),
     });
