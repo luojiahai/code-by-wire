@@ -4,11 +4,12 @@ import {
   buildClaudeCommand,
   buildResumeCommand,
   buildForkCommand,
-  launchForm,
+  toSpawnForm,
   type ClaudeCommand,
 } from "./command";
 import { createDataBufferer, type DataBufferer } from "./data-bufferer";
 import { isDirectory } from "../fs-dir";
+import type { PosixShellDeps } from "./shell-command";
 // Type-only: importing pty-process for VALUES would pull node-pty (a native addon) into the test
 // graph and break `pnpm test`. The real factory is injected at the composition root (the IPC layer).
 import type { PtyProcess, SpawnOptions } from "./pty-process";
@@ -36,7 +37,6 @@ export interface SpawnRequest {
   model: ModelSelection;
   cols: number;
   rows: number;
-  bin?: string;
 }
 
 export interface AdoptSpawn {
@@ -44,7 +44,6 @@ export interface AdoptSpawn {
   cwd: string;
   cols: number;
   rows: number;
-  bin?: string;
 }
 
 export interface ForkSpawn {
@@ -61,7 +60,6 @@ export interface ForkSpawn {
   cwd: string;
   cols: number;
   rows: number;
-  bin?: string;
 }
 
 /** Launch an arbitrary command (the footer shell terminal) with a LITERAL argv. Unlike the claude
@@ -104,6 +102,14 @@ export interface TerminalManagerDeps {
   env?: () => NodeJS.ProcessEnv;
   /** Host platform; injected so the Windows launch shim is unit-testable. Defaults to process.platform. */
   platform?: NodeJS.Platform;
+  /** Real fs checks for resolving the POSIX login shell that Managed spawn/adopt/fork wrap `claude` in
+   *  (unused on win32, which stays on the direct-spawn + launchForm PATHEXT shim). REQUIRED whenever
+   *  `platform` resolves to something other than "win32" — the footer terminal's manager instance never
+   *  calls spawn/adopt/fork, so it can omit this. See command.ts's wrapInLoginShell/toSpawnForm. */
+  posixShell?: {
+    isExecutable: (p: string) => boolean;
+    findOnPath: (name: string, env: NodeJS.ProcessEnv) => string | null;
+  };
   /** Validates a session's cwd before spawn. Injected in tests; defaults to a real statSync isDirectory
    *  check — a node:fs call, not the native pty addon, so it is safe here and tests inject a fake. */
   statDir?: (cwd: string) => boolean;
@@ -148,6 +154,19 @@ export function createTerminalManager(
   const createBufferer = deps.createBufferer ?? createDataBufferer;
   const platform = deps.platform ?? process.platform;
   const statDir = deps.statDir ?? isDirectory;
+  const posixShellDeps = (): PosixShellDeps => {
+    if (!deps.posixShell) {
+      throw new Error(
+        "createTerminalManager: posixShell deps are required to spawn/adopt/fork on a non-win32 platform",
+      );
+    }
+    const env = deps.env?.() ?? process.env;
+    return {
+      env,
+      isExecutable: deps.posixShell.isExecutable,
+      findOnPath: (name) => deps.posixShell!.findOnPath(name, env),
+    };
+  };
   const terms = new Map<string, Term>();
 
   // Stand up one pty for `id` running `command` in `cwd`. The body is identical for a fresh spawn and an
@@ -239,9 +258,10 @@ export function createTerminalManager(
   function spawn(req: SpawnRequest): void {
     start(
       req.id,
-      launchForm(
-        buildClaudeCommand({ id: req.id, model: req.model, bin: req.bin }),
+      toSpawnForm(
+        buildClaudeCommand({ id: req.id, model: req.model }),
         platform,
+        platform === "win32" ? undefined : posixShellDeps(),
       ),
       req.cwd,
       req.cols,
@@ -255,7 +275,11 @@ export function createTerminalManager(
   function adopt(req: AdoptSpawn): void {
     start(
       req.id,
-      launchForm(buildResumeCommand({ id: req.id, bin: req.bin }), platform),
+      toSpawnForm(
+        buildResumeCommand({ id: req.id }),
+        platform,
+        platform === "win32" ? undefined : posixShellDeps(),
+      ),
       req.cwd,
       req.cols,
       req.rows,
@@ -270,13 +294,10 @@ export function createTerminalManager(
   function fork(req: ForkSpawn): void {
     start(
       req.id,
-      launchForm(
-        buildForkCommand({
-          sourceId: req.sourceId,
-          newId: req.id,
-          bin: req.bin,
-        }),
+      toSpawnForm(
+        buildForkCommand({ sourceId: req.sourceId, newId: req.id }),
         platform,
+        platform === "win32" ? undefined : posixShellDeps(),
       ),
       req.cwd,
       req.cols,

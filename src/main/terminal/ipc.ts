@@ -71,19 +71,21 @@ export function registerTerminalIpc({
   managed,
   resolveAdoptTarget,
   env,
-  resolveBin,
+  posixShell,
 }: {
   window: BrowserWindow;
   managed: ManagedRegistry;
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null;
-  /** Returns the env for spawned/resumed `claude` sessions: pins CLAUDE_CONFIG_DIR to the dir the app
-   *  reads from (so sessions write where discovery looks) and, when packaged, carries the corrected PATH a
-   *  Finder-launched .app needs to find `claude`. Resolved lazily on the first spawn and memoized. Omitted
-   *  only in tests, where the manager falls back to `process.env`. */
+  /** Returns the env for spawned/resumed `claude` sessions. Omitted in production (Managed sessions no
+   *  longer need a custom env — they spawn through the login shell, which resolves everything itself);
+   *  omitted in most tests too, where the manager falls back to `process.env`. */
   env?: () => NodeJS.ProcessEnv;
-  /** Returns the resolved absolute `claude` binary path from the CLI-status controller, or null to fall
-   *  back to PATH resolution. Read at each spawn so a freshly-installed/relocated CLI is picked up. */
-  resolveBin?: () => string | null;
+  /** Real fs checks for resolving the POSIX login shell Managed sessions spawn through (darwin/linux
+   *  only; unused on win32). Required in production. See manager.ts's TerminalManagerDeps.posixShell. */
+  posixShell?: {
+    isExecutable: (p: string) => boolean;
+    findOnPath: (name: string, env: NodeJS.ProcessEnv) => string | null;
+  };
 }): { rename: (from: string, to: string) => void } {
   const manager = createTerminalManager({
     send: (id, data, offset) => {
@@ -101,6 +103,7 @@ export function registerTerminalIpc({
     createPty: createPtyProcess,
     createRecorder,
     env,
+    posixShell,
   });
 
   // The renderer mints the id and stands up its terminal BEFORE calling spawn, so the very first pty
@@ -113,7 +116,6 @@ export function registerTerminalIpc({
       model: req.model,
       cols: req.cols,
       rows: req.rows,
-      bin: resolveBin?.() ?? undefined,
     });
     return draftSession(req.id, req.cwd, req.model);
   });
@@ -129,7 +131,6 @@ export function registerTerminalIpc({
       cwd: target.cwd,
       cols: req.cols,
       rows: req.rows,
-      bin: resolveBin?.() ?? undefined,
     });
     return { ok: true };
   });
@@ -147,7 +148,6 @@ export function registerTerminalIpc({
       cwd: target.cwd,
       cols: req.cols,
       rows: req.rows,
-      bin: resolveBin?.() ?? undefined,
     });
     // Echo back a hydrated optimistic draft built the same way spawn's is (zero usage, fresh
     // timestamps), so a brand-new fork never shows the source's accumulated cost, context, or age. The

@@ -11,7 +11,6 @@ import {
   ReadoutRow,
   FaultBand,
   RailButton,
-  EditLink,
   type LampTone,
 } from "./system-primitives";
 
@@ -32,27 +31,21 @@ function stateWord(status: CliStatus | null): string {
 
 /**
  * The Claude Code CLI subsystem card (design spec "subsystem grammar"): header rail says the state
- * once; readout rows carry version/binary/config with the binary override editable in place (the old
- * standalone Binary override card is gone); the fault band appears only when a gate trips, holding
- * the remedy content the old always-on checklist and remedy block used to spread across the card.
+ * once; readout rows carry version/config; the fault band appears only when a gate trips, holding the
+ * remedy content. The app no longer resolves or overrides which `claude` binary runs — Managed sessions
+ * and this card's probes both go through the user's login shell, so there's nothing here to override.
  */
 export function CliCard({
   cliStatus,
   checking,
   onRecheck,
-  onSetBinPath,
 }: {
   cliStatus: CliStatus | null;
   checking: boolean;
   onRecheck: () => void;
-  onSetBinPath: (path: string | null) => void;
 }) {
   const view = cliStatus ? cliStatusView(cliStatus) : null;
   const tone = TONE[footerView(cliStatus).dot];
-  const [editingOverride, setEditingOverride] = useState(false);
-  const [binPath, setBinPath] = useState(
-    cliStatus?.source === "override" ? (cliStatus.path ?? "") : "",
-  );
 
   return (
     <Card title="Claude Code CLI">
@@ -86,57 +79,18 @@ export function CliCard({
         value={cliStatus?.version ? `v${cliStatus.version}` : "not detected"}
       />
       <ReadoutRow
-        label="Binary"
-        value={cliStatus?.path ?? "no binary resolved"}
-        warn={
-          cliStatus && cliStatus.duplicates.length > 1
-            ? "Multiple claude installs found; the app uses the first."
-            : undefined
-        }
-        edit={
-          <EditLink onClick={() => setEditingOverride((v) => !v)}>
-            Override
-          </EditLink>
-        }
-        expanded={
-          editingOverride ? (
-            <div className="flex gap-2">
-              <input
-                value={binPath}
-                onChange={(e) => setBinPath(e.target.value)}
-                placeholder="/absolute/path/to/claude"
-                className="min-w-0 flex-1 rounded-md border border-ink-700 bg-well px-2.5 py-1.5 font-mono text-aux text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
-              />
-              <RailButton
-                onClick={() => onSetBinPath(binPath.trim() || null)}
-                disabled={checking}
-              >
-                Save
-              </RailButton>
-            </div>
-          ) : undefined
-        }
-      />
-      <ReadoutRow
         label="Config"
         value={cliStatus?.configDir.active ?? "~/.claude"}
-        warn={
-          cliStatus?.configDir.mismatch
-            ? `The CLI uses ${cliStatus.configDir.recovered}; restart after fixing.`
-            : undefined
-        }
       />
     </Card>
   );
 }
 
 /** The remedy block for a non-ready CLI: install tabs, an update/verify command, or login guidance, plus
- *  a docs link. Ported from the old CLI status modal so a tripped CLI can be fixed without it. */
+ *  a docs link. `installMethod` is always "unknown" — the app no longer resolves a binary path to guess
+ *  it from — so the install tab and upgrade command default to a fixed choice rather than a smart guess. */
 function Remedy({ status }: { status: CliStatus }) {
-  const remedy = remediesFor({
-    kind: status.kind,
-    installMethod: status.installMethod,
-  });
+  const remedy = remediesFor({ kind: status.kind, installMethod: "unknown" });
   const [tab, setTab] = useState(remedy.defaultTab ?? "native");
   const activeInstall = INSTALL_TABS.find((t) => t.method === tab);
   return (
@@ -175,17 +129,9 @@ function Remedy({ status }: { status: CliStatus }) {
         </div>
       )}
       {remedy.section === "verify" && (
-        <div className="flex flex-col gap-2">
-          <div className="text-aux text-fg-faint">
-            Run <code className="font-mono">claude --version</code> in a
-            terminal to check it works.
-          </div>
-          {status.path && (
-            <CommandRow
-              cmd={`xattr -d com.apple.quarantine ${status.path}`}
-              note="If macOS blocked the binary."
-            />
-          )}
+        <div className="text-aux text-fg-faint">
+          Run <code className="font-mono">claude --version</code> in a terminal
+          to check it works.
         </div>
       )}
       <a

@@ -5,13 +5,9 @@ import type { CliStatus } from "../../src/shared/cli-status";
 const base: CliStatus = {
   kind: "ready",
   version: "2.1.178",
-  path: "/Users/me/.local/bin/claude",
-  source: "shell",
   floor: "2.0.0",
-  installMethod: "native",
-  duplicates: [],
   detail: "ready",
-  configDir: { active: "/Users/me/.claude", recovered: null, mismatch: false },
+  configDir: { active: "/Users/me/.claude" },
   checkedAt: 1,
 };
 

@@ -39,7 +39,6 @@ export const IPC = {
   pumpStats: "stats:pump",
   statsDbInfo: "stats:dbinfo",
   recheckCli: "cli:recheck",
-  setClaudeBinPath: "cli:setBinPath",
   resetAnalytics: "analytics:reset",
   openExternal: "shell:openExternal",
   openIn: "shell:openIn",
@@ -208,8 +207,6 @@ export interface IpcApi {
   statsDbInfo(): Promise<StatsDbInfo | null>;
   /** Force a fresh CLI status check (the footer's Re-check button). */
   recheckCli(): Promise<CliStatus>;
-  /** Persist an absolute binary-path override (null clears it) and re-check. */
-  setClaudeBinPath(path: string | null): Promise<CliStatus>;
   /** Drop the durable analytics store (turns + scan high-water marks) so the next stats poll rebuilds it
    *  from the transcripts on disk. Resolves `{ ok: false }` when no analytics store is wired or the clear
    *  fails; never rejects. */
