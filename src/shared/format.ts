@@ -76,11 +76,11 @@ export function formatTokensAxis(n: number): string {
   return String(Math.round(n));
 }
 
-/** A token throughput like "86.4 t/s" / "1.3k t/s". Non-finite or ≤0 → "0 t/s". */
+/** A token throughput like "86.4 tokens/s" / "1.3k tokens/s". Non-finite or ≤0 → "0 tokens/s". */
 export function formatTps(tps: number): string {
-  if (!Number.isFinite(tps) || tps <= 0) return "0 t/s";
-  if (tps >= 1000) return (tps / 1000).toFixed(1) + "k t/s";
-  return tps.toFixed(1) + " t/s";
+  if (!Number.isFinite(tps) || tps <= 0) return "0 tokens/s";
+  if (tps >= 1000) return (tps / 1000).toFixed(1) + "k tokens/s";
+  return tps.toFixed(1) + " tokens/s";
 }
 
 /** An elapsed wall-clock counting up, the largest two units: "1h 42m" / "42s" / "0s". Delegates to
