@@ -13,6 +13,11 @@ export interface SubagentMeta {
   toolUseId: string;
   /** The dispatch's task label (the Agent/Task tool's `description` arg), surfaced onto the lane. */
   description: string;
+  /** The CLI's own verdict that this agent was stopped by the user (Ctrl+C/Esc while being watched
+   *  live in the foreground) rather than backgrounded — such an agent never gets a
+   *  <task-notification> or a TaskOutput poll result, and can never be legitimately resumed (the
+   *  CLI refuses any SendMessage to it), so `statusOf` settles it as `stopped` unconditionally. */
+  stoppedByUser: boolean;
 }
 
 /** One subagent's reconstruction inputs: its id, its meta, and its parsed transcript rows. */
@@ -301,9 +306,11 @@ function reaches(
  * TaskOutput poll observations (terminalStatusFor: completed ⇒ done, failed ⇒ failed, any other stop
  * word ⇒ stopped — a notification's non-terminal value is a no-op, but a poll's is a live "still
  * working" observation, since a poll can be read many times while a notification only fires once at
- * stop), and successful SendMessage deliveries (⇒ working again until the next stop); no events ⇒
- * working. The output is always an acyclic forest, even on malformed input. Pure: same input, same
- * output.
+ * stop), a `stoppedByUser` meta flag (the CLI's own verdict when a foreground-interrupted agent can
+ * never be resumed — settles as stopped at the agent's own last row timestamp, since nothing can
+ * validly out-timestamp it), and successful SendMessage deliveries (⇒ working again until the next
+ * stop); no events ⇒ working. The output is always an acyclic forest, even on malformed input. Pure:
+ * same input, same output.
  */
 export function buildSubagentForest(
   mainRows: any[],
@@ -374,7 +381,11 @@ export function buildSubagentForest(
   // dispatch's tool_result is one event (is_error ⇒ failed, else done) — EXCEPT the background
   // launch ack, which is a receipt, not a completion, and contributes nothing. An agent with no
   // events is still working. Sort is stable, so same-ts events keep insertion order.
-  const statusOf = (agentId: string, toolUseId: string): Subagent["status"] => {
+  const statusOf = (
+    agentId: string,
+    toolUseId: string,
+    stoppedByUser: boolean,
+  ): Subagent["status"] => {
     const events: StatusEvent[] = [];
     const r = results.get(toolUseId);
     if (r && !asyncLaunched.has(toolUseId))
@@ -402,6 +413,17 @@ export function buildSubagentForest(
         status: terminalStatusFor(p.status) ?? "working",
       });
     }
+    if (stoppedByUser) {
+      // The CLI's own verdict, not derived from any transcript event — such an agent can never be
+      // legitimately resumed (the failed-resume guard below already drops any attempt), so nothing
+      // can validly out-timestamp this settle. Use the agent's own last-row timestamp (already
+      // computed by scanRows) rather than a fake/zero one, falling back to 0 only when the agent's
+      // rows had no parseable timestamp at all — matching this fold's existing timestamp-less
+      // convention.
+      const s = scans.get(agentId);
+      const ts = s && Number.isFinite(s.lastTs) ? s.lastTs : 0;
+      events.push({ ts, status: "stopped" });
+    }
     for (const rs of resumes) {
       const target = knownIds.has(rs.to) ? rs.to : rs.resolvedId;
       if (target === agentId) events.push({ ts: rs.ts, status: "working" });
@@ -414,7 +436,7 @@ export function buildSubagentForest(
   const nodeById = new Map<string, Subagent>();
   for (const a of agents) {
     const s = scans.get(a.agentId)!;
-    const status = statusOf(a.agentId, a.meta.toolUseId);
+    const status = statusOf(a.agentId, a.meta.toolUseId, a.meta.stoppedByUser);
     // No assistant row reported a model yet (e.g. a just-spawned agent): leave it unset rather than
     // asserting the Opus normalize-fallback as a real label.
     const model: Family | undefined =
@@ -619,6 +641,8 @@ export function readSubagentSources(dir: string): SubagentSource[] {
         agentType: typeof m.agentType === "string" ? m.agentType : "",
         toolUseId: typeof m.toolUseId === "string" ? m.toolUseId : "",
         description: typeof m.description === "string" ? m.description : "",
+        stoppedByUser:
+          typeof m.stoppedByUser === "boolean" ? m.stoppedByUser : false,
       };
     } catch {
       continue;

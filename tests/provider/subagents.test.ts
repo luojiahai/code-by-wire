@@ -61,8 +61,13 @@ function agent(
   agentType: string,
   rows: any[],
   description = "",
+  stoppedByUser = false,
 ): SubagentSource {
-  return { agentId, meta: { agentType, toolUseId, description }, rows };
+  return {
+    agentId,
+    meta: { agentType, toolUseId, description, stoppedByUser },
+    rows,
+  };
 }
 
 // A main assistant turn with message id `msgId` that dispatches every id in `toolUseIds`, each
@@ -983,6 +988,76 @@ describe("buildSubagentForest", () => {
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
     );
     expect(forest[0].status).toBe("done");
+  });
+
+  it("settles stoppedByUser as stopped when nothing else corrects it", () => {
+    // The CLI's own signal for a subagent interrupted (Ctrl+C/Esc) while being watched live in the
+    // foreground: no <task-notification> fires (that's only for backgrounded stops) and no
+    // TaskOutput poll ever caught it (it was never polled), so without this fold source the agent
+    // has zero events and is stuck "working" forever (issue found 2026-07-15).
+    const forest = buildSubagentForest(asyncMain("tu-1", "a1"), [
+      agent(
+        "a1",
+        "tu-1",
+        "Explore",
+        [ar("2026-06-04T03:00:02.000Z")],
+        "",
+        true,
+      ),
+    ]);
+    expect(forest[0].status).toBe("stopped");
+  });
+
+  it("uses the agent's own last-row timestamp, not epoch 0, so it outranks an earlier stop signal", () => {
+    // If the fold incorrectly used ts:0 for the stoppedByUser event, this earlier notification
+    // (a real, much-larger epoch-ms timestamp) would wrongly outrank it and settle "failed" instead.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        notificationRow("a1", "failed", "2026-06-04T03:00:01.000Z"),
+      ],
+      [
+        agent(
+          "a1",
+          "tu-1",
+          "Explore",
+          [ar("2026-06-04T03:05:00.000Z")], // the agent's own last row is LATER than the notification
+          "",
+          true,
+        ),
+      ],
+    );
+    expect(forest[0].status).toBe("stopped");
+  });
+
+  it("leaves status alone when stoppedByUser is false", () => {
+    const forest = buildSubagentForest(main("tu-1"), [
+      agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:00.000Z")]),
+    ]);
+    expect(forest[0].status).toBe("working");
+  });
+
+  it("falls back to ts 0 when the agent has no parseable timestamps, still settling stopped", () => {
+    const forest = buildSubagentForest(asyncMain("tu-1", "a1"), [
+      agent(
+        "a1",
+        "tu-1",
+        "Explore",
+        [
+          {
+            type: "assistant",
+            message: {
+              model: SONNET,
+              usage: { input_tokens: 1, output_tokens: 1 },
+              content: [],
+            },
+          },
+        ],
+        "",
+        true,
+      ),
+    ]);
+    expect(forest[0].status).toBe("stopped");
   });
 
   it("resolves a SendMessage-by-name resume via the echoed agent id", () => {
