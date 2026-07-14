@@ -728,6 +728,19 @@ describe("buildSubagentForest", () => {
     expect(forest[0].status).toBe("failed");
   });
 
+  it("maps a stopped notification to failed", () => {
+    // The CLI emits <status>stopped</status> when the user stops a background agent, and for
+    // agents left running when a previous CLI process exited — terminal either way.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        notificationRow("a1", "stopped", "2026-06-04T03:05:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("failed");
+  });
+
   it("reads a notification present only as a queue-operation row", () => {
     // The parent was mid-turn: the user row never landed, only the enqueue row did.
     const forest = buildSubagentForest(

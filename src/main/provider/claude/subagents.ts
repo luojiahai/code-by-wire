@@ -60,7 +60,8 @@ interface StatusEvent {
 
 /** A <task-notification> parsed from a user or queue-operation row: the stop signal for a
  *  background agent. `taskId` is the agent's id; `status` is the raw <status> text —
- *  "completed" | "failed" | "killed" today, folded conservatively so future values are no-ops. */
+ *  "completed" | "failed" | "killed" | "stopped" today ("stopped" covers a user stop and an agent
+ *  orphaned by a CLI exit), folded conservatively so future values are no-ops. */
 interface TaskNotification {
   taskId: string;
   status: string;
@@ -230,7 +231,7 @@ function reaches(
  * parent agent's transcript. Status folds the agent's lifecycle events in timestamp order (last wins):
  * the dispatch's tool_result (is_error ⇒ failed, else done — but a background launch ack, toolUseResult
  * "async_launched", is a receipt and contributes nothing), and its <task-notification> stop signals
- * (completed ⇒ done, failed/killed ⇒ failed, others no-op), and successful SendMessage deliveries
+ * (completed ⇒ done, failed/killed/stopped ⇒ failed, others no-op), and successful SendMessage deliveries
  * (⇒ working again until the next stop); no events ⇒ working. The output is always an
  * acyclic forest, even on malformed input. Pure: same input,
  * same output.
@@ -297,7 +298,11 @@ export function buildSubagentForest(
     for (const n of notifications) {
       if (n.taskId !== agentId) continue;
       if (n.status === "completed") events.push({ ts: n.ts, status: "done" });
-      else if (n.status === "failed" || n.status === "killed")
+      else if (
+        n.status === "failed" ||
+        n.status === "killed" ||
+        n.status === "stopped"
+      )
         events.push({ ts: n.ts, status: "failed" });
       // Any other status value is a no-op: a future CLI status can't wrongly settle an agent.
     }
