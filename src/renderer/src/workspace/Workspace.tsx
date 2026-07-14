@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type {
   Session,
   Subagent,
@@ -58,6 +64,9 @@ export function Workspace({
   // everything else opens on Transcript (transcriptOn = true), since its read-only conversation leads.
   const hasLiveTerminal = s.management === "managed" && s.state !== "ended";
   const [transcriptOn, setTranscriptOn] = useState(!hasLiveTerminal);
+  // Lifted from WorkspaceBody so the header's "Claude Code" tab can clear a subagent drill on select —
+  // it needs to live above the toggle it composes with, not just above the CenterView that renders it.
+  const [drill, setDrill] = useState<DrillCrumb[]>([]);
 
   // Follow the live terminal when it stands up in place. Adopt resumes this same id, so Workspace never
   // remounts and `transcriptOn` keeps its seeded value, but `hasLiveTerminal` flips to true once the pty
@@ -74,6 +83,8 @@ export function Workspace({
         session={s}
         transcriptOn={transcriptOn}
         onToggleTranscript={() => setTranscriptOn((v) => !v)}
+        onExitDrill={() => setDrill([])}
+        drilled={drill.length > 0}
         leftEdgeExposed={leftEdgeExposed}
         rightEdgeExposed={rightEdgeExposed}
         menu={
@@ -97,6 +108,8 @@ export function Workspace({
           onFork={onFork}
           transcriptOn={transcriptOn}
           setTranscriptOn={setTranscriptOn}
+          drill={drill}
+          setDrill={setDrill}
         />
       </div>
     </div>
@@ -116,6 +129,8 @@ function WorkspaceBody({
   onFork,
   transcriptOn,
   setTranscriptOn,
+  drill,
+  setDrill,
 }: {
   session: Session;
   now: number;
@@ -124,13 +139,15 @@ function WorkspaceBody({
   onFork: (session: Session) => Promise<void>;
   transcriptOn: boolean;
   setTranscriptOn: (transcriptOn: boolean) => void;
+  /** The subagent drill-stack: empty = the Session transcript; a crumb = a drilled Subagent. Lifted to
+   *  Workspace so the header's "Claude Code" tab can clear it on select. */
+  drill: DrillCrumb[];
+  setDrill: Dispatch<SetStateAction<DrillCrumb[]>>;
 }) {
   const doc = useTranscript(s.id);
   const tasks = useTasks(s.id);
   const shells = useShells(s.id);
   const monitors = useMonitors(s.id);
-  // The drill-stack is subagent-only: empty = the Session transcript; a crumb = a drilled Subagent.
-  const [drill, setDrill] = useState<DrillCrumb[]>([]);
   const top = drill[drill.length - 1];
   const activeAgentId = top?.agentId;
   // A background shell opens in a modal, not the drill-stack. Hold the whole shell object so the modal

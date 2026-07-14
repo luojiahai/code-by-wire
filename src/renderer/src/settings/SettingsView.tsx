@@ -141,12 +141,21 @@ function AboutSection({ update }: { update?: UpdateControls }) {
         <div className="flex flex-col gap-3 px-4 py-4">
           <Wordmark />
           <p className="max-w-[54ch] text-body leading-relaxed text-fg-muted">
-            A fly-by-wire cockpit for your Claude Code sessions. Observe,
-            manage, and review every run from one instrument panel.
+            Pilot every Claude Code session, view its enriched transcript, and
+            monitor the telemetry, in one interface.
           </p>
-          <div className="font-mono text-meta text-fg-faint">
+          <button
+            type="button"
+            onClick={() =>
+              void window.api.openExternal(
+                "https://github.com/luojiahai/code-by-wire",
+              )
+            }
+            className="inline-flex w-fit items-center gap-1.5 font-mono text-meta text-fg-faint transition-colors hover:text-primary"
+          >
+            <Icon name="github" size={12} />
             github.com/luojiahai/code-by-wire
-          </div>
+          </button>
         </div>
       </Card>
       {update && <SoftwareUpdateCard update={update} />}

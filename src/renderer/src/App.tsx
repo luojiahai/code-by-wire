@@ -527,6 +527,10 @@ export function App() {
             }}
             onQuickAdd={quickAddSession}
             canSpawn={spawnGate(cliStatus).canSpawn}
+            onAdopt={adoptSession}
+            onFork={forkSession}
+            onEnd={endSession}
+            onRename={(id, title) => void renameSession(id, title)}
             updatePending={updatePending}
             route={route}
             onRoute={setSelectedId}
@@ -619,6 +623,8 @@ function MiddleNonSession({
         title={title}
         transcriptOn={false}
         onToggleTranscript={() => {}}
+        onExitDrill={() => {}}
+        drilled={false}
         leftEdgeExposed={leftEdgeExposed}
         rightEdgeExposed={false}
         menu={null}

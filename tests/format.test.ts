@@ -111,9 +111,9 @@ describe("formatTokensAxis", () => {
 
 describe("formatTps", () => {
   it("renders tokens/sec with k for large rates", () => {
-    expect(formatTps(86.4)).toBe("86.4 t/s");
-    expect(formatTps(1_300)).toBe("1.3k t/s");
-    expect(formatTps(0)).toBe("0 t/s");
+    expect(formatTps(86.4)).toBe("86.4 tokens/s");
+    expect(formatTps(1_300)).toBe("1.3k tokens/s");
+    expect(formatTps(0)).toBe("0 tokens/s");
   });
 });
 

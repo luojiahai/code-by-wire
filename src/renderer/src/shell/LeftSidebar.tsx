@@ -43,6 +43,10 @@ export function LeftSidebar({
   onNew,
   onQuickAdd,
   canSpawn,
+  onAdopt,
+  onFork,
+  onEnd,
+  onRename,
   updatePending,
   route,
   onRoute,
@@ -57,6 +61,10 @@ export function LeftSidebar({
    *  App surfaces failures in the New session view — so this only gates the busy mark. */
   onQuickAdd: (cwd: string) => Promise<void>;
   canSpawn: boolean;
+  onAdopt: (id: string) => Promise<void>;
+  onFork: (session: Session) => Promise<void>;
+  onEnd: (id: string) => void;
+  onRename: (id: string, title: string | null) => void;
   /** True while a software update is pending (available/downloading/downloaded) —
    *  badges the Settings gear (design spec 2026-07-09-update-dot). */
   updatePending: boolean;
@@ -133,7 +141,7 @@ export function LeftSidebar({
               : "cursor-not-allowed text-(--ui-text-quaternary)",
           )}
         >
-          <Icon name="plus" size={16} className="shrink-0 opacity-70" />
+          <Icon name="rocket" size={16} className="shrink-0 opacity-70" />
           New session
         </button>
         <button
@@ -214,9 +222,7 @@ export function LeftSidebar({
       </div>
 
       <div className="flex shrink-0 items-center justify-between gap-1 px-2.5 pb-1 pt-1.5">
-        <SidebarPanelLabel icon="messages-square" className="pl-2">
-          Sessions
-        </SidebarPanelLabel>
+        <SidebarPanelLabel className="pl-2">Sessions</SidebarPanelLabel>
         <div className="flex items-center gap-0.5">
           <button
             type="button"
@@ -247,7 +253,7 @@ export function LeftSidebar({
                 : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
             )}
           >
-            <Icon name="activity" size={12} />
+            <Icon name="filter" size={12} />
           </button>
         </div>
       </div>
@@ -336,6 +342,11 @@ export function LeftSidebar({
                           session={s}
                           selected={s.id === selectedId}
                           onSelect={() => onSelect(s.id)}
+                          canSpawn={canSpawn}
+                          onAdopt={onAdopt}
+                          onFork={onFork}
+                          onEnd={onEnd}
+                          onRename={onRename}
                         />
                       ))}
                     </div>
