@@ -136,15 +136,6 @@ export function App() {
     }
   }
 
-  async function setClaudeBinPath(path: string | null): Promise<void> {
-    setChecking(true);
-    try {
-      setCliStatus(await window.api.setClaudeBinPath(path));
-    } finally {
-      setChecking(false);
-    }
-  }
-
   async function load(): Promise<void> {
     setLoading(true);
     try {
@@ -488,7 +479,6 @@ export function App() {
         cliStatus={cliStatus}
         checking={checking}
         onRecheck={() => void recheckCli()}
-        onSetBinPath={(p) => void setClaudeBinPath(p)}
         section={settingsSection}
         onSectionChange={setSettingsSection}
         update={update}
