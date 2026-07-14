@@ -1,4 +1,4 @@
-/// <reference path="../api.d.ts" />
+import "../api.d.ts";
 
 import { atom } from "nanostores";
 
