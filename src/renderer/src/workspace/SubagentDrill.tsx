@@ -83,7 +83,7 @@ function Breadcrumb({
   onNavigate: (depth: number) => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-4 py-2 text-meta">
+    <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-(--ui-chat-surface-background) px-4 pb-2 pt-4 text-meta">
       <button
         type="button"
         onClick={() => onNavigate(0)}
