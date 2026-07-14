@@ -41,9 +41,11 @@ describe("launchForm", () => {
     });
   });
   it("leaves an absolute path untouched on win32 (only bare names need PATHEXT)", () => {
-    // A resolved bin is always an absolute path carrying its extension (claudeBinaryNames), so an
-    // absolute path needs no PATHEXT resolution; only a bare command name does. Extensionless absolute
-    // paths are left to CreateProcess (which appends .exe), not wrapped.
+    // launchForm is a general win32 launch-form utility, tested here in isolation: an absolute,
+    // extensioned path needs no PATHEXT resolution — only a bare command name does. Extensionless
+    // absolute paths are left to CreateProcess (which appends .exe), not wrapped. The spawn flow
+    // itself never produces an absolute path anymore (buildClaudeCommand always returns the bare
+    // "claude"), but launchForm's own contract still covers this input shape.
     const c = { file: "C:\\tools\\claude", args: ["--resume", "x"] };
     expect(launchForm(c, "win32")).toEqual(c);
   });
