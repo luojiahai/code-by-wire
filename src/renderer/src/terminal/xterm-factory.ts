@@ -1,4 +1,4 @@
-import { Terminal } from "@xterm/xterm";
+import { Terminal, type ITheme } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
@@ -6,6 +6,7 @@ import type { FitLike, XtermLike } from "./terminal-store";
 import { viewportScrollTop } from "./viewport-scroll";
 import { createWebLinksAddon } from "./web-links";
 import { attachOverlayScrollbar } from "./overlay-scrollbar";
+import { $terminalTheme } from "../ui/appearance-store";
 
 /** xterm's internal core, reached the way VSCode does (xtermTerminal.ts: `(raw as ITerminalWithCore)._core`).
  *  We only need the Viewport's `syncScrollArea`, the public hook xterm itself calls (on clear/show) to force
@@ -16,11 +17,33 @@ interface TerminalWithCore {
   _core: { viewport?: { syncScrollArea(immediate?: boolean): void } };
 }
 
-/** xterm options tuned for the Claude TUI: generous scrollback, a dark theme matching the app's ink
- *  palette, a monospace stack, and a steady cursor. convertEol stays off — the TUI emits its own.
- *  customGlyphs + rescaleOverlappingGlyphs only take effect under a GPU renderer (see attachWebgl) —
- *  they let xterm draw block/box/quadrant art as vector shapes instead of leaning on font coverage,
- *  which is what fixes the Claude Code mascot. */
+/** The observed Claude-session terminal's dark palette, matching the app's ink surfaces. Only
+ *  these three keys are customized (unlike the shell rail terminal's full 16-color VS Code table)
+ *  — the Claude TUI's own ANSI output rides xterm's built-in defaults for everything else. */
+const DARK_THEME: ITheme = {
+  background: "#080808",
+  foreground: "#eaeaea",
+  cursor: "#2dd4bf",
+};
+
+/** The light counterpart. The cursor stays the app's teal "working" accent (--color-working) —
+ *  that hue is theme-invariant (2026-07-14 light-theme design doc), so it's unchanged between
+ *  modes. */
+const LIGHT_THEME: ITheme = {
+  background: "#ffffff",
+  foreground: "#161616",
+  cursor: "#2dd4bf",
+};
+
+function terminalTheme(mode: "dark" | "light"): ITheme {
+  return mode === "light" ? LIGHT_THEME : DARK_THEME;
+}
+
+/** xterm options tuned for the Claude TUI: generous scrollback, a monospace stack, and a steady
+ *  cursor. convertEol stays off — the TUI emits its own. customGlyphs + rescaleOverlappingGlyphs
+ *  only take effect under a GPU renderer (see attachWebgl) — they let xterm draw block/box/quadrant
+ *  art as vector shapes instead of leaning on font coverage, which is what fixes the Claude Code
+ *  mascot. `theme` is set per-instance in createXterm (mode-aware), not here. */
 const OPTIONS = {
   scrollback: 5000,
   fontFamily:
@@ -29,7 +52,6 @@ const OPTIONS = {
   cursorBlink: true,
   customGlyphs: true, // draw block/box/powerline glyphs in the atlas, font-independent (default true; inert on the DOM renderer)
   rescaleOverlappingGlyphs: true, // shrink oversized fallback glyphs so they don't bleed into the next cell
-  theme: { background: "#080808", foreground: "#eaeaea", cursor: "#2dd4bf" },
 } as const;
 
 /** Load the WebGL renderer onto an opened terminal — the renderer VSCode uses, and the one that makes
@@ -58,7 +80,15 @@ export function createXterm(): {
   wrapper: HTMLElement;
   rebuildViewport: () => void;
 } {
-  const term = new Terminal(OPTIONS);
+  const term = new Terminal({
+    ...OPTIONS,
+    theme: terminalTheme($terminalTheme.get()),
+  });
+  // Live re-theme: this Terminal instance is long-lived (survives session tab switches, held by
+  // terminal-store.ts), so a later Settings change must reassign its theme.
+  const unsubTheme = $terminalTheme.subscribe((mode) => {
+    term.options.theme = terminalTheme(mode);
+  });
   const fit = new FitAddon();
   term.loadAddon(fit);
   // URLs in claude's output were plain text before this — the factory loaded only fit + WebGL.
@@ -75,10 +105,12 @@ export function createXterm(): {
     attachWebgl(term);
     disposeScrollbar = attachOverlayScrollbar(parent, term);
   };
-  // Wrap dispose the same way as open: tear down the overlay scrollbar's listeners, timer, and thumb node.
-  // (xterm disposes loadAddon'd addons like WebGL itself; these raw DOM listeners it doesn't know about.)
+  // Wrap dispose the same way as open: tear down the overlay scrollbar's listeners, timer, thumb
+  // node, and the theme subscription above. (xterm disposes loadAddon'd addons like WebGL itself;
+  // these raw DOM listeners/subscriptions it doesn't know about.)
   const dispose = term.dispose.bind(term);
   term.dispose = () => {
+    unsubTheme();
     disposeScrollbar();
     dispose();
   };

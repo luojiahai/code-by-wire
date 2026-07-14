@@ -122,26 +122,36 @@ describe("cockpit theme — graphite surfaces (not warm, not cool)", () => {
 });
 
 describe("terminal well matches the theme", () => {
-  it("xterm background is graphite and equals --color-well", () => {
+  it("xterm DARK_THEME background is graphite and equals --color-well", () => {
     const xterm = readFileSync(
       join(root, "src/renderer/src/terminal/xterm-factory.ts"),
       "utf8",
     );
-    const m = /background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
-    expect(m, "xterm theme background hex").toBeTruthy();
+    const m = /DARK_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
+    expect(m, "xterm DARK_THEME background hex").toBeTruthy();
     expect(spread(m![1])).toBeLessThanOrEqual(1);
     expect(m![1].toLowerCase()).toBe(token("well").toLowerCase());
   });
 
-  it("xterm foreground is graphite and equals --color-fg", () => {
+  it("xterm DARK_THEME foreground is graphite and equals --color-fg", () => {
     const xterm = readFileSync(
       join(root, "src/renderer/src/terminal/xterm-factory.ts"),
       "utf8",
     );
-    const m = /foreground:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
-    expect(m, "xterm theme foreground hex").toBeTruthy();
+    const m = /DARK_THEME[^}]*foreground:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
+    expect(m, "xterm DARK_THEME foreground hex").toBeTruthy();
     expect(spread(m![1])).toBeLessThanOrEqual(1);
     expect(m![1].toLowerCase()).toBe(token("fg").toLowerCase());
+  });
+
+  it("xterm LIGHT_THEME background is a light near-white surface", () => {
+    const xterm = readFileSync(
+      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
+      "utf8",
+    );
+    const m = /LIGHT_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
+    expect(m, "xterm LIGHT_THEME background hex").toBeTruthy();
+    expect(m![1].toLowerCase()).toBe("#ffffff");
   });
 });
 
