@@ -23,6 +23,10 @@
   --color-accent-bright: #f7c766;
   --color-idle: #7a7a7a; /* neutral (was slate #6e7782) */
 
+  /* Primary hover/press states — per-mode literals (dark mode defined here, light mode overridden below) */
+  --color-primary-bright: #ffffff;
+  --color-primary-deep: #c8c8c8;
+
   /* Semantic */
   --color-danger: #f2685c; /* diff remove, failed, destructive */
   --color-ok: #46c57a; /* diff add, cache savings, done */
@@ -115,12 +119,6 @@
   --color-fg-muted: var(--ui-text-secondary);
   --color-fg-faint: var(--ui-text-tertiary);
   --color-primary: var(--theme-primary);
-  /* Self-computing hover/press states instead of separate light-mode literals: hover lightens,
-     press darkens, in either mode. Approximate the original dark literals (#ffffff/#c8c8c8);
-     exact percentages are cosmetic and were spot-checked in the manual smoke test (see the plan's
-     final task). */
-  --color-primary-bright: color-mix(in srgb, var(--theme-primary), white 40%);
-  --color-primary-deep: color-mix(in srgb, var(--theme-primary), black 15%);
 }
 
 :root {
@@ -363,6 +361,10 @@
   --color-ink-600: #a8a8ac; /* Ended state, dim glyphs */
   --color-sidebar: #f5f5f5;
   --color-sidebar-border: #d8d8db;
+
+  /* Primary hover/press state overrides for light mode — lighter gray for hover, pure black for press */
+  --color-primary-bright: #2e2e2e;
+  --color-primary-deep: #000000;
 }
 
 html,
