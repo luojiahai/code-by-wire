@@ -18,7 +18,10 @@ let singleton: Promise<HighlighterInstance> | null = null;
 export function getHighlighter(): Promise<HighlighterInstance> {
   if (singleton) return singleton;
   const build = createHighlighterCore({
-    themes: [import("@shikijs/themes/vitesse-dark")],
+    themes: [
+      import("@shikijs/themes/vitesse-dark"),
+      import("@shikijs/themes/vitesse-light"),
+    ],
     langs: [
       import("@shikijs/langs/typescript"),
       import("@shikijs/langs/tsx"),
