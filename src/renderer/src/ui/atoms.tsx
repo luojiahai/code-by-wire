@@ -69,6 +69,18 @@ export function Bar({
   );
 }
 
+/** A 16px gradient pulled up over whatever sits below it via negative margin, hinting there's
+ *  scrollable content under a sticky header-like bar. Shared by `MiddleHeader` and the subagent-drill
+ *  breadcrumb — each shows at most one at a time — so the two copies can't visually drift apart. */
+export function ScrollHintShadow() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b from-(--ui-chat-surface-background) to-transparent"
+    />
+  );
+}
+
 export function Wordmark() {
   return (
     <span className="inline-flex shrink-0 items-center gap-2">
