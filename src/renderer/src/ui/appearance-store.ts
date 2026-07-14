@@ -1,3 +1,5 @@
+/// <reference path="../api.d.ts" />
+
 import { atom } from "nanostores";
 
 export type AppearanceMode = "dark" | "light";
@@ -15,22 +17,26 @@ export const $terminalTheme = atom<AppearanceMode>("dark");
  *  on this tick) and persists it in the background. */
 export function setAppTheme(mode: AppearanceMode): void {
   $appTheme.set(mode);
-  void (window as any).api.setAppTheme(mode);
+  void window.api.setAppTheme(mode);
 }
 
 /** Set the terminal theme — same shape as setAppTheme, independent setting. */
 export function setTerminalTheme(mode: AppearanceMode): void {
   $terminalTheme.set(mode);
-  void (window as any).api.setTerminalTheme(mode);
+  void window.api.setTerminalTheme(mode);
 }
 
 // Module-scope, not a React effect: both the initial hydration and the DOM side effect below must
 // run exactly once per renderer lifetime, regardless of how many components subscribe. Guarded so
 // this module stays importable from node-run tests (no window) and jsdom tests (no window.api,
 // since no preload ran there) — mirrors shell-terminal/store.ts's storedBoolean/persistBoolean guards.
-if (typeof window !== "undefined" && (window as any).api) {
-  void (window as any).api.getAppTheme().then((mode: AppearanceMode) => $appTheme.set(mode));
-  void (window as any).api.getTerminalTheme().then((mode: AppearanceMode) => $terminalTheme.set(mode));
+if (typeof window !== "undefined" && window.api) {
+  void window.api
+    .getAppTheme()
+    .then((mode: AppearanceMode) => $appTheme.set(mode));
+  void window.api
+    .getTerminalTheme()
+    .then((mode: AppearanceMode) => $terminalTheme.set(mode));
 }
 
 if (typeof document !== "undefined") {
