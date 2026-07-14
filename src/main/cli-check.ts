@@ -49,19 +49,26 @@ function probeSpawnForm(
 }
 
 /** Map a failed `claude --version` to a probe status from the child-process error `code`. ENOENT means
- *  the outer exec target (the shim/shell itself) wasn't there. Exit 127 is a POSIX shell's own "command
- *  not found" — on the login-shell-wrapped path the outer exec (the shell) succeeds, so ENOENT never
- *  fires; 127 is how the shell reports that `claude` itself isn't on its resolved PATH. Both mean the
- *  binary isn't really there; anything else means it's there but unusable. Pure + exported so the
- *  classification is unit-tested without spawning. */
+ *  the outer exec target (the shim/shell itself) wasn't there — the only "not found" signal possible
+ *  BEFORE this plan's login-shell/PATHEXT-shim change, when the probe exec'd an already-resolved
+ *  absolute path directly. After that change there's no more pre-resolved path on either platform, so
+ *  a genuinely-missing `claude` instead surfaces as the WRAPPING process (present, and spawns fine)
+ *  reporting its own "not found": POSIX shells exit 127 ("command not found"); cmd.exe (the win32
+ *  PATHEXT shim `launchForm` always routes a bare command through) exits 9009 ("is not recognized as
+ *  an internal or external command"). All three mean the same thing — the binary isn't really there;
+ *  anything else means it's there but unusable. Pure + exported so the classification is unit-tested
+ *  without spawning. */
 export function classifyVersionError(code: unknown): CliProbeInput["version"] {
-  return code === "ENOENT" || code === 127
+  return code === "ENOENT" || code === 127 || code === 9009
     ? { status: "spawnError" }
     : { status: "failed" };
 }
 
 /** Map a failed `claude auth status` to a probe status: only a clean exit code 1 means logged out; any
- *  other failure (ENOENT, 127, timeout, odd exit) is "can't determine" — never cry wolf. Pure + tested. */
+ *  other failure (ENOENT, 127, 9009, timeout, odd exit) is "can't determine" — never cry wolf. Auth is
+ *  only ever probed once `runVersion` already confirmed "ready" (see checkCliStatus below), so a
+ *  not-found code can't actually reach here in practice — the 1-vs-everything-else split is still the
+ *  right shape regardless. Pure + tested. */
 export function classifyAuthError(code: unknown): CliProbeInput["auth"] {
   return code === 1 ? { status: "loggedOut" } : { status: "unknown" };
 }
