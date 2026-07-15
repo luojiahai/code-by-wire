@@ -9,8 +9,10 @@ description: >-
 
 # Release
 
-The maintainer drives releases in two phases. Pick the phase from what they
-asked and the repo state; never run both at once.
+The maintainer drives releases in two phases, keyed off repo state. With the
+automation checkpoint below, one run can carry straight through both without
+stopping in between — pick the starting phase from what they asked and the
+repo state, then keep going as far as they authorize.
 
 - **Phase 1 — "bump version"**: the bump/changelog/PR are not on `main` yet.
 - **Phase 2 — "release it"**: the bump PR has merged to `main`; now tag and ship.
@@ -44,6 +46,42 @@ GH_HOST=github.com gh <cmd> -R luojiahai/code-by-wire ...
 ```
 
 Plain `git push`/`git tag` are fine — only `gh` needs the prefix.
+
+## How far to take it
+
+Merging, tagging, and publishing are each hard to reverse or visible to
+others, so they still deserve a deliberate go-ahead — but asking for that
+go-ahead three separate times, in three separate messages ("merge", then
+later "release it", then later "publish"), is pure friction when the
+maintainer already knows how far they want this to go. Collapse it: right
+after orienting, before touching anything, ask **once** via AskUserQuestion
+how far to drive this release. Scope the options to what's actually left
+from the phase you're starting in:
+
+- **Starting at Phase 1** (list in this order, full automation first and
+  marked "(Recommended)"): "Merge once CI is green, then tag, build, and
+  publish" / "Merge once CI is green, but leave the draft release for me to
+  publish" / "Just open the PR — I'll drive the rest."
+- **Starting at Phase 2** (same ordering): "Tag, build, and publish" / "Tag
+  and build, but leave the draft release for me to publish" / "Just tag and
+  shepherd the build — I'll drive the rest."
+
+Lead with the full-automation option — that's how these releases actually
+get driven in practice — but let the maintainer pick a narrower one; they
+know if this particular release needs a closer look before it goes out.
+Whatever they pick, honor it for the rest of *this* run without asking
+again. Two things still warrant stopping regardless of the answer: a version
+bump that breaks the project's patch-bump habit (Phase 1 step 1), and a real
+failure (CI red, a 403, a mismatched asset list) — those are new
+information, not a re-ask of a question already answered.
+
+This is a one-time answer for this run, not a standing preference — ask
+again on the next release. If a run stops short (the maintainer picked a
+"stop" option, or the two phases land in separate conversations because
+real time passes between opening the PR and it merging), hand off exactly
+like before: "merge", "release it", and "publish" all still work as re-entry
+phrases for picking the thread back up later, since the automation choice
+made in one conversation doesn't carry into the next.
 
 ## Phase 1 — "bump version" (before release)
 
@@ -79,23 +117,35 @@ Do all the prep on a branch and open the PR. **Do not tag.**
    fine — the `src/main/provider/claude/` warnings are intentional, leave them.
 7. **Push and open the PR.** No tag, no PR-body footer. A tight body summarizing
    the CHANGELOG section reads well.
-8. **Hand off, then merge when asked.** Tell the maintainer the PR is ready.
-   They'll either merge it themselves or say "merge". To merge it yourself,
-   confirm CI is green first, then use a **merge commit** to match the history
-   (`main` is all "Merge pull request #NNN from …", never squashes), and tidy up:
+8. **Merge, if the automation choice covers it.** If the maintainer picked
+   "stop after the PR," hand off instead: tell them it's ready, and that
+   "merge" (to merge it) or "release it" (once merged, to start Phase 2)
+   both work whenever they come back to it.
+
+   Otherwise, poll until CI is green
+   (`GH_HOST=github.com gh pr view <N> -R luojiahai/code-by-wire --json mergeStateStatus,statusCheckRollup`)
+   — this is still a real precondition to wait out, not a re-ask of the
+   go-ahead already given — then merge with a **merge commit** to match the history
+   (`main` is all "Merge pull request #NNN from …", never squashes), and
+   tidy up:
 
    ```
-   GH_HOST=github.com gh pr view <N> -R luojiahai/code-by-wire --json mergeStateStatus,statusCheckRollup
    GH_HOST=github.com gh pr merge <N> -R luojiahai/code-by-wire --merge
    git switch main && git pull
    git branch -d build/release-vX.Y.Z
    ```
 
-   After it merges, the maintainer says "release it" → Phase 2.
+   Then continue straight into Phase 2 below, in this same run — no need to
+   wait for a separate "release it".
 
 ## Phase 2 — "release it" (after the PR merges)
 
-The tag is the trigger; CI builds the dmg into a draft release.
+The tag is the trigger; CI builds the installers into a draft release. If
+you're landing here directly — a fresh conversation, or "release it" said
+without Phase 1 running first in this run — the automation choice from "How
+far to take it" above hasn't been made yet in this conversation; ask it now,
+scoped to what's left (tag/build/publish, no merge option since that's
+already done).
 
 1. **Confirm state.** `git switch main && git pull`; check the bump commit is on
    `main`, `node -p "require('./package.json').version"` equals the version to
@@ -131,11 +181,15 @@ The tag is the trigger; CI builds the dmg into a draft release.
    ```
 
    `verify` fails fast if tag ≠ `package.json`; then `draft` creates the GitHub
-   draft release on `ubuntu-latest`; then the `build` matrix runs two parallel
-   legs: `macos-14` (signs/notarizes, ~10-20 min) and `windows-latest` (unsigned,
-   ~5-10 min). Poll in the background so you get pinged on exit — but in zsh,
-   **don't name the loop variable `status`**: it's read-only and silently kills
-   the loop on the first iteration. Use `st` or similar.
+   draft release on `ubuntu-latest`; then the `build` matrix runs four parallel
+   legs — mac `arm64` and mac `x64` (both sign/notarize on `macos-14`, the
+   `x64` leg cross-compiling on the Apple Silicon runner, ~10-20 min), and win
+   `x64` (`windows-latest`) and win `arm64` (`windows-11-arm`, both unsigned,
+   ~5-10 min) — followed by a `merge` job that combines each platform's
+   per-arch `latest*.yml` into one arch-aware auto-update manifest. Poll in
+   the background so you get pinged on exit — but in zsh, **don't name the
+   loop variable `status`**: it's read-only and silently kills the loop on
+   the first iteration. Use `st` or similar.
    - **On failure:** pull the job logs, report the cause. If it was a flake,
      re-trigger by re-pushing the tag
      (`git push origin :refs/tags/vX.Y.Z && git push origin vX.Y.Z`) — yourself if
@@ -146,12 +200,16 @@ The tag is the trigger; CI builds the dmg into a draft release.
      GH_HOST=github.com gh release view vX.Y.Z -R luojiahai/code-by-wire --json isDraft,assets --jq '{draft:.isDraft, assets:[.assets[].name]}'
      ```
 
-     Expect `draft: true` and `Code-by-wire-X.Y.Z-arm64.dmg` + `.blockmap` +
-     `latest-mac.yml` (from macOS), and `Code-by-wire Setup X.Y.Z.exe` +
-     `.blockmap` + `latest.yml` (from Windows). An empty or partial asset list
-     means an upload step didn't run — read the relevant `build` job log.
-     (`isLatest` isn't valid on `gh release view` — use `isDraft`/`isPrerelease`
-     here, or `gh release list --json isLatest` to check which release is latest.)
+     Expect `draft: true` and 14 assets: from the mac legs,
+     `Code-by-wire-arm64.dmg` + `Code-by-wire-x64.dmg` (each with a
+     `.blockmap`) plus `Code-by-wire-arm64.zip` + `Code-by-wire-x64.zip` (each
+     with a `.blockmap`); from the Windows legs, `Code-by-wire-Setup-arm64.exe`
+     + `Code-by-wire-Setup-x64.exe` (each with a `.blockmap`); and from the
+     `merge` job, `latest-mac.yml` + `latest.yml`. An empty or partial asset
+     list means an upload step (or the `merge` job) didn't run — read the
+     relevant job log. (`isLatest` isn't valid on `gh release view` — use
+     `isDraft`/`isPrerelease` here, or `gh release list --json isLatest` to
+     check which release is latest.)
 4. **Drop the notes in.** Set the draft body from the `X.Y.Z` CHANGELOG section
    so it's ready to read, keeping it a draft:
 
@@ -161,19 +219,22 @@ The tag is the trigger; CI builds the dmg into a draft release.
 
    Editing a draft prints an `untagged-…` URL — that's just how GitHub addresses
    an unpublished draft, not an error.
-5. **Hand back to publish, or publish when delegated.** Publishing is the
-   maintainer's call by default: remind them to open the draft, confirm the notes
-   match the `X.Y.Z` CHANGELOG section, and **Publish release**. But if they
-   explicitly say "you publish" and the draft is verified, do it:
+5. **Publish, if the automation choice covers it.** If it does, and the
+   draft is verified (assets + notes both confirmed above), publish:
 
    ```
    GH_HOST=github.com gh release edit vX.Y.Z -R luojiahai/code-by-wire --draft=false --latest
    ```
 
-   Publishing flips `latest-mac.yml` into the public auto-update feed, so existing
-   installs pick up the version on their next check — worth saying out loud when
-   you confirm it's live. If the tag was created via the web UI (already
-   published, no draft), just verify the assets landed on that release.
+   Publishing flips `latest-mac.yml`/`latest.yml` into the public auto-update
+   feed, so existing installs pick up the version on their next check — say
+   that out loud when you confirm it's live.
+
+   If the maintainer picked a "leave it for me to publish" option, hand off
+   instead: remind them to open the draft, confirm the notes match the
+   `X.Y.Z` CHANGELOG section, and **Publish release** — or say "publish" and
+   you'll do it. If the tag was created via the web UI (already published, no
+   draft), just verify the assets landed on that release.
 
 ## Why CI uploads assets by hand
 
@@ -206,12 +267,15 @@ old `--publish always` run):
 
 ## Platforms & signing
 
-macOS releases are Apple Silicon (`arm64`) only, signed with a Developer ID
-certificate and notarized by Apple (the `CSC_*` and `APPLE_*` secrets in CI), so
-the downloaded `.dmg` opens without a Gatekeeper warning. The Intel (`x64`) leg
-was dropped because `macos-13` runners queue 10-30+ min and are on the way out,
-and the user base is Apple Silicon.
+macOS releases cover both Apple Silicon (`arm64`) and Intel (`x64`) — the
+`x64` leg cross-compiles on the same `macos-14` arm64 runner (native modules
+are rebuilt for the target arch explicitly, not the host's) rather than
+depending on GitHub's scarce, slow `macos-13` Intel runners. Both arches sign
+with the same Developer ID certificate and are notarized by Apple (the
+`CSC_*` and `APPLE_*` secrets in CI), so the downloaded `.dmg` opens without
+a Gatekeeper warning.
 
-Windows releases are `x64` and unsigned. On first launch SmartScreen shows an
-"unknown publisher" warning; users click **More info → Run anyway**. Windows
-code-signing isn't set up yet.
+Windows releases cover `x64` (`windows-latest`) and `arm64`
+(`windows-11-arm`), both unsigned NSIS installers. On first launch
+SmartScreen shows an "unknown publisher" warning; users click **More info →
+Run anyway**. Windows code-signing isn't set up yet.
