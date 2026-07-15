@@ -6,6 +6,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.32] - 2026-07-15
+
+### Added
+
+- The footer shell-terminal gains macOS readline word-navigation
+  (cmd/option+Left/Right, cmd+Backspace), matching the Claude Code
+  terminal's existing key bindings.
+
+### Changed
+
+- The global text-selection highlight color switches from a hardcoded
+  yellow to the app's own teal accent.
+- Both terminals' construction, resizing, and theming logic is now ported
+  from VS Code's `XtermTerminal` implementation and shared between the
+  Claude Code terminal and the shell-rail terminal, replacing the
+  `@xterm/addon-fit` dependency.
+
+### Fixed
+
+- The Claude Code (Managed) terminal only overrode 3 of 16 ANSI colors,
+  leaving text badly washed out against a light terminal theme; it now
+  uses the full VS Code-default ANSI palette in both themes, matching the
+  shell-rail terminal.
+- Both terminals reserved extra blank space along their right edge for an
+  invisible native scrollbar kept alive only to drive the custom
+  overlay-scrollbar thumb, making the right-side gap read 2-3× wider than
+  the left; both terminals also widen their right inset to 16px to
+  visually balance the fix.
+- Resizing the window immediately after a `/clear`-triggered session
+  rename no longer leaves the pty terminal at its pre-rename size.
+
 ## [0.1.31] - 2026-07-15
 
 ### Added
@@ -754,7 +785,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.31...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.32...HEAD
+[0.1.32]: https://github.com/luojiahai/code-by-wire/compare/v0.1.31...v0.1.32
 [0.1.31]: https://github.com/luojiahai/code-by-wire/compare/v0.1.30...v0.1.31
 [0.1.30]: https://github.com/luojiahai/code-by-wire/compare/v0.1.29...v0.1.30
 [0.1.29]: https://github.com/luojiahai/code-by-wire/compare/v0.1.28...v0.1.29
