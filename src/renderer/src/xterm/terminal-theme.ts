@@ -1,8 +1,5 @@
 import type { ITheme } from "@xterm/xterm";
-import {
-  VSCODE_DARK_ANSI,
-  VSCODE_LIGHT_ANSI,
-} from "./vscode-terminal-palette";
+import { VSCODE_DARK_ANSI, VSCODE_LIGHT_ANSI } from "./vscode-terminal-palette";
 
 /** Per-terminal chrome overrides on the shared VS Code chrome (spec §8.10): the Claude
  *  terminal keeps its teal working-accent cursor; everything else converges. */

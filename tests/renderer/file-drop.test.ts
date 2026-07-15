@@ -31,7 +31,9 @@ function fakeTransfer(opts: {
 
 describe("quotePathForShell (POSIX default)", () => {
   it("single-quotes a plain path", () => {
-    expect(quotePathForShell("/Users/me/notes.md")).toBe("'/Users/me/notes.md'");
+    expect(quotePathForShell("/Users/me/notes.md")).toBe(
+      "'/Users/me/notes.md'",
+    );
   });
   it("single-quotes spaces", () => {
     expect(quotePathForShell("/Users/me/My File.txt")).toBe(
