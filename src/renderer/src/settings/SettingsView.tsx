@@ -152,8 +152,8 @@ function AboutSection({ update }: { update?: UpdateControls }) {
         <div className="flex flex-col gap-3 px-4 py-4">
           <Wordmark />
           <p className="max-w-[54ch] text-body leading-relaxed text-fg-muted">
-            Pilot every Claude Code session, view its enriched transcript, and
-            monitor the telemetry, in one interface.
+            Pilot every Claude Code session and monitor its telemetry, from one
+            cockpit.
           </p>
           <button
             type="button"
