@@ -328,7 +328,7 @@
      ui/appearance-store.ts), not App theme (:root[data-theme]). Dark literal matches the app's own
      dark --theme-neutral-chrome (#0e0e0e) so today's blended look is unchanged when both themes are
      dark; the light override two blocks down matches the terminal JS themes' own literal
-     `background` (#ffffff in both shell-terminal/theme.ts and terminal/xterm-factory.ts) exactly,
+     `background` (#ffffff, xterm/terminal-theme.ts's shared terminalTheme("light")) exactly,
      per the 2026-07-14 light-theme design doc §7's "use the terminal theme table's own literal
      background value unconditionally". */
   --terminal-editor-surface-background: #0e0e0e;
@@ -414,9 +414,9 @@
 /* Terminal theme override — independent of App theme above (:root[data-theme]); driven by
    $terminalTheme via document.documentElement.dataset.terminalTheme (ui/appearance-store.ts), so a
    Dark app + Light terminal (or vice versa) is a real, supported combination, not an edge case.
-   Both literals are #ffffff because both terminal JS themes' own LIGHT_THEME.background are #ffffff
-   (shell-terminal/theme.ts and terminal/xterm-factory.ts) — see the two seeds' definitions above for
-   why they diverge on the dark side but agree here. */
+   Both literals are #ffffff because both terminals now share xterm/terminal-theme.ts's
+   terminalTheme("light").background — see the two seeds' definitions above for why they diverge on
+   the dark side (Claude's cursor override) but agree here. */
 :root[data-terminal-theme="light"] {
   --terminal-editor-surface-background: #ffffff;
   --terminal-well-background: #ffffff;
