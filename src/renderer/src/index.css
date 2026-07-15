@@ -8,7 +8,7 @@
      they now alias the seed layer (--theme-neutral-chrome/-card) instead of a literal, so the
      `:root[data-theme="light"]` override (added below) drives both this stack and the --ui-* layer
      from one source instead of two disconnected literals that could silently drift. */
-  --color-well: #080808; /* sunken: terminal, inputs, code blocks */
+  --color-well: #080808; /* sunken: inputs, code blocks */
   --color-ink-900: #181818; /* raised: headers, chips, menus, popover */
   --color-ink-850: #1e1e1e; /* subtle hover / faint divider */
   --color-ink-800: #2a2a2a; /* default hairline border */

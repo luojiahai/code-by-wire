@@ -120,9 +120,21 @@ describe("MiddleHeader's fade strip follows Terminal theme, not App theme, over 
   // terminal's own token instead keeps the blend smooth in every App/Terminal theme combination.
 
   it("computes terminalBelow from the same hasLiveTerminal shape Workspace.tsx uses", () => {
-    expect(middleHeader).toMatch(
-      /const terminalBelow =\s*\n\s*!transcriptOn &&\s*\n\s*session !== null &&\s*\n\s*session\.management === "managed" &&\s*\n\s*session\.state !== "ended";/,
-    );
+    // Cross-file check, not just a MiddleHeader-local regex: hasLiveTerminal isn't a shared helper
+    // (deferred as YAGNI for one boolean duplicated in exactly two places), so this reads BOTH files
+    // and asserts the same core sub-expression appears in each — the thing that would actually catch
+    // drift if Workspace.tsx's definition of "live terminal" changed and MiddleHeader.tsx didn't
+    // follow, which a MiddleHeader-only regex can't detect.
+    const sharedCondition =
+      'session.management === "managed" && session.state !== "ended"';
+    expect(
+      middleHeader.replace(/\s+/g, " "),
+      "MiddleHeader's terminalBelow includes the shared live-terminal condition",
+    ).toContain(sharedCondition);
+    expect(
+      workspace.replace(/\s+/g, " ").replace(/\bs\./g, "session."),
+      "Workspace's hasLiveTerminal (session aliased as `s`) matches the same condition",
+    ).toContain(sharedCondition);
   });
 
   it("fades to the terminal's own background only when terminalBelow, else to transparent", () => {

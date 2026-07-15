@@ -121,7 +121,12 @@ describe("cockpit theme — graphite surfaces (not warm, not cool)", () => {
   });
 });
 
-describe("terminal well matches the theme", () => {
+describe("xterm-factory's DARK_THEME is neutral graphite (coincidentally == --color-well)", () => {
+  // Renamed 2026-07-15: this no longer pins a real binding — TerminalView.tsx moved off --color-well
+  // onto its own --terminal-well-background token (see "terminal-pane chrome tokens follow Terminal
+  // theme" below for the binding that actually matters now). This block still checks something real
+  // (xterm-factory's own DARK_THEME is a true neutral gray, and happens to still equal --color-well
+  // today), just not "the terminal follows --color-well" anymore.
   it("xterm DARK_THEME background is graphite and equals --color-well", () => {
     const xterm = readFileSync(
       join(root, "src/renderer/src/terminal/xterm-factory.ts"),
