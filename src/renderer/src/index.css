@@ -672,7 +672,7 @@ body {
 
 /* Transparent background so the well shows through during overscroll. scrollbar-width:
    none — the native bar neither shows nor reserves a strip: the visible scrollbar is the
-   custom .overlay-scroll-thumb (terminal/overlay-scrollbar.ts), which floats inside the
+   custom .overlay-scroll-thumb (xterm/overlay-scrollbar.ts), which floats inside the
    .xterm padding, and the shared layout math budgets columns against the full padded
    width (no scrollbar allowance — see xterm/terminal-font-metrics.ts). */
 .xterm .xterm-viewport {
