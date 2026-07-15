@@ -310,10 +310,12 @@
   --ui-chat-surface-background: var(--ui-bg-chrome);
   --ui-editor-surface-background: var(--ui-bg-chrome);
 
-  /* Backs ONLY shell-terminal/instance.tsx's own wrapper — the ~8-16px padding (`px-2 pb-2`)
-     immediately around the xterm host, plus its `.xterm-screen`/`.xterm-viewport` !important
-     overrides — referenced directly (not through --ui-editor-surface-background above, which stays
-     App-theme; see that comment for why the two diverge).
+  /* Backs ONLY shell-terminal/instance.tsx's own wrapper — its `.xterm-screen`/`.xterm-viewport`
+     !important overrides, plus whatever shows through xterm's own padding (the wrapper itself
+     carries none, since the 2026-07-15 xterm-terminal-port fix made the xterm host `relative` and
+     removed the wrapper's redundant px-2/pb-2/pt-0) — referenced directly (not through
+     --ui-editor-surface-background above, which stays App-theme; see that comment for why the two
+     diverge).
      Pixel-verified root cause (live Playwright, 2026-07-15): xterm's OWN canvas — the actual text
      grid, `.xterm-screen`/`.xterm-viewport`'s content — already repaints correctly the instant
      `term.options.theme` is reassigned; there was never a WebGL/xterm repaint bug. What's ACTUALLY
