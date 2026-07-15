@@ -259,7 +259,7 @@ export function SessionMenu({
                 top: pos.top,
                 width: MENU_WIDTH,
               }}
-              className="z-50 rounded-lg border border-(--ui-stroke-secondary) glass-overlay p-1.5 shadow-(--shadow-md)"
+              className="z-50 rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl"
             >
               <MenuItem
                 icon="copy"
