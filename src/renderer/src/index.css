@@ -604,7 +604,7 @@ body {
 }
 
 /* The VSCode-style overlay scrollbar thumbs (OverlayScroll.tsx; the vertical one is also attached
-   imperatively by terminal/overlay-scrollbar.ts). Absolutely positioned over the list, so they reserve
+   imperatively by xterm/overlay-scrollbar.ts). Absolutely positioned over the list, so they reserve
    no space; size/position are written imperatively by the component. Slider colours are VSCode's
    dark-theme defaults (scrollbarSlider.background / hover / active). Fade is asymmetric — 100ms in,
    800ms out — gated by the data-visible attribute, mirroring VSCode's reveal-on-scroll/hover,
@@ -675,7 +675,7 @@ body {
    bar itself: xterm owns this viewport's scrolling, and the global `scrollbar-width: thin` keeps the bar
    reserving its right strip so terminal text stays clear of the overlay thumb — but the bar must not be
    SEEN, because the visible scrollbar is the custom .overlay-scroll-thumb attached by
-   terminal/overlay-scrollbar.ts. (VSCode's terminal scrollbar IS xterm's own ScrollableElement widget,
+   xterm/overlay-scrollbar.ts. (VSCode's terminal scrollbar IS xterm's own ScrollableElement widget,
    which @xterm/xterm 5.5.0 doesn't expose, so we reproduce its overlay/fade/drag design. A webkit
    transparent-thumb rule used to do this job — dead since Chromium 121, which is why the themed native
    bar showed doubled next to the overlay thumb.) */
