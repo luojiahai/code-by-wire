@@ -72,9 +72,12 @@ function harness(isMac = true) {
       made.push(f);
       return {
         term: f.term,
-        fit: { fit: () => {}, proposeDimensions: () => undefined },
         wrapper: {} as HTMLElement,
-        rebuildViewport: () => {},
+        attach: () => {},
+        layout: () => {},
+        flush: () => {},
+        forceRefresh: () => {},
+        dispose: () => f.term.dispose(),
       };
     },
   });

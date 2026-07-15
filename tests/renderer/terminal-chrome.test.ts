@@ -27,8 +27,9 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     // theme (and, since xterm's own canvas already repaints correctly on a theme change, made an
     // otherwise-correctly-repainted terminal LOOK stale — the frame is what actually didn't move).
     // --terminal-well-background is the Terminal-theme-scoped seed (index.css) that replaces it —
-    // #080808 in dark mode, matching --color-well's own dark literal exactly, so this assertion's
-    // original intent (padding gutter stays #080808 in dark mode) still holds.
+    // #0e0e0e in dark mode, matching the shared terminal theme's (xterm/terminal-theme.ts) dark
+    // background exactly, so this assertion's original intent (a themed padding gutter, no App-theme
+    // leak) still holds.
     const m =
       /className="([^"]*\bbg-\(--terminal-well-background\)[^"]*)"/.exec(view);
     expect(
@@ -45,16 +46,16 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
   });
 
   it("keeps the native viewport scrollbar transparent and renders the overlay thumb instead", () => {
-    // The viewport background stays transparent so the #080808 well shows through during overscroll.
+    // The viewport background stays transparent so the well shows through during overscroll.
     expect(css).toMatch(
       /\.xterm\s+\.xterm-viewport\s*\{[^}]*background:\s*transparent/,
     );
-    // The native scrollbar is kept only to reserve the right strip (scrollbar-width: thin from the
-    // global rule) and is rendered invisible via scrollbar-color — the modern property that actually
-    // wins in Chromium ≥121, where ::-webkit-scrollbar-* rules are ignored once it's set. The visible
-    // scrollbar is the shared overlay thumb attached over the viewport in xterm-factory.
+    // The native bar neither shows nor reserves a strip (scrollbar-width: none) — the shared layout
+    // math (xterm/terminal-font-metrics.ts) budgets columns against the full padded width instead of
+    // leaving a scrollbar allowance. The visible scrollbar is the shared overlay thumb attached over
+    // the viewport in xterm-factory.
     expect(css).toMatch(
-      /\.xterm\s+\.xterm-viewport\s*\{[^}]*scrollbar-color:\s*transparent transparent/,
+      /\.xterm\s+\.xterm-viewport\s*\{[^}]*scrollbar-width:\s*none/,
     );
     const factory = readFileSync(
       join(root, "src/renderer/src/terminal/xterm-factory.ts"),
@@ -62,8 +63,16 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     );
     expect(
       factory,
-      "factory delegates to the shared overlay scrollbar attach",
-    ).toContain('from "../xterm/overlay-scrollbar"');
+      "factory builds the terminal on the shared XtermTerminal class",
+    ).toContain('from "../xterm/xterm-terminal"');
+    const xtermTerminal = readFileSync(
+      join(root, "src/renderer/src/xterm/xterm-terminal.ts"),
+      "utf8",
+    );
+    expect(
+      xtermTerminal,
+      "XtermTerminal delegates to the shared overlay scrollbar attach",
+    ).toContain('from "./overlay-scrollbar"');
     const overlay = readFileSync(
       join(root, "src/renderer/src/xterm/overlay-scrollbar.ts"),
       "utf8",

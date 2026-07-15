@@ -336,13 +336,13 @@
   /* Backs terminal/TerminalView.tsx's container (the observed-session terminal, a completely
      different UI region from the shell-terminal pane above) — same Terminal-theme-scoped rationale,
      kept as its own token rather than reusing --terminal-editor-surface-background because the two
-     terminal instances' JS themes disagree on the dark literal (xterm-factory.ts's DARK_THEME.
-     background is #080808, not #1e1e1e/#0e0e0e); this dark default matches that exactly (it's also
-     --color-well's own dark literal — deliberately, since this container replaces a --color-well
-     bg-well class that had the same blend-with-app-theme bug). The light override two blocks down is
-     #ffffff — xterm-factory's LIGHT_THEME.background, NOT --color-well's own light literal
-     (#f2f2f2) — per the same "use the terminal theme's own literal background" rule. */
-  --terminal-well-background: #080808;
+     terminal instances used to disagree on the dark literal; since the 2026-07-15 XtermTerminal port
+     both terminals now share xterm/terminal-theme.ts, so this matches its dark background (#0e0e0e)
+     exactly — the same literal as --terminal-editor-surface-background above (canvas == inset ==
+     frame, no seam). The light override two blocks down is #ffffff — the shared theme's
+     LIGHT_THEME.background, NOT --color-well's own light literal (#f2f2f2) — per the same "use the
+     terminal theme's own literal background" rule. */
+  --terminal-well-background: #0e0e0e;
 
   /* Sidebar aliases (hermes styles.css:379-388), using the dark 12% variant
      for --sidebar-edge-border (styles.css:415). */
@@ -670,18 +670,14 @@ body {
   left: 0;
 }
 
-/* Transparent background so the well (the container's bg) shows through during overscroll, instead of
-   xterm's default #000 viewport flashing a different black. Transparent scrollbar-color hides the native
-   bar itself: xterm owns this viewport's scrolling, and the global `scrollbar-width: thin` keeps the bar
-   reserving its right strip so terminal text stays clear of the overlay thumb — but the bar must not be
-   SEEN, because the visible scrollbar is the custom .overlay-scroll-thumb attached by
-   xterm/overlay-scrollbar.ts. (VSCode's terminal scrollbar IS xterm's own ScrollableElement widget,
-   which @xterm/xterm 5.5.0 doesn't expose, so we reproduce its overlay/fade/drag design. A webkit
-   transparent-thumb rule used to do this job — dead since Chromium 121, which is why the themed native
-   bar showed doubled next to the overlay thumb.) */
+/* Transparent background so the well shows through during overscroll. scrollbar-width:
+   none — the native bar neither shows nor reserves a strip: the visible scrollbar is the
+   custom .overlay-scroll-thumb (terminal/overlay-scrollbar.ts), which floats inside the
+   .xterm padding, and the shared layout math budgets columns against the full padded
+   width (no scrollbar allowance — see xterm/terminal-font-metrics.ts). */
 .xterm .xterm-viewport {
   background: transparent;
-  scrollbar-color: transparent transparent;
+  scrollbar-width: none;
 }
 
 /* The cockpit plate: flat graphite. Instrument discipline — no decorative washes; depth comes from
