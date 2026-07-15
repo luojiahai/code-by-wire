@@ -61,8 +61,13 @@ function agent(
   agentType: string,
   rows: any[],
   description = "",
+  stoppedByUser = false,
 ): SubagentSource {
-  return { agentId, meta: { agentType, toolUseId, description }, rows };
+  return {
+    agentId,
+    meta: { agentType, toolUseId, description, stoppedByUser },
+    rows,
+  };
 }
 
 // A main assistant turn with message id `msgId` that dispatches every id in `toolUseIds`, each
@@ -153,6 +158,48 @@ function sendMessageRows(
       toolUseResult: {
         success: opts.success ?? true,
         message: `Agent "${resolvedId}" had no active task; resumed from transcript in the background with your message.`,
+      },
+    },
+  ];
+}
+
+// A TaskOutput poll result: a tool_use (name "TaskOutput") plus its tool_result, whose row-level
+// toolUseResult carries the CLI's structured { task_id, status } — present on EVERY poll, blocking
+// or not, terminal or not (confirmed against a real transcript: a not_ready/timeout poll still
+// carries status:"running"). `toolUseId` only needs to be unique within the transcript.
+function pollRow(
+  toolUseId: string,
+  taskId: string,
+  status: string,
+  ts: string,
+  blocking = true,
+): any[] {
+  return [
+    {
+      type: "assistant",
+      timestamp: ts,
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            id: toolUseId,
+            name: "TaskOutput",
+            input: { task_id: taskId, block: blocking, timeout: 60000 },
+          },
+        ],
+      },
+    },
+    {
+      type: "user",
+      timestamp: ts,
+      message: {
+        content: [
+          { type: "tool_result", tool_use_id: toolUseId, is_error: false },
+        ],
+      },
+      toolUseResult: {
+        retrieval_status: status === "running" ? "not_ready" : "success",
+        task: { task_id: taskId, status },
       },
     },
   ];
@@ -754,6 +801,62 @@ describe("buildSubagentForest", () => {
     expect(forest[0].status).toBe("done");
   });
 
+  it("settles an agent done on a TaskOutput poll's terminal status alone (issue #328)", () => {
+    // The CLI hands a completion straight to an active poll without ALSO queuing a
+    // <task-notification> when a waiter is parked on the task — so the poll result can be the
+    // agent's ONLY terminal lifecycle event.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        ...pollRow("tu-poll", "a1", "completed", "2026-06-04T03:05:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("done");
+  });
+
+  it("leaves an otherwise-eventless agent working on a lone running poll", () => {
+    // Exercises the new poll-observation event explicitly (Task 2 makes it a real `working` push)
+    // rather than relying only on the "0 events ⇒ working" default it happens to agree with here.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        ...pollRow("tu-poll", "a1", "running", "2026-06-04T03:01:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("working");
+  });
+
+  it("folds a non-blocking poll's terminal status the same as a blocking poll's", () => {
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        ...pollRow(
+          "tu-poll",
+          "a1",
+          "completed",
+          "2026-06-04T03:05:00.000Z",
+          false,
+        ),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("done");
+  });
+
+  it("resolves consistently to done when both a poll and a notification observe the same completion", () => {
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        ...pollRow("tu-poll", "a1", "completed", "2026-06-04T03:05:00.000Z"),
+        notificationRow("a1", "completed", "2026-06-04T03:05:00.500Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("done");
+  });
+
   it("ignores a notification whose task-id matches no known agent", () => {
     // Background Bash tasks and workflows notify too — foreign task-ids must not touch agents.
     const forest = buildSubagentForest(
@@ -887,6 +990,76 @@ describe("buildSubagentForest", () => {
     expect(forest[0].status).toBe("done");
   });
 
+  it("settles stoppedByUser as stopped when nothing else corrects it", () => {
+    // The CLI's own signal for a subagent interrupted (Ctrl+C/Esc) while being watched live in the
+    // foreground: no <task-notification> fires (that's only for backgrounded stops) and no
+    // TaskOutput poll ever caught it (it was never polled), so without this fold source the agent
+    // has zero events and is stuck "working" forever (issue found 2026-07-15).
+    const forest = buildSubagentForest(asyncMain("tu-1", "a1"), [
+      agent(
+        "a1",
+        "tu-1",
+        "Explore",
+        [ar("2026-06-04T03:00:02.000Z")],
+        "",
+        true,
+      ),
+    ]);
+    expect(forest[0].status).toBe("stopped");
+  });
+
+  it("uses the agent's own last-row timestamp, not epoch 0, so it outranks an earlier stop signal", () => {
+    // If the fold incorrectly used ts:0 for the stoppedByUser event, this earlier notification
+    // (a real, much-larger epoch-ms timestamp) would wrongly outrank it and settle "failed" instead.
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        notificationRow("a1", "failed", "2026-06-04T03:00:01.000Z"),
+      ],
+      [
+        agent(
+          "a1",
+          "tu-1",
+          "Explore",
+          [ar("2026-06-04T03:05:00.000Z")], // the agent's own last row is LATER than the notification
+          "",
+          true,
+        ),
+      ],
+    );
+    expect(forest[0].status).toBe("stopped");
+  });
+
+  it("leaves status alone when stoppedByUser is false", () => {
+    const forest = buildSubagentForest(main("tu-1"), [
+      agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:00.000Z")]),
+    ]);
+    expect(forest[0].status).toBe("working");
+  });
+
+  it("falls back to ts 0 when the agent has no parseable timestamps, still settling stopped", () => {
+    const forest = buildSubagentForest(asyncMain("tu-1", "a1"), [
+      agent(
+        "a1",
+        "tu-1",
+        "Explore",
+        [
+          {
+            type: "assistant",
+            message: {
+              model: SONNET,
+              usage: { input_tokens: 1, output_tokens: 1 },
+              content: [],
+            },
+          },
+        ],
+        "",
+        true,
+      ),
+    ]);
+    expect(forest[0].status).toBe("stopped");
+  });
+
   it("resolves a SendMessage-by-name resume via the echoed agent id", () => {
     // input.to is a name, not an agent id; the toolUseResult.message prefix names the real id.
     const forest = buildSubagentForest(
@@ -935,6 +1108,22 @@ describe("buildSubagentForest", () => {
         ...asyncMain("tu-1", "a1"),
         notificationRow("a1", "completed", "2026-06-04T03:05:00.000Z"),
         ...sendMessageRows("sm-1", "a1", "a1", "2026-06-04T03:10:00.000Z"),
+      ],
+      [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
+    );
+    expect(forest[0].status).toBe("working");
+  });
+
+  it("a poll observing running overrides an earlier stop signal back to working", () => {
+    // A poll result is a level observation ("status was S as of t"), not a one-shot edge event
+    // like a notification — so a later `running` poll must reassert liveness, not no-op like it
+    // does for notifications. (Also partially self-heals issue #326's stale dequeue-twin hazard:
+    // any poll observed after a wrongly-applied stop corrects it.)
+    const forest = buildSubagentForest(
+      [
+        ...asyncMain("tu-1", "a1"),
+        notificationRow("a1", "stopped", "2026-06-04T03:04:00.000Z"),
+        ...pollRow("tu-poll", "a1", "running", "2026-06-04T03:05:00.000Z"),
       ],
       [agent("a1", "tu-1", "Explore", [ar("2026-06-04T03:00:02.000Z")])],
     );

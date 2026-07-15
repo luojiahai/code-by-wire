@@ -133,7 +133,7 @@ export function StatsDbCard() {
           disabled={backfilling}
           className="inline-flex shrink-0 items-center rounded-md border border-danger/40 px-2.5 py-1 text-aux text-danger transition-colors hover:border-danger hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Reset…
+          Reset
         </button>
       </div>
       {confirmReset && (

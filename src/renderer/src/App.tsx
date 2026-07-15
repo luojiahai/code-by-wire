@@ -527,6 +527,10 @@ export function App() {
             }}
             onQuickAdd={quickAddSession}
             canSpawn={spawnGate(cliStatus).canSpawn}
+            onAdopt={adoptSession}
+            onFork={forkSession}
+            onEnd={endSession}
+            onRename={(id, title) => void renameSession(id, title)}
             updatePending={updatePending}
             route={route}
             onRoute={setSelectedId}
@@ -601,7 +605,9 @@ export function App() {
  * The middle column's chrome for every non-`Workspace` route (New session, Overview, Settings, and
  * the empty state): `MiddleHeader` with a plain title (no `SessionMenu`, no Transcript toggle — both
  * are session-only). These routes never have a session, so the right cluster (which is session-gated)
- * never floats over their header — `rightEdgeExposed={false}` is correct unconditionally.
+ * never floats over their header — `rightEdgeExposed={false}` is correct unconditionally. Same for
+ * `drilled={false}`: no session means no subagent drill-stack either, so the header keeps its own
+ * shadow here.
  */
 function MiddleNonSession({
   title,
@@ -619,6 +625,8 @@ function MiddleNonSession({
         title={title}
         transcriptOn={false}
         onToggleTranscript={() => {}}
+        onExitDrill={() => {}}
+        drilled={false}
         leftEdgeExposed={leftEdgeExposed}
         rightEdgeExposed={false}
         menu={null}

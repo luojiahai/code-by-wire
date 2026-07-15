@@ -45,20 +45,17 @@ export function TokenSpeedPanel({
       >
         Throughput
       </PanelHeading>
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline">
         {speed ? (
           <span className="font-mono text-title font-medium tabular-nums text-fg">
-            {formatTps(speed.totalTps).replace(/ t\/s$/, "")}
-            <span className="text-xs text-fg-faint"> t/s</span>
+            {formatTps(speed.totalTps).replace(/ tokens\/s$/, "")}
+            <span className="text-xs text-fg-faint"> tokens/s</span>
           </span>
         ) : (
           <span className="font-mono text-title font-medium tabular-nums text-fg-faint">
             idle
           </span>
         )}
-        <span className="text-xs text-(--ui-text-tertiary)">
-          total throughput
-        </span>
       </div>
       <Sparkline values={history} />
       {speed && (

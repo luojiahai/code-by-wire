@@ -22,7 +22,7 @@ function fileBrowserName(platform: string): string {
  *  program), so a glyph that isn't registered in ui/icons.tsx fails the typecheck. */
 export function openInItems(platform: string): OpenInItem[] {
   return [
-    { key: "vscode", label: "VSCode", icon: "code" },
+    { key: "vscode", label: "VSCode", icon: "square-code" },
     {
       key: "finder",
       label: `Open in ${fileBrowserName(platform)}`,

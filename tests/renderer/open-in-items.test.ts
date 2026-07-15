@@ -19,7 +19,7 @@ describe("openInItems", () => {
 
   it("has valid curated icons", () => {
     expect(openInItems("darwin")).toEqual([
-      { key: "vscode", label: "VSCode", icon: "code" },
+      { key: "vscode", label: "VSCode", icon: "square-code" },
       { key: "finder", label: "Open in Finder", icon: "folder-open" },
     ]);
   });

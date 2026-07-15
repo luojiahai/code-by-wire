@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Session } from "@shared/types";
 import { isMacPlatform } from "@shared/platform";
-import { cx } from "../ui/atoms";
+import { cx, ScrollHintShadow } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
 import { useFullscreen } from "../ui/use-fullscreen";
 import { headerRightPaddingPx, titlebarContentInsetPx } from "./titlebar";
@@ -25,6 +25,8 @@ export function MiddleHeader({
   session,
   transcriptOn,
   onToggleTranscript,
+  onExitDrill,
+  drilled,
   leftEdgeExposed,
   rightEdgeExposed,
   menu,
@@ -33,6 +35,12 @@ export function MiddleHeader({
   session: Session | null;
   transcriptOn: boolean;
   onToggleTranscript: () => void;
+  /** Clears any active subagent drill. Called when the user explicitly leaves the Transcript side via
+   *  "Claude Code", so returning to Transcript later always shows the main session, never a stale drill. */
+  onExitDrill: () => void;
+  /** True while a subagent drill is showing its own copy of this header's bottom shadow, directly
+   *  under its breadcrumb bar — suppresses this one so the two don't stack over the breadcrumb. */
+  drilled: boolean;
   /** True whenever the left pane isn't actually docked next to this header — closed by the user,
    *  or force-collapsed by a narrow window. Rendered state, not the stored preference. */
   leftEdgeExposed: boolean;
@@ -88,7 +96,10 @@ export function MiddleHeader({
                 label="Claude Code"
                 active={!transcriptOn}
                 onSelect={() => {
-                  if (transcriptOn) onToggleTranscript();
+                  if (transcriptOn) {
+                    onToggleTranscript();
+                    onExitDrill();
+                  }
                 }}
               />
               <ViewSegment
@@ -103,19 +114,13 @@ export function MiddleHeader({
           )}
         </div>
       </header>
-      {!terminalBelow && (
-        // The fade smooths the header/content seam for scrolling text sliding under the header edge
-        // (Transcript) — App-theme-to-transparent is correct there since that content is App-themed,
-        // matching the header. The live terminal doesn't need this: it's a bounded panel, not
-        // scrolling text, and the header's own border-b already separates it cleanly. Rendering this
-        // strip there only risked reintroducing App-theme color into a Terminal-themed area (see
-        // git history: 62e4401 and its follow-up both tried blending/recoloring this strip for the
-        // terminal case before landing on simply not rendering it there at all).
-        <div
-          aria-hidden
-          className="pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b from-(--ui-chat-surface-background) to-transparent"
-        />
-      )}
+      {/* Suppressed while drilled (the subagent breadcrumb shows its own copy one level lower) AND
+       *  while a live terminal is below: that's a bounded panel, not scrolling text, so it doesn't
+       *  need the scroll-edge hint, and the header's own border-b already separates it cleanly.
+       *  Rendering it there previously reintroduced App-theme color into a Terminal-themed area (see
+       *  git history: 62e4401 and its follow-up both tried blending/recoloring this shadow for the
+       *  terminal case before landing on simply not rendering it there at all). */}
+      {!drilled && !terminalBelow && <ScrollHintShadow />}
     </>
   );
 }

@@ -141,9 +141,35 @@ describe("MiddleHeader's fade strip doesn't render over the live terminal", () =
     ).toContain(sharedCondition);
   });
 
-  it("only renders when !terminalBelow, and keeps the original App-theme-to-transparent blend", () => {
-    const m = /\{!terminalBelow && \(([\s\S]*?)\)\}/.exec(middleHeader);
-    expect(m, "fade strip gated on {!terminalBelow && (...)}").toBeTruthy();
+  it("only renders the shared ScrollHintShadow when neither drilled nor terminalBelow", () => {
+    // MiddleHeader's own shadow was extracted into a shared `ScrollHintShadow` atom on main
+    // (used by both MiddleHeader and the subagent-drill breadcrumb) independent of this branch's
+    // Terminal-theme work — merged here so this branch's !terminalBelow gate composes with main's
+    // own !drilled gate instead of reverting the dedup.
+    expect(
+      middleHeader,
+      "imports the shared atom, not an inline duplicate",
+    ).toMatch(
+      /import \{[^}]*\bScrollHintShadow\b[^}]*\} from "\.\.\/ui\/atoms"/,
+    );
+    const m = /\{!drilled && !terminalBelow && <ScrollHintShadow \/>\}/.exec(
+      middleHeader,
+    );
+    expect(
+      m,
+      "gated on {!drilled && !terminalBelow && <ScrollHintShadow />}",
+    ).toBeTruthy();
+  });
+
+  it("ScrollHintShadow itself has no Terminal-theme reference (it's shared with the subagent-drill breadcrumb)", () => {
+    const atoms = readFileSync(
+      join(root, "src/renderer/src/ui/atoms.tsx"),
+      "utf8",
+    );
+    const m = /export function ScrollHintShadow\(\) \{([\s\S]*?)\n\}/.exec(
+      atoms,
+    );
+    expect(m, "ScrollHintShadow definition in ui/atoms.tsx").toBeTruthy();
     expect(
       m![1],
       "still fades from the header's own App-theme background to transparent",
@@ -152,7 +178,7 @@ describe("MiddleHeader's fade strip doesn't render over the live terminal", () =
     );
     expect(
       m![1],
-      "no --terminal-well-background reference left in this element",
+      "no --terminal-well-background reference — this atom is shared with the breadcrumb, which is never Terminal-themed",
     ).not.toContain("--terminal-well-background");
   });
 });
