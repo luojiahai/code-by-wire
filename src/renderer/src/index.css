@@ -670,12 +670,15 @@ body {
   left: 0;
 }
 
-/* Shell-rail terminal only (instance.tsx's data-terminal wrapper): wider right inset than the
-   other three sides. Higher-specificity compound selector (attribute + 2 classes) so it wins
-   over .xterm.xterm above regardless of source order. The resize math reads this via
-   getComputedStyle on the live element, so it picks up the asymmetric value automatically —
-   no JS change needed. */
-[data-terminal] .xterm.xterm {
+/* Shell-rail terminal only (instance.tsx's data-terminal wrapper) and the Claude Code managed
+   terminal (TerminalView.tsx's data-claude-terminal container): both get a wider right inset than
+   their other three sides, kept as two separate attributes (rather than one shared marker) so
+   each terminal's override only ever matches its own wrapper. Higher-specificity compound
+   selectors (attribute + 2 classes) so both win over .xterm.xterm above regardless of source
+   order. The resize math reads this via getComputedStyle on the live element, so it picks up the
+   asymmetric value automatically — no JS change needed. */
+[data-terminal] .xterm.xterm,
+[data-claude-terminal] .xterm.xterm {
   padding-right: 16px;
 }
 

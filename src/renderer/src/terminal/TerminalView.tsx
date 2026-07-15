@@ -128,6 +128,7 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
   return (
     <div
       className="h-full w-full overflow-hidden bg-(--terminal-well-background)"
+      data-claude-terminal=""
       ref={containerRef}
     />
   );
