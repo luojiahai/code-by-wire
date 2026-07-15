@@ -103,25 +103,19 @@ export function MiddleHeader({
           )}
         </div>
       </header>
-      <div
-        aria-hidden
-        className={cx(
-          "pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b",
-          // When a live terminal is below, the WHOLE strip is Terminal-theme colored — both ends —
-          // not a blend starting from the header's own App-theme color. Blending from App theme (as
-          // this used to do) still puts a dark cap at the strip's top edge whenever App theme is Dark
-          // and Terminal theme is Light, regardless of what the "to" end targets: a gradient from dark
-          // to light is dark for most of its own height. The terminal's own chrome is already visually
-          // distinct from the header (separate token, often a different color) — matching this strip
-          // to it entirely, with no App-theme color anywhere in it, is what actually removes the dark
-          // band rather than just softening its bottom edge. Every other case (Transcript,
-          // ObservedTerminal, no session) keeps the original from-App-theme-to-transparent blend,
-          // since those all match the header's own color already.
-          terminalBelow
-            ? "from-(--terminal-well-background) to-(--terminal-well-background)"
-            : "from-(--ui-chat-surface-background) to-transparent",
-        )}
-      />
+      {!terminalBelow && (
+        // The fade smooths the header/content seam for scrolling text sliding under the header edge
+        // (Transcript) — App-theme-to-transparent is correct there since that content is App-themed,
+        // matching the header. The live terminal doesn't need this: it's a bounded panel, not
+        // scrolling text, and the header's own border-b already separates it cleanly. Rendering this
+        // strip there only risked reintroducing App-theme color into a Terminal-themed area (see
+        // git history: 62e4401 and its follow-up both tried blending/recoloring this strip for the
+        // terminal case before landing on simply not rendering it there at all).
+        <div
+          aria-hidden
+          className="pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b from-(--ui-chat-surface-background) to-transparent"
+        />
+      )}
     </>
   );
 }
