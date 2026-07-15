@@ -7,6 +7,10 @@ import { viewportScrollTop } from "./viewport-scroll";
 import { createWebLinksAddon } from "./web-links";
 import { attachOverlayScrollbar } from "./overlay-scrollbar";
 import { $terminalTheme } from "../ui/appearance-store";
+import {
+  VSCODE_DARK_ANSI,
+  VSCODE_LIGHT_ANSI,
+} from "../ui/vscode-terminal-palette";
 
 /** xterm's internal core, reached the way VSCode does (xtermTerminal.ts: `(raw as ITerminalWithCore)._core`).
  *  We only need the Viewport's `syncScrollArea`, the public hook xterm itself calls (on clear/show) to force
@@ -17,10 +21,13 @@ interface TerminalWithCore {
   _core: { viewport?: { syncScrollArea(immediate?: boolean): void } };
 }
 
-/** The observed Claude-session terminal's dark palette, matching the app's ink surfaces. Only
- *  these three keys are customized (unlike the shell rail terminal's full 16-color VS Code table)
- *  — the Claude TUI's own ANSI output rides xterm's built-in defaults for everything else. */
+/** The observed Claude-session terminal's palette: background/foreground/cursor match the app's ink
+ *  surfaces; the 16 ANSI slots come from the shared vscode-terminal-palette module (also used by the
+ *  shell-rail terminal) instead of xterm.js's own dark-tuned defaults — those washed out badly in
+ *  light mode (2026-07-15 hermes-parity fix; hermes's own terminal always uses the full palette in
+ *  both modes, never a reduced one). */
 const DARK_THEME: ITheme = {
+  ...VSCODE_DARK_ANSI,
   background: "#080808",
   foreground: "#eaeaea",
   cursor: "#2dd4bf",
@@ -30,6 +37,7 @@ const DARK_THEME: ITheme = {
  *  that hue is theme-invariant (2026-07-14 light-theme design doc), so it's unchanged between
  *  modes. */
 const LIGHT_THEME: ITheme = {
+  ...VSCODE_LIGHT_ANSI,
   background: "#ffffff",
   foreground: "#161616",
   cursor: "#2dd4bf",

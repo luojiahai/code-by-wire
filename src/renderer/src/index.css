@@ -442,10 +442,11 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* hermes Mono's dark-mode selection tint (styles.css:478-481, :root.dark override at :425);
-   inlined rather than routed through --ui-selection-background since nothing else needs that var. */
+/* Reuses --color-working (the app's teal accent, also driving the "working" status glyph and both
+   terminals' cursor color) at the same 38% strength the previous yellow used — an intentional
+   app-specific choice, not a ported value. */
 ::selection {
-  background: color-mix(in srgb, #ffd24a 38%, transparent);
+  background: color-mix(in srgb, var(--color-working) 38%, transparent);
   color: inherit;
 }
 
