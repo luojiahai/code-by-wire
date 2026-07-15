@@ -6,6 +6,59 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.31] - 2026-07-15
+
+### Added
+
+- Settings → Appearance gains independent Dark/Light toggles for **App
+  theme** (chrome, sidebars, settings, markdown code blocks) and **Terminal
+  theme** (both xterm.js instances — the footer shell-terminal and the
+  observed Claude-session terminal), backed by a full light theme port of
+  hermes-agent's monochrome "Mono" skin. Dark stays the default for both
+  settings; no existing install's appearance changes until a user opts in.
+- Sidebar session rows gain a hover 3-dot menu (Copy ID, Rename, Adopt,
+  Fork, End, Open in) matching the header's existing session menu, including
+  in-place rename.
+
+### Changed
+
+- Managed sessions now spawn `claude` through the user's own login shell on
+  macOS/Linux instead of a direct child process with app-pinned environment
+  variables, so `PATH`/`CLAUDE_CONFIG_DIR`/everything else resolve exactly
+  like a plain terminal. The persisted binary-override setting, its IPC
+  channel, and the Settings CLI card's override UI are removed; Windows
+  spawning is unchanged.
+- Icon consistency pass: resolved 3 icon-reuse collisions (subagent badge,
+  VS Code menu item, sidebar active-filter), the dead GitHub icon mapping in
+  Settings → About is now a real clickable mark with a tagline matching the
+  README, the "New session" icon is retoned, and 2 unused icon names are
+  dropped.
+- The Throughput panel drops the redundant "total throughput" label, and the
+  stats-db Reset button loses its trailing ellipsis.
+
+### Fixed
+
+- Background subagents stopped by the user, or left running from a previous
+  CLI process, no longer stick at "working" forever in the Activity dock —
+  a `stopped` notification status is now recognized as terminal and
+  distinguished from failed, rendered as the same calm grey square used for
+  killed/stopped monitors.
+- A subagent's status could flap back to a stale stopped/done/failed reading
+  if the user resumed it faster than the CLI delivered that agent's own
+  queued notification: the notification's later delivery-time timestamp is
+  now deduped against its earlier, correctly-timed enqueue twin.
+- A background subagent whose completion was caught entirely by a live
+  `TaskOutput` poll (bypassing the notification queue) showed "running"
+  forever in the Activity dock; poll results now fold into subagent status
+  the same way notifications do, and a subagent interrupted in the
+  foreground (Ctrl+C/Esc) now settles correctly too.
+- Clicking "Claude Code" while drilled into a subagent no longer strands you
+  in a stale drill when switching back to the Transcript view, and the
+  transcript header's shadow no longer dims the subagent-drill breadcrumb.
+- Windows now classifies a missing `claude` binary (`cmd.exe` exit code
+  9009) as "not found," the same as POSIX exit 127, instead of misreporting
+  it as unknown.
+
 ## [0.1.30] - 2026-07-12
 
 ### Fixed
@@ -701,7 +754,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.30...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.31...HEAD
+[0.1.31]: https://github.com/luojiahai/code-by-wire/compare/v0.1.30...v0.1.31
 [0.1.30]: https://github.com/luojiahai/code-by-wire/compare/v0.1.29...v0.1.30
 [0.1.29]: https://github.com/luojiahai/code-by-wire/compare/v0.1.28...v0.1.29
 [0.1.28]: https://github.com/luojiahai/code-by-wire/compare/v0.1.27...v0.1.28
