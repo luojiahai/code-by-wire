@@ -11,6 +11,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Before pushing, run `pnpm format` and `pnpm lint` — CI's lint job runs `format:check` then `lint` and fails on either.
 - `scripts/make-icon.mjs` (`pnpm icon`) string-replaces exact lines from `build/icon.svg` — editing the SVG can silently break macOS icon generation; check the script's `.replace()` targets after any SVG change.
 
+## Website
+
+`website/` (marketing site, Astro + Vercel) is a separate project sharing this
+repo — it has its own `pnpm-workspace.yaml`, isolating its install and
+lockfile from the root workspace. Run its commands from inside `website/`:
+`pnpm install`, `pnpm dev`, `pnpm run check` (typecheck), `pnpm test`.
+
 ## Architecture
 
 Electron app, three processes:
