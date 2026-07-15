@@ -80,4 +80,26 @@ describe("TerminalResizeDebouncer (vscode terminalResizeDebouncer.ts semantics)"
     vi.advanceTimersByTime(200);
     expect(calls.x).toEqual([]);
   });
+
+  it("cols debounce resets on every call — resolves 100ms after the LAST call, not the first", () => {
+    const { debouncer, calls } = makeDebouncer();
+    debouncer.resize(80, 24);
+    vi.advanceTimersByTime(50);
+    debouncer.resize(90, 25); // resets the 100ms window
+    vi.advanceTimersByTime(50); // 100ms since the first call, only 50ms since the second
+    expect(calls.x).toEqual([]); // must NOT have fired yet
+    vi.advanceTimersByTime(50); // 100ms since the second call
+    expect(calls.x).toEqual([90]); // fires once, with the latest value
+  });
+
+  it("resize/flush after dispose are no-ops — nothing fires against a torn-down renderer", () => {
+    const { debouncer, calls } = makeDebouncer();
+    debouncer.dispose();
+    debouncer.resize(80, 24);
+    debouncer.flush();
+    vi.advanceTimersByTime(200);
+    expect(calls.both).toEqual([]);
+    expect(calls.x).toEqual([]);
+    expect(calls.y).toEqual([]);
+  });
 });

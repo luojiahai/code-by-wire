@@ -39,10 +39,12 @@ export class TerminalResizeDebouncer {
   private xTimer = 0;
   private xIdle: IdleHandle | null = null;
   private yIdle: IdleHandle | null = null;
+  private disposed = false;
 
   constructor(private readonly opts: TerminalResizeDebouncerOptions) {}
 
   resize(cols: number, rows: number, immediate = false): void {
+    if (this.disposed) return;
     this.latestX = cols;
     this.latestY = rows;
     if (
@@ -65,19 +67,21 @@ export class TerminalResizeDebouncer {
       });
       return;
     }
-    // Visible: Y now, X coalesced (vscode :83-87).
+    // Visible: Y now, X coalesced — reschedule on every call so a burst resolves
+    // 100ms after the LAST call, not the first (vscode RunOnceScheduler.schedule():
+    // cancels-and-restarts on every call; src/vs/base/common/async.ts:1223-1226).
     this.opts.resizeY(rows);
-    if (!this.xTimer) {
-      this.xTimer = window.setTimeout(() => {
-        this.xTimer = 0;
-        this.opts.resizeX(this.latestX);
-      }, DEBOUNCE_X_MS);
-    }
+    if (this.xTimer) window.clearTimeout(this.xTimer);
+    this.xTimer = window.setTimeout(() => {
+      this.xTimer = 0;
+      this.opts.resizeX(this.latestX);
+    }, DEBOUNCE_X_MS);
   }
 
   /** Apply the latest size immediately if anything is pending (vscode :90-100).
    *  Called when a terminal becomes visible so it never shows a stale grid. */
   flush(): void {
+    if (this.disposed) return;
     if (this.xTimer || this.xIdle || this.yIdle) {
       this.cancel();
       this.opts.resizeBoth(this.latestX, this.latestY);
@@ -85,6 +89,7 @@ export class TerminalResizeDebouncer {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.cancel();
   }
 
