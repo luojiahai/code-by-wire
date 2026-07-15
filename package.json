@@ -1,7 +1,7 @@
 {
   "name": "code-by-wire",
   "private": true,
-  "version": "0.1.30",
+  "version": "0.1.31",
   "description": "Pilot every Claude Code session on your machine.",
   "author": "luojiahai",
   "license": "MIT",
