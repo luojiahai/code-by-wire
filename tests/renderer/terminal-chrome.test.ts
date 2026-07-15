@@ -41,7 +41,7 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     expect(cls, "corner radius removed (square)").not.toMatch(/\brounded/);
   });
 
-  it("pads the .xterm element so FitAddon fits the content inside the padding", () => {
+  it("pads the .xterm element so our resize math fits the content inside the padding", () => {
     expect(css).toMatch(/\.xterm\s*\{[^}]*padding:\s*8px/);
   });
 
@@ -101,7 +101,7 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
       "no padded wrapper between terminalSlot and TerminalView",
     ).not.toMatch(/className="[^"]*\b[pm][xytrbl]?-/);
     // Anchor the wrapper check to `<div className="h-full">{terminalSlot}</div>` specifically —
-    // the h-full is load-bearing (FitAddon needs a sized parent) and uniquely identifies the
+    // the h-full is load-bearing (our resize math needs a sized parent) and uniquely identifies the
     // terminal wrapper. Also assert there is exactly one `>{terminalSlot}` occurrence so no
     // sibling wrapper can silently shadow this match.
     const wrapMatches = [...workspace.matchAll(/>(\{terminalSlot\})/g)];

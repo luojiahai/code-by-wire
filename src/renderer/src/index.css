@@ -649,11 +649,11 @@ body {
 }
 
 /* The terminal well: borderless and padded, with an auto-hiding scrollbar pinned to the trailing edge.
-   8px of padding on .xterm gives the content breathing room; FitAddon reads this padding when it sizes
+   8px of padding on .xterm gives the content breathing room; our resize math reads this padding when it sizes
    the grid, so cols/rows fit the padded area. .xterm-viewport is absolutely positioned inset:0 and
    ignores the padding, so its scrollbar lands flush at the right edge while the text stays 8px clear.
 
-   Bottom-align the grid within its wrapper (mirrors VSCode's terminal.css). FitAddon floors the row count,
+   Bottom-align the grid within its wrapper (mirrors VSCode's terminal.css). Our dimension math floors the row count,
    so up to ~1 row of slack remains between the grid and the wrapper; absolute + bottom:0 parks that slack
    ABOVE the first line instead of below the last, so the Claude prompt stays flush to the bottom edge.
    The wrapper is position:relative (xterm-factory) so this anchors to it; .xterm stays a positioned
