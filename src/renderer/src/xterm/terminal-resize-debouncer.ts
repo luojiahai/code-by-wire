@@ -47,10 +47,7 @@ export class TerminalResizeDebouncer {
     if (this.disposed) return;
     this.latestX = cols;
     this.latestY = rows;
-    if (
-      immediate ||
-      this.opts.getBufferLength() < START_DEBOUNCING_THRESHOLD
-    ) {
+    if (immediate || this.opts.getBufferLength() < START_DEBOUNCING_THRESHOLD) {
       this.cancel();
       this.opts.resizeBoth(cols, rows);
       return;

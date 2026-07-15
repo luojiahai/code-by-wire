@@ -127,13 +127,17 @@ describe("computeLayoutResize (shared consumer-facing layout math)", () => {
   });
 
   it("returns null when the computed grid matches the current size", () => {
-    expect(computeLayoutResize(win(1), undefined, f, 700, 280, 100, 20)).toBeNull();
+    expect(
+      computeLayoutResize(win(1), undefined, f, 700, 280, 100, 20),
+    ).toBeNull();
   });
 
   it("returns the new grid when it differs from the current size", () => {
-    expect(computeLayoutResize(win(1), undefined, f, 700, 280, 99, 20)).toEqual({
-      cols: 100,
-      rows: 20,
-    });
+    expect(computeLayoutResize(win(1), undefined, f, 700, 280, 99, 20)).toEqual(
+      {
+        cols: 100,
+        rows: 20,
+      },
+    );
   });
 });

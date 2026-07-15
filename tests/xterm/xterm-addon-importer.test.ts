@@ -13,9 +13,8 @@ describe("XtermAddonImporter (vscode xtermAddonImporter.ts pattern)", () => {
       Unicode11Addon: class Fake2 {},
     }));
     vi.doMock("@xterm/addon-webgl", () => ({ WebglAddon: class Fake3 {} }));
-    const { XtermAddonImporter } = await import(
-      "../../src/renderer/src/xterm/xterm-addon-importer"
-    );
+    const { XtermAddonImporter } =
+      await import("../../src/renderer/src/xterm/xterm-addon-importer");
     const importer = new XtermAddonImporter();
     expect((await importer.importAddon("serialize")).name).toBe("Fake1");
     expect((await importer.importAddon("unicode11")).name).toBe("Fake2");
@@ -24,9 +23,8 @@ describe("XtermAddonImporter (vscode xtermAddonImporter.ts pattern)", () => {
 
   it("caches the resolved constructor across calls even if the underlying module later changes", async () => {
     vi.doMock("@xterm/addon-webgl", () => ({ WebglAddon: class FakeA {} }));
-    const { XtermAddonImporter } = await import(
-      "../../src/renderer/src/xterm/xterm-addon-importer"
-    );
+    const { XtermAddonImporter } =
+      await import("../../src/renderer/src/xterm/xterm-addon-importer");
     const importer = new XtermAddonImporter();
     const first = await importer.importAddon("webgl");
     expect(first.name).toBe("FakeA");
