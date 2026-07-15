@@ -339,9 +339,9 @@
      terminal instances used to disagree on the dark literal; since the 2026-07-15 XtermTerminal port
      both terminals now share xterm/terminal-theme.ts, so this matches its dark background (#0e0e0e)
      exactly — the same literal as --terminal-editor-surface-background above (canvas == inset ==
-     frame, no seam). The light override two blocks down is #ffffff — the shared theme's
-     LIGHT_THEME.background, NOT --color-well's own light literal (#f2f2f2) — per the same "use the
-     terminal theme's own literal background" rule. */
+     frame, no seam). The light override two blocks down is #ffffff — xterm/terminal-theme.ts's
+     own light background (terminalTheme("light")), NOT --color-well's own light literal (#f2f2f2) —
+     per the same "use the terminal theme's own literal background" rule. */
   --terminal-well-background: #0e0e0e;
 
   /* Sidebar aliases (hermes styles.css:379-388), using the dark 12% variant
