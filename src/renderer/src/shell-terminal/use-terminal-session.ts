@@ -6,16 +6,16 @@ import { Terminal } from "@xterm/xterm";
 import { useEffect, useRef, useState } from "react";
 import { newSessionId } from "@shared/terminal";
 import { isMacPlatform } from "@shared/platform";
-import { createWebLinksAddon } from "../terminal/web-links";
-import { attachOverlayScrollbar } from "../terminal/overlay-scrollbar";
+import { createWebLinksAddon } from "../xterm/web-links";
+import { attachOverlayScrollbar } from "../xterm/overlay-scrollbar";
 import {
   collectDroppedPaths,
+  quotePathForShell,
   transferHasDropCandidates,
-} from "../terminal/file-drop";
+} from "../xterm/file-drop";
 import {
   cleanReviveSnapshot,
   keepEscapeSequences,
-  quotePathForShell,
   stripEscapeSequences,
   stripInitialPromptGap,
 } from "./revive";

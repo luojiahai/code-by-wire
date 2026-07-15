@@ -2,9 +2,9 @@ import { useEffect, useRef } from "react";
 import { terminalStore } from "./terminal-store-instance";
 import {
   collectDroppedPaths,
-  quotePosixPath,
+  quotePathForShell,
   transferHasDropCandidates,
-} from "./file-drop";
+} from "../xterm/file-drop";
 
 /**
  * Mounts a Managed session's kept-alive terminal into the workspace. The xterm instance lives in the
@@ -93,7 +93,7 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
       if (!paths.length) return;
       window.api.terminal.write(
         handle.id,
-        `${paths.map(quotePosixPath).join(" ")} `,
+        `${paths.map((p) => quotePathForShell(p)).join(" ")} `,
       );
       handle.term.focus();
     };

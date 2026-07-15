@@ -63,9 +63,9 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     expect(
       factory,
       "factory delegates to the shared overlay scrollbar attach",
-    ).toContain('from "./overlay-scrollbar"');
+    ).toContain('from "../xterm/overlay-scrollbar"');
     const overlay = readFileSync(
-      join(root, "src/renderer/src/terminal/overlay-scrollbar.ts"),
+      join(root, "src/renderer/src/xterm/overlay-scrollbar.ts"),
       "utf8",
     );
     expect(

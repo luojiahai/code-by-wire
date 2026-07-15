@@ -43,7 +43,21 @@ export function collectDroppedPaths(
   return [...seen];
 }
 
-/** POSIX single-quote a path: wrap in `'…'` and escape any embedded `'` as `'\''`. */
-export function quotePosixPath(path: string): string {
+/** POSIX single-quote (internal — consumers go through quotePathForShell). */
+function quotePosixPath(path: string): string {
   return `'${path.replace(/'/g, "'\\''")}'`;
+}
+
+/** Quote a dropped path for the program reading the pty. Shell-rail passes its resolved
+ *  shell name; the Claude terminal passes nothing (the claude TUI reads POSIX quoting —
+ *  the fallback). Moved from shell-terminal/revive.ts (spec §8.9). */
+export function quotePathForShell(path: string, shellName = ""): string {
+  const shell = shellName.toLowerCase();
+  if (shell.includes("powershell") || shell.includes("pwsh")) {
+    return `'${path.replace(/'/g, "''")}'`;
+  }
+  if (shell.includes("cmd")) {
+    return `"${path.replace(/"/g, '""')}"`;
+  }
+  return quotePosixPath(path);
 }

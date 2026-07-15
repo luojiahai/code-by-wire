@@ -2,7 +2,7 @@ import type { ITheme } from "@xterm/xterm";
 import {
   VSCODE_DARK_ANSI,
   VSCODE_LIGHT_ANSI,
-} from "../ui/vscode-terminal-palette";
+} from "../xterm/vscode-terminal-palette";
 
 // VS Code's default integrated-terminal DARK palette (terminalColorRegistry.ts) — a fixed table,
 // not luminance-derived — except background/cursorAccent, which VS Code ships as #1e1e1e but cbw

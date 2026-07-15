@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   cleanReviveSnapshot,
   keepEscapeSequences,
-  quotePathForShell,
   stripEscapeSequences,
   stripInitialPromptGap,
 } from "../../src/renderer/src/shell-terminal/revive";
+import { quotePathForShell } from "../../src/renderer/src/xterm/file-drop";
 
 describe("stripEscapeSequences", () => {
   it("drops CSI, OSC, and short ESC forms, keeping printable text", () => {
