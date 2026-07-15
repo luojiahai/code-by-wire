@@ -32,13 +32,13 @@ export function terminalTheme(): ITheme {
   return DARK_THEME;
 }
 
-/** Resolve --ui-editor-surface-background to a concrete rgb for the WebGL renderer + contrast
+/** Resolve --color-code-surface to a concrete rgb for the WebGL renderer + contrast
  *  clamp. Custom props don't resolve via getComputedStyle, so probe a real background-color. */
 export function resolveSurfaceColor(fallback: string): string {
   if (typeof document === "undefined" || !document.body) return fallback;
   const probe = document.createElement("span");
   probe.style.cssText =
-    "position:absolute;visibility:hidden;pointer-events:none;background-color:var(--ui-editor-surface-background)";
+    "position:absolute;visibility:hidden;pointer-events:none;background-color:var(--color-code-surface)";
   document.body.appendChild(probe);
   const resolved = getComputedStyle(probe).backgroundColor;
   probe.remove();

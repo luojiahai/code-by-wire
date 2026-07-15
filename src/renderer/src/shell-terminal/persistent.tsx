@@ -124,7 +124,7 @@ export function PersistentTerminal() {
     pointerEvents: visible ? "auto" : "none",
     // Below the pane resize sashes (z-20) so the drag handles still paint above the terminal.
     zIndex: 4,
-    backgroundColor: "var(--ui-editor-surface-background)",
+    backgroundColor: "var(--color-code-surface)",
     contain: "layout size paint",
   };
 

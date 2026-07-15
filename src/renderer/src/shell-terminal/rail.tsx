@@ -36,7 +36,7 @@ export function TerminalRail({ asRow }: { asRow: boolean }) {
     // (see TerminalPaneChrome) into one continuous line against the metrics sidebar above.
     <div
       className={cx(
-        "group/rail relative z-40 flex h-full w-9 shrink-0 flex-col items-center border-l border-l-(--ui-stroke-quaternary) bg-(--ui-editor-surface-background)",
+        "group/rail relative z-40 flex h-full w-9 shrink-0 flex-col items-center border-l border-l-(--ui-stroke-quaternary) bg-(--color-code-surface)",
         asRow && "border-t border-t-(--ui-stroke-secondary)",
       )}
     >

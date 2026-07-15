@@ -6,6 +6,7 @@
 @theme {
   /* Surface stack (neutral grayscale). */
   --color-well: #080808; /* sunken: terminal, inputs, code blocks */
+  --color-field: #080808; /* form-input surface; follows theme (light branch overrides) */
   --color-ink-950: #0e0e0e; /* app canvas / middle */
   --color-ink-925: #141414; /* cards, rails, panels */
   --color-ink-900: #181818; /* raised: headers, chips, menus, popover */
@@ -294,6 +295,10 @@
   --ui-sidebar-surface-background: var(--ui-bg-sidebar);
   --ui-chat-surface-background: var(--ui-bg-chrome);
   --ui-editor-surface-background: var(--ui-bg-chrome);
+
+  /* Terminal/code surface pinned dark across themes (dark island); equals the editor surface in
+     dark, overridden to a fixed dark in the light branch so terminals never lighten. */
+  --color-code-surface: var(--ui-editor-surface-background);
 
   /* Sidebar aliases (hermes styles.css:379-388), using the dark 12% variant
      for --sidebar-edge-border (styles.css:415). */
@@ -673,5 +678,8 @@ body:has([data-suppress-pane-reveal]:hover) [data-pane-reveal-trigger] {
     /* Recessed sidebar surfaces. */
     --color-sidebar: #ececed;
     --color-sidebar-border: #dcdce0;
+
+    --color-field: #ffffff; /* inputs go light */
+    --color-code-surface: #0e0e0e; /* terminals stay dark (dark island) */
   }
 }

@@ -170,7 +170,7 @@ function RefreshRow({
               onChange={(e) => setDraft(e.target.value)}
               placeholder="seconds (1–60), empty for events only"
               inputMode="numeric"
-              className="w-56 rounded-md border border-ink-700 bg-well px-2.5 py-1.5 font-mono text-aux text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+              className="w-56 rounded-md border border-ink-700 bg-field px-2.5 py-1.5 font-mono text-aux text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
             />
             <RailButton onClick={save}>Save</RailButton>
             <RailButton onClick={() => setEditing(false)}>Cancel</RailButton>

@@ -119,7 +119,7 @@ export function NewSessionView({
                   <select
                     value={model}
                     onChange={(e) => setModel(e.target.value as ModelSelection)}
-                    className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+                    className="w-full appearance-none rounded-md border border-ink-700 bg-field py-2 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
                   >
                     <option value="default">Default</option>
                     {(defaults?.allowed ?? FAMILIES).map((id) => {

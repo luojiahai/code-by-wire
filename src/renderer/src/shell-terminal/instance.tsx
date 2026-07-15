@@ -6,7 +6,7 @@ import { useTerminalSession } from "./use-terminal-session";
 // Absolute-stacked so inactive tabs keep layout size (a display:none host goes 0×0 and renders
 // garbled on re-show); visibility toggles which one is seen.
 const INSTANCE_CLASS =
-  "absolute inset-0 flex flex-col bg-(--ui-editor-surface-background) px-2 pb-2 pt-0";
+  "absolute inset-0 flex flex-col bg-(--color-code-surface) px-2 pb-2 pt-0";
 
 /** One persistent xterm+pty. Every open tab stays mounted (its shell and scrollback survive tab
  *  switches); only the active one is shown. */
@@ -40,7 +40,7 @@ export function TerminalInstance({
       {/* Outer div paints the terminal inset; inner div is the xterm host so the canvas sizes to
           the content area and the padding stays as terminal padding. */}
       <div
-        className="h-full min-h-0 overflow-hidden text-(--ui-text-secondary) [&_.xterm]:h-full [&_.xterm-screen]:bg-(--ui-editor-surface-background)! [&_.xterm-viewport]:bg-(--ui-editor-surface-background)!"
+        className="h-full min-h-0 overflow-hidden text-(--ui-text-secondary) [&_.xterm]:h-full [&_.xterm-screen]:bg-(--color-code-surface)! [&_.xterm-viewport]:bg-(--color-code-surface)!"
         ref={hostRef}
       />
     </div>
