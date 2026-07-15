@@ -75,7 +75,7 @@ export function ModalShell({
         aria-labelledby={labelledBy}
         tabIndex={-1}
         className={cx(
-          "rounded-xl border border-ink-700 bg-ink-900 p-5 text-fg shadow-2xl outline-none",
+          "rounded-xl border border-ink-700 glass-overlay p-5 text-fg shadow-2xl outline-none",
           widthClass,
         )}
         onClick={(e) => e.stopPropagation()}

@@ -54,7 +54,7 @@ export function MiddleHeader({
     <>
       <header
         className={cx(
-          "drag-region relative flex shrink-0 select-none items-center gap-3 overflow-hidden border-b border-(--ui-stroke-tertiary) bg-(--ui-chat-surface-background)",
+          "drag-region relative flex shrink-0 select-none items-center gap-3 overflow-hidden border-b border-(--ui-stroke-tertiary) tint-chrome",
           isMac && "title-bar",
         )}
         style={{ height: "var(--titlebar-height)", paddingLeft, paddingRight }}

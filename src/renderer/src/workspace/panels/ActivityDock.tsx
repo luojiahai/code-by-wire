@@ -148,7 +148,7 @@ export function ActivityDock({
     <div
       ref={dockRef}
       style={{ height }}
-      className="relative hidden shrink-0 flex-col border-t border-(--ui-stroke-tertiary) bg-(--ui-surface-background) lg:flex"
+      className="relative hidden shrink-0 flex-col border-t border-(--ui-stroke-tertiary) tint-dock lg:flex"
     >
       <div
         role="separator"
