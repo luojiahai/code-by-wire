@@ -1,4 +1,4 @@
-import { ipcMain, shell, clipboard } from "electron";
+import { ipcMain, shell, clipboard, nativeTheme } from "electron";
 import { homedir } from "node:os";
 import { statSync } from "node:fs";
 import {
@@ -173,6 +173,8 @@ export function registerIpc({
     read: () => ({}),
     setAutoCheckUpdates: () => {},
     setStatuslineEnabled: () => {},
+    setAppTheme: () => {},
+    setTerminalTheme: () => {},
   };
   const caff: Caffeinate = caffeinate ?? {
     isOn: () => false,
@@ -420,6 +422,25 @@ export function registerIpc({
   );
   ipcMain.handle(IPC.updateSetAutoCheck, (_e, enabled: boolean): void =>
     settings.setAutoCheckUpdates(enabled),
+  );
+  ipcMain.handle(
+    IPC.appearanceGetAppTheme,
+    (): "dark" | "light" => settings.read().appTheme ?? "dark",
+  );
+  ipcMain.handle(
+    IPC.appearanceSetAppTheme,
+    (_e, theme: "dark" | "light"): void => {
+      settings.setAppTheme(theme);
+      nativeTheme.themeSource = theme;
+    },
+  );
+  ipcMain.handle(
+    IPC.appearanceGetTerminalTheme,
+    (): "dark" | "light" => settings.read().terminalTheme ?? "dark",
+  );
+  ipcMain.handle(
+    IPC.appearanceSetTerminalTheme,
+    (_e, theme: "dark" | "light"): void => settings.setTerminalTheme(theme),
   );
   ipcMain.handle(IPC.caffeinateGet, (): boolean => caff.isOn());
   ipcMain.handle(IPC.caffeinateSet, (_e, on: boolean): boolean => caff.set(on));

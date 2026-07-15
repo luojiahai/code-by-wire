@@ -1,4 +1,10 @@
-import { app, BrowserWindow, net, powerSaveBlocker } from "electron";
+import {
+  app,
+  BrowserWindow,
+  nativeTheme,
+  net,
+  powerSaveBlocker,
+} from "electron";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { openDb } from "./db/sqlite";
@@ -47,11 +53,20 @@ import { IPC } from "@shared/ipc";
 // 'ready' event (before the GPU process starts), so it lives at module top level.
 app.commandLine.appendSwitch("force-color-profile", "srgb");
 
+/** The BrowserWindow's native background, painted before the page loads — must match the
+ *  persisted app theme or the window flashes the wrong color on launch. Native window chrome, so
+ *  it lives here rather than in index.css. */
+const WINDOW_BACKGROUND: Record<"dark" | "light", string> = {
+  dark: "#0e0e0e",
+  light: "#ffffff",
+};
+
 function createWindow(
   managed: ManagedRegistry,
   resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null,
   registerRename: (rename: (from: string, to: string) => void) => void,
   shellEnv: () => NodeJS.ProcessEnv,
+  appTheme: "dark" | "light",
 ): void {
   // The renderer header is a fixed HEADER_HEIGHT_PX tall and doubles as the title bar. On macOS we hide
   // the native title bar but KEEP the traffic lights (titleBarStyle 'hidden', never frame:false — the
@@ -61,7 +76,7 @@ function createWindow(
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
-    backgroundColor: "#0e0e0e",
+    backgroundColor: WINDOW_BACKGROUND[appTheme],
     ...(isMac
       ? {
           titleBarStyle: "hidden" as const,
@@ -134,6 +149,16 @@ app
     // The registry of app-spawned ids, shared by reference: the terminal IPC writes it on spawn, the
     // provider reads it to label discovered sessions Managed.
     const managed = createManagedRegistry();
+    // Created here (not down with the other settings reads, after the window) because createWindow
+    // needs the persisted app theme for its initial backgroundColor/nativeTheme, and unlike
+    // claudeDir/shellEnv this store has no slow probe to wait on — hoisting it costs nothing against
+    // the "window opens before the slow login-shell probe" invariant below.
+    const appSettings = createAppSettingsStore({
+      dir: app.getPath("userData"),
+    });
+    // Pin the native macOS traffic-light buttons to the persisted app theme at launch; the
+    // appearance:setAppTheme IPC handler (ipc.ts) keeps this in sync for later in-app changes.
+    nativeTheme.themeSource = appSettings.read().appTheme ?? "dark";
     // The live window's terminal-rename hook, set when a window opens and revoked when it closes. The
     // reconcile (below) calls through it to follow a /clear, so it's a no-op before the first window.
     let renameInWindow: (from: string, to: string) => void = () => {};
@@ -171,6 +196,7 @@ app
         (id) => services.provider?.resolveAdoptTarget(id) ?? null,
         registerRename,
         shellTermEnv,
+        appSettings.read().appTheme ?? "dark",
       );
     openWindow();
     app.on("activate", () => {
@@ -220,9 +246,6 @@ app
           probe: () => shellEnv?.path ?? null,
         })
       : null;
-    const appSettings = createAppSettingsStore({
-      dir: app.getPath("userData"),
-    });
     // Wrap the user's statusLine so live cost/context and account rate limits flow to the app.
     // Idempotent and reversible; a failure must never cost the user a window. Gated on the user's
     // durable preference — a Settings-page Disable must survive relaunch, not silently re-install.

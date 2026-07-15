@@ -1,6 +1,7 @@
 import type { CliStatus } from "@shared/cli-status";
 import { isUpdatePending } from "@shared/update";
 import { SoftwareUpdateCard, type UpdateControls } from "./SoftwareUpdateCard";
+import { AppearanceCard } from "./AppearanceCard";
 import { CliCard } from "./CliCard";
 import { StatuslineCard } from "./StatuslineCard";
 import { StatsDbCard } from "./StatsDbCard";
@@ -11,10 +12,11 @@ import { Wordmark, cx } from "../ui/atoms";
 import { footerView } from "../ui/rail-footer";
 import { PageHeader, Card } from "../shell/page-primitives";
 
-export type SettingsSection = "system" | "about";
+export type SettingsSection = "system" | "appearance" | "about";
 
 const NAV: { key: SettingsSection; label: string; icon: IconName }[] = [
   { key: "system", label: "System", icon: "monitor" },
+  { key: "appearance", label: "Appearance", icon: "palette" },
   { key: "about", label: "About", icon: "info" },
 ];
 
@@ -99,6 +101,15 @@ export function SettingsView({
               checking={checking}
               onRecheck={onRecheck}
             />
+          )}
+          {section === "appearance" && (
+            <>
+              <PageHeader
+                title="Appearance"
+                lede="Dark is the default for both the app and the terminal — light is opt-in."
+              />
+              <AppearanceCard />
+            </>
           )}
           {section === "about" && <AboutSection update={update} />}
         </div>

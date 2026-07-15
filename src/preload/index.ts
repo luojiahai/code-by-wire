@@ -39,6 +39,11 @@ const api: AppApi = {
   getAutoCheckUpdates: () => ipcRenderer.invoke(IPC.updateGetAutoCheck),
   setAutoCheckUpdates: (enabled) =>
     ipcRenderer.invoke(IPC.updateSetAutoCheck, enabled),
+  getAppTheme: () => ipcRenderer.invoke(IPC.appearanceGetAppTheme),
+  setAppTheme: (theme) => ipcRenderer.invoke(IPC.appearanceSetAppTheme, theme),
+  getTerminalTheme: () => ipcRenderer.invoke(IPC.appearanceGetTerminalTheme),
+  setTerminalTheme: (theme) =>
+    ipcRenderer.invoke(IPC.appearanceSetTerminalTheme, theme),
   getStatuslineStatus: () => ipcRenderer.invoke(IPC.statuslineGetStatus),
   setStatuslineEnabled: (enabled) =>
     ipcRenderer.invoke(IPC.statuslineSetEnabled, enabled),

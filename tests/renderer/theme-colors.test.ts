@@ -19,17 +19,38 @@ function spread(hex: string): number {
   return Math.max(r, g, b) - Math.min(r, g, b);
 }
 
-/**
- * Read a `--color-<name>` value out of the @theme block, as a hex triplet. Most tokens are a
- * plain hex; the hermes Mono text tiers (fg/fg-muted/fg-faint) are `color-mix(in srgb, #hex N%,
- * transparent)` — the regex tolerates the color-mix() wrapper and pulls out its hex argument.
- */
+/** Extract a `--<name>: <value>;` declaration's raw right-hand side — the FIRST such declaration in
+ *  the file, i.e. the base `:root`/`@theme` block, not a later `[data-theme="light"]` override. */
+function rawVar(name: string): string {
+  const m = new RegExp(`--${name}:\\s*([^;]+);`).exec(css);
+  if (!m) throw new Error(`custom property --${name} not found in index.css`);
+  return m[1].trim();
+}
+
+/** Resolve a token's value down to a literal #hex, following `var(--x)` indirection (through as
+ *  many layers as needed — e.g. --color-fg -> --ui-text-primary -> --ui-base -> --theme-foreground)
+ *  until a literal hex is reached. */
+function resolveToHex(expr: string): string {
+  const varMatch = /var\(--([a-z0-9-]+)\)/i.exec(expr);
+  if (varMatch) return resolveToHex(rawVar(varMatch[1]));
+  const hex = /#[0-9a-fA-F]{6}/.exec(expr);
+  if (hex) return hex[0];
+  throw new Error(`could not resolve a hex color from: ${expr}`);
+}
+
+/** Read a `--color-<name>` token all the way down to its literal hex value. */
 function token(name: string): string {
-  const m = new RegExp(
-    `--color-${name}:\\s*(?:color-mix\\([^,]+,\\s*)?(#[0-9a-fA-F]{6})`,
-  ).exec(css);
-  if (!m) throw new Error(`token --color-${name} not found in index.css`);
-  return m[1];
+  return resolveToHex(rawVar(`color-${name}`));
+}
+
+/** Extract a `--<name>: <value>;` declaration's raw right-hand side specifically from within the
+ *  `:root[data-theme="light"]` override block (not the base :root block above it). */
+function lightVar(name: string): string {
+  const block = /:root\[data-theme="light"\]\s*\{([^}]*)\}/.exec(css);
+  if (!block) throw new Error('no :root[data-theme="light"] block found');
+  const m = new RegExp(`--${name}:\\s*([^;]+);`).exec(block[1]);
+  if (!m) throw new Error(`--${name} not found in the light override block`);
+  return m[1].trim();
 }
 
 // The surface/border stack — the "background colors", darkest to lightest. ink-600 is excluded:
@@ -100,37 +121,139 @@ describe("cockpit theme — graphite surfaces (not warm, not cool)", () => {
   });
 });
 
-describe("terminal well matches the theme", () => {
-  it("xterm background is graphite and equals --color-well", () => {
+describe("xterm-factory's DARK_THEME is neutral graphite (coincidentally == --color-well)", () => {
+  // Renamed 2026-07-15: this no longer pins a real binding — TerminalView.tsx moved off --color-well
+  // onto its own --terminal-well-background token (see "terminal-pane chrome tokens follow Terminal
+  // theme" below for the binding that actually matters now). This block still checks something real
+  // (xterm-factory's own DARK_THEME is a true neutral gray, and happens to still equal --color-well
+  // today), just not "the terminal follows --color-well" anymore.
+  it("xterm DARK_THEME background is graphite and equals --color-well", () => {
     const xterm = readFileSync(
       join(root, "src/renderer/src/terminal/xterm-factory.ts"),
       "utf8",
     );
-    const m = /background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
-    expect(m, "xterm theme background hex").toBeTruthy();
+    const m = /DARK_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
+    expect(m, "xterm DARK_THEME background hex").toBeTruthy();
     expect(spread(m![1])).toBeLessThanOrEqual(1);
     expect(m![1].toLowerCase()).toBe(token("well").toLowerCase());
   });
 
-  it("xterm foreground is graphite and equals --color-fg", () => {
+  it("xterm DARK_THEME foreground is graphite and equals --color-fg", () => {
     const xterm = readFileSync(
       join(root, "src/renderer/src/terminal/xterm-factory.ts"),
       "utf8",
     );
-    const m = /foreground:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
-    expect(m, "xterm theme foreground hex").toBeTruthy();
+    const m = /DARK_THEME[^}]*foreground:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
+    expect(m, "xterm DARK_THEME foreground hex").toBeTruthy();
     expect(spread(m![1])).toBeLessThanOrEqual(1);
     expect(m![1].toLowerCase()).toBe(token("fg").toLowerCase());
+  });
+
+  it("xterm LIGHT_THEME background is a light near-white surface", () => {
+    const xterm = readFileSync(
+      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
+      "utf8",
+    );
+    const m = /LIGHT_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
+    expect(m, "xterm LIGHT_THEME background hex").toBeTruthy();
+    expect(m![1].toLowerCase()).toBe("#ffffff");
+  });
+});
+
+describe("terminal-pane chrome tokens follow Terminal theme, not App theme", () => {
+  // Regression coverage for the 2026-07-15 terminal-retheme fix: --terminal-editor-surface-background
+  // and --terminal-well-background were introduced so the terminal's own inset (instance.tsx's
+  // padding, directly touching the xterm canvas) and the observed-session container follow
+  // $terminalTheme instead of App theme. Their literals were chosen to match specific sources of
+  // truth "exactly" per the fix's own CSS comments — pin that relationship here so a future edit to
+  // any one side can't silently desync from the others.
+  //
+  // Deliberately NOT Terminal-themed (an earlier version of this fix moved these too, then reverted
+  // it same-day): the Pane's outer wrapper, the tab rail, and the persistent overlay all stay on the
+  // plain App-theme --ui-editor-surface-background alias — see that token's own comment in index.css.
+
+  /** Extract a `--<name>: <value>;` declaration's raw right-hand side specifically from within the
+   *  `:root[data-terminal-theme="light"]` override block. */
+  function terminalLightVar(name: string): string {
+    const block = /:root\[data-terminal-theme="light"\]\s*\{([^}]*)\}/.exec(
+      css,
+    );
+    if (!block)
+      throw new Error('no :root[data-terminal-theme="light"] block found');
+    const m = new RegExp(`--${name}:\\s*([^;]+);`).exec(block[1]);
+    if (!m)
+      throw new Error(
+        `--${name} not found in the terminal light override block`,
+      );
+    return m[1].trim();
+  }
+
+  it("dark --terminal-editor-surface-background equals --theme-neutral-chrome (blended look unchanged when both themes are dark)", () => {
+    expect(rawVar("terminal-editor-surface-background").toLowerCase()).toBe(
+      rawVar("theme-neutral-chrome").toLowerCase(),
+    );
+  });
+
+  it("--ui-editor-surface-background stays a plain App-theme alias, NOT the Terminal-theme token (rail/Pane/overlay stay App-themed)", () => {
+    expect(rawVar("ui-editor-surface-background")).toBe("var(--ui-bg-chrome)");
+  });
+
+  it("dark --terminal-well-background equals xterm-factory's own DARK_THEME background", () => {
+    const xterm = readFileSync(
+      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
+      "utf8",
+    );
+    const m = /DARK_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
+    expect(m, "xterm-factory DARK_THEME background hex").toBeTruthy();
+    expect(rawVar("terminal-well-background").toLowerCase()).toBe(
+      m![1].toLowerCase(),
+    );
+  });
+
+  it("light overrides for both terminal-chrome tokens equal #ffffff, matching both terminals' LIGHT_THEME background", () => {
+    const factory = readFileSync(
+      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
+      "utf8",
+    );
+    const rail = readFileSync(
+      join(root, "src/renderer/src/shell-terminal/theme.ts"),
+      "utf8",
+    );
+    const factoryLight =
+      /LIGHT_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(factory);
+    const railLight = /LIGHT_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(
+      rail,
+    );
+    expect(
+      factoryLight,
+      "xterm-factory LIGHT_THEME background hex",
+    ).toBeTruthy();
+    expect(railLight, "shell-terminal LIGHT_THEME background hex").toBeTruthy();
+    expect(factoryLight![1].toLowerCase()).toBe("#ffffff");
+    expect(railLight![1].toLowerCase()).toBe("#ffffff");
+    expect(
+      terminalLightVar("terminal-editor-surface-background").toLowerCase(),
+    ).toBe("#ffffff");
+    expect(terminalLightVar("terminal-well-background").toLowerCase()).toBe(
+      "#ffffff",
+    );
   });
 });
 
 describe("electron window matches the theme", () => {
-  it("BrowserWindow backgroundColor is graphite and equals --color-ink-950", () => {
+  it("WINDOW_BACKGROUND.dark is graphite and equals --color-ink-950", () => {
     const main = readFileSync(join(root, "src/main/index.ts"), "utf8");
-    const m = /backgroundColor:\s*"(#[0-9a-fA-F]{6})"/.exec(main);
-    expect(m, "electron backgroundColor hex").toBeTruthy();
+    const m = /WINDOW_BACKGROUND[^}]*dark:\s*"(#[0-9a-fA-F]{6})"/.exec(main);
+    expect(m, "WINDOW_BACKGROUND.dark hex").toBeTruthy();
     expect(spread(m![1])).toBeLessThanOrEqual(1);
     expect(m![1].toLowerCase()).toBe(token("ink-950").toLowerCase());
+  });
+
+  it("WINDOW_BACKGROUND.light is a light literal", () => {
+    const main = readFileSync(join(root, "src/main/index.ts"), "utf8");
+    const m = /WINDOW_BACKGROUND[^}]*light:\s*"(#[0-9a-fA-F]{6})"/.exec(main);
+    expect(m, "WINDOW_BACKGROUND.light hex").toBeTruthy();
+    expect(m![1].toLowerCase()).toBe("#ffffff");
   });
 });
 
@@ -142,5 +265,48 @@ describe("packaged build renders sRGB (mascot color matches dev)", () => {
     expect(main).toMatch(
       /appendSwitch\(\s*['"]force-color-profile['"]\s*,\s*['"]srgb['"]\s*\)/,
     );
+  });
+});
+
+describe("token consolidation (no duplicate light-blind literals)", () => {
+  it("--color-primary aliases --theme-primary instead of duplicating a literal", () => {
+    expect(rawVar("color-primary")).toBe("var(--theme-primary)");
+  });
+
+  it("--color-fg/-fg-muted/-fg-faint alias the --ui-text-* tiers instead of duplicating a literal", () => {
+    expect(rawVar("color-fg")).toBe("var(--ui-text-primary)");
+    expect(rawVar("color-fg-muted")).toBe("var(--ui-text-secondary)");
+    expect(rawVar("color-fg-faint")).toBe("var(--ui-text-tertiary)");
+  });
+
+  it("--color-ink-950/-925 alias the chrome/card neutrals instead of duplicating a literal", () => {
+    expect(rawVar("color-ink-950")).toBe("var(--theme-neutral-chrome)");
+    expect(rawVar("color-ink-925")).toBe("var(--theme-neutral-card)");
+  });
+
+  it("--color-primary-bright/-deep are exact per-mode literals, not a color-mix formula", () => {
+    expect(token("primary-bright")).toBe("#ffffff");
+    expect(token("primary-deep")).toBe("#c8c8c8");
+    expect(lightVar("color-primary-bright")).toBe("#2e2e2e");
+    expect(lightVar("color-primary-deep")).toBe("#000000");
+  });
+});
+
+describe("light theme overrides", () => {
+  it("light foreground/primary invert to near-black, mirroring dark's own foreground=primary rule", () => {
+    expect(lightVar("theme-foreground")).toBe("#161616");
+    expect(lightVar("theme-primary")).toBe("#161616");
+  });
+
+  it("light neutrals are near-white surfaces", () => {
+    expect(lightVar("theme-neutral-chrome")).toBe("#ffffff");
+    expect(lightVar("theme-neutral-sidebar")).toBe("#f5f5f5");
+    expect(lightVar("theme-neutral-card")).toBe("#ffffff");
+  });
+
+  it("light red/green/cyan use hermes-agent's light-mode hues, distinct from the dark overrides", () => {
+    expect(lightVar("ui-red")).toBe("#cf2d56");
+    expect(lightVar("ui-green")).toBe("#1f8a65");
+    expect(lightVar("ui-cyan")).toBe("#4c7f8c");
   });
 });

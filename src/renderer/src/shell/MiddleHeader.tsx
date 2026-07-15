@@ -57,6 +57,16 @@ export function MiddleHeader({
   const paddingRight = headerRightPaddingPx(
     Boolean(session) && rightEdgeExposed,
   );
+  // The live in-app terminal (Workspace's TerminalView, via terminal/xterm-factory.ts) is the one
+  // panel below this header whose background follows Terminal theme instead of App theme — every
+  // other case below (Transcript, ObservedTerminal, or no session) stays on this header's own
+  // --ui-chat-surface-background, so fading to transparent there is already correct. Mirrors
+  // Workspace.tsx's own hasLiveTerminal check (management === "managed" && state !== "ended").
+  const terminalBelow =
+    !transcriptOn &&
+    session !== null &&
+    session.management === "managed" &&
+    session.state !== "ended";
 
   return (
     <>
@@ -104,7 +114,13 @@ export function MiddleHeader({
           )}
         </div>
       </header>
-      {!drilled && <ScrollHintShadow />}
+      {/* Suppressed while drilled (the subagent breadcrumb shows its own copy one level lower) AND
+       *  while a live terminal is below: that's a bounded panel, not scrolling text, so it doesn't
+       *  need the scroll-edge hint, and the header's own border-b already separates it cleanly.
+       *  Rendering it there previously reintroduced App-theme color into a Terminal-themed area (see
+       *  git history: 62e4401 and its follow-up both tried blending/recoloring this shadow for the
+       *  terminal case before landing on simply not rendering it there at all). */}
+      {!drilled && !terminalBelow && <ScrollHintShadow />}
     </>
   );
 }

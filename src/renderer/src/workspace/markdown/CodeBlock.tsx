@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import ShikiHighlighter from "react-shiki/core";
+import { useStore } from "@nanostores/react";
+import { $appTheme } from "../../ui/appearance-store";
 import { CopyButton } from "./CopyButton";
 import { getHighlighter, type HighlighterInstance } from "./highlighter";
 
@@ -29,6 +31,7 @@ export function CodeBlock({
   language: string;
 }) {
   const [hl, setHl] = useState<HighlighterInstance | null>(null);
+  const appTheme = useStore($appTheme);
 
   useEffect(() => {
     let alive = true;
@@ -52,7 +55,7 @@ export function CodeBlock({
         <ShikiHighlighter
           highlighter={hl}
           language={language}
-          theme="vitesse-dark"
+          theme={appTheme === "light" ? "vitesse-light" : "vitesse-dark"}
           langClassName={
             language === "text" ? "hidden" : "group-hover/code:hidden"
           }

@@ -4,10 +4,11 @@
    neutral surfaces, no accent hue — primary = foreground. Amber still reserved for Waiting,
    red/green for failed/done. Token names kept, values re-mapped to the hermes --ui-* layer below. */
 @theme {
-  /* Surface stack (neutral grayscale). */
-  --color-well: #080808; /* sunken: terminal, inputs, code blocks */
-  --color-ink-950: #0e0e0e; /* app canvas / middle */
-  --color-ink-925: #141414; /* cards, rails, panels */
+  /* Surface stack (neutral grayscale). ink-950/ink-925 moved to the `@theme inline` block below —
+     they now alias the seed layer (--theme-neutral-chrome/-card) instead of a literal, so the
+     `:root[data-theme="light"]` override (added below) drives both this stack and the --ui-* layer
+     from one source instead of two disconnected literals that could silently drift. */
+  --color-well: #080808; /* sunken: inputs, code blocks */
   --color-ink-900: #181818; /* raised: headers, chips, menus, popover */
   --color-ink-850: #1e1e1e; /* subtle hover / faint divider */
   --color-ink-800: #2a2a2a; /* default hairline border */
@@ -15,22 +16,16 @@
   --color-ink-700: #3a3a3a; /* strong border */
   --color-ink-600: #4a4a4a; /* Ended state, dim glyphs (was bluish #49525f) */
 
-  /* Text — hermes Mono text tiers (alias re-point; out-of-scope pages inherit). */
-  --color-fg: color-mix(in srgb, #eaeaea 94%, transparent);
-  --color-fg-muted: color-mix(in srgb, #eaeaea 74%, transparent);
-  --color-fg-faint: color-mix(in srgb, #eaeaea 54%, transparent);
-
-  /* Primary — hermes Mono is grayscale: primary = foreground. Teal retired. */
-  --color-primary: #eaeaea;
-  --color-primary-bright: #ffffff;
-  --color-primary-deep: #c8c8c8;
-
   /* Status hues — reserved for session state, never decorative */
   --color-working: #2dd4bf; /* live = the teal accent (was blue #2f95f5) */
   --color-working-bright: #5eead4;
   --color-accent: #f2b33d; /* Waiting — blocked on you, amber, pulses; also context-fill caution */
   --color-accent-bright: #f7c766;
   --color-idle: #7a7a7a; /* neutral (was slate #6e7782) */
+
+  /* Primary hover/press states — per-mode literals (dark mode defined here, light mode overridden below) */
+  --color-primary-bright: #ffffff;
+  --color-primary-deep: #c8c8c8;
 
   /* Semantic */
   --color-danger: #f2685c; /* diff remove, failed, destructive */
@@ -114,6 +109,16 @@
   --radius-2xl: calc(var(--radius-scalar) * 1.5rem); /* 7.2px */
   --radius-3xl: calc(var(--radius-scalar) * 2rem); /* 9.6px */
   --radius-4xl: calc(var(--radius-scalar) * 2.5rem); /* 12px */
+
+  /* Theme-dependent tokens: alias the seed/--ui-* layer instead of a literal, so the single
+     `:root[data-theme="light"]` override below drives both the Tailwind utility layer and the
+     --ui-* layer from one source (2026-07-14 light-theme design doc). */
+  --color-ink-950: var(--theme-neutral-chrome); /* app canvas / middle */
+  --color-ink-925: var(--theme-neutral-card); /* cards, rails, panels */
+  --color-fg: var(--ui-text-primary);
+  --color-fg-muted: var(--ui-text-secondary);
+  --color-fg-faint: var(--ui-text-tertiary);
+  --color-primary: var(--theme-primary);
 }
 
 :root {
@@ -289,11 +294,55 @@
   );
   --stroke-nous: color-mix(in srgb, currentColor 3%, transparent);
 
-  /* Surface aliases (hermes styles.css:256-268). */
+  /* Surface aliases (hermes styles.css:256-268). --ui-editor-surface-background stays a plain
+     App-theme alias: it backs the terminal Pane's OUTER wrapper (App.tsx), the tab rail, and the
+     persistent overlay (shell-terminal/{rail,persistent}.tsx) — chrome that borders the rest of the
+     app on its outer edges, not the xterm canvas itself, so it stays App-themed like everything else
+     around it. (An earlier version of this fix aliased this token to
+     --terminal-editor-surface-background below instead, making ALL FOUR consumers Terminal-themed —
+     reverted 2026-07-15: pixel-sampling the original bug traced it entirely to instance.tsx's own
+     wrapper, so repointing the rail/Pane/overlay too was unnecessary scope that would have required a
+     second set of Terminal-theme-scoped foreground/stroke/hover tokens just to keep the rail's icons
+     legible against its own newly-Terminal-themed background — solved instead by not moving the rail
+     off App theme in the first place.) */
   --ui-surface-background: var(--ui-bg-editor);
   --ui-sidebar-surface-background: var(--ui-bg-sidebar);
   --ui-chat-surface-background: var(--ui-bg-chrome);
   --ui-editor-surface-background: var(--ui-bg-chrome);
+
+  /* Backs ONLY shell-terminal/instance.tsx's own wrapper — the ~8-16px padding (`px-2 pb-2`)
+     immediately around the xterm host, plus its `.xterm-screen`/`.xterm-viewport` !important
+     overrides — referenced directly (not through --ui-editor-surface-background above, which stays
+     App-theme; see that comment for why the two diverge).
+     Pixel-verified root cause (live Playwright, 2026-07-15): xterm's OWN canvas — the actual text
+     grid, `.xterm-screen`/`.xterm-viewport`'s content — already repaints correctly the instant
+     `term.options.theme` is reassigned; there was never a WebGL/xterm repaint bug. What's ACTUALLY
+     wrong is this one wrapper's own padding, which — before this token existed — stayed locked to
+     App theme's dark/light value, producing a persistent wrong-colored FRAME around an otherwise
+     correctly-repainted terminal. At a glance (especially in a small/downscaled screenshot) that
+     frame reads as "the terminal didn't repaint at all" — which is exactly how this was first
+     reported — but a pixel-level crop of instance.tsx's own `data-terminal` bounding box shows the
+     interior was white/light the whole time; only an ~8-16px border stayed on the app's color,
+     confirming the bug lives entirely inside this one wrapper.
+     Scoped to Terminal theme (:root[data-terminal-theme], set from $terminalTheme in
+     ui/appearance-store.ts), not App theme (:root[data-theme]). Dark literal matches the app's own
+     dark --theme-neutral-chrome (#0e0e0e) so today's blended look is unchanged when both themes are
+     dark; the light override two blocks down matches the terminal JS themes' own literal
+     `background` (#ffffff in both shell-terminal/theme.ts and terminal/xterm-factory.ts) exactly,
+     per the 2026-07-14 light-theme design doc §7's "use the terminal theme table's own literal
+     background value unconditionally". */
+  --terminal-editor-surface-background: #0e0e0e;
+
+  /* Backs terminal/TerminalView.tsx's container (the observed-session terminal, a completely
+     different UI region from the shell-terminal pane above) — same Terminal-theme-scoped rationale,
+     kept as its own token rather than reusing --terminal-editor-surface-background because the two
+     terminal instances' JS themes disagree on the dark literal (xterm-factory.ts's DARK_THEME.
+     background is #080808, not #1e1e1e/#0e0e0e); this dark default matches that exactly (it's also
+     --color-well's own dark literal — deliberately, since this container replaces a --color-well
+     bg-well class that had the same blend-with-app-theme bug). The light override two blocks down is
+     #ffffff — xterm-factory's LIGHT_THEME.background, NOT --color-well's own light literal
+     (#f2f2f2) — per the same "use the terminal theme's own literal background" rule. */
+  --terminal-well-background: #080808;
 
   /* Sidebar aliases (hermes styles.css:379-388), using the dark 12% variant
      for --sidebar-edge-border (styles.css:415). */
@@ -320,6 +369,57 @@
     0 0.5rem 0.75rem -0.375rem color-mix(in srgb, #000 6%, transparent),
     0 1.25rem 1.75rem -0.875rem color-mix(in srgb, #000 6%, transparent),
     0 2.25rem 3rem -1.75rem color-mix(in srgb, #000 0%, transparent);
+}
+
+/* Light theme override — the light variant of hermes-agent's Mono skin. hermes-agent never
+   hand-authored a light Mono palette; its light mode is synthesized at runtime from the dark seed
+   via synthLightColors() (apps/desktop/src/themes/context.tsx). These are the exact values that
+   function computes for Mono, with one deliberate deviation: --theme-primary is set to = foreground
+   (mirroring the dark theme's own hand-authored rule, presets.ts's monoTheme.colors), not to
+   synthLightColors()'s accent-gray output (an unreviewed synthesis artifact, not a hermes-agent
+   design decision) — see the 2026-07-14 light-theme design doc §4.
+   Only the seeds + the three dark-tuned accent hues need overriding; every --ui-* token below this
+   derives from them automatically via the color-mix() formulas already in the :root block above,
+   and the mix-ratio knobs (--theme-mix-chrome etc.) stay numerically identical in both modes: for
+   the Mono skin, seed always equals neutral, so the mix percentage is a no-op either way. */
+:root[data-theme="light"] {
+  --theme-foreground: #161616;
+  --theme-primary: #161616;
+  --theme-neutral-chrome: #ffffff;
+  --theme-neutral-sidebar: #f5f5f5;
+  --theme-neutral-card: #ffffff;
+  --ui-red: #cf2d56;
+  --ui-green: #1f8a65;
+  --ui-cyan: #4c7f8c;
+
+  /* The plain surface ladder and --color-well aren't part of the --ui-* or --theme-* derivation chain
+     (see Task 1's design doc §2), so they get their own literals here. ink-800/ink-750 are
+     hermes-sourced (its synthesized border/input surfaces); the rest of the ladder and --color-well
+     are a reasonable descending-lightness ramp, spot-checked in the manual smoke test. */
+  --color-well: #f2f2f2;
+  --color-ink-900: #f5f5f5; /* raised: headers, chips, menus, popover */
+  --color-ink-850: #eeeeee; /* subtle hover / faint divider */
+  --color-ink-800: #e1e1e3; /* default hairline border (hermes's synthesized border) */
+  --color-ink-750: #d5d5d8; /* hover on raised surfaces (hermes's synthesized input) */
+  --color-ink-700: #c4c4c8; /* strong border */
+  --color-ink-600: #a8a8ac; /* Ended state, dim glyphs */
+  --color-sidebar: #f5f5f5;
+  --color-sidebar-border: #d8d8db;
+
+  /* Primary hover/press state overrides for light mode — lighter gray for hover, pure black for press */
+  --color-primary-bright: #2e2e2e;
+  --color-primary-deep: #000000;
+}
+
+/* Terminal theme override — independent of App theme above (:root[data-theme]); driven by
+   $terminalTheme via document.documentElement.dataset.terminalTheme (ui/appearance-store.ts), so a
+   Dark app + Light terminal (or vice versa) is a real, supported combination, not an edge case.
+   Both literals are #ffffff because both terminal JS themes' own LIGHT_THEME.background are #ffffff
+   (shell-terminal/theme.ts and terminal/xterm-factory.ts) — see the two seeds' definitions above for
+   why they diverge on the dark side but agree here. */
+:root[data-terminal-theme="light"] {
+  --terminal-editor-surface-background: #ffffff;
+  --terminal-well-background: #ffffff;
 }
 
 html,

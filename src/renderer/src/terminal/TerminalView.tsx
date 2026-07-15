@@ -112,6 +112,9 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   return (
-    <div ref={containerRef} className="h-full w-full overflow-hidden bg-well" />
+    <div
+      className="h-full w-full overflow-hidden bg-(--terminal-well-background)"
+      ref={containerRef}
+    />
   );
 }

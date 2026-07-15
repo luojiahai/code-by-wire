@@ -51,6 +51,10 @@ export const IPC = {
   updateInstall: "update:install",
   updateGetAutoCheck: "update:getAutoCheck",
   updateSetAutoCheck: "update:setAutoCheck",
+  appearanceGetAppTheme: "appearance:getAppTheme",
+  appearanceSetAppTheme: "appearance:setAppTheme",
+  appearanceGetTerminalTheme: "appearance:getTerminalTheme",
+  appearanceSetTerminalTheme: "appearance:setTerminalTheme",
   statuslineGetStatus: "statusline:getStatus",
   statuslineSetEnabled: "statusline:setEnabled",
   statuslineSetRefreshInterval: "statusline:setRefreshInterval",
@@ -243,6 +247,16 @@ export interface IpcApi {
   getAutoCheckUpdates(): Promise<boolean>;
   /** Persist the launch-check preference. */
   setAutoCheckUpdates(enabled: boolean): Promise<void>;
+  /** The app chrome's theme (missing preference reads as "dark"). */
+  getAppTheme(): Promise<"dark" | "light">;
+  /** Persist the app theme and sync Electron's nativeTheme (the native macOS traffic-light
+   *  buttons — this app uses titleBarStyle "hidden" with them visible). */
+  setAppTheme(theme: "dark" | "light"): Promise<void>;
+  /** The terminal panels' theme (interactive shell rail + observed session terminal), independent
+   *  of the app theme (missing preference reads as "dark"). */
+  getTerminalTheme(): Promise<"dark" | "light">;
+  /** Persist the terminal theme. */
+  setTerminalTheme(theme: "dark" | "light"): Promise<void>;
   /** The Statusline card's readout: preference, install state, derived health, coverage. Assembled in
    *  main; polled by the System section every 3s while open. Never rejects. */
   getStatuslineStatus(): Promise<StatuslineStatus>;
