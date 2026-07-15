@@ -27,7 +27,7 @@ function scheduleIdle(cb: () => void): IdleHandle {
   };
   if (w.requestIdleCallback && w.cancelIdleCallback) {
     const handle = w.requestIdleCallback(cb);
-    return { cancel: () => w.cancelIdleCallback!(handle) };
+    return { cancel: () => w.cancelIdleCallback(handle) };
   }
   const handle = window.setTimeout(cb, 16);
   return { cancel: () => window.clearTimeout(handle) };
