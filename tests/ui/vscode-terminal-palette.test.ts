@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   VSCODE_DARK_ANSI,
   VSCODE_LIGHT_ANSI,
-} from "../../src/renderer/src/ui/vscode-terminal-palette";
+} from "../../src/renderer/src/xterm/vscode-terminal-palette";
 
 const ANSI_KEYS = [
   "black",

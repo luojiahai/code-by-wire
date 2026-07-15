@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { viewportScrollTop } from "../../src/renderer/src/terminal/viewport-scroll";
+import { viewportScrollTop } from "../../src/renderer/src/xterm/viewport-scroll";
 
 // 524 buffer lines, 24 visible rows of 17px → 8908px scroll area, 408px viewport. These identities only
 // hold because xterm's scroll-area height is `length * rowHeight`, which is exactly what we lean on.

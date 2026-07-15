@@ -310,10 +310,12 @@
   --ui-chat-surface-background: var(--ui-bg-chrome);
   --ui-editor-surface-background: var(--ui-bg-chrome);
 
-  /* Backs ONLY shell-terminal/instance.tsx's own wrapper — the ~8-16px padding (`px-2 pb-2`)
-     immediately around the xterm host, plus its `.xterm-screen`/`.xterm-viewport` !important
-     overrides — referenced directly (not through --ui-editor-surface-background above, which stays
-     App-theme; see that comment for why the two diverge).
+  /* Backs ONLY shell-terminal/instance.tsx's own wrapper — its `.xterm-screen`/`.xterm-viewport`
+     !important overrides, plus whatever shows through xterm's own padding (the wrapper itself
+     carries none, since the 2026-07-15 xterm-terminal-port fix made the xterm host `relative` and
+     removed the wrapper's redundant px-2/pb-2/pt-0) — referenced directly (not through
+     --ui-editor-surface-background above, which stays App-theme; see that comment for why the two
+     diverge).
      Pixel-verified root cause (live Playwright, 2026-07-15): xterm's OWN canvas — the actual text
      grid, `.xterm-screen`/`.xterm-viewport`'s content — already repaints correctly the instant
      `term.options.theme` is reassigned; there was never a WebGL/xterm repaint bug. What's ACTUALLY
@@ -328,7 +330,7 @@
      ui/appearance-store.ts), not App theme (:root[data-theme]). Dark literal matches the app's own
      dark --theme-neutral-chrome (#0e0e0e) so today's blended look is unchanged when both themes are
      dark; the light override two blocks down matches the terminal JS themes' own literal
-     `background` (#ffffff in both shell-terminal/theme.ts and terminal/xterm-factory.ts) exactly,
+     `background` (#ffffff, xterm/terminal-theme.ts's shared terminalTheme("light")) exactly,
      per the 2026-07-14 light-theme design doc §7's "use the terminal theme table's own literal
      background value unconditionally". */
   --terminal-editor-surface-background: #0e0e0e;
@@ -336,13 +338,13 @@
   /* Backs terminal/TerminalView.tsx's container (the observed-session terminal, a completely
      different UI region from the shell-terminal pane above) — same Terminal-theme-scoped rationale,
      kept as its own token rather than reusing --terminal-editor-surface-background because the two
-     terminal instances' JS themes disagree on the dark literal (xterm-factory.ts's DARK_THEME.
-     background is #080808, not #1e1e1e/#0e0e0e); this dark default matches that exactly (it's also
-     --color-well's own dark literal — deliberately, since this container replaces a --color-well
-     bg-well class that had the same blend-with-app-theme bug). The light override two blocks down is
-     #ffffff — xterm-factory's LIGHT_THEME.background, NOT --color-well's own light literal
-     (#f2f2f2) — per the same "use the terminal theme's own literal background" rule. */
-  --terminal-well-background: #080808;
+     terminal instances used to disagree on the dark literal; since the 2026-07-15 XtermTerminal port
+     both terminals now share xterm/terminal-theme.ts, so this matches its dark background (#0e0e0e)
+     exactly — the same literal as --terminal-editor-surface-background above (canvas == inset ==
+     frame, no seam). The light override two blocks down is #ffffff — xterm/terminal-theme.ts's
+     own light background (terminalTheme("light")), NOT --color-well's own light literal (#f2f2f2) —
+     per the same "use the terminal theme's own literal background" rule. */
+  --terminal-well-background: #0e0e0e;
 
   /* Sidebar aliases (hermes styles.css:379-388), using the dark 12% variant
      for --sidebar-edge-border (styles.css:415). */
@@ -414,9 +416,9 @@
 /* Terminal theme override — independent of App theme above (:root[data-theme]); driven by
    $terminalTheme via document.documentElement.dataset.terminalTheme (ui/appearance-store.ts), so a
    Dark app + Light terminal (or vice versa) is a real, supported combination, not an edge case.
-   Both literals are #ffffff because both terminal JS themes' own LIGHT_THEME.background are #ffffff
-   (shell-terminal/theme.ts and terminal/xterm-factory.ts) — see the two seeds' definitions above for
-   why they diverge on the dark side but agree here. */
+   Both literals are #ffffff because both terminals now share xterm/terminal-theme.ts's
+   terminalTheme("light").background — see the two seeds' definitions above for why they diverge on
+   the dark side (Claude's cursor override) but agree here. */
 :root[data-terminal-theme="light"] {
   --terminal-editor-surface-background: #ffffff;
   --terminal-well-background: #ffffff;
@@ -604,7 +606,7 @@ body {
 }
 
 /* The VSCode-style overlay scrollbar thumbs (OverlayScroll.tsx; the vertical one is also attached
-   imperatively by terminal/overlay-scrollbar.ts). Absolutely positioned over the list, so they reserve
+   imperatively by xterm/overlay-scrollbar.ts). Absolutely positioned over the list, so they reserve
    no space; size/position are written imperatively by the component. Slider colours are VSCode's
    dark-theme defaults (scrollbarSlider.background / hover / active). Fade is asymmetric — 100ms in,
    800ms out — gated by the data-visible attribute, mirroring VSCode's reveal-on-scroll/hover,
@@ -649,11 +651,11 @@ body {
 }
 
 /* The terminal well: borderless and padded, with an auto-hiding scrollbar pinned to the trailing edge.
-   8px of padding on .xterm gives the content breathing room; FitAddon reads this padding when it sizes
+   8px of padding on .xterm gives the content breathing room; our resize math reads this padding when it sizes
    the grid, so cols/rows fit the padded area. .xterm-viewport is absolutely positioned inset:0 and
    ignores the padding, so its scrollbar lands flush at the right edge while the text stays 8px clear.
 
-   Bottom-align the grid within its wrapper (mirrors VSCode's terminal.css). FitAddon floors the row count,
+   Bottom-align the grid within its wrapper (mirrors VSCode's terminal.css). Our dimension math floors the row count,
    so up to ~1 row of slack remains between the grid and the wrapper; absolute + bottom:0 parks that slack
    ABOVE the first line instead of below the last, so the Claude prompt stays flush to the bottom edge.
    The wrapper is position:relative (xterm-factory) so this anchors to it; .xterm stays a positioned
@@ -670,18 +672,26 @@ body {
   left: 0;
 }
 
-/* Transparent background so the well (the container's bg) shows through during overscroll, instead of
-   xterm's default #000 viewport flashing a different black. Transparent scrollbar-color hides the native
-   bar itself: xterm owns this viewport's scrolling, and the global `scrollbar-width: thin` keeps the bar
-   reserving its right strip so terminal text stays clear of the overlay thumb — but the bar must not be
-   SEEN, because the visible scrollbar is the custom .overlay-scroll-thumb attached by
-   terminal/overlay-scrollbar.ts. (VSCode's terminal scrollbar IS xterm's own ScrollableElement widget,
-   which @xterm/xterm 5.5.0 doesn't expose, so we reproduce its overlay/fade/drag design. A webkit
-   transparent-thumb rule used to do this job — dead since Chromium 121, which is why the themed native
-   bar showed doubled next to the overlay thumb.) */
+/* Shell-rail terminal only (instance.tsx's data-terminal wrapper) and the Claude Code managed
+   terminal (TerminalView.tsx's data-claude-terminal container): both get a wider right inset than
+   their other three sides, kept as two separate attributes (rather than one shared marker) so
+   each terminal's override only ever matches its own wrapper. Higher-specificity compound
+   selectors (attribute + 2 classes) so both win over .xterm.xterm above regardless of source
+   order. The resize math reads this via getComputedStyle on the live element, so it picks up the
+   asymmetric value automatically — no JS change needed. */
+[data-terminal] .xterm.xterm,
+[data-claude-terminal] .xterm.xterm {
+  padding-right: 16px;
+}
+
+/* Transparent background so the well shows through during overscroll. scrollbar-width:
+   none — the native bar neither shows nor reserves a strip: the visible scrollbar is the
+   custom .overlay-scroll-thumb (xterm/overlay-scrollbar.ts), which floats inside the
+   .xterm padding, and the shared layout math budgets columns against the full padded
+   width (no scrollbar allowance — see xterm/terminal-font-metrics.ts). */
 .xterm .xterm-viewport {
   background: transparent;
-  scrollbar-color: transparent transparent;
+  scrollbar-width: none;
 }
 
 /* The cockpit plate: flat graphite. Instrument discipline — no decorative washes; depth comes from

@@ -23,27 +23,25 @@ export interface XtermLike {
   readonly rows: number;
 }
 
-/** The fit addon surface the view uses. Real `@xterm/addon-fit` FitAddon satisfies it. */
-export interface FitLike {
-  fit(): void;
-  proposeDimensions(): { cols: number; rows: number } | undefined;
-}
-
-/** One live terminal: the xterm instance, its fit addon, and a persistent wrapper div that moves
- *  between containers on attach/detach. `opened` guards the one-time `term.open`. On process exit the
+/** One live terminal: the xterm instance and a persistent wrapper div that moves between
+ *  containers on attach/detach. `opened` guards the one-time `attach`. On process exit the
  *  buffer is kept (the dim '[process exited]' line marks the end), so no separate flag is needed. */
 export interface TerminalHandle {
   /** The session id this terminal currently writes. Mutable: a `/clear` rotates it (see `rename`), and the
    *  keystroke→pty sub and the output-ack callback read it through here so both follow the rotation. */
   id: string;
   term: XtermLike;
-  fit: FitLike;
   wrapper: HTMLElement;
-  /** Rebuild xterm's viewport scroll geometry against the live element (VSCode's forceRefresh →
-   *  _core.viewport._innerRefresh). The view calls this on re-attach: background renders into the detached
-   *  (offsetHeight 0) element shrink the scroll-area and reset scrollTop, leaving the Claude prompt
-   *  unreachable until the geometry is rebuilt. Built in the factory (it needs the real xterm core). */
-  rebuildViewport: () => void;
+  /** Open the xterm into its wrapper (once; guarded by `opened` in the view). */
+  attach: () => void;
+  /** Font-metrics → scaled-dims → debounced resize + pty resize IPC (built in the factory). */
+  layout: (width: number, height: number) => void;
+  /** Apply any pending debounced resize immediately — called when the terminal is (re)shown. */
+  flush: () => void;
+  /** Rebuild xterm's viewport scroll geometry against the live element (was rebuildViewport). */
+  forceRefresh: () => void;
+  /** Tear down the debouncer, the XtermTerminal, and the raw xterm. */
+  dispose: () => void;
   opened: boolean;
   /** True while a reattach snapshot is being fetched after a window refresh. Live output is buffered in
    *  `replayQueue` (not written) until the snapshot lands, so the restored screen isn't clobbered by a
@@ -63,12 +61,16 @@ export interface TerminalHandle {
 
 export interface TerminalStoreDeps {
   api: TerminalApi;
-  /** Build a fresh xterm + fit + wrapper. Injected so the store is testable without a real DOM. */
-  createTerminal: () => {
+  /** Build a fresh xterm + wrapper + layout pipeline. `onResize` reports debounced
+   *  cols/rows for the pty resize IPC. Injected so the store is testable without a DOM. */
+  createTerminal: (onResize: (cols: number, rows: number) => void) => {
     term: XtermLike;
-    fit: FitLike;
     wrapper: HTMLElement;
-    rebuildViewport: () => void;
+    attach: () => void;
+    layout: (width: number, height: number) => void;
+    flush: () => void;
+    forceRefresh: () => void;
+    dispose: () => void;
   };
   /** True on macOS. Gates the cmd/option editing keys so we never hijack Super+arrow elsewhere. */
   isMac: boolean;
@@ -164,24 +166,28 @@ export function createTerminalStore({
     create(id, opts) {
       const existing = handles.get(id);
       if (existing) return existing;
-      const { term, fit, wrapper, rebuildViewport } = createTerminal();
-      const handle: TerminalHandle = {
+      // Declared before createTerminal so the onResize closure reads handle.id — a /clear
+      // rename re-points the pty resize like it re-points writes and acks (spec §8.8).
+      // The callback only fires from layout(), long after this function returns.
+      // eslint-disable-next-line prefer-const
+      let handle: TerminalHandle;
+      const created = createTerminal((cols, rows) =>
+        api.resize(handle.id, cols, rows),
+      );
+      handle = {
         id,
-        term,
-        fit,
-        wrapper,
-        rebuildViewport,
+        ...created,
         opened: false,
         replayPending: opts?.replayOnCreate ?? false,
         replayQueue: [],
         reattaching: false,
       };
       // user keystrokes → pty (independent of DOM attach). Reads handle.id so a rename re-points input too.
-      term.onData((data) => api.write(handle.id, data));
+      handle.term.onData((data) => api.write(handle.id, data));
       // Keystrokes the Claude Code prompt understands but xterm won't emit on its own (see
       // key-bindings): Shift+Enter → newline on every platform, plus cmd/option + arrows and deletes
       // → readline control bytes on macOS. Reads handle.id so input still follows a /clear rename.
-      term.attachCustomKeyEventHandler((e) => {
+      handle.term.attachCustomKeyEventHandler((e) => {
         const seq = editSequence(e, isMac);
         if (seq === null) return true; // not ours — plain keys, copy/paste, etc.
         e.preventDefault();
@@ -206,7 +212,7 @@ export function createTerminalStore({
     dispose(id) {
       const h = handles.get(id);
       if (!h) return;
-      h.term.dispose();
+      h.dispose();
       handles.delete(id);
       pendingAck.delete(id);
     },

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { terminalTheme } from "../../src/renderer/src/xterm/terminal-theme";
 
 // Read the renderer theme as text — no DOM, no xterm import (that file pulls in the DOM-bound lib).
 const root = join(__dirname, "..", "..");
@@ -121,42 +122,21 @@ describe("cockpit theme — graphite surfaces (not warm, not cool)", () => {
   });
 });
 
-describe("xterm-factory's DARK_THEME is neutral graphite (coincidentally == --color-well)", () => {
-  // Renamed 2026-07-15: this no longer pins a real binding — TerminalView.tsx moved off --color-well
-  // onto its own --terminal-well-background token (see "terminal-pane chrome tokens follow Terminal
-  // theme" below for the binding that actually matters now). This block still checks something real
-  // (xterm-factory's own DARK_THEME is a true neutral gray, and happens to still equal --color-well
-  // today), just not "the terminal follows --color-well" anymore.
-  it("xterm DARK_THEME background is graphite and equals --color-well", () => {
-    const xterm = readFileSync(
-      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
-      "utf8",
+describe("shared terminal theme chrome matches the terminal-pane tokens", () => {
+  it("dark background is graphite and equals --terminal-editor-surface-background (canvas == inset == frame)", () => {
+    const bg = terminalTheme("dark").background!;
+    expect(spread(bg)).toBeLessThanOrEqual(1);
+    expect(bg.toLowerCase()).toBe(
+      resolveToHex(rawVar("terminal-editor-surface-background")).toLowerCase(),
     );
-    const m = /DARK_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
-    expect(m, "xterm DARK_THEME background hex").toBeTruthy();
-    expect(spread(m![1])).toBeLessThanOrEqual(1);
-    expect(m![1].toLowerCase()).toBe(token("well").toLowerCase());
   });
 
-  it("xterm DARK_THEME foreground is graphite and equals --color-fg", () => {
-    const xterm = readFileSync(
-      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
-      "utf8",
-    );
-    const m = /DARK_THEME[^}]*foreground:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
-    expect(m, "xterm DARK_THEME foreground hex").toBeTruthy();
-    expect(spread(m![1])).toBeLessThanOrEqual(1);
-    expect(m![1].toLowerCase()).toBe(token("fg").toLowerCase());
+  it("dark foreground is neutral graphite", () => {
+    expect(spread(terminalTheme("dark").foreground!)).toBeLessThanOrEqual(1);
   });
 
-  it("xterm LIGHT_THEME background is a light near-white surface", () => {
-    const xterm = readFileSync(
-      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
-      "utf8",
-    );
-    const m = /LIGHT_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
-    expect(m, "xterm LIGHT_THEME background hex").toBeTruthy();
-    expect(m![1].toLowerCase()).toBe("#ffffff");
+  it("light background is #ffffff", () => {
+    expect(terminalTheme("light").background!.toLowerCase()).toBe("#ffffff");
   });
 });
 
@@ -198,44 +178,20 @@ describe("terminal-pane chrome tokens follow Terminal theme, not App theme", () 
     expect(rawVar("ui-editor-surface-background")).toBe("var(--ui-bg-chrome)");
   });
 
-  it("dark --terminal-well-background equals xterm-factory's own DARK_THEME background", () => {
-    const xterm = readFileSync(
-      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
-      "utf8",
-    );
-    const m = /DARK_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(xterm);
-    expect(m, "xterm-factory DARK_THEME background hex").toBeTruthy();
+  it("dark --terminal-well-background equals the shared terminal theme's dark background", () => {
     expect(rawVar("terminal-well-background").toLowerCase()).toBe(
-      m![1].toLowerCase(),
+      terminalTheme("dark").background!.toLowerCase(),
     );
   });
 
-  it("light overrides for both terminal-chrome tokens equal #ffffff, matching both terminals' LIGHT_THEME background", () => {
-    const factory = readFileSync(
-      join(root, "src/renderer/src/terminal/xterm-factory.ts"),
-      "utf8",
-    );
-    const rail = readFileSync(
-      join(root, "src/renderer/src/shell-terminal/theme.ts"),
-      "utf8",
-    );
-    const factoryLight =
-      /LIGHT_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(factory);
-    const railLight = /LIGHT_THEME[^}]*background:\s*"(#[0-9a-fA-F]{6})"/.exec(
-      rail,
-    );
-    expect(
-      factoryLight,
-      "xterm-factory LIGHT_THEME background hex",
-    ).toBeTruthy();
-    expect(railLight, "shell-terminal LIGHT_THEME background hex").toBeTruthy();
-    expect(factoryLight![1].toLowerCase()).toBe("#ffffff");
-    expect(railLight![1].toLowerCase()).toBe("#ffffff");
+  it("light overrides for both terminal-chrome tokens equal the shared light background", () => {
+    const light = terminalTheme("light").background!.toLowerCase();
+    expect(light).toBe("#ffffff");
     expect(
       terminalLightVar("terminal-editor-surface-background").toLowerCase(),
-    ).toBe("#ffffff");
+    ).toBe(light);
     expect(terminalLightVar("terminal-well-background").toLowerCase()).toBe(
-      "#ffffff",
+      light,
     );
   });
 });

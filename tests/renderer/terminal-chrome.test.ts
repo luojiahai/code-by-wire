@@ -18,6 +18,10 @@ const middleHeader = readFileSync(
   join(root, "src/renderer/src/shell/MiddleHeader.tsx"),
   "utf8",
 );
+const shellInstance = readFileSync(
+  join(root, "src/renderer/src/shell-terminal/instance.tsx"),
+  "utf8",
+);
 
 describe("terminal chrome — borderless, padded, edge scrollbar", () => {
   it("the container has no border or radius and follows Terminal theme, not the app well", () => {
@@ -27,8 +31,9 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     // theme (and, since xterm's own canvas already repaints correctly on a theme change, made an
     // otherwise-correctly-repainted terminal LOOK stale — the frame is what actually didn't move).
     // --terminal-well-background is the Terminal-theme-scoped seed (index.css) that replaces it —
-    // #080808 in dark mode, matching --color-well's own dark literal exactly, so this assertion's
-    // original intent (padding gutter stays #080808 in dark mode) still holds.
+    // #0e0e0e in dark mode, matching the shared terminal theme's (xterm/terminal-theme.ts) dark
+    // background exactly, so this assertion's original intent (a themed padding gutter, no App-theme
+    // leak) still holds.
     const m =
       /className="([^"]*\bbg-\(--terminal-well-background\)[^"]*)"/.exec(view);
     expect(
@@ -40,21 +45,21 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     expect(cls, "corner radius removed (square)").not.toMatch(/\brounded/);
   });
 
-  it("pads the .xterm element so FitAddon fits the content inside the padding", () => {
+  it("pads the .xterm element so our resize math fits the content inside the padding", () => {
     expect(css).toMatch(/\.xterm\s*\{[^}]*padding:\s*8px/);
   });
 
   it("keeps the native viewport scrollbar transparent and renders the overlay thumb instead", () => {
-    // The viewport background stays transparent so the #080808 well shows through during overscroll.
+    // The viewport background stays transparent so the well shows through during overscroll.
     expect(css).toMatch(
       /\.xterm\s+\.xterm-viewport\s*\{[^}]*background:\s*transparent/,
     );
-    // The native scrollbar is kept only to reserve the right strip (scrollbar-width: thin from the
-    // global rule) and is rendered invisible via scrollbar-color — the modern property that actually
-    // wins in Chromium ≥121, where ::-webkit-scrollbar-* rules are ignored once it's set. The visible
-    // scrollbar is the shared overlay thumb attached over the viewport in xterm-factory.
+    // The native bar neither shows nor reserves a strip (scrollbar-width: none) — the shared layout
+    // math (xterm/terminal-font-metrics.ts) budgets columns against the full padded width instead of
+    // leaving a scrollbar allowance. The visible scrollbar is the shared overlay thumb attached over
+    // the viewport in xterm-factory.
     expect(css).toMatch(
-      /\.xterm\s+\.xterm-viewport\s*\{[^}]*scrollbar-color:\s*transparent transparent/,
+      /\.xterm\s+\.xterm-viewport\s*\{[^}]*scrollbar-width:\s*none/,
     );
     const factory = readFileSync(
       join(root, "src/renderer/src/terminal/xterm-factory.ts"),
@@ -62,10 +67,18 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
     );
     expect(
       factory,
-      "factory delegates to the shared overlay scrollbar attach",
+      "factory builds the terminal on the shared XtermTerminal class",
+    ).toContain('from "../xterm/xterm-terminal"');
+    const xtermTerminal = readFileSync(
+      join(root, "src/renderer/src/xterm/xterm-terminal.ts"),
+      "utf8",
+    );
+    expect(
+      xtermTerminal,
+      "XtermTerminal delegates to the shared overlay scrollbar attach",
     ).toContain('from "./overlay-scrollbar"');
     const overlay = readFileSync(
-      join(root, "src/renderer/src/terminal/overlay-scrollbar.ts"),
+      join(root, "src/renderer/src/xterm/overlay-scrollbar.ts"),
       "utf8",
     );
     expect(
@@ -92,7 +105,7 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
       "no padded wrapper between terminalSlot and TerminalView",
     ).not.toMatch(/className="[^"]*\b[pm][xytrbl]?-/);
     // Anchor the wrapper check to `<div className="h-full">{terminalSlot}</div>` specifically —
-    // the h-full is load-bearing (FitAddon needs a sized parent) and uniquely identifies the
+    // the h-full is load-bearing (our resize math needs a sized parent) and uniquely identifies the
     // terminal wrapper. Also assert there is exactly one `>{terminalSlot}` occurrence so no
     // sibling wrapper can silently shadow this match.
     const wrapMatches = [...workspace.matchAll(/>(\{terminalSlot\})/g)];
@@ -109,6 +122,45 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
       wrapM![1],
       "no outer padding/margin on the terminal wrapper",
     ).not.toMatch(/\b[pm][xytrbl]?-/);
+  });
+
+  it("shell-rail terminal: outer wrapper carries no padding of its own, and the xterm host is the positioned ancestor .xterm binds to", () => {
+    // Regression coverage for the 2026-07-15 gap fix: xterm.js's own CSS makes .xterm
+    // position:absolute/inset, which resolves against the nearest POSITIONED ancestor. A static
+    // hostRef let .xterm skip it and bind to the outer wrapper instead, double-counting the outer
+    // wrapper's own padding against the resize math's narrower clientWidth/Height measurement.
+    const m = /const INSTANCE_CLASS =\s*\n?\s*"([^"]*)"/.exec(shellInstance);
+    expect(m, "INSTANCE_CLASS definition").toBeTruthy();
+    expect(
+      m![1],
+      "outer wrapper has no padding/margin utility classes",
+    ).not.toMatch(/\b[pm][xytrbl]?-/);
+    const hostM = /className="([^"]*)"\s*\n\s*ref=\{hostRef\}/.exec(
+      shellInstance,
+    );
+    expect(hostM, "hostRef div's className").toBeTruthy();
+    expect(
+      hostM![1],
+      "hostRef is `relative` — the positioned ancestor .xterm must bind to",
+    ).toMatch(/\brelative\b/);
+  });
+
+  it("both terminals widen their right inset to 16px via a higher-specificity override, without touching the other three sides", () => {
+    // Regression coverage for the "match the footer terminal's right padding" request: each
+    // terminal's override is scoped to its own attribute so neither can accidentally clobber the
+    // other, and both compound selectors (attribute + 2 classes) must outrank the shared
+    // `.xterm.xterm { padding: 8px }` rule's specificity (attribute selectors count as a class, so
+    // 3 class-level selectors beats 2 regardless of source order).
+    const overrideRe =
+      /\[data-terminal\]\s*\.xterm\.xterm,\s*\n\s*\[data-claude-terminal\]\s*\.xterm\.xterm\s*\{\s*\n\s*padding-right:\s*16px;/;
+    expect(
+      css,
+      "shell + Claude terminal padding-right:16px override rule",
+    ).toMatch(overrideRe);
+    expect(
+      view,
+      "TerminalView container carries the data-claude-terminal marker the override selector targets",
+    ).toMatch(/data-claude-terminal=""/);
   });
 });
 

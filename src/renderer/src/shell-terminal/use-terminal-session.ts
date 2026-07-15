@@ -1,27 +1,24 @@
-import { FitAddon } from "@xterm/addon-fit";
-import { SerializeAddon } from "@xterm/addon-serialize";
-import { Unicode11Addon } from "@xterm/addon-unicode11";
-import { WebglAddon } from "@xterm/addon-webgl";
-import { Terminal } from "@xterm/xterm";
+import type { SerializeAddon } from "@xterm/addon-serialize";
 import { useEffect, useRef, useState } from "react";
 import { newSessionId } from "@shared/terminal";
 import { isMacPlatform } from "@shared/platform";
-import { createWebLinksAddon } from "../terminal/web-links";
-import { attachOverlayScrollbar } from "../terminal/overlay-scrollbar";
+import { XtermTerminal } from "../xterm/xterm-terminal";
+import { terminalTheme } from "../xterm/terminal-theme";
+import { TerminalResizeDebouncer } from "../xterm/terminal-resize-debouncer";
+import { computeLayoutResize } from "../xterm/terminal-font-metrics";
+import { warmTerminalFonts } from "../xterm/font-warmup";
 import {
   collectDroppedPaths,
+  quotePathForShell,
   transferHasDropCandidates,
-} from "../terminal/file-drop";
+} from "../xterm/file-drop";
 import {
   cleanReviveSnapshot,
   keepEscapeSequences,
-  quotePathForShell,
   stripEscapeSequences,
   stripInitialPromptGap,
 } from "./revive";
 import { shellRouter } from "./router-instance";
-import { terminalTheme } from "./theme";
-import { $terminalTheme } from "../ui/appearance-store";
 import { macEditSequence } from "../ui/mac-edit-sequence";
 import { closeTerminal, updateTerminalReviveBuffer } from "./terminals";
 
@@ -68,8 +65,8 @@ export function useTerminalSession({
   onShell,
 }: UseTerminalSessionOptions) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const termRef = useRef<Terminal | null>(null);
-  const webglRef = useRef<WebglAddon | null>(null);
+  const termRef = useRef<XtermTerminal["raw"] | null>(null);
+  const xtRef = useRef<XtermTerminal | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   // Snapshot the revive buffer once: live snapshots feed updateTerminalReviveBuffer and would
   // otherwise re-arm replay on every store-driven re-render.
@@ -78,7 +75,18 @@ export function useTerminalSession({
   const onShellRef = useRef(onShell);
   // Re-fit on activation: a hidden tab's host had stale dims by the time it's shown again.
   const fitRef = useRef<(() => void) | null>(null);
+  // Flushes the resize debouncer's deferred edge on reactivation — a hidden tab defers its X/Y
+  // resize to idle callbacks; showing it again must apply them immediately, not wait for idle.
+  const flushRef = useRef<(() => void) | null>(null);
   const [status, setStatus] = useState<TerminalStatus>("starting");
+
+  // The debouncer reads this on every resize to decide whether to defer to idle. It's a ref (not
+  // the `active` prop directly) because the effect below creates the debouncer once per [cwd, id]
+  // and would otherwise close over `active`'s initial value for the instance's whole lifetime.
+  const activeRef = useRef(active);
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
 
   useEffect(() => {
     onShellRef.current = onShell;
@@ -94,52 +102,46 @@ export function useTerminalSession({
 
     let disposed = false;
     const cleanup: Array<() => void> = [];
-    let lastSentSize: { cols: number; rows: number } | null = null;
 
-    const term = new Terminal({
-      allowProposedApi: true,
-      // Opaque canvas = WebGL's crisp fast-path (VS Code keeps transparency off; the terminal
-      // theme's own background is always opaque).
-      allowTransparency: false,
-      convertEol: true,
-      cursorBlink: true,
-      // ⟨cbw⟩ hermes' stack with the app's actual bundled face (fontsource variable) first.
-      fontFamily:
-        "'JetBrains Mono Variable', 'JetBrains Mono', 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace",
-      fontSize: 11,
-      fontWeight: "normal",
-      fontWeightBold: "bold",
-      letterSpacing: 0,
-      lineHeight: 1.12,
-      // ⌥-drag (macOS) forces a native selection over mouse-mode TUIs.
-      macOptionClickForcesSelection: true,
-      macOptionIsMeta: true,
-      // VS Code's terminal.integrated.minimumContrastRatio default; xterm's default is 1 (off),
-      // which paints the raw saturated ANSI palette.
-      minimumContrastRatio: 4.5,
-      scrollback: 1000,
-      theme: terminalTheme($terminalTheme.get()),
+    const xt = new XtermTerminal({
+      raw: {
+        allowProposedApi: true,
+        // Opaque canvas = WebGL's crisp fast-path (VS Code keeps transparency off).
+        allowTransparency: false,
+        convertEol: true,
+        cursorBlink: true,
+        customGlyphs: true, // converged with the Claude terminal (spec §8.13)
+        rescaleOverlappingGlyphs: true,
+        fontFamily:
+          "'JetBrains Mono Variable', 'JetBrains Mono', 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace",
+        fontSize: 11,
+        fontWeight: "normal",
+        fontWeightBold: "bold",
+        letterSpacing: 0,
+        lineHeight: 1.12,
+        macOptionClickForcesSelection: true,
+        macOptionIsMeta: true,
+        minimumContrastRatio: 4.5,
+        scrollback: 1000,
+      },
+      theme: (mode) => terminalTheme(mode),
+      unicodeVersion: "11",
+      openExternal: (url) => void window.api.openExternal(url),
+      // No scrollbarHost override: `host` (instance.tsx's ref target) is itself the
+      // positioned ancestor .xterm's own absolute/inset CSS binds to (it's `relative`),
+      // so the default (attach to `container` itself) is already correct.
     });
-
-    const fit = new FitAddon();
-    const serialize = new SerializeAddon();
+    const term = xt.raw;
     termRef.current = term;
-    term.loadAddon(fit);
-    term.loadAddon(serialize);
-    term.loadAddon(new Unicode11Addon());
-    // ⟨cbw⟩ explicit handler through the http(s)-guarded IPC (no setWindowOpenHandler in main).
-    term.loadAddon(
-      createWebLinksAddon((url) => void window.api.openExternal(url)),
-    );
-    term.unicode.activeVersion = "11";
+    xtRef.current = xt;
 
-    // Live re-theme: this Terminal instance is long-lived (survives tab switches), so a later
-    // Settings change must reassign its theme, not just affect newly-created terminals.
-    cleanup.push(
-      $terminalTheme.subscribe((mode) => {
-        term.options.theme = terminalTheme(mode);
-      }),
-    );
+    // Resident before the first throttled snapshot (spec §6): the addon loads async off the
+    // shared importer, so kicking it off here — rather than lazily inside persistSnapshot — means
+    // it's already loaded by the time the shell produces its first idle gap.
+    let serializeAddon: SerializeAddon | null = null;
+    void xt.getSerializeAddon().then((addon) => {
+      if (!disposed) serializeAddon = addon;
+    });
 
     // Replay last run's scrollback before the fresh shell boots. The process is NOT revived — a
     // new shell starts one line below the restored history.
@@ -154,10 +156,10 @@ export function useTerminalSession({
     let snapshotTimer = 0;
     let lastSnapshotAt = 0;
     const persistSnapshot = (): void => {
-      if (disposed) return;
+      if (disposed || !serializeAddon) return;
       lastSnapshotAt = Date.now();
       try {
-        const snapshot = serialize.serialize({
+        const snapshot = serializeAddon.serialize({
           scrollback: PERSISTENT_SESSION_SCROLLBACK,
         });
         updateTerminalReviveBuffer(id, cleanReviveSnapshot(snapshot));
@@ -259,7 +261,27 @@ export function useTerminalSession({
       host.removeEventListener("drop", onDrop);
     });
 
-    const fitAndResize = (): void => {
+    const debouncer = new TerminalResizeDebouncer({
+      getBufferLength: () => term.buffer.normal.length,
+      isVisible: () => activeRef.current,
+      resizeBoth: (cols, rows) => {
+        term.resize(cols, rows);
+        api.resize(sessionId, cols, rows);
+      },
+      resizeX: (cols) => {
+        term.resize(cols, term.rows);
+        api.resize(sessionId, cols, term.rows);
+      },
+      resizeY: (rows) => {
+        term.resize(term.cols, rows);
+        api.resize(sessionId, term.cols, rows);
+      },
+    });
+    cleanup.push(() => debouncer.dispose());
+    flushRef.current = () => debouncer.flush();
+
+    let lastDims: { width: number; height: number } | null = null;
+    const layout = (): void => {
       if (
         disposed ||
         !host.isConnected ||
@@ -268,29 +290,35 @@ export function useTerminalSession({
       ) {
         return;
       }
-      try {
-        fit.fit();
-      } catch {
-        return;
-      }
-      if (
-        lastSentSize?.cols !== term.cols ||
-        lastSentSize?.rows !== term.rows
-      ) {
-        lastSentSize = { cols: term.cols, rows: term.rows };
-        api.resize(sessionId, term.cols, term.rows);
-      }
+      lastDims = { width: host.clientWidth, height: host.clientHeight };
+      // Shared with the Claude terminal (xterm/terminal-font-metrics.ts): padding-only
+      // subtraction + the unchanged-size skip live in one place.
+      const dims = computeLayoutResize(
+        window,
+        term.element,
+        xt.getFont(),
+        lastDims.width,
+        lastDims.height,
+        term.cols,
+        term.rows,
+      );
+      if (!dims) return;
+      debouncer.resize(dims.cols, dims.rows);
     };
-    fitRef.current = fitAndResize;
+    fitRef.current = layout;
+    cleanup.push(
+      xt.onDidRequestRefreshDimensions(() => {
+        if (!disposed) layout();
+      }),
+    );
 
-    // Coalesce ResizeObserver bursts through rAF — a synchronous fit while sibling panes are
-    // mid-transition crashes the WebGL renderer mid texture-atlas rebuild.
+    // Coalesce ResizeObserver bursts through rAF (unchanged rationale).
     let pendingFrame = 0;
     const scheduleResize = (): void => {
       if (pendingFrame) return;
       pendingFrame = window.requestAnimationFrame(() => {
         pendingFrame = 0;
-        if (!disposed) fitAndResize();
+        if (!disposed) layout();
       });
     };
     const resizeObserver = new ResizeObserver(scheduleResize);
@@ -323,12 +351,11 @@ export function useTerminalSession({
         .spawn({ id: sessionId, cwd, cols: term.cols, rows: term.rows })
         .then((session) => {
           if (disposed) return; // cleanup already sent the kill
-          lastSentSize = { cols: term.cols, rows: term.rows };
           shellNameRef.current = session.shell || "shell";
           onShellRef.current?.(session.shell || "shell");
           setStatus("open");
           window.requestAnimationFrame(() => {
-            fitAndResize();
+            layout();
             term.clearSelection(); // drop any selection painted over transient boot rows
             term.focus();
           });
@@ -346,67 +373,41 @@ export function useTerminalSession({
     // row count (shell boots, real font loads, refit, SIGWINCH, prompt reprints lower).
     const mount = (): void => {
       if (disposed || !host.isConnected) return;
-      term.open(host);
-      // The overlay thumb + hover listeners go on the instance div (host's positioned parent): the
-      // global .xterm.xterm rule anchors the terminal's absolute box to IT, not to the unpositioned
-      // host, so that's the box the thumb must align with — the same geometry as the main terminal's
-      // wrapper. Falls back to host if the markup ever changes.
-      cleanup.push(attachOverlayScrollbar(host.parentElement ?? host, term));
+      xt.attachToElement(host);
       term.focus();
-      try {
-        const webgl = new WebglAddon();
-        webgl.onContextLoss(() => {
-          webgl.dispose();
-          webglRef.current = null;
-        });
-        term.loadAddon(webgl);
-        webglRef.current = webgl;
-      } catch (err) {
-        console.warn(
-          "[shell-terminal] WebGL unavailable; falling back to DOM",
-          err,
-        );
-      }
-      fitAndResize();
+      layout();
       startSession();
     };
-
-    // Warm the faces the WebGL atlas needs up front, or it bakes a fallback face and the terminal
-    // renders thin until a repaint.
-    const warm = document.fonts?.load
-      ? Promise.allSettled(
-          ["400", "700", "italic 400"].map((v) =>
-            document.fonts.load(`${v} 11px 'JetBrains Mono Variable'`),
-          ),
-        )
-      : Promise.resolve();
-    void warm.then(mount, mount);
+    void warmTerminalFonts(11).then(mount, mount);
 
     return () => {
       disposed = true;
       cleanup.forEach((run) => run()); // unregisters the router FIRST — late chunks get stray-acked
       fitRef.current = null;
+      flushRef.current = null;
       const sid = sessionIdRef.current;
       sessionIdRef.current = null;
       if (sid) api.kill(sid); // fire-and-forget; ordered after the earlier spawn invoke on the same pipe
-      term.dispose();
+      xt.dispose();
       termRef.current = null;
-      webglRef.current = null;
+      xtRef.current = null;
     };
     // `id` is stable for the instance's life (keyed by tab id); it satisfies the deps check for
     // the closeTerminal(id) call in onExit without re-creating the shell.
   }, [cwd, id]);
 
   // On (re)activation: a WebGL terminal doesn't paint while visibility:hidden, so it reveals a
-  // stale frame. Refit, rebuild the glyph atlas, force a full redraw, then focus.
+  // stale frame. Flush the resize the debouncer deferred while hidden, refit, force a full
+  // redraw + atlas rebuild, then focus.
   useEffect(() => {
     if (!active || status !== "open") return;
     const frame = requestAnimationFrame(() => {
-      const term = termRef.current;
+      const xt = xtRef.current;
+      flushRef.current?.();
       fitRef.current?.();
-      webglRef.current?.clearTextureAtlas();
-      term?.refresh(0, term.rows - 1);
-      term?.focus();
+      xt?.forceRedraw();
+      xt?.raw.refresh(0, xt.raw.rows - 1);
+      xt?.raw.focus();
     });
     return () => cancelAnimationFrame(frame);
   }, [active, status]);

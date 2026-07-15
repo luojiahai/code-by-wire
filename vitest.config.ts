@@ -7,7 +7,10 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    environmentMatchGlobs: [["tests/renderer/**", "jsdom"]],
+    environmentMatchGlobs: [
+      ["tests/renderer/**", "jsdom"],
+      ["tests/xterm/**", "jsdom"],
+    ],
     include: ["tests/**/*.test.ts"],
   },
 });

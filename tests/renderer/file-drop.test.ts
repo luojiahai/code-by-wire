@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   collectDroppedPaths,
-  quotePosixPath,
+  quotePathForShell,
   transferHasDropCandidates,
-} from "../../src/renderer/src/terminal/file-drop";
+} from "../../src/renderer/src/xterm/file-drop";
 
 /** Build a fake File whose only meaningful trait for these helpers is identity. */
 function fakeFile(tag: string): File {
@@ -29,23 +29,22 @@ function fakeTransfer(opts: {
   } as unknown as DataTransfer;
 }
 
-describe("quotePosixPath", () => {
-  it("wraps a plain path in single quotes", () => {
-    expect(quotePosixPath("/Users/me/notes.md")).toBe("'/Users/me/notes.md'");
+describe("quotePathForShell (POSIX default)", () => {
+  it("single-quotes a plain path", () => {
+    expect(quotePathForShell("/Users/me/notes.md")).toBe(
+      "'/Users/me/notes.md'",
+    );
   });
-
-  it("wraps a path containing spaces", () => {
-    expect(quotePosixPath("/Users/me/My File.txt")).toBe(
+  it("single-quotes spaces", () => {
+    expect(quotePathForShell("/Users/me/My File.txt")).toBe(
       "'/Users/me/My File.txt'",
     );
   });
-
-  it("escapes an embedded single quote as '\\''", () => {
-    expect(quotePosixPath("/a/it's here")).toBe("'/a/it'\\''s here'");
+  it("escapes embedded single quotes", () => {
+    expect(quotePathForShell("/a/it's here")).toBe("'/a/it'\\''s here'");
   });
-
-  it("leaves backslashes untouched (Windows-style path)", () => {
-    expect(quotePosixPath("C:\\Users\\me\\a.txt")).toBe(
+  it("treats backslash paths as opaque text", () => {
+    expect(quotePathForShell("C:\\Users\\me\\a.txt")).toBe(
       "'C:\\Users\\me\\a.txt'",
     );
   });
