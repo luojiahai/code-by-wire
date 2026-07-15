@@ -106,14 +106,20 @@ export function MiddleHeader({
       <div
         aria-hidden
         className={cx(
-          "pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b from-(--ui-chat-surface-background)",
-          // Fading to fully transparent reveals whatever's actually beneath this strip. That's
-          // correct when it matches the header's own App-theme color (Transcript, ObservedTerminal,
-          // no session) — but the live terminal's own background is Terminal-theme-scoped and can
-          // independently be the opposite mode, in which case "transparent" bottoms out on a jarring
-          // color jump (reported as a "dark shadow" over a Light terminal below a Dark header).
-          // Fading to the terminal's own token instead keeps the blend smooth in every combination.
-          terminalBelow ? "to-(--terminal-well-background)" : "to-transparent",
+          "pointer-events-none relative z-10 -mb-4 h-4 shrink-0 bg-linear-to-b",
+          // When a live terminal is below, the WHOLE strip is Terminal-theme colored — both ends —
+          // not a blend starting from the header's own App-theme color. Blending from App theme (as
+          // this used to do) still puts a dark cap at the strip's top edge whenever App theme is Dark
+          // and Terminal theme is Light, regardless of what the "to" end targets: a gradient from dark
+          // to light is dark for most of its own height. The terminal's own chrome is already visually
+          // distinct from the header (separate token, often a different color) — matching this strip
+          // to it entirely, with no App-theme color anywhere in it, is what actually removes the dark
+          // band rather than just softening its bottom edge. Every other case (Transcript,
+          // ObservedTerminal, no session) keeps the original from-App-theme-to-transparent blend,
+          // since those all match the header's own color already.
+          terminalBelow
+            ? "from-(--terminal-well-background) to-(--terminal-well-background)"
+            : "from-(--ui-chat-surface-background) to-transparent",
         )}
       />
     </>

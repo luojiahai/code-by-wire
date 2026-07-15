@@ -113,11 +113,14 @@ describe("terminal chrome — borderless, padded, edge scrollbar", () => {
 });
 
 describe("MiddleHeader's fade strip follows Terminal theme, not App theme, over the live terminal", () => {
-  // Regression coverage for the 2026-07-15 "dark shadow" fix: the header's bottom fade blends
-  // from its own (App-theme) background to transparent, revealing whatever's beneath it — correct
-  // for Transcript/ObservedTerminal/no-session (all App-theme-colored, matching the header), but a
-  // visible color jump when the live terminal below is independently Terminal-themed. Fading to the
-  // terminal's own token instead keeps the blend smooth in every App/Terminal theme combination.
+  // Regression coverage for the 2026-07-15 "dark shadow" fix. Round 1 (62e4401) faded from the
+  // header's own App-theme background to the terminal's Terminal-theme background — an improvement,
+  // but a gradient from dark to light is still mostly dark near its own top edge, so App=Dark +
+  // Terminal=Light still showed a visible dark cap. Round 2 (this test) removes App-theme color from
+  // the strip entirely whenever a live terminal is below: both ends are the terminal's own token, so
+  // there's no dark pixel in it regardless of App theme. Every other case (Transcript,
+  // ObservedTerminal, no session) keeps the original App-theme-to-transparent blend, since those all
+  // match the header's own color already.
 
   it("computes terminalBelow from the same hasLiveTerminal shape Workspace.tsx uses", () => {
     // Cross-file check, not just a MiddleHeader-local regex: hasLiveTerminal isn't a shared helper
@@ -137,20 +140,21 @@ describe("MiddleHeader's fade strip follows Terminal theme, not App theme, over 
     ).toContain(sharedCondition);
   });
 
-  it("fades to the terminal's own background only when terminalBelow, else to transparent", () => {
+  it("uses only the terminal's own token (both ends) when terminalBelow, else the App-theme blend", () => {
     const m =
       /className=\{cx\(\s*"([^"]*bg-linear-to-b[^"]*)",([\s\S]*?)\)\}/.exec(
         middleHeader,
       );
     expect(m, "fade strip's cx(...) className").toBeTruthy();
-    expect(m![1], "always fades from the header's own background").toMatch(
-      /\bfrom-\(--ui-chat-surface-background\)$/,
-    );
+    expect(
+      m![1],
+      "base class has no from-/to- gradient stop of its own — both live entirely in the ternary",
+    ).not.toMatch(/\b(from|to)-\(/);
     expect(
       m![2],
-      "ternary keyed on terminalBelow, to-(--terminal-well-background) vs to-transparent",
+      "ternary: both ends on --terminal-well-background when terminalBelow, else App-theme-to-transparent",
     ).toMatch(
-      /terminalBelow \? "to-\(--terminal-well-background\)" : "to-transparent"/,
+      /terminalBelow\s*\?\s*"from-\(--terminal-well-background\) to-\(--terminal-well-background\)"\s*:\s*"from-\(--ui-chat-surface-background\) to-transparent"/,
     );
   });
 });
