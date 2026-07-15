@@ -7,7 +7,10 @@ import { viewportScrollTop } from "./viewport-scroll";
 import { createWebLinksAddon } from "./web-links";
 import { attachOverlayScrollbar } from "./overlay-scrollbar";
 import { $terminalTheme } from "../ui/appearance-store";
-import { VSCODE_DARK_ANSI, VSCODE_LIGHT_ANSI } from "../ui/vscode-terminal-palette";
+import {
+  VSCODE_DARK_ANSI,
+  VSCODE_LIGHT_ANSI,
+} from "../ui/vscode-terminal-palette";
 
 /** xterm's internal core, reached the way VSCode does (xtermTerminal.ts: `(raw as ITerminalWithCore)._core`).
  *  We only need the Viewport's `syncScrollArea`, the public hook xterm itself calls (on clear/show) to force

@@ -26,7 +26,9 @@ const ANSI_KEYS = [
 describe("VSCODE_DARK_ANSI / VSCODE_LIGHT_ANSI — shared VS Code default ANSI palette", () => {
   it("each has exactly the 16 ANSI slots, no more, no less", () => {
     expect(Object.keys(VSCODE_DARK_ANSI).sort()).toEqual([...ANSI_KEYS].sort());
-    expect(Object.keys(VSCODE_LIGHT_ANSI).sort()).toEqual([...ANSI_KEYS].sort());
+    expect(Object.keys(VSCODE_LIGHT_ANSI).sort()).toEqual(
+      [...ANSI_KEYS].sort(),
+    );
   });
 
   it("matches VS Code's / hermes's dark palette exactly", () => {
