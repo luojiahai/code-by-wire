@@ -127,9 +127,9 @@ export function useTerminalSession({
       theme: (mode) => terminalTheme(mode),
       unicodeVersion: "11",
       openExternal: (url) => void window.api.openExternal(url),
-      // The overlay thumb + hover listeners go on the instance div (host's positioned
-      // parent): the global .xterm.xterm rule anchors the terminal's absolute box to IT.
-      scrollbarHost: (container) => container.parentElement ?? container,
+      // No scrollbarHost override: `host` (instance.tsx's ref target) is itself the
+      // positioned ancestor .xterm's own absolute/inset CSS binds to (it's `relative`),
+      // so the default (attach to `container` itself) is already correct.
     });
     const term = xt.raw;
     termRef.current = term;
