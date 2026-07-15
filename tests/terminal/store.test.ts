@@ -63,13 +63,17 @@ function harness(isMac = true) {
     },
     onRename: () => () => {}, // the store exposes rename() directly; App drives it, not this channel
   };
-  const made: ReturnType<typeof fakeXterm>[] = [];
+  const made: Array<
+    ReturnType<typeof fakeXterm> & {
+      triggerResize: (cols: number, rows: number) => void;
+    }
+  > = [];
   const store = createTerminalStore({
     api,
     isMac,
-    createTerminal: () => {
+    createTerminal: (onResize) => {
       const f = fakeXterm();
-      made.push(f);
+      made.push({ ...f, triggerResize: onResize });
       return {
         term: f.term,
         wrapper: {} as HTMLElement,
@@ -263,6 +267,21 @@ describe("createTerminalStore", () => {
     h.store.rename("a", "b"); // a /clear rotates a->b while that write is still mid-parse
     inFlightCb(); // xterm finishes parsing AFTER the rename
     expect(h.api.ack).toHaveBeenCalledWith("b", FLOW.ackChars); // credited under the live id, not dropped
+  });
+
+  it("rename: the pty resize IPC follows a /clear rotation, not the id captured at construction", () => {
+    // Regression test for the xterm-terminal-port fix (spec §8 item 8): the factory's onResize
+    // callback must read handle.id at call time, not a value closed over when the handle was built —
+    // otherwise a resize after /clear would still target the OLD (freed) session id.
+    const h = harness();
+    h.store.create("a");
+    h.made[0].triggerResize(80, 24);
+    expect(h.api.resize).toHaveBeenCalledWith("a", 80, 24);
+
+    h.store.rename("a", "b");
+    h.made[0].triggerResize(90, 30);
+    expect(h.api.resize).toHaveBeenCalledWith("b", 90, 30);
+    expect(h.api.resize).not.toHaveBeenCalledWith("a", 90, 30);
   });
 
   it("rename: is a no-op for an unknown id", () => {
