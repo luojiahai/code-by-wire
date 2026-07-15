@@ -2,7 +2,7 @@
   "name": "code-by-wire",
   "private": true,
   "version": "0.1.32",
-  "description": "Pilot every Claude Code session on your machine.",
+  "description": "Pilot every Claude Code session, run it in an embedded terminal, and monitor the telemetry, from one cockpit.",
   "author": "luojiahai",
   "license": "MIT",
   "homepage": "https://github.com/luojiahai/code-by-wire",
