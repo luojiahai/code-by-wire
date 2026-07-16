@@ -1,8 +1,9 @@
 import type { SerializeAddon } from "@xterm/addon-serialize";
 import { useEffect, useRef, useState } from "react";
 import { newSessionId } from "@shared/terminal";
-import { isMacPlatform } from "@shared/platform";
+import { osKind } from "@shared/platform";
 import { XtermTerminal } from "../xterm/xterm-terminal";
+import { clipboardKeyAction } from "../xterm/clipboard-key";
 import { terminalTheme } from "../xterm/terminal-theme";
 import { TerminalResizeDebouncer } from "../xterm/terminal-resize-debouncer";
 import { computeLayoutResize } from "../xterm/terminal-font-metrics";
@@ -331,16 +332,31 @@ export function useTerminalSession({
     const dataDisposable = term.onData((data) => api.write(sessionId, data));
     cleanup.push(() => dataDisposable.dispose());
 
-    // macOS readline word-navigation (cmd/option + arrows/Backspace/Delete) — xterm's own
-    // arrow-modifier sequences aren't interpreted by the shell's line editor, so without this the
-    // keys are inert (see ui/mac-edit-sequence for the byte table). Unlike the Claude Code terminal,
-    // there's no Shift+Enter remap here: a real shell reads bare Enter as submit and that must stay
-    // untouched.
-    const isMac = isMacPlatform(window.api.platform);
+    // Clipboard combos first (see xterm/clipboard-key — otherwise Ctrl+V becomes the 0x16 byte on
+    // Windows and nothing pastes), then macOS readline word-navigation (cmd/option +
+    // arrows/Backspace/Delete) — xterm's own arrow-modifier sequences aren't interpreted by the
+    // shell's line editor, so without this the keys are inert (see ui/mac-edit-sequence for the byte
+    // table). Unlike the Claude Code terminal, there's no Shift+Enter remap here: a real shell reads
+    // bare Enter as submit and that must stay untouched.
+    const os = osKind(window.api.platform);
     term.attachCustomKeyEventHandler((e) => {
-      if (!isMac) return true;
+      const action = clipboardKeyAction(e, os, term.hasSelection());
+      if (action === "paste") {
+        e.preventDefault();
+        void window.api.clipboardReadText().then((text) => {
+          if (text && !disposed) term.paste(text); // xterm's paste path: bracketed paste, \n → \r, out via onData
+        });
+        return false;
+      }
+      if (action === "copy" || action === "copy-and-clear") {
+        e.preventDefault();
+        void window.api.clipboardWriteText(term.getSelection());
+        if (action === "copy-and-clear") term.clearSelection(); // next Ctrl+C is SIGINT again
+        return false;
+      }
+      if (os !== "mac") return true;
       const seq = macEditSequence(e);
-      if (seq === null) return true; // not ours — plain keys, copy/paste, etc.
+      if (seq === null) return true; // not ours — plain keys, etc.
       e.preventDefault();
       api.write(sessionId, seq);
       return false; // we sent the bytes; stop xterm emitting its own sequence

@@ -4,6 +4,8 @@ import {
   type ReattachSnapshot,
   type TerminalApi,
 } from "@shared/terminal";
+import type { OsKind } from "@shared/platform";
+import { clipboardKeyAction } from "../xterm/clipboard-key";
 import { editSequence } from "./key-bindings";
 
 /** The xterm surface the store and the view actually use. Declared structurally so a real
@@ -14,6 +16,12 @@ export interface XtermLike {
   /** Intercept keys before xterm processes them. Return false to suppress xterm's own handling (we
    *  send our own bytes); true to let xterm proceed. Real `@xterm/xterm` Terminal provides this. */
   attachCustomKeyEventHandler(handler: (e: KeyboardEvent) => boolean): void;
+  /** Feed text through xterm's paste path: bracketed-paste wrapping + newline normalization, then
+   *  out via onData — so pasted text reaches the pty exactly like typed keys. */
+  paste(data: string): void;
+  hasSelection(): boolean;
+  getSelection(): string;
+  clearSelection(): void;
   dispose(): void;
   open(element: HTMLElement): void;
   focus(): void;
@@ -72,8 +80,15 @@ export interface TerminalStoreDeps {
     forceRefresh: () => void;
     dispose: () => void;
   };
-  /** True on macOS. Gates the cmd/option editing keys so we never hijack Super+arrow elsewhere. */
-  isMac: boolean;
+  /** Which OS family the app runs on. Gates the cmd/option editing keys (mac) and picks the
+   *  clipboard keybindings (see xterm/clipboard-key — plain Ctrl+V pastes on Windows only). */
+  os: OsKind;
+  /** System clipboard access for the Ctrl+V/Ctrl+C terminal keys. Injected (window.api in the app)
+   *  so the store is testable without preload. */
+  clipboard: {
+    readText(): Promise<string>;
+    writeText(text: string): Promise<void>;
+  };
 }
 
 export interface TerminalStore {
@@ -105,8 +120,10 @@ export interface TerminalStore {
 export function createTerminalStore({
   api,
   createTerminal,
-  isMac,
+  os,
+  clipboard,
 }: TerminalStoreDeps): TerminalStore {
+  const isMac = os === "mac";
   const handles = new Map<string, TerminalHandle>();
   const pendingAck = new Map<string, number>(); // consumed-but-unsent ack chars, per id
 
@@ -184,12 +201,31 @@ export function createTerminalStore({
       };
       // user keystrokes → pty (independent of DOM attach). Reads handle.id so a rename re-points input too.
       handle.term.onData((data) => api.write(handle.id, data));
-      // Keystrokes the Claude Code prompt understands but xterm won't emit on its own (see
+      // Keys xterm won't handle the way we need on its own. First the clipboard combos (see
+      // xterm/clipboard-key — otherwise Ctrl+V becomes the 0x16 byte on Windows and nothing pastes),
+      // then the keystrokes the Claude Code prompt understands but xterm won't emit (see
       // key-bindings): Shift+Enter → newline on every platform, plus cmd/option + arrows and deletes
       // → readline control bytes on macOS. Reads handle.id so input still follows a /clear rename.
       handle.term.attachCustomKeyEventHandler((e) => {
+        const action = clipboardKeyAction(e, os, handle.term.hasSelection());
+        if (action === "paste") {
+          e.preventDefault();
+          void clipboard.readText().then((text) => {
+            // The handle may be disposed (or /clear-renamed away) before the IPC round-trip lands;
+            // paste only if this handle is still the live one under its current id.
+            if (text && handles.get(handle.id) === handle)
+              handle.term.paste(text);
+          });
+          return false;
+        }
+        if (action === "copy" || action === "copy-and-clear") {
+          e.preventDefault();
+          void clipboard.writeText(handle.term.getSelection());
+          if (action === "copy-and-clear") handle.term.clearSelection(); // next Ctrl+C is SIGINT again
+          return false;
+        }
         const seq = editSequence(e, isMac);
-        if (seq === null) return true; // not ours — plain keys, copy/paste, etc.
+        if (seq === null) return true; // not ours — plain keys, etc.
         e.preventDefault();
         api.write(handle.id, seq);
         return false; // we sent the bytes; stop xterm emitting its own sequence

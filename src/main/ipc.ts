@@ -412,6 +412,7 @@ export function registerIpc({
   ipcMain.handle(IPC.clipboardWriteText, (_e, text: string) => {
     clipboard.writeText(text);
   });
+  ipcMain.handle(IPC.clipboardReadText, () => clipboard.readText());
   ipcMain.handle(IPC.updateGetState, (): UpdateState => upd.getState());
   ipcMain.handle(IPC.updateCheck, (): Promise<UpdateState> => upd.check());
   ipcMain.handle(IPC.updateDownload, (): Promise<void> => upd.download());

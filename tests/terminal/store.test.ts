@@ -1,18 +1,25 @@
 import { describe, it, expect, vi } from "vitest";
 import { FLOW, type ReattachSnapshot } from "../../src/shared/terminal";
+import type { OsKind } from "../../src/shared/platform";
 import {
   createTerminalStore,
   type XtermLike,
 } from "../../src/renderer/src/terminal/terminal-store";
 
-/** A fake xterm that records writes (with their ack callbacks), user-input wiring, and the custom
- *  key handler the store attaches. */
+/** A fake xterm that records writes (with their ack callbacks), pastes, user-input wiring, the
+ *  custom key handler the store attaches, and a settable selection for the clipboard-copy keys. */
 function fakeXterm() {
   const writes: Array<{ data: string; cb?: () => void }> = [];
   let inputCb: (d: string) => void = () => {};
   let keyHandler: (e: KeyboardEvent) => boolean = () => true;
+  let selection = "";
   const attachKeyHandler = vi.fn((h: (e: KeyboardEvent) => boolean) => {
     keyHandler = h;
+  });
+  // Kept as locals (not just term members) so tests assert on them without unbound-method lint noise.
+  const paste = vi.fn();
+  const clearSelection = vi.fn(() => {
+    selection = "";
   });
   const term: XtermLike = {
     write: (data, cb) => {
@@ -23,6 +30,10 @@ function fakeXterm() {
       return { dispose: () => {} };
     },
     attachCustomKeyEventHandler: attachKeyHandler,
+    paste,
+    hasSelection: () => selection.length > 0,
+    getSelection: () => selection,
+    clearSelection,
     dispose: vi.fn(),
     open: () => {},
     focus: () => {},
@@ -35,12 +46,17 @@ function fakeXterm() {
     term,
     writes,
     attachKeyHandler,
+    paste,
+    clearSelection,
     typeInput: (d: string) => inputCb(d),
     pressKey: (e: KeyboardEvent) => keyHandler(e),
+    setSelection: (s: string) => {
+      selection = s;
+    },
   };
 }
 
-function harness(isMac = true) {
+function harness(os: OsKind = "mac") {
   let dataRouter: (id: string, d: string, offset: number) => void = () => {};
   let exitRouter: (id: string, c: number) => void = () => {};
   const api = {
@@ -68,9 +84,14 @@ function harness(isMac = true) {
       triggerResize: (cols: number, rows: number) => void;
     }
   > = [];
+  const clipboard = {
+    readText: vi.fn(() => Promise.resolve("CLIP")),
+    writeText: vi.fn(() => Promise.resolve()),
+  };
   const store = createTerminalStore({
     api,
-    isMac,
+    os,
+    clipboard,
     createTerminal: (onResize) => {
       const f = fakeXterm();
       made.push({ ...f, triggerResize: onResize });
@@ -92,6 +113,7 @@ function harness(isMac = true) {
   return {
     store,
     api,
+    clipboard,
     made,
     route: (id: string, d: string, offset?: number) => {
       const end = offset ?? (outChars.get(id) ?? 0) + d.length;
@@ -191,6 +213,109 @@ describe("createTerminalStore", () => {
     expect(h.api.write).not.toHaveBeenCalled();
   });
 
+  it("windows: Ctrl+V reads the clipboard and pastes through xterm's paste path", async () => {
+    const h = harness("windows");
+    h.store.create("a");
+    const evt = keydown({ key: "v", ctrlKey: true });
+    expect(h.made[0].pressKey(evt)).toBe(false); // suppressed — xterm must not emit 0x16
+    // preventDefault is a vi.fn() mock on the event; asserting on the reference is intentional.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(evt.preventDefault).toHaveBeenCalled();
+    await Promise.resolve(); // flush the readText microtask
+    expect(h.made[0].paste).toHaveBeenCalledWith("CLIP");
+    expect(h.api.write).not.toHaveBeenCalled(); // paste flows via onData in real xterm, never written raw
+  });
+
+  it("windows: Ctrl+Shift+V pastes too (VSCode's secondary binding)", async () => {
+    const h = harness("windows");
+    h.store.create("a");
+    const evt = keydown({ key: "V", ctrlKey: true, shiftKey: true });
+    expect(h.made[0].pressKey(evt)).toBe(false);
+    await Promise.resolve();
+    expect(h.made[0].paste).toHaveBeenCalledWith("CLIP");
+  });
+
+  it("linux: Ctrl+Shift+V pastes but plain Ctrl+V stays the shell's verbatim-insert", async () => {
+    const h = harness("linux");
+    h.store.create("a");
+    expect(
+      h.made[0].pressKey(keydown({ key: "V", ctrlKey: true, shiftKey: true })),
+    ).toBe(false);
+    await Promise.resolve();
+    expect(h.made[0].paste).toHaveBeenCalledWith("CLIP");
+
+    const plain = keydown({ key: "v", ctrlKey: true });
+    expect(h.made[0].pressKey(plain)).toBe(true); // xterm emits 0x16 itself
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(plain.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("does not paste an empty clipboard", async () => {
+    const h = harness("windows");
+    h.clipboard.readText.mockResolvedValue("");
+    h.store.create("a");
+    h.made[0].pressKey(keydown({ key: "v", ctrlKey: true }));
+    await Promise.resolve();
+    expect(h.made[0].paste).not.toHaveBeenCalled();
+  });
+
+  it("drops a paste whose clipboard read resolves after the terminal is disposed", async () => {
+    const h = harness("windows");
+    h.store.create("a");
+    h.made[0].pressKey(keydown({ key: "v", ctrlKey: true }));
+    h.store.dispose("a"); // teardown wins the race against the IPC round-trip
+    await Promise.resolve();
+    expect(h.made[0].paste).not.toHaveBeenCalled();
+  });
+
+  it("a paste resolving across a /clear rename still lands on the live xterm", async () => {
+    const h = harness("windows");
+    h.store.create("a");
+    h.made[0].pressKey(keydown({ key: "v", ctrlKey: true }));
+    h.store.rename("a", "b"); // /clear rotates the id mid-flight
+    await Promise.resolve();
+    expect(h.made[0].paste).toHaveBeenCalledWith("CLIP");
+  });
+
+  it("windows: Ctrl+C with a selection copies and clears it; without one it stays SIGINT", () => {
+    const h = harness("windows");
+    h.store.create("a");
+    h.made[0].setSelection("sel");
+    const withSel = keydown({ key: "c", ctrlKey: true });
+    expect(h.made[0].pressKey(withSel)).toBe(false);
+    expect(h.clipboard.writeText).toHaveBeenCalledWith("sel");
+    expect(h.made[0].clearSelection).toHaveBeenCalled(); // so the NEXT Ctrl+C interrupts
+
+    const noSel = keydown({ key: "c", ctrlKey: true }); // selection now cleared
+    expect(h.made[0].pressKey(noSel)).toBe(true); // xterm emits 0x03 itself
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(noSel.preventDefault).not.toHaveBeenCalled();
+    expect(h.clipboard.writeText).toHaveBeenCalledTimes(1);
+  });
+
+  it("Ctrl+Shift+C copies the selection without clearing it (windows and linux)", () => {
+    for (const os of ["windows", "linux"] as const) {
+      const h = harness(os);
+      h.store.create("a");
+      h.made[0].setSelection("sel");
+      expect(
+        h.made[0].pressKey(
+          keydown({ key: "C", ctrlKey: true, shiftKey: true }),
+        ),
+      ).toBe(false);
+      expect(h.clipboard.writeText).toHaveBeenCalledWith("sel");
+      expect(h.made[0].clearSelection).not.toHaveBeenCalled();
+    }
+  });
+
+  it("mac: Ctrl+V and Cmd+V are left to xterm / the native menu", () => {
+    const h = harness("mac");
+    h.store.create("a");
+    expect(h.made[0].pressKey(keydown({ key: "v", ctrlKey: true }))).toBe(true);
+    expect(h.made[0].pressKey(keydown({ key: "v", metaKey: true }))).toBe(true);
+    expect(h.made[0].paste).not.toHaveBeenCalled();
+  });
+
   it("editing keys follow a /clear rename onto the new id", () => {
     const h = harness();
     h.store.create("a");
@@ -200,7 +325,7 @@ describe("createTerminalStore", () => {
   });
 
   it("on non-mac, sends Shift+Enter as a newline but leaves the mac editing combos to xterm", () => {
-    const h = harness(false);
+    const h = harness("linux");
     h.store.create("a");
     expect(h.made[0].attachKeyHandler).toHaveBeenCalled(); // handler attaches everywhere now
 

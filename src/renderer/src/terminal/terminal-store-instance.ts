@@ -1,4 +1,4 @@
-import { isMacPlatform } from "@shared/platform";
+import { osKind } from "@shared/platform";
 import { createTerminalStore } from "./terminal-store";
 import { createXterm } from "./xterm-factory";
 
@@ -7,5 +7,9 @@ import { createXterm } from "./xterm-factory";
 export const terminalStore = createTerminalStore({
   api: window.api.terminal,
   createTerminal: createXterm,
-  isMac: isMacPlatform(window.api.platform),
+  os: osKind(window.api.platform),
+  clipboard: {
+    readText: () => window.api.clipboardReadText(),
+    writeText: (text) => window.api.clipboardWriteText(text),
+  },
 });
