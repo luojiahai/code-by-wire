@@ -359,11 +359,11 @@ export const zh: Translations = {
     tabs: {
       tasks: "任务",
       subagents: "子代理",
-      shells: "Shell",
+      shells: "后台终端",
       monitors: "监控",
     },
     tally: (tasks, subagents, shells, monitors) =>
-      `${tasks} 个任务 · ${subagents} 个子代理 · ${shells} 个 Shell · ${monitors} 个监控`,
+      `${tasks} 个任务 · ${subagents} 个子代理 · ${shells} 个后台终端 · ${monitors} 个监控`,
     status: {
       running: "运行中",
       completed: "已完成",
@@ -385,7 +385,7 @@ export const zh: Translations = {
       toolUsesAria: (n) => `${n} 次工具调用`,
     },
     shells: {
-      empty: "暂无后台 Shell。",
+      empty: "暂无后台终端。",
       openLogAria: (command) => `打开 ${command} 的日志`,
       exitSuffix: (code) => `（退出码 ${code}）`,
       truncated: (kb) => `已隐藏 ${kb} KB 的早期输出`,
@@ -468,7 +468,7 @@ export const zh: Translations = {
   },
   modals: {
     escToClose: "按 Esc 关闭",
-    shellTitle: "Shell 详情",
+    shellTitle: "后台终端详情",
     monitorTitle: "监控详情",
     detail: {
       status: "状态",
