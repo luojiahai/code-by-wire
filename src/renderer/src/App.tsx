@@ -66,6 +66,7 @@ const NEW_SESSION_ID = "new-session";
 const SYNC_MS = 3000;
 
 export function App() {
+  const { t } = useI18n();
   // The app-lifetime analytics pump: ingests transcripts into the durable stats mirror even when the
   // Stats view never opens, so Claude Code's transcript cleanup can't outrun ingestion.
   useStatsPump();
@@ -461,7 +462,10 @@ export function App() {
   // header), the live `Workspace` (which renders its own `MiddleHeader` + `SessionMenu`), or the
   // empty state when nothing is selected (e.g. a stale/vanished session id with no pinned route).
   const middle: ReactNode = isNewSession ? (
-    <MiddleNonSession title="New session" leftEdgeExposed={leftEdgeExposed}>
+    <MiddleNonSession
+      title={t.shell.sidebar.newSession}
+      leftEdgeExposed={leftEdgeExposed}
+    >
       <NewSessionView
         key={quickAddPrefill?.nonce ?? 0}
         onCreate={createSession}
@@ -471,11 +475,17 @@ export function App() {
       />
     </MiddleNonSession>
   ) : isOverview ? (
-    <MiddleNonSession title="Stats" leftEdgeExposed={leftEdgeExposed}>
+    <MiddleNonSession
+      title={t.shell.sidebar.stats}
+      leftEdgeExposed={leftEdgeExposed}
+    >
       <StatsView />
     </MiddleNonSession>
   ) : isSettings ? (
-    <MiddleNonSession title="Settings" leftEdgeExposed={leftEdgeExposed}>
+    <MiddleNonSession
+      title={t.settings.nav.settings}
+      leftEdgeExposed={leftEdgeExposed}
+    >
       <SettingsView
         cliStatus={cliStatus}
         checking={checking}

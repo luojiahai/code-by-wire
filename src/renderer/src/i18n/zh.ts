@@ -166,6 +166,12 @@ export const zh: Translations = {
     sessionRow: {
       openSession: (title) => `打开 ${title}`,
       sessionActions: "会话操作",
+      state: {
+        working: "进行中",
+        waiting: "等待中",
+        idle: "空闲",
+        ended: "已结束",
+      },
     },
     sessionMenu: {
       renameFieldLabel: "重命名会话",
@@ -438,6 +444,7 @@ export const zh: Translations = {
       idle: "空闲",
       input: "输入",
       output: "输出",
+      windowLabel: "60秒",
     },
   },
   transcript: {

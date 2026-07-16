@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import type { TokenSpeed } from "@shared/metrics";
 import { Sparkline } from "../../ui/charts";
 import { useI18n } from "../../i18n";
-import { SPEED_WINDOW_LABEL } from "./speed-window";
 import { PanelSection, PanelHeading, StatRow } from "./chrome";
 
 const SPARK_SAMPLES = 30;
@@ -37,7 +36,7 @@ export function TokenSpeedPanel({
         info={t.dock.throughput.info}
         right={
           <span className="rounded-sm border border-(--ui-stroke-secondary) px-1.5 py-0.5 text-[0.65rem] font-medium leading-none text-(--ui-text-tertiary)">
-            {SPEED_WINDOW_LABEL}
+            {t.dock.throughput.windowLabel}
           </span>
         }
       >

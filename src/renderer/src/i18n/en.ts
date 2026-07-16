@@ -188,6 +188,13 @@ export const en = {
     sessionRow: {
       openSession: (title: string) => `Open ${title}`,
       sessionActions: "Session actions",
+      // The Lamp glyph's hover-tooltip state word (session-glyph.ts's glyphTitle lowercases it).
+      state: {
+        working: "Working",
+        waiting: "Waiting",
+        idle: "Idle",
+        ended: "Ended",
+      },
     },
     sessionMenu: {
       renameFieldLabel: "Rename session",
@@ -498,6 +505,9 @@ export const en = {
       idle: "idle",
       input: "Input",
       output: "Output",
+      // Mirrors SPEED_WINDOW_MS in src/main/provider/claude/transcript-speed.ts (60s) — keep in
+      // sync if that window changes. The long form crowded the heading at 237px.
+      windowLabel: "60s",
     },
   },
   /** The transcript feed: message bubbles, tool/edit rows, subagent dispatches, and the subagent

@@ -6,7 +6,6 @@ import {
 } from "@shared/models";
 
 export interface StateMeta {
-  label: string;
   /** Tailwind bg class for the filled (managed) dot. */
   dot: string;
   /** Tailwind border class for the hollow (observed) ring. Literal so Tailwind's scanner emits it. */
@@ -15,28 +14,26 @@ export interface StateMeta {
   text: string;
 }
 
-/** Per-state display metadata. Working = blue, Waiting = amber, Idle = slate, Ended = faint. */
+/** Per-state display metadata (locale-invariant Tailwind classes only — the translated label lives
+ *  in the i18n catalog at shell.sessionRow.state, resolved by session-glyph.ts's glyphTitle).
+ *  Working = blue, Waiting = amber, Idle = slate, Ended = faint. */
 export const STATE_META: Record<SessionState, StateMeta> = {
   working: {
-    label: "Working",
     dot: "bg-working",
     ring: "border-working",
     text: "text-working-bright",
   },
   waiting: {
-    label: "Waiting",
     dot: "bg-accent",
     ring: "border-accent",
     text: "text-accent-bright",
   },
   idle: {
-    label: "Idle",
     dot: "bg-idle",
     ring: "border-idle",
     text: "text-fg-muted",
   },
   ended: {
-    label: "Ended",
     dot: "bg-ink-600",
     ring: "border-ink-600",
     text: "text-fg-faint",
