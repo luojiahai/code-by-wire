@@ -405,6 +405,34 @@ export const en = {
     spend: {
       heading: "Spend",
       info: "What this session has consumed: total tokens by kind — fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes. The $ is Claude Code's own session accounting; on a subscription it is the API-equivalent value, not a bill.",
+      // Mirrors ui/token-kinds.ts's TOKEN_KINDS, keyed the same way, so SpendPanel can render
+      // translated label/description text while still iterating TOKEN_KINDS for order and key.
+      kinds: {
+        input: {
+          label: "Input",
+          description:
+            "Fresh prompt tokens processed this session, at full price.",
+        },
+        output: {
+          label: "Output",
+          description: "Tokens the model generated.",
+        },
+        cacheRead: {
+          label: "Cache read",
+          description:
+            "Context replayed from cache instead of reprocessed, ~10% of input price.",
+        },
+        cacheWrite5m: {
+          label: "Cache write 5m",
+          description:
+            "Context written into the 5-minute cache so the next turn replays it cheaply. 1.25× input.",
+        },
+        cacheWrite1h: {
+          label: "Cache write 1h",
+          description:
+            "Context written into the longer-lived 1-hour cache. 2× input.",
+        },
+      },
     },
     duty: {
       heading: "Duty",

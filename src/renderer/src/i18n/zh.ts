@@ -363,6 +363,30 @@ export const zh: Translations = {
     spend: {
       heading: "花费",
       info: "本会话已消耗的用量：按种类划分的 token 总量——新输入、生成输出、缓存读取，以及 5 分钟和 1 小时的缓存写入。$ 是 Claude Code 自身的会话记账；在订阅方案下它是等价 API 价值，并非实际账单。",
+      kinds: {
+        input: {
+          label: "输入",
+          description: "本会话处理的新提示词 token，按全价计费。",
+        },
+        output: {
+          label: "输出",
+          description: "模型生成的 token。",
+        },
+        cacheRead: {
+          label: "缓存读取",
+          description:
+            "从缓存中回放、无需重新处理的上下文，价格约为输入的 10%。",
+        },
+        cacheWrite5m: {
+          label: "缓存写入 5 分钟",
+          description:
+            "写入 5 分钟缓存的上下文，供下一轮低成本回放，价格为输入的 1.25 倍。",
+        },
+        cacheWrite1h: {
+          label: "缓存写入 1 小时",
+          description: "写入更长效的 1 小时缓存的上下文，价格为输入的 2 倍。",
+        },
+      },
     },
     duty: {
       heading: "占空比",

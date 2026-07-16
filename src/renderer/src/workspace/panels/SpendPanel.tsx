@@ -19,12 +19,21 @@ const KIND_TOKENS: Record<TokenKind["key"], (u: Usage) => number> = {
   cacheWrite1h: (u) => u.cacheCreation1hTokens,
 };
 
-/** A kind label wrapped in a MetricTip whose popover gives the spec description. */
-function KindLabel({ kind }: { kind: TokenKind }) {
+/** A kind label wrapped in a MetricTip whose popover gives the spec description. Label/description
+ *  come from the caller's t.dock.spend.kinds[key] catalog entry, not from TokenKind directly, so
+ *  the rendered text translates with the locale (TokenKind's own label/description stay English-only
+ *  spec copy used elsewhere in the app). */
+function KindLabel({
+  label,
+  description,
+}: {
+  label: string;
+  description: string;
+}) {
   return (
-    <MetricTip label={kind.label} popoverClassName={POPOVER}>
-      <span className="block font-medium text-fg">{kind.label}</span>
-      <span className="mt-0.5 block">{kind.description}</span>
+    <MetricTip label={label} popoverClassName={POPOVER}>
+      <span className="block font-medium text-fg">{label}</span>
+      <span className="mt-0.5 block">{description}</span>
     </MetricTip>
   );
 }
@@ -68,7 +77,7 @@ export function SpendPanel({
         {TOKEN_KINDS.map((k) => (
           <StatRow
             key={k.key}
-            label={<KindLabel kind={k} />}
+            label={<KindLabel {...t.dock.spend.kinds[k.key]} />}
             value={formatTokensShort(KIND_TOKENS[k.key](usage))}
           />
         ))}
