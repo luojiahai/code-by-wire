@@ -80,7 +80,7 @@ function harness(platform = "darwin") {
   };
   let clipboardText = "";
   const clipboard = {
-    readText: vi.fn((_type?: "selection") => Promise.resolve(clipboardText)),
+    readText: vi.fn(() => Promise.resolve(clipboardText)),
     writeText: vi.fn((t: string) => {
       clipboardText = t;
       return Promise.resolve();
@@ -90,6 +90,7 @@ function harness(platform = "darwin") {
     ReturnType<typeof fakeXterm> & {
       triggerResize: (cols: number, rows: number) => void;
       wrapper: HTMLElement;
+      wrapperRemoveEventListener: ReturnType<typeof vi.fn>;
     }
   > = [];
   const store = createTerminalStore({
@@ -98,11 +99,18 @@ function harness(platform = "darwin") {
     clipboard,
     createTerminal: (onResize) => {
       const f = fakeXterm();
+      const addEventListener = vi.fn();
+      const removeEventListener = vi.fn();
       const wrapper = {
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
+        addEventListener,
+        removeEventListener,
       } as unknown as HTMLElement;
-      made.push({ ...f, triggerResize: onResize, wrapper });
+      made.push({
+        ...f,
+        triggerResize: onResize,
+        wrapper,
+        wrapperRemoveEventListener: removeEventListener,
+      });
       return {
         term: f.term,
         wrapper,
@@ -575,7 +583,7 @@ describe("clipboard keybindings (win32 — the platforms where xterm swallowed C
     const h = harness("win32");
     h.store.create("a");
     h.store.dispose("a");
-    expect(h.made[0].wrapper.removeEventListener).toHaveBeenCalledWith(
+    expect(h.made[0].wrapperRemoveEventListener).toHaveBeenCalledWith(
       "contextmenu",
       expect.any(Function),
     );

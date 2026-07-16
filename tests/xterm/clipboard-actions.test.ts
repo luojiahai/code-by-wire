@@ -16,24 +16,26 @@ function fakeDeps(opts?: {
   let selection = opts?.selection ?? "";
   const pastes: string[] = [];
   const ptyWrites: string[] = [];
+  const clearSelection = vi.fn(() => {
+    selection = "";
+  });
+  const focus = vi.fn();
   const term: ClipboardTermLike = {
     hasSelection: () => selection.length > 0,
     getSelection: () => selection,
-    clearSelection: vi.fn(() => {
-      selection = "";
-    }),
+    clearSelection,
     paste: (data) => {
       pastes.push(data);
     },
-    focus: vi.fn(),
+    focus,
     modes: { bracketedPasteMode: opts?.bracketed ?? false },
   };
-  const readText = vi.fn((_type?: "selection") =>
+  const readText = vi.fn(() =>
     opts?.readRejects
       ? Promise.reject(new Error("ipc down"))
       : Promise.resolve(opts?.clipboardText ?? ""),
   );
-  const writeText = vi.fn((_text: string) =>
+  const writeText = vi.fn(() =>
     opts?.writeRejects
       ? Promise.reject(new Error("ipc down"))
       : Promise.resolve(),
@@ -45,7 +47,16 @@ function fakeDeps(opts?: {
     },
     clipboard: { readText, writeText },
   };
-  return { deps, term, pastes, ptyWrites, readText, writeText };
+  return {
+    deps,
+    term,
+    pastes,
+    ptyWrites,
+    readText,
+    writeText,
+    clearSelection,
+    focus,
+  };
 }
 
 describe("runClipboardAction — copy", () => {
@@ -53,14 +64,14 @@ describe("runClipboardAction — copy", () => {
     const f = fakeDeps({ selection: "picked" });
     await runClipboardAction("copy", f.deps);
     expect(f.writeText).toHaveBeenCalledWith("picked");
-    expect(f.term.clearSelection).not.toHaveBeenCalled();
+    expect(f.clearSelection).not.toHaveBeenCalled();
   });
 
   it("copy-and-clear also clears the selection (VS Code's Windows Ctrl+C)", async () => {
     const f = fakeDeps({ selection: "picked" });
     await runClipboardAction("copy-and-clear", f.deps);
     expect(f.writeText).toHaveBeenCalledWith("picked");
-    expect(f.term.clearSelection).toHaveBeenCalled();
+    expect(f.clearSelection).toHaveBeenCalled();
   });
 
   it("copy with an empty selection is a no-op (unreachable via dispatch, guarded anyway)", async () => {
@@ -74,7 +85,7 @@ describe("runClipboardAction — copy", () => {
     await expect(
       runClipboardAction("copy-and-clear", f.deps),
     ).resolves.toBeUndefined();
-    expect(f.term.clearSelection).not.toHaveBeenCalled();
+    expect(f.clearSelection).not.toHaveBeenCalled();
   });
 });
 
@@ -145,7 +156,7 @@ describe("attachClipboardContextMenu — Windows right-click copyPaste", () => {
     const e = contextMenu(el);
     expect(e.defaultPrevented).toBe(true);
     await vi.waitFor(() => expect(f.writeText).toHaveBeenCalledWith("picked"));
-    expect(f.term.clearSelection).toHaveBeenCalled();
+    expect(f.clearSelection).toHaveBeenCalled();
   });
 
   it("win32 + no selection: focuses the terminal and pastes (no fallback byte)", async () => {
@@ -154,7 +165,7 @@ describe("attachClipboardContextMenu — Windows right-click copyPaste", () => {
     attachClipboardContextMenu(el, "win32", f.deps);
     const e = contextMenu(el);
     expect(e.defaultPrevented).toBe(true);
-    expect(f.term.focus).toHaveBeenCalled();
+    expect(f.focus).toHaveBeenCalled();
     await vi.waitFor(() => expect(f.pastes).toEqual(["hello"]));
     expect(f.ptyWrites).toEqual([]);
   });
