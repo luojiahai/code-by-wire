@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { useI18n } from "../i18n";
 import {
   $terminalTakeover,
   setTerminalTakeover,
@@ -10,6 +11,7 @@ import {
 /** The hermes statusbar (design spec §footer): a 20px strip on the sidebar surface with 11px
  *  items. The wordmark is prefixed with the literal ░▒▓█ mark — no SVG glyph or gradient chip. */
 export function AppFooter({ version }: { version: string | null }) {
+  const { t } = useI18n();
   const terminalOpen = useStore($terminalTakeover);
   // Main owns the keep-awake state (a live powerSaveBlocker); the button renders whatever the last
   // IPC response said. Fetched on mount so a reloaded renderer stays in sync with main.
@@ -39,9 +41,11 @@ export function AppFooter({ version }: { version: string | null }) {
       <div className="flex items-stretch">
         <button
           type="button"
-          title={caffeinated ? "Let computer sleep" : "Keep computer awake"}
+          title={
+            caffeinated ? t.shell.footer.letSleep : t.shell.footer.keepAwake
+          }
           aria-label={
-            caffeinated ? "Let computer sleep" : "Keep computer awake"
+            caffeinated ? t.shell.footer.letSleep : t.shell.footer.keepAwake
           }
           aria-pressed={caffeinated}
           onClick={() => {
@@ -55,13 +59,21 @@ export function AppFooter({ version }: { version: string | null }) {
           )}
         >
           <Icon name="coffee" size={12} />
-          Caffeinate
+          {t.shell.footer.caffeinate}
           {caffeinated && <span aria-hidden className="arc-border" />}
         </button>
         <button
           type="button"
-          title={terminalOpen ? "Hide terminal" : "Show terminal"}
-          aria-label={terminalOpen ? "Hide terminal" : "Show terminal"}
+          title={
+            terminalOpen
+              ? t.shell.footer.hideTerminal
+              : t.shell.footer.showTerminal
+          }
+          aria-label={
+            terminalOpen
+              ? t.shell.footer.hideTerminal
+              : t.shell.footer.showTerminal
+          }
           aria-pressed={terminalOpen}
           onClick={() => setTerminalTakeover(!terminalOpen)}
           className={cx(
@@ -72,7 +84,7 @@ export function AppFooter({ version }: { version: string | null }) {
           )}
         >
           <Icon name="square-terminal" size={12} />
-          Terminal
+          {t.shell.footer.terminal}
         </button>
       </div>
     </footer>

@@ -1,4 +1,5 @@
 import type { Session } from "@shared/types";
+import { tNow } from "../i18n";
 
 /** One flat list, no visible section split: live sessions first (newest-created first), then
  *  ended sessions appended (most-recently-active first) — see design spec §4. */
@@ -32,8 +33,12 @@ export function filterActive(sessions: Session[]): Session[] {
   return sessions.filter((s) => s.state !== "ended");
 }
 
-/** Label for sessions whose transcript carries no project path. */
-export const UNGROUPED_LABEL = "(no project)";
+/** Label for sessions whose transcript carries no project path. Resolved from the live locale at
+ *  call time via `tNow()` — this module is pure (no React), so it can't call `useI18n()`; never
+ *  capture the string at module scope, or a locale switch wouldn't take effect. */
+export function ungroupedLabel(): string {
+  return tNow().shell.sessionList.ungrouped;
+}
 
 export type SessionGroup = {
   /** Grouping identity: the cwd when known, else the name fallback. Collapse state keys on this. */
@@ -79,7 +84,7 @@ export function groupSessionsByProject(
     // repo name as the label. A main-checkout session in the same repo produces the identical
     // bucket values, so merge order doesn't matter.
     const cwd = s.worktree?.repoRoot ?? (s.cwd || undefined);
-    const label = s.worktree?.repoLabel ?? (s.project || UNGROUPED_LABEL);
+    const label = s.worktree?.repoLabel ?? (s.project || ungroupedLabel());
     const key = cwd ?? label;
     const bucket = buckets.get(key);
     if (bucket) bucket.sessions.push(s);

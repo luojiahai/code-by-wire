@@ -1,5 +1,6 @@
 import type { Session } from "@shared/types";
 import type { GitInfo } from "@shared/metrics";
+import { useI18n } from "../i18n";
 
 /** The Session panel's Git readout, popover-free: the branch (or the short sha on a detached HEAD,
  *  or — before the glance lands — the session's recorded branch) and an amber dot when the tree is
@@ -12,6 +13,7 @@ export function GitReadout({
   session: Session;
   git?: GitInfo | null;
 }) {
+  const { t } = useI18n();
   const branch = git?.branch ?? null;
   const sha = git?.sha ?? null;
   const dirty = git?.dirty ?? false;
@@ -25,7 +27,7 @@ export function GitReadout({
       {dirty && (
         <span
           className="h-[6px] w-[6px] shrink-0 rounded-full bg-accent"
-          title="Uncommitted changes"
+          title={t.shell.gitReadout.uncommittedChanges}
         />
       )}
     </span>

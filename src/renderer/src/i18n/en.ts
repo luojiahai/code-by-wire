@@ -166,6 +166,121 @@ export const en = {
       retry: "Retry",
     },
   },
+  shell: {
+    sidebar: {
+      newSession: "New session",
+      stats: "Stats",
+      updatePendingTitle: "Update pending — see Settings › About",
+      updatePendingSrOnly: "(update pending)",
+      searchPlaceholder: "Search sessions…",
+      searchLabel: "Search sessions",
+      clearSearch: "Clear search",
+      sessionsLabel: "Sessions",
+      expandAll: "Expand all",
+      collapseAll: "Collapse all",
+      showAllSessions: "Show all sessions",
+      showActiveOnly: "Show active sessions only",
+      noActiveSessions: "No active sessions.",
+      noSessionsYet: "No sessions yet.",
+      newSessionIn: (cwd: string) => `New session in ${cwd}`,
+    },
+    sessionRow: {
+      openSession: (title: string) => `Open ${title}`,
+      sessionActions: "Session actions",
+    },
+    sessionMenu: {
+      renameFieldLabel: "Rename session",
+      menuTitle: "Session menu",
+      copySessionId: "Copy session ID",
+      rename: "Rename",
+      adopt: "Adopt",
+      adopting: "Adopting…",
+      fork: "Fork",
+      forking: "Forking…",
+      endSession: "End session",
+      openIn: "Open in",
+      resumeConfirmTitle: "Resume a session with no recorded model?",
+      resumeConfirmBody:
+        "This session never recorded a model — it likely errored before its first turn — so resuming it may fail with a model error. Continue anyway?",
+      resumeConfirmLabel: "Resume anyway",
+      forkConfirmTitle: "Fork a session with no recorded model?",
+      forkConfirmBody:
+        "This session never recorded a model — it likely errored before its first turn — so forking it may fail with a model error. Continue anyway?",
+      forkConfirmLabel: "Fork anyway",
+      endConfirmTitle: "End this session?",
+      endConfirmBody:
+        "A turn is in progress and will be interrupted. The conversation is saved and can be resumed later with Adopt.",
+      adoptTitleNoConversation:
+        "Nothing to adopt — this session has no saved conversation.",
+      adoptTitlePending:
+        "This session just exited. Adopt is available in a moment.",
+      forkTitleNoConversation:
+        "Nothing to fork — this session has no saved conversation.",
+      forkTitleEnded:
+        "This session has ended — there's nothing live left to fork.",
+      forkTitleObserved:
+        "Fork isn't offered for an observed session — it isn't a session this app owns.",
+      endTitleLive: "End this session",
+      endTitleUnavailable:
+        "End is only available for a live session you manage.",
+    },
+    newSession: {
+      ledeBefore: "Spawns",
+      ledeAfter: "in the chosen directory and drives it from a live terminal.",
+      sessionSetup: "Session setup",
+      directory: "Directory",
+      choose: "Choose…",
+      noDirectoryChosen: "No directory chosen",
+      model: "Model",
+      modelDefault: "Default",
+      failedToStart: "Failed to start the session",
+      create: "Create",
+      starting: "Starting…",
+    },
+    middleHeader: {
+      viewGroupLabel: "View",
+      claudeCode: "Claude Code",
+      transcript: "Transcript",
+    },
+    footer: {
+      keepAwake: "Keep computer awake",
+      letSleep: "Let computer sleep",
+      caffeinate: "Caffeinate",
+      showTerminal: "Show terminal",
+      hideTerminal: "Hide terminal",
+      terminal: "Terminal",
+    },
+    titlebar: {
+      showSidebar: "Show sidebar",
+      hideSidebar: "Hide sidebar",
+      showRightPanel: "Show right panel",
+      hideRightPanel: "Hide right panel",
+    },
+    gitReadout: {
+      uncommittedChanges: "Uncommitted changes",
+    },
+    sessionPanel: {
+      heading: "Session",
+      model: "Model",
+      effort: "Effort",
+      git: "Git",
+      pr: "PR",
+      lines: "Lines",
+      clock: "Clock",
+      compactions: "Compactions",
+      active: "Active",
+      tokensReclaimed: (tokens: string) => `${tokens} tokens reclaimed`,
+    },
+    sessionList: {
+      ungrouped: "(no project)",
+    },
+  },
+  workspace: {
+    emptyStates: {
+      noSessions: "No Claude Code sessions found.",
+      selectSession: "Select a session to open it.",
+    },
+  },
   /** Wordy time/rate formatting (relative times, durations, month dates). English
    *  delegates to the deterministic @shared/format helpers; zh re-implements the
    *  same thresholds with Chinese units (hermes-style per-locale function values).

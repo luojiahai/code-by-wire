@@ -18,6 +18,7 @@ import { newSessionId } from "@shared/terminal";
 import { orderedSessions } from "@shared/overview";
 import { applyTitleOverrides } from "@shared/title-override";
 import { isUpdatePending } from "@shared/update";
+import { useI18n } from "./i18n";
 import { Workspace } from "./workspace/Workspace";
 import { useMetrics } from "./workspace/use-metrics";
 import { terminalStore } from "./terminal/terminal-store-instance";
@@ -638,17 +639,18 @@ function MiddleNonSession({
 
 /** The detail pane before a session is selected, or when none exist. */
 function EmptyDetail({ empty, loading }: { empty: boolean; loading: boolean }) {
+  const { t } = useI18n();
   if (empty) {
     return (
       <div className="flex flex-1 items-center justify-center bg-ink-950 text-body text-fg-faint">
-        {loading ? null : "No Claude Code sessions found."}
+        {loading ? null : t.workspace.emptyStates.noSessions}
       </div>
     );
   }
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2.5 bg-ink-950 text-fg-faint">
       <Icon name="square-dashed-mouse-pointer" size={28} />
-      <p className="text-body">Select a session to open it.</p>
+      <p className="text-body">{t.workspace.emptyStates.selectSession}</p>
     </div>
   );
 }

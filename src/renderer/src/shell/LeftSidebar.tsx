@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Session } from "@shared/types";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { useI18n } from "../i18n";
 import {
   filterActive,
   filterSessions,
@@ -14,11 +15,6 @@ import { SidebarPanelLabel } from "./SidebarPanelLabel";
 import { OverlayScroll } from "../ui/OverlayScroll";
 
 const ACTIVE_ONLY_KEY = "cbw.sessionsActiveOnly.v1";
-
-/** Shown when the Claude Code CLI can't spawn — on the New session button, the folder quick-add "+",
- *  and the folder header the "+" falls through to (so its `pointer-events-none` doesn't hide the reason). */
-const CLI_BLOCKED_TOOLTIP =
-  "Claude Code CLI isn't usable — open Sys status in the title bar.";
 
 /** Reads the persisted active-only flag; missing, malformed, or unreadable → false. */
 function loadActiveOnly(): boolean {
@@ -71,6 +67,7 @@ export function LeftSidebar({
   route: string;
   onRoute: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [activeOnly, setActiveOnly] = useState(loadActiveOnly);
@@ -133,7 +130,7 @@ export function LeftSidebar({
           type="button"
           onClick={onNew}
           disabled={!canSpawn}
-          title={canSpawn ? undefined : CLI_BLOCKED_TOOLTIP}
+          title={canSpawn ? undefined : t.settings.cli.unavailableReason}
           className={cx(
             "flex h-7 w-full items-center justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium transition-colors duration-100 ease-out hover:transition-none",
             canSpawn
@@ -142,7 +139,7 @@ export function LeftSidebar({
           )}
         >
           <Icon name="rocket" size={16} className="shrink-0 opacity-70" />
-          New session
+          {t.shell.sidebar.newSession}
         </button>
         <button
           type="button"
@@ -156,15 +153,13 @@ export function LeftSidebar({
           )}
         >
           <Icon name="chart-column" size={16} className="shrink-0 opacity-70" />
-          Stats
+          {t.shell.sidebar.stats}
         </button>
         <button
           type="button"
           onClick={() => onRoute(SETTINGS_ID)}
           aria-pressed={route === SETTINGS_ID}
-          title={
-            updatePending ? "Update pending — see Settings › About" : undefined
-          }
+          title={updatePending ? t.shell.sidebar.updatePendingTitle : undefined}
           className={cx(
             "flex h-7 w-full items-center justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium transition-colors duration-100 ease-out hover:transition-none",
             route === SETTINGS_ID
@@ -182,8 +177,12 @@ export function LeftSidebar({
               />
             )}
           </span>
-          Settings
-          {updatePending && <span className="sr-only">(update pending)</span>}
+          {t.settings.nav.settings}
+          {updatePending && (
+            <span className="sr-only">
+              {t.shell.sidebar.updatePendingSrOnly}
+            </span>
+          )}
         </button>
       </div>
 
@@ -204,14 +203,14 @@ export function LeftSidebar({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search sessions…"
-            aria-label="Search sessions"
+            placeholder={t.shell.sidebar.searchPlaceholder}
+            aria-label={t.shell.sidebar.searchLabel}
             className="h-7 min-w-0 flex-1 bg-transparent text-[0.8125rem] text-fg placeholder:text-(--ui-text-tertiary) focus:outline-none"
           />
           {query && (
             <button
               type="button"
-              aria-label="Clear search"
+              aria-label={t.shell.sidebar.clearSearch}
               onClick={() => setQuery("")}
               className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-(--ui-text-tertiary)/85 transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
             >
@@ -222,7 +221,9 @@ export function LeftSidebar({
       </div>
 
       <div className="flex shrink-0 items-center justify-between gap-1 px-2.5 pb-1 pt-1.5">
-        <SidebarPanelLabel className="pl-2">Sessions</SidebarPanelLabel>
+        <SidebarPanelLabel className="pl-2">
+          {t.shell.sidebar.sessionsLabel}
+        </SidebarPanelLabel>
         <div className="flex items-center gap-0.5">
           <button
             type="button"
@@ -231,7 +232,11 @@ export function LeftSidebar({
                 allCollapsed ? new Set() : new Set(groups.map((g) => g.key)),
               )
             }
-            title={allCollapsed ? "Expand all" : "Collapse all"}
+            title={
+              allCollapsed
+                ? t.shell.sidebar.expandAll
+                : t.shell.sidebar.collapseAll
+            }
             className="grid size-5 cursor-pointer place-items-center rounded-sm border border-transparent text-(--ui-text-quaternary) transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
           >
             <Icon
@@ -244,7 +249,9 @@ export function LeftSidebar({
             onClick={toggleActiveOnly}
             aria-pressed={activeOnly}
             title={
-              activeOnly ? "Show all sessions" : "Show active sessions only"
+              activeOnly
+                ? t.shell.sidebar.showAllSessions
+                : t.shell.sidebar.showActiveOnly
             }
             className={cx(
               "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
@@ -261,8 +268,8 @@ export function LeftSidebar({
         {groups.length === 0 ? (
           <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
             {activeOnly && sessions.length > 0
-              ? "No active sessions."
-              : "No sessions yet."}
+              ? t.shell.sidebar.noActiveSessions
+              : t.shell.sidebar.noSessionsYet}
           </p>
         ) : (
           <div className="flex flex-col gap-px">
@@ -277,7 +284,11 @@ export function LeftSidebar({
                       aria-expanded={!collapsed.has(g.key)}
                       // When the CLI is down the "+" is pointer-events-none, so a hover over it lands
                       // here instead — carry its reason so that affordance survives (spec §4).
-                      title={cwd && !canSpawn ? CLI_BLOCKED_TOOLTIP : cwd}
+                      title={
+                        cwd && !canSpawn
+                          ? t.settings.cli.unavailableReason
+                          : cwd
+                      }
                       className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
                     >
                       <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
@@ -310,11 +321,11 @@ export function LeftSidebar({
                         type="button"
                         onClick={() => void quickAdd(g.key, cwd)}
                         disabled={!canSpawn || quickAdding.has(g.key)}
-                        aria-label={`New session in ${cwd}`}
+                        aria-label={t.shell.sidebar.newSessionIn(cwd)}
                         title={
                           canSpawn
-                            ? `New session in ${cwd}`
-                            : CLI_BLOCKED_TOOLTIP
+                            ? t.shell.sidebar.newSessionIn(cwd)
+                            : t.settings.cli.unavailableReason
                         }
                         className={cx(
                           "absolute right-5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",

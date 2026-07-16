@@ -2,6 +2,7 @@ import { useStore } from "@nanostores/react";
 import { isMacPlatform } from "@shared/platform";
 import { Icon } from "../ui/icons";
 import { useFullscreen } from "../ui/use-fullscreen";
+import { useI18n } from "../i18n";
 import { $paneOpen, togglePane } from "./panes";
 import { CBW_LEFT_PANE_ID, CBW_RIGHT_PANE_ID } from "./layout";
 import {
@@ -33,6 +34,7 @@ import {
  * the bare 14px edge inset (non-mac, or macOS fullscreen).
  */
 export function TitlebarControls({ hasSession }: { hasSession: boolean }) {
+  const { t } = useI18n();
   const isMac = isMacPlatform(window.api.platform);
   const isFullscreen = useFullscreen();
   const leftOpen = useStore($paneOpen(CBW_LEFT_PANE_ID));
@@ -50,7 +52,11 @@ export function TitlebarControls({ hasSession }: { hasSession: boolean }) {
       >
         <TitlebarToolButton
           icon="panel-left"
-          label={leftOpen ? "Hide sidebar" : "Show sidebar"}
+          label={
+            leftOpen
+              ? t.shell.titlebar.hideSidebar
+              : t.shell.titlebar.showSidebar
+          }
           onSelect={() => togglePane(CBW_LEFT_PANE_ID)}
         />
       </div>
@@ -62,7 +68,11 @@ export function TitlebarControls({ hasSession }: { hasSession: boolean }) {
         >
           <TitlebarToolButton
             icon="panel-right"
-            label={rightOpen ? "Hide right panel" : "Show right panel"}
+            label={
+              rightOpen
+                ? t.shell.titlebar.hideRightPanel
+                : t.shell.titlebar.showRightPanel
+            }
             onSelect={() => togglePane(CBW_RIGHT_PANE_ID)}
           />
         </div>

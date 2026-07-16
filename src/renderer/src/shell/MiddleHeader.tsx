@@ -4,6 +4,7 @@ import { isMacPlatform } from "@shared/platform";
 import { cx, ScrollHintShadow } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
 import { useFullscreen } from "../ui/use-fullscreen";
+import { useI18n } from "../i18n";
 import { headerRightPaddingPx, titlebarContentInsetPx } from "./titlebar";
 
 /**
@@ -49,6 +50,7 @@ export function MiddleHeader({
   rightEdgeExposed: boolean;
   menu: ReactNode;
 }) {
+  const { t } = useI18n();
   const isMac = isMacPlatform(window.api.platform);
   const isFullscreen = useFullscreen();
   const paddingLeft = leftEdgeExposed
@@ -88,12 +90,12 @@ export function MiddleHeader({
           {session && (
             <div
               role="group"
-              aria-label="View"
+              aria-label={t.shell.middleHeader.viewGroupLabel}
               className="flex shrink-0 items-center rounded-sm border border-(--ui-stroke-tertiary) bg-[color-mix(in_srgb,var(--color-fg)_5%,transparent)] p-[2px]"
             >
               <ViewSegment
                 icon="terminal"
-                label="Claude Code"
+                label={t.shell.middleHeader.claudeCode}
                 active={!transcriptOn}
                 onSelect={() => {
                   if (transcriptOn) {
@@ -104,7 +106,7 @@ export function MiddleHeader({
               />
               <ViewSegment
                 icon="scroll-text"
-                label="Transcript"
+                label={t.shell.middleHeader.transcript}
                 active={transcriptOn}
                 onSelect={() => {
                   if (!transcriptOn) onToggleTranscript();
