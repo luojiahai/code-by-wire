@@ -7,12 +7,8 @@ import {
   localDayKey,
   densifyDays,
 } from "@shared/stats";
-import {
-  formatTokensShort,
-  formatTokensAxis,
-  formatDayShort,
-  formatDayLong,
-} from "@shared/format";
+import { formatTokensShort, formatTokensAxis } from "@shared/format";
+import { useI18n } from "../i18n";
 import { BarSeries, type DayColumn } from "../ui/charts";
 import { modelColorOf } from "../ui/meta";
 import { Swatch } from "../ui/atoms";
@@ -37,12 +33,13 @@ export function ModelsCard({
   byModel: StatsByModel[];
   range: StatsRange;
 }) {
+  const { t } = useI18n();
   const hasChart = daily.length > 0;
   const hasList = byModel.some((r) => r.totalTokens > 0);
   if (!hasChart && !hasList) return null;
   return (
     <StatsCard>
-      <CardRegion title="Tokens per day">
+      <CardRegion title={t.stats.models.title}>
         {hasChart && (
           <TokensPerDay daily={daily} byModel={byModel} range={range} />
         )}
@@ -66,6 +63,7 @@ function TokensPerDay({
   byModel: StatsByModel[];
   range: StatsRange;
 }) {
+  const { t } = useI18n();
   // Contiguous calendar axis for the active window (see rangeWindow) — recomputed per render off
   // Date.now(); a midnight tick self-corrects.
   const now = Date.now();
@@ -102,14 +100,14 @@ function TokensPerDay({
   const stride = Math.max(1, Math.ceil(days.length / 8));
   const lastPhase = (days.length - 1) % stride;
   const xLabels = days
-    .map((d, i) => ({ index: i, label: formatDayShort(d.day) }))
+    .map((d, i) => ({ index: i, label: t.time.dayShort(d.day) }))
     .filter(({ index }) => index % stride === lastPhase);
 
   const renderTooltip = (i: number): ReactNode => {
     const d = days[i];
     const rows = series
       .map((s) => ({
-        label: s.modelRaw ?? "Unknown",
+        label: s.modelRaw ?? t.stats.shared.unknownModel,
         value: perDayModel[i].get(modelKey(s.modelRaw)) ?? 0,
         color: s.color,
       }))
@@ -117,9 +115,9 @@ function TokensPerDay({
     const total = rows.reduce((sum, r) => sum + r.value, 0);
     return (
       <div className="flex flex-col gap-1">
-        <div className="font-medium text-fg">{formatDayLong(d.day)}</div>
+        <div className="font-medium text-fg">{t.time.dayLong(d.day)}</div>
         {rows.length === 0 ? (
-          <div className="text-fg-faint">No usage</div>
+          <div className="text-fg-faint">{t.stats.models.tooltipNoUsage}</div>
         ) : (
           rows.map((r) => (
             <div key={r.label} className="flex items-center gap-1.5">
@@ -132,7 +130,7 @@ function TokensPerDay({
           ))
         )}
         <div className="mt-0.5 flex items-center gap-1.5 border-t border-ink-800 pt-1">
-          <span className="text-fg-muted">Total</span>
+          <span className="text-fg-muted">{t.stats.models.total}</span>
           <span className="ml-auto pl-3 font-mono tabular-nums text-fg">
             {formatTokensShort(total)}
           </span>
@@ -165,6 +163,7 @@ function ByModelList({
   rows: StatsByModel[];
   spaced: boolean;
 }) {
+  const { t } = useI18n();
   const total = rows.reduce((s, r) => s + r.totalTokens, 0);
   const ranked = rows
     .slice()
@@ -183,7 +182,7 @@ function ByModelList({
           <div className="flex items-center gap-2">
             <Swatch color={modelColorOf(r.modelRaw)} />
             <span className="truncate font-mono text-aux text-fg">
-              {r.modelRaw ?? "Unknown"}
+              {r.modelRaw ?? t.stats.shared.unknownModel}
             </span>
             <span className="font-mono text-meta tabular-nums text-fg-faint">
               {total > 0
@@ -192,8 +191,10 @@ function ByModelList({
             </span>
           </div>
           <div className="mt-0.5 pl-4 font-mono text-meta tabular-nums text-fg-faint">
-            In: {formatTokensShort(r.inputTokens)} · Out:{" "}
-            {formatTokensShort(r.outputTokens)}
+            {t.stats.models.inOut(
+              formatTokensShort(r.inputTokens),
+              formatTokensShort(r.outputTokens),
+            )}
           </div>
         </div>
       ))}

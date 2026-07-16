@@ -5,13 +5,8 @@ import {
   type StatsRecords,
   type StatsTotals,
 } from "@shared/stats";
-import {
-  formatTokensShort,
-  formatDuration,
-  formatDayShort,
-  formatDayLong,
-  formatMonthShort,
-} from "@shared/format";
+import { formatTokensShort } from "@shared/format";
+import { useI18n } from "../i18n";
 import { CalendarHeatmap } from "../ui/charts";
 import { CALENDAR_RAMP } from "../ui/meta";
 import {
@@ -57,6 +52,7 @@ export function OverviewCard({
   selectedDay: string | null;
   onSelectDay: (day: string) => void;
 }) {
+  const { t } = useI18n();
   const empty = totals.turns === 0;
 
   // Favorite model: the top byModel row by total tokens, so the tile always agrees with the By-model
@@ -70,8 +66,8 @@ export function OverviewCard({
           b.totalTokens - a.totalTokens ||
           (a.modelRaw ?? "").localeCompare(b.modelRaw ?? ""),
       )[0];
-    return top.modelRaw ?? "Unknown";
-  }, [empty, byModel]);
+    return top.modelRaw ?? t.stats.shared.unknownModel;
+  }, [empty, byModel, t]);
 
   // The Tokens tile figure: all four token kinds, matching every other token figure on the page.
   const tokenTotal =
@@ -88,46 +84,58 @@ export function OverviewCard({
   const streak = (n: number): ReactNode => (
     <>
       {n.toLocaleString("en-US")}
-      <span className="text-fg-faint"> {n === 1 ? "day" : "days"}</span>
+      <span className="text-fg-faint"> {t.stats.overview.streakUnit(n)}</span>
     </>
   );
 
   return (
     <StatsCard>
       <div className="grid grid-cols-4">
-        <KpiTile label="Sessions" className={cellBorder(0)}>
+        <KpiTile label={t.stats.overview.sessions} className={cellBorder(0)}>
           {totals.sessions.toLocaleString("en-US")}
         </KpiTile>
-        <KpiTile label="Tokens" className={cellBorder(1)}>
+        <KpiTile label={t.stats.overview.tokens} className={cellBorder(1)}>
           {formatTokensShort(tokenTotal)}
         </KpiTile>
         <KpiTile
-          label="Favorite model"
+          label={t.stats.overview.favoriteModel}
           title={favorite ?? undefined}
           className={cellBorder(2)}
         >
           {favorite ?? EMPTY}
         </KpiTile>
-        <KpiTile label="Active days" className={cellBorder(3)}>
+        <KpiTile label={t.stats.overview.activeDays} className={cellBorder(3)}>
           {records.activeDays.toLocaleString("en-US")}
           <span className="text-fg-faint">
             /{records.windowDays.toLocaleString("en-US")}
           </span>
         </KpiTile>
-        <KpiTile label="Most active day" className={cellBorder(4)}>
+        <KpiTile
+          label={t.stats.overview.mostActiveDay}
+          className={cellBorder(4)}
+        >
           {records.mostActiveDay
-            ? formatDayShort(records.mostActiveDay)
+            ? t.time.dayShort(records.mostActiveDay)
             : EMPTY}
         </KpiTile>
-        <KpiTile label="Longest session" className={cellBorder(5)}>
+        <KpiTile
+          label={t.stats.overview.longestSession}
+          className={cellBorder(5)}
+        >
           {records.longestSessionMs > 0
-            ? formatDuration(records.longestSessionMs)
+            ? t.time.duration(records.longestSessionMs)
             : EMPTY}
         </KpiTile>
-        <KpiTile label="Longest streak" className={cellBorder(6)}>
+        <KpiTile
+          label={t.stats.overview.longestStreak}
+          className={cellBorder(6)}
+        >
           {streak(records.longestStreakDays)}
         </KpiTile>
-        <KpiTile label="Current streak" className={cellBorder(7)}>
+        <KpiTile
+          label={t.stats.overview.currentStreak}
+          className={cellBorder(7)}
+        >
           {streak(records.currentStreakDays)}
         </KpiTile>
       </div>
@@ -174,6 +182,7 @@ function Contributions({
   selectedDay: string | null;
   onSelectDay: (day: string) => void;
 }) {
+  const { t } = useI18n();
   const byDay = useMemo(() => new Map(days.map((d) => [d.day, d])), [days]);
   const valueOf = useCallback(
     (day: string): number => byDay.get(day)?.totalTokens ?? 0,
@@ -203,25 +212,25 @@ function Contributions({
     () =>
       monthLabelCols(weeks).map((m) => ({
         col: m.col,
-        label: formatMonthShort(m.firstDay),
+        label: t.time.monthShort(m.firstDay),
       })),
-    [weeks],
+    [weeks, t],
   );
 
   const valueLabel = (day: string): string =>
-    `${formatTokensShort(valueOf(day))} tokens`;
+    t.stats.overview.tokensLabel(formatTokensShort(valueOf(day)));
   const renderTooltip = (day: string): ReactNode => (
     <div className="flex flex-col gap-0.5">
-      <div className="font-medium text-fg">{formatDayLong(day)}</div>
+      <div className="font-medium text-fg">{t.time.dayLong(day)}</div>
       <div className="text-fg-muted">{valueLabel(day)}</div>
     </div>
   );
   const describeDay = (day: string): string =>
-    `${formatDayLong(day)}: ${valueLabel(day)}`;
+    t.stats.overview.dayTokensAria(t.time.dayLong(day), valueLabel(day));
 
   return (
     <CardRegion
-      title="Contributions"
+      title={t.stats.overview.contributions}
       right={<YearSwitcher years={years} value={year} onChange={onYear} />}
     >
       <CalendarHeatmap
@@ -235,7 +244,7 @@ function Contributions({
         monthLabels={monthLabels}
       />
       <div className="mt-3 flex items-center gap-1.5 text-label text-fg-faint">
-        <span>Less</span>
+        <span>{t.stats.overview.less}</span>
         {CALENDAR_RAMP.map((c, i) => (
           <span
             key={i}
@@ -243,7 +252,7 @@ function Contributions({
             style={{ background: c }}
           />
         ))}
-        <span>More</span>
+        <span>{t.stats.overview.more}</span>
       </div>
     </CardRegion>
   );
@@ -259,6 +268,7 @@ function YearSwitcher({
   value: number | null;
   onChange: (y: number | null) => void;
 }) {
+  const { t } = useI18n();
   return (
     <select
       value={value ?? "trailing"}
@@ -267,7 +277,7 @@ function YearSwitcher({
       }
       className="rounded-md border border-ink-800 bg-ink-900 px-2 py-1 text-meta text-fg-muted"
     >
-      <option value="trailing">Last 12 months</option>
+      <option value="trailing">{t.stats.overview.trailingYear}</option>
       {years.map((y) => (
         <option key={y} value={y}>
           {y}

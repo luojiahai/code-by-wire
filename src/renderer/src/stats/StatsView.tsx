@@ -8,7 +8,7 @@ import {
   emptySnapshot,
   isDayRange,
 } from "@shared/stats";
-import { formatDayShort } from "@shared/format";
+import { useI18n } from "../i18n";
 import { Icon } from "../ui/icons";
 import { RangeFilter } from "./shared";
 import { OverviewCard } from "./OverviewCard";
@@ -30,6 +30,7 @@ const WARM_POLL_MS = 1500;
  * nothing unprompted.
  */
 export function StatsView() {
+  const { t } = useI18n();
   const [snap, setSnap] = useState<StatsSnapshot | null>(null);
   const [range, setRange] = useState<StatsRange>(DEFAULT_RANGE);
   // The calendar's window selector: null = trailing twelve months, a number = that local year. Independent
@@ -116,10 +117,10 @@ export function StatsView() {
             <button
               type="button"
               onClick={() => setRange(DEFAULT_RANGE)}
-              title="Clear the day filter"
+              title={t.stats.clearDayFilter}
               className="flex items-center gap-1 rounded-md border border-ink-700 bg-ink-700 px-2 py-0.5 text-meta text-fg transition-colors hover:bg-ink-600"
             >
-              {formatDayShort(range.day)}
+              {t.time.dayShort(range.day)}
               <span aria-hidden className="text-fg-muted">
                 ×
               </span>
@@ -175,13 +176,14 @@ export function StatsView() {
 /** The first-cold-run progress state (#107 user story 26): a thin determinate bar while the scan ingests
  *  history. Gone once progress.done — the warm polls that follow refresh the totals silently. */
 function BuildingHistory({ progress }: { progress: ScanProgress }) {
+  const { t } = useI18n();
   const pct = progress.filesTotal
     ? Math.round((progress.filesDone / progress.filesTotal) * 100)
     : 0;
   return (
     <div className="flex flex-col gap-1.5 rounded-md border border-ink-800 bg-ink-900/40 px-3 py-2.5">
       <div className="flex items-center justify-between text-meta text-fg-muted">
-        <span>Building history…</span>
+        <span>{t.stats.buildingHistory}</span>
         <span className="tabular-nums">
           {progress.filesDone.toLocaleString("en-US")}/
           {progress.filesTotal.toLocaleString("en-US")}
@@ -198,10 +200,11 @@ function BuildingHistory({ progress }: { progress: ScanProgress }) {
 }
 
 function EmptyStats() {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center gap-2.5 py-24 text-fg-faint">
       <Icon name="chart-column" size={28} />
-      <p className="text-body">No usage yet.</p>
+      <p className="text-body">{t.stats.noUsage}</p>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { type StatsRange, type RangePreset } from "@shared/stats";
+import { useI18n } from "../i18n";
 
 /** The merged-card shell (#spec 2026-07-03 Visual language): one border, ink-925 surface — the
  *  page-primitives Card treatment without its mandatory title strip. Deliberately NOT overflow-clipped:
@@ -83,17 +84,9 @@ export function KpiTile({
 }
 
 /** The page-global range filter: five trailing windows (Today/7d/30d/90d/All), defaulting to 30d,
- *  scoping every total on the page (not the calendar, which is range-independent). */
-const RANGE_LABELS = {
-  today: "Today",
-  "7d": "7d",
-  "30d": "30d",
-  "90d": "90d",
-  all: "All",
-} satisfies Record<RangePreset, string>;
-
-const RANGE_OPTS = Object.entries(RANGE_LABELS) as [RangePreset, string][];
-
+ *  scoping every total on the page (not the calendar, which is range-independent). Labels resolve
+ *  from the live catalog inside the component (never at module scope) so a locale switch relabels
+ *  the chips immediately. */
 export function RangeFilter({
   value,
   onChange,
@@ -101,9 +94,18 @@ export function RangeFilter({
   value: StatsRange;
   onChange: (r: StatsRange) => void;
 }) {
+  const { t } = useI18n();
+  const rangeLabels = {
+    today: t.stats.shared.rangeToday,
+    "7d": t.stats.shared.range7d,
+    "30d": t.stats.shared.range30d,
+    "90d": t.stats.shared.range90d,
+    all: t.stats.shared.rangeAll,
+  } satisfies Record<RangePreset, string>;
+  const rangeOpts = Object.entries(rangeLabels) as [RangePreset, string][];
   return (
     <div className="flex items-center gap-0.5 rounded-md border border-ink-800 bg-ink-900 p-0.5 text-meta">
-      {RANGE_OPTS.map(([v, label]) => (
+      {rangeOpts.map(([v, label]) => (
         <button
           key={v}
           onClick={() => onChange(v)}
