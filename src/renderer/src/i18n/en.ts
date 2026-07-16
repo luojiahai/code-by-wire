@@ -43,6 +43,15 @@ export const en = {
       dark: "Dark",
       light: "Light",
     },
+    system: {
+      title: "System",
+      lede: "The machinery feeding this app. Keep it green.",
+    },
+    about: {
+      title: "About",
+      tagline:
+        "Pilot every Claude Code session and monitor its telemetry, from one cockpit.",
+    },
   },
   /** Wordy time/rate formatting (relative times, durations, month dates). English
    *  delegates to the deterministic @shared/format helpers; zh re-implements the

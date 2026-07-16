@@ -30,6 +30,14 @@ export const zh: Translations = {
       dark: "深色",
       light: "浅色",
     },
+    system: {
+      title: "系统",
+      lede: "驱动本应用的底层机件，保持绿灯。",
+    },
+    about: {
+      title: "关于",
+      tagline: "在同一座驾驶舱里，掌控每个 Claude Code 会话并监控其遥测。",
+    },
   },
   time: {
     ago: (ms, now) => {
