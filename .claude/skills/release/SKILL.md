@@ -190,6 +190,16 @@ already done).
    the background so you get pinged on exit — but in zsh, **don't name the
    loop variable `status`**: it's read-only and silently kills the loop on
    the first iteration. Use `st` or similar.
+
+   That background poll's completion notification is the only wakeup this
+   needs — don't also reach for `ScheduleWakeup` as a belt-and-suspenders
+   fallback "in case the notification doesn't fire." That tool only exists
+   for `/loop`'s dynamic-pacing mode; calling it here errors (`prompt` is
+   required unless `stop: true`) and, more to the point, is redundant even
+   if it took a prompt — the harness already tracks the background command
+   and will notify on exit regardless of how long the matrix takes. If a
+   background notification genuinely seems lost, check the run directly
+   (`gh run view`) rather than scheduling a timer.
    - **On failure:** pull the job logs, report the cause. If it was a flake,
      re-trigger by re-pushing the tag
      (`git push origin :refs/tags/vX.Y.Z && git push origin vX.Y.Z`) — yourself if
