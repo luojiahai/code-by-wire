@@ -20,6 +20,12 @@ import {
 } from "./revive";
 import { shellRouter } from "./router-instance";
 import { macEditSequence } from "../ui/mac-edit-sequence";
+import { clipboardKeyAction } from "../xterm/clipboard-keys";
+import {
+  attachClipboardContextMenu,
+  runClipboardAction,
+  type ClipboardActionDeps,
+} from "../xterm/clipboard-actions";
 import { closeTerminal, updateTerminalReviveBuffer } from "./terminals";
 
 // How many scrollback lines to serialize for relaunch restore (VS Code's
@@ -335,16 +341,34 @@ export function useTerminalSession({
     // arrow-modifier sequences aren't interpreted by the shell's line editor, so without this the
     // keys are inert (see ui/mac-edit-sequence for the byte table). Unlike the Claude Code terminal,
     // there's no Shift+Enter remap here: a real shell reads bare Enter as submit and that must stay
-    // untouched.
-    const isMac = isMacPlatform(window.api.platform);
+    // untouched. Clipboard combos run first on every platform (win/linux copy/paste — mac rides
+    // the native menu, see clipboard-keys).
+    const platform = window.api.platform;
+    const isMac = isMacPlatform(platform);
+    const clipDeps: ClipboardActionDeps = {
+      term,
+      writePty: (data) => api.write(sessionId, data),
+      clipboard: {
+        readText: (type) => window.api.clipboardReadText(type),
+        writeText: (text) => window.api.clipboardWriteText(text),
+      },
+    };
     term.attachCustomKeyEventHandler((e) => {
+      const action = clipboardKeyAction(e, platform, term.hasSelection());
+      if (action !== null) {
+        e.preventDefault();
+        void runClipboardAction(action, clipDeps); // never rejects
+        return false; // we own the combo; xterm must not also emit its ^V/^C byte
+      }
       if (!isMac) return true;
       const seq = macEditSequence(e);
-      if (seq === null) return true; // not ours — plain keys, copy/paste, etc.
+      if (seq === null) return true; // not ours — plain keys, etc.
       e.preventDefault();
       api.write(sessionId, seq);
       return false; // we sent the bytes; stop xterm emitting its own sequence
     });
+    // Windows right-click copyPaste on the host (the shell tab's mount element).
+    cleanup.push(attachClipboardContextMenu(host, platform, clipDeps));
 
     const startSession = (): void =>
       void api
