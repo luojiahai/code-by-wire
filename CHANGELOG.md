@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.33] - 2026-07-16
+
+### Fixed
+
+- Copy and paste were broken in both terminals on Windows and Linux — xterm.js
+  claimed Ctrl+C/Ctrl+V as raw control bytes with no keybinding to override
+  them, so only macOS worked (by relying on the native app menu consuming
+  Cmd+C/V). Both terminals now adopt VS Code's platform clipboard
+  keybindings: Ctrl+Shift+C/V, Shift+Insert paste, right-click copy/paste,
+  and a Ctrl+V image-paste fallback for the Claude CLI's clipboard-image
+  support; macOS is unchanged.
+
 ## [0.1.32] - 2026-07-15
 
 ### Added
@@ -785,7 +797,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.32...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.33...HEAD
+[0.1.33]: https://github.com/luojiahai/code-by-wire/compare/v0.1.32...v0.1.33
 [0.1.32]: https://github.com/luojiahai/code-by-wire/compare/v0.1.31...v0.1.32
 [0.1.31]: https://github.com/luojiahai/code-by-wire/compare/v0.1.30...v0.1.31
 [0.1.30]: https://github.com/luojiahai/code-by-wire/compare/v0.1.29...v0.1.30
