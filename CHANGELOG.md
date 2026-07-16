@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.34] - 2026-07-16
+
+### Changed
+
+- UI chrome — the left sidebar, right-sidebar telemetry, footer, Activity
+  dock, terminal rail, and the Stats/Settings/New Session views — is no
+  longer text-selectable, matching native apps (hermes-agent parity).
+  Real content stays selectable: transcript bubbles, markdown/code
+  blocks, detail-modal content, and every input.
+
 ## [0.1.33] - 2026-07-16
 
 ### Fixed
@@ -797,7 +807,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.33...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.34...HEAD
+[0.1.34]: https://github.com/luojiahai/code-by-wire/compare/v0.1.33...v0.1.34
 [0.1.33]: https://github.com/luojiahai/code-by-wire/compare/v0.1.32...v0.1.33
 [0.1.32]: https://github.com/luojiahai/code-by-wire/compare/v0.1.31...v0.1.32
 [0.1.31]: https://github.com/luojiahai/code-by-wire/compare/v0.1.30...v0.1.31

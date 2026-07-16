@@ -83,6 +83,20 @@ like before: "merge", "release it", and "publish" all still work as re-entry
 phrases for picking the thread back up later, since the automation choice
 made in one conversation doesn't carry into the next.
 
+## Don't spin up a task list
+
+The numbered steps in each phase already are the plan, and the background
+CI polls plus their completion notifications (Phase 1 step 8, Phase 2's
+"Shepherd CI" step) already carry progress — a `TaskCreate` todo list on top of that duplicates both
+without adding anything. It's also fragile mid-run: `TaskCreate` is a
+deferred tool with no batched-`tasks` parameter, so passing a whole list in
+one call throws `InputValidationError`, and recovering (discovering the
+real schema via `ToolSearch`, then calling it once per step) just burns
+turns in the middle of a live release. If the harness nudges with a "task
+tools haven't been used recently" reminder while you're executing these
+steps, that's a generic prompt, not a sign this skill needs one — keep
+following the steps directly instead.
+
 ## Phase 1 — "bump version" (before release)
 
 Do all the prep on a branch and open the PR. **Do not tag.**
