@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.35] - 2026-07-17
+
+### Added
+
+- Settings → Appearance gains a language picker for Simplified Chinese,
+  alongside a full app-wide translation: sidebars, footer, Activity dock,
+  Stats views, Settings cards and CLI remedies, both terminals (chrome,
+  exit/spawn-failure banners), workspace/transcript/modal surfaces, and the
+  Session panel's PR status word. Chinese-locale number formatting uses
+  native 万/亿 units instead of k/M, and dock/hero layouts were adjusted so
+  the longer Chinese strings don't wrap or overflow. English stays the
+  default; no existing install's language changes until a user opts in.
+
 ## [0.1.34] - 2026-07-16
 
 ### Changed
@@ -807,7 +820,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.34...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.35...HEAD
+[0.1.35]: https://github.com/luojiahai/code-by-wire/compare/v0.1.34...v0.1.35
 [0.1.34]: https://github.com/luojiahai/code-by-wire/compare/v0.1.33...v0.1.34
 [0.1.33]: https://github.com/luojiahai/code-by-wire/compare/v0.1.32...v0.1.33
 [0.1.32]: https://github.com/luojiahai/code-by-wire/compare/v0.1.31...v0.1.32
