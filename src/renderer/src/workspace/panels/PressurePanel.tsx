@@ -51,7 +51,7 @@ function RateRow({
       <span className="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-(--ui-text-secondary)">
         {w ? `${pct}%` : "-"}
       </span>
-      <span className="w-16 shrink-0 whitespace-nowrap text-right font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
+      <span className="w-16 shrink-0 text-right font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
         {w ? t.time.countdown(w.resetsAt, now) : "-"}
       </span>
     </div>

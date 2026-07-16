@@ -98,7 +98,7 @@ export function MetricCell({
   return (
     <span
       className={cx(
-        "shrink-0 whitespace-nowrap text-right font-mono text-meta tabular-nums",
+        "shrink-0 text-right font-mono text-meta tabular-nums",
         width,
         tone,
         className,
