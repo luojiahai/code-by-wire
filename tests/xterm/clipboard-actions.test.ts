@@ -136,6 +136,16 @@ describe("runClipboardAction — paste", () => {
     expect(f.ptyWrites).toEqual([]);
     expect(f.pastes).toEqual([]);
   });
+
+  it("non-empty read that preparePasteText reduces to null: no paste AND no fallback byte", async () => {
+    // A bare newline is a successful, NON-empty read, but preparePasteText returns null for
+    // it (not bracketed). The ^V fallback is gated on the raw read being empty, so it must
+    // NOT fire here — this pins the last seam of the fallback invariant.
+    const f = fakeDeps({ clipboardText: "\n" });
+    await runClipboardAction("paste", f.deps);
+    expect(f.pastes).toEqual([]);
+    expect(f.ptyWrites).toEqual([]);
+  });
 });
 
 describe("attachClipboardContextMenu — Windows right-click copyPaste", () => {
