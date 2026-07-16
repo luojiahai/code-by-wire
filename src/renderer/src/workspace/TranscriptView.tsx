@@ -30,7 +30,10 @@ export function TranscriptFeed({
     countRef.current = events.length;
   }, [events.length]);
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-5">
+    <div
+      data-selectable-text="true"
+      className="mx-auto max-w-3xl space-y-4 p-5"
+    >
       {events.map((e, i) => (
         <EventItem
           key={i}

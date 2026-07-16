@@ -727,3 +727,29 @@ body:has([data-suppress-pane-reveal]:hover) [data-pane-reveal-trigger] {
 .title-bar {
   zoom: calc(1 / var(--zoom-factor, 1));
 }
+
+/* Native-app selection model (hermes styles.css:467, 754-761): chrome is not
+   selectable; content opts in via data-selectable-text, form fields always.
+   Order matters: the opt-in beats the body default, and the button/summary
+   re-assert beats the opt-in's descendant rule — all three are unlayered, so
+   they also beat Tailwind's layered utilities. `summary` is ours (not hermes):
+   the transcript's <summary> carries a Tailwind select-none that, living in
+   @layer utilities, would lose to the unlayered descendant opt-in. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable]:not([contenteditable="false"]),
+[data-selectable-text="true"],
+[data-selectable-text="true"] * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+button,
+[role="button"],
+summary {
+  -webkit-user-select: none;
+  user-select: none;
+}
