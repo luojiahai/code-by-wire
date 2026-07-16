@@ -83,28 +83,46 @@ like before: "merge", "release it", and "publish" all still work as re-entry
 phrases for picking the thread back up later, since the automation choice
 made in one conversation doesn't carry into the next.
 
-## Don't spin up a task list
+## Task list
 
-The numbered steps in each phase already are the plan, and the background
-CI polls plus their completion notifications (Phase 1 step 8, Phase 2's
-"Shepherd CI" step) already carry progress — a `TaskCreate` todo list on top of that duplicates both
-without adding anything. It's also fragile mid-run: `TaskCreate` is a
-deferred tool with no batched-`tasks` parameter, so passing a whole list in
-one call throws `InputValidationError`, and recovering (discovering the
-real schema via `ToolSearch`, then calling it once per step) just burns
-turns in the middle of a live release. If the harness nudges with a "task
-tools haven't been used recently" reminder while you're executing these
-steps, that's a generic prompt, not a sign this skill needs one — keep
-following the steps directly instead.
+Create one right after the maintainer answers "How far to take it" — at that
+point you already know exactly which numbered steps this run will touch, so
+there's nothing left to guess about what belongs on the list.
+
+`TaskCreate` and `TaskUpdate` are deferred tools — look up their real schemas
+once with `ToolSearch("select:TaskCreate,TaskUpdate")` before the first call.
+`TaskCreate` takes one task per call (`subject`, `description`, optional
+`activeForm`); there's no batched `tasks` array, so don't hand it the whole
+list at once — an earlier run guessed at that shape and hit
+`InputValidationError`. The fix isn't to skip the list, it's to call it once
+per step: since the calls don't depend on each other, fire them all in the
+same turn and the harness runs them in parallel, so the full checklist still
+appears in one shot instead of trickling in turn by turn.
+
+Use each step's bolded lead-in as the task's `subject` ("Pick the version",
+"Branch off main", "Confirm state", …) — the numbered steps below already
+read like task titles, so there's nothing new to compose. Create one task per
+step this run will actually reach, and skip whichever tail the maintainer's
+"How far" answer left out: no "Publish" task if they want to publish it
+themselves, no Phase 2 tasks at all if they chose to stop after opening the
+PR. Treat each background CI wait (Phase 1's merge-once-green step, Phase 2's
+"Shepherd CI" step) as a single task covering the whole wait — move it to
+`in_progress` when you kick off the poll, and `completed` only once the
+notification confirms it, not when the poll merely starts.
+
+Move each task to `in_progress` right before you start it and `completed`
+right after, via `TaskUpdate` — that's what keeps the checklist live instead
+of a snapshot from the start of the run.
 
 If a long release loses its place — a compaction event drops earlier turns,
-or a fresh conversation picks up a run that stalled between phases — don't
-reach for a todo list to reconstruct where you were. Re-orient from the same
-real state "Orient first" and Phase 2 step 1 already check: PR merge status,
-whether the bump commit landed on `main`, whether the tag exists, and
-`gh run list`/`gh run view` for the Release workflow. That state is
-authoritative and always current; a todo list would just be a stale copy of
-it.
+or a fresh conversation picks up a run that stalled between phases — call
+`TaskList` first so you don't spin up a second, duplicate set for the same
+release. Don't trust its statuses at face value, though: re-orient from the
+same real state "Orient first" and Phase 2 step 1 already check (PR merge
+status, whether the bump commit landed on `main`, whether the tag exists,
+`gh run list`/`gh run view`), then reconcile the task list to match. Real
+repo/CI state stays authoritative; the task list mirrors it, it doesn't
+replace it.
 
 ## Phase 1 — "bump version" (before release)
 
