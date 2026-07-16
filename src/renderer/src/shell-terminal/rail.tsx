@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { useI18n } from "../i18n";
 import { setTerminalTakeover } from "./store";
 import {
   $activeTerminalId,
@@ -26,6 +27,7 @@ interface MenuState {
 /** Thin icon "bookmark" strip on the pane's outer edge, shown whenever a terminal exists. Each
  *  square is a tab; close via the shell's `exit`, middle-click, or the context menu. */
 export function TerminalRail({ asRow }: { asRow: boolean }) {
+  const { t } = useI18n();
   const terminals = useStore($terminals);
   const activeId = useStore($activeTerminalId);
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -41,7 +43,7 @@ export function TerminalRail({ asRow }: { asRow: boolean }) {
       )}
     >
       <ul
-        aria-label="Terminals"
+        aria-label={t.terminal.tabListAria}
         className="flex min-h-0 flex-1 flex-col items-center gap-0.5 self-stretch overflow-y-auto overflow-x-hidden overscroll-contain py-1 [scrollbar-width:none]"
         role="tablist"
       >
@@ -56,10 +58,10 @@ export function TerminalRail({ asRow }: { asRow: boolean }) {
         ))}
         <li className="flex w-full justify-center">
           <button
-            aria-label="New terminal"
+            aria-label={t.terminal.newTerminal}
             className={cx(RAIL_ACTION, "text-(--ui-text-quaternary)")}
             onClick={() => createTerminal()}
-            title="New terminal"
+            title={t.terminal.newTerminal}
             type="button"
           >
             <Icon name="plus" size={13} />
@@ -69,13 +71,13 @@ export function TerminalRail({ asRow }: { asRow: boolean }) {
 
       <div className="flex shrink-0 flex-col items-center pb-1.5">
         <button
-          aria-label="Hide terminal"
+          aria-label={t.shell.footer.hideTerminal}
           className={cx(
             RAIL_ACTION,
             "opacity-0 transition-opacity group-hover/rail:opacity-100",
           )}
           onClick={() => setTerminalTakeover(false)}
-          title="Hide terminal"
+          title={t.shell.footer.hideTerminal}
           type="button"
         >
           <Icon name="chevron-down" size={13} />
@@ -151,6 +153,7 @@ function RailContextMenu({
   canCloseOthers: boolean;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === "Escape") onClose();
@@ -189,7 +192,7 @@ function RailContextMenu({
           onClick={run(() => closeTerminal(menu.termId))}
           type="button"
         >
-          Close
+          {t.common.close}
         </button>
         <button
           className={item}
@@ -197,10 +200,10 @@ function RailContextMenu({
           onClick={run(() => closeOtherTerminals(menu.termId))}
           type="button"
         >
-          Close others
+          {t.terminal.closeOthers}
         </button>
         <button className={item} onClick={run(closeAllTerminals)} type="button">
-          Close all
+          {t.terminal.closeAll}
         </button>
         <div className="mx-2 my-1 h-px bg-(--ui-stroke-tertiary)" />
         <button
@@ -208,7 +211,7 @@ function RailContextMenu({
           onClick={run(() => setTerminalTakeover(false))}
           type="button"
         >
-          Hide terminal
+          {t.shell.footer.hideTerminal}
         </button>
       </div>
     </>

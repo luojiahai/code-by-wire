@@ -276,6 +276,17 @@ export const en = {
       ungrouped: "(no project)",
     },
   },
+  /** The interactive shell-terminal pane's tab rail (rail.tsx) and its context menu. Terminal
+   *  CONTENT (pty/shell output) is the shell's own — never translated; only this rail chrome
+   *  around it is. `defaultTitle` is the tab's placeholder label until the pty reports the
+   *  resolved shell name or the user renames it. */
+  terminal: {
+    tabListAria: "Terminals",
+    newTerminal: "New terminal",
+    closeOthers: "Close others",
+    closeAll: "Close all",
+    defaultTitle: "Terminal",
+  },
   workspace: {
     emptyStates: {
       noSessions: "No Claude Code sessions found.",

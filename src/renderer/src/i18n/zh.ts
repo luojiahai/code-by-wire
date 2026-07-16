@@ -248,6 +248,13 @@ export const zh: Translations = {
       ungrouped: "（无项目）",
     },
   },
+  terminal: {
+    tabListAria: "终端",
+    newTerminal: "新建终端",
+    closeOthers: "关闭其他",
+    closeAll: "关闭全部",
+    defaultTitle: "终端",
+  },
   workspace: {
     emptyStates: {
       noSessions: "未找到 Claude Code 会话。",
