@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import type { Subagent } from "@shared/types";
-import { formatTokensShort } from "@shared/format";
 import { cx } from "../../ui/atoms";
 import { FAMILY_LABEL } from "../../ui/meta";
 import { useI18n } from "../../i18n";
@@ -68,7 +67,7 @@ function SubagentRow({
             tone="text-(--ui-text-secondary)"
             unit={t.dock.tokensUnit}
           >
-            {formatTokensShort(agent.tokens)}
+            {t.numbers.tokensShort(agent.tokens)}
           </MetricCell>
           <MetricCell
             width="w-24"

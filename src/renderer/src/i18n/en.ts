@@ -5,6 +5,8 @@ import {
   formatMonthShort,
   formatRelativeTime,
   formatResetCountdown,
+  formatTokensAxis,
+  formatTokensShort,
   formatTps,
 } from "@shared/format";
 
@@ -573,8 +575,11 @@ export const en = {
   /** Wordy time/rate formatting (relative times, durations, month dates). English
    *  delegates to the deterministic @shared/format helpers; zh re-implements the
    *  same thresholds with Chinese units (hermes-style per-locale function values).
-   *  Pure-numeric formatters (tokens, $, bytes) are NOT here — they stay in
-   *  @shared/format, locale-independent by design. */
+   *  Digit-grouped and currency formatters (formatTokens, formatUsd, formatBytes) are
+   *  NOT here — they stay in @shared/format, locale-independent by design. The
+   *  k/M-abbreviated token counts ARE here (see `numbers` below): Chinese groups large
+   *  numbers by powers of 10^4 (万/亿), not 10^3 (k/M), so the abbreviation itself —
+   *  not just a unit label — differs by locale. */
   time: {
     ago: (ms: number, now: number) => formatRelativeTime(ms, now),
     countdown: (resetsAt: number, now: number) =>
@@ -593,6 +598,13 @@ export const en = {
     dayShort: (day: string) => formatDayShort(day),
     dayLong: (day: string) => formatDayLong(day),
     monthShort: (day: string) => formatMonthShort(day),
+  },
+  // Large-number abbreviation. English groups by powers of 10^3 (k/M) via the shared
+  // formatTokensShort/formatTokensAxis helpers; zh groups by powers of 10^4 (万/亿) with
+  // its own thresholds — a genuinely different scheme, not just a different unit string.
+  numbers: {
+    tokensShort: (n: number) => formatTokensShort(n),
+    tokensAxis: (n: number) => formatTokensAxis(n),
   },
 };
 

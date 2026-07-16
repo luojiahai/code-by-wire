@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import type { Session } from "@shared/types";
 import type { GitInfo, PrInfo } from "@shared/metrics";
-import { formatTokensShort } from "@shared/format";
 import { modelLabel } from "../ui/meta";
 import { PanelSection, PanelHeading } from "../workspace/panels/chrome";
 import { useI18n } from "../i18n";
@@ -87,7 +86,7 @@ export function SessionPanel({
             title={
               s.compactionTokensReclaimed
                 ? t.shell.sessionPanel.tokensReclaimed(
-                    formatTokensShort(s.compactionTokensReclaimed),
+                    t.numbers.tokensShort(s.compactionTokensReclaimed),
                   )
                 : undefined
             }

@@ -1,6 +1,5 @@
 import { Fragment, useState } from "react";
 import { type StatsByProject } from "@shared/stats";
-import { formatTokensShort } from "@shared/format";
 import { useI18n } from "../i18n";
 import { Swatch } from "../ui/atoms";
 import { StatsCard, CardRegion } from "./shared";
@@ -82,7 +81,7 @@ function Breakdown({
                     </span>
                   </td>
                   <td className="pt-2 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
-                    {formatTokensShort(r.tokens)}
+                    {t.numbers.tokensShort(r.tokens)}
                   </td>
                 </tr>
                 <tr>

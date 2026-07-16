@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { ModelUsage, Usage } from "@shared/types";
 import { viewUsageByModel } from "@shared/usage-by-model";
-import { formatTokensShort, formatUsd } from "@shared/format";
+import { formatUsd } from "@shared/format";
 import { MetricTip } from "../../ui/MetricTip";
 import { TOKEN_KINDS, type TokenKind } from "../../ui/token-kinds";
 import { useI18n } from "../../i18n";
@@ -65,7 +65,7 @@ export function SpendPanel({
 
       <div className="flex items-baseline justify-between">
         <div className="font-mono text-title font-medium leading-none tabular-nums text-fg">
-          {formatTokensShort(total)}
+          {t.numbers.tokensShort(total)}
           <span className="text-xs text-fg-faint"> {t.dock.tokensUnit}</span>
         </div>
         <span className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
@@ -78,7 +78,7 @@ export function SpendPanel({
           <StatRow
             key={k.key}
             label={<KindLabel {...t.dock.spend.kinds[k.key]} />}
-            value={formatTokensShort(KIND_TOKENS[k.key](usage))}
+            value={t.numbers.tokensShort(KIND_TOKENS[k.key](usage))}
           />
         ))}
       </div>

@@ -7,7 +7,6 @@ import {
   localDayKey,
   densifyDays,
 } from "@shared/stats";
-import { formatTokensShort, formatTokensAxis } from "@shared/format";
 import { useI18n } from "../i18n";
 import { BarSeries, type DayColumn } from "../ui/charts";
 import { modelColorOf } from "../ui/meta";
@@ -124,7 +123,7 @@ function TokensPerDay({
               <Swatch color={r.color} />
               <span className="text-fg-muted">{r.label}</span>
               <span className="ml-auto pl-3 font-mono tabular-nums text-fg">
-                {formatTokensShort(r.value)}
+                {t.numbers.tokensShort(r.value)}
               </span>
             </div>
           ))
@@ -132,7 +131,7 @@ function TokensPerDay({
         <div className="mt-0.5 flex items-center gap-1.5 border-t border-ink-800 pt-1">
           <span className="text-fg-muted">{t.stats.models.total}</span>
           <span className="ml-auto pl-3 font-mono tabular-nums text-fg">
-            {formatTokensShort(total)}
+            {t.numbers.tokensShort(total)}
           </span>
         </div>
       </div>
@@ -142,7 +141,7 @@ function TokensPerDay({
   return (
     <BarSeries
       columns={columns}
-      formatTick={formatTokensAxis}
+      formatTick={t.numbers.tokensAxis}
       xLabels={xLabels}
       renderTooltip={renderTooltip}
     />
@@ -192,8 +191,8 @@ function ByModelList({
           </div>
           <div className="mt-0.5 pl-4 font-mono text-meta tabular-nums text-fg-faint">
             {t.stats.models.inOut(
-              formatTokensShort(r.inputTokens),
-              formatTokensShort(r.outputTokens),
+              t.numbers.tokensShort(r.inputTokens),
+              t.numbers.tokensShort(r.outputTokens),
             )}
           </div>
         </div>

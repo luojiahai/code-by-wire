@@ -5,7 +5,6 @@ import {
   type StatsRecords,
   type StatsTotals,
 } from "@shared/stats";
-import { formatTokensShort } from "@shared/format";
 import { useI18n } from "../i18n";
 import { CalendarHeatmap } from "../ui/charts";
 import { CALENDAR_RAMP } from "../ui/meta";
@@ -95,7 +94,7 @@ export function OverviewCard({
           {totals.sessions.toLocaleString("en-US")}
         </KpiTile>
         <KpiTile label={t.stats.overview.tokens} className={cellBorder(1)}>
-          {formatTokensShort(tokenTotal)}
+          {t.numbers.tokensShort(tokenTotal)}
         </KpiTile>
         <KpiTile
           label={t.stats.overview.favoriteModel}
@@ -218,7 +217,7 @@ function Contributions({
   );
 
   const valueLabel = (day: string): string =>
-    t.stats.overview.tokensLabel(formatTokensShort(valueOf(day)));
+    t.stats.overview.tokensLabel(t.numbers.tokensShort(valueOf(day)));
   const renderTooltip = (day: string): ReactNode => (
     <div className="flex flex-col gap-0.5">
       <div className="font-medium text-fg">{t.time.dayLong(day)}</div>

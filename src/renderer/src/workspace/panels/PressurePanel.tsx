@@ -8,7 +8,6 @@ import type {
 } from "@shared/types";
 import { pickWindow } from "@shared/statusline";
 import { contextView } from "@shared/context";
-import { formatTokensShort } from "@shared/format";
 import { cx } from "../../ui/atoms";
 import { FillGauge } from "../../ui/charts";
 import { clampPct } from "../../ui/charts-geom";
@@ -130,8 +129,8 @@ export function PressurePanel({
               </span>
             </div>
             <div className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
-              {formatTokensShort(view.total)} /{" "}
-              {formatTokensShort(contextWindow)}
+              {t.numbers.tokensShort(view.total)} /{" "}
+              {t.numbers.tokensShort(contextWindow)}
             </div>
           </div>
           <FillGauge

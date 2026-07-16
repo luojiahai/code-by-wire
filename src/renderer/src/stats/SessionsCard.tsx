@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { type StatsBySession } from "@shared/stats";
-import { formatTokensShort } from "@shared/format";
 import { useI18n } from "../i18n";
 import { Icon } from "../ui/icons";
 import { modelColorOf } from "../ui/meta";
@@ -182,7 +181,7 @@ export function SessionsCard({ rows }: { rows: StatsBySession[] }) {
                   {r.turns.toLocaleString("en-US")}
                 </td>
                 <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
-                  {formatTokensShort(r.totalTokens)}
+                  {t.numbers.tokensShort(r.totalTokens)}
                 </td>
               </tr>
             ))}

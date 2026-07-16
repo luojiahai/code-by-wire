@@ -556,4 +556,24 @@ export const zh: Translations = {
       return `${m}月`;
     },
   },
+  numbers: {
+    // Chinese groups large numbers by powers of 10^4 (万 = 10,000, 亿 = 100,000,000),
+    // not 10^3 like en's k/M — mirrors formatTokensShort/formatTokensAxis's own
+    // structure (same promotion-boundary formula, scaled to the 万/亿 grouping) rather
+    // than reusing the shared helpers, since the division itself differs, not just the
+    // unit suffix.
+    tokensShort: (n) => {
+      if (!Number.isFinite(n) || n <= 0) return "0";
+      if (n >= 99_999_500) return (n / 100_000_000).toFixed(2) + "亿";
+      if (n >= 10_000) return (n / 10_000).toFixed(1) + "万";
+      return String(Math.round(n));
+    },
+    tokensAxis: (n) => {
+      if (!Number.isFinite(n) || n <= 0) return "0";
+      const trim = (s: string) => s.replace(/\.?0+$/, "");
+      if (n >= 99_999_500) return trim((n / 100_000_000).toFixed(2)) + "亿";
+      if (n >= 10_000) return trim((n / 10_000).toFixed(1)) + "万";
+      return String(Math.round(n));
+    },
+  },
 };

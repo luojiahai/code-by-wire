@@ -49,3 +49,30 @@ describe("catalog time formatters", () => {
     expect(zh.time.tpsUnit).toBe("词元/秒");
   });
 });
+
+describe("catalog number formatters", () => {
+  it("en groups by powers of 10^3 (k/M), delegating to the shared helpers", () => {
+    expect(en.numbers.tokensShort(999)).toBe("999");
+    expect(en.numbers.tokensShort(128_430)).toBe("128.4k");
+    expect(en.numbers.tokensShort(2_480_000)).toBe("2.48M");
+    expect(en.numbers.tokensAxis(2_480_000)).toBe("2.48M");
+    expect(en.numbers.tokensAxis(125_000_000)).toBe("125M");
+  });
+
+  it("zh groups by powers of 10^4 (万/亿) instead — a different division, not just a unit swap", () => {
+    expect(zh.numbers.tokensShort(9_999)).toBe("9999");
+    expect(zh.numbers.tokensShort(100_000)).toBe("10.0万");
+    expect(zh.numbers.tokensShort(128_430)).toBe("12.8万");
+    // Promotion boundary: the highest value that still reads as N.N万 vs. rounding
+    // up to a misleading "10000.0万" — mirrors en's own 999_950 (=10^6-50) boundary,
+    // scaled to the 万->亿 order of magnitude (10^8-500).
+    expect(zh.numbers.tokensShort(99_999_499)).toBe("9999.9万");
+    expect(zh.numbers.tokensShort(99_999_500)).toBe("1.00亿");
+    expect(zh.numbers.tokensShort(250_000_000)).toBe("2.50亿");
+    // Axis form trims trailing zero decimals, same as en's formatTokensAxis.
+    expect(zh.numbers.tokensAxis(100_000)).toBe("10万");
+    expect(zh.numbers.tokensAxis(128_430)).toBe("12.8万");
+    expect(zh.numbers.tokensAxis(99_999_500)).toBe("1亿");
+    expect(zh.numbers.tokensAxis(250_000_000)).toBe("2.5亿");
+  });
+});
