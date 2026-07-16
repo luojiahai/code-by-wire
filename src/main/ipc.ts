@@ -412,6 +412,15 @@ export function registerIpc({
   ipcMain.handle(IPC.clipboardWriteText, (_e, text: string) => {
     clipboard.writeText(text);
   });
+  ipcMain.handle(IPC.clipboardReadText, (_e, type?: "selection") =>
+    // Electron only supports the X11 selection clipboard on Linux; guard so a stray "selection"
+    // read elsewhere falls back to the regular clipboard instead of throwing.
+    clipboard.readText(
+      type === "selection" && process.platform === "linux"
+        ? "selection"
+        : undefined,
+    ),
+  );
   ipcMain.handle(IPC.updateGetState, (): UpdateState => upd.getState());
   ipcMain.handle(IPC.updateCheck, (): Promise<UpdateState> => upd.check());
   ipcMain.handle(IPC.updateDownload, (): Promise<void> => upd.download());

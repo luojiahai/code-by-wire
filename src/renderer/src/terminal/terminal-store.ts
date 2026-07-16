@@ -4,7 +4,15 @@ import {
   type ReattachSnapshot,
   type TerminalApi,
 } from "@shared/terminal";
+import type { OsKind } from "@shared/platform";
 import { editSequence } from "./key-bindings";
+import { clipboardKeyAction } from "../xterm/clipboard-keys";
+import {
+  attachClipboardContextMenu,
+  runClipboardAction,
+  type ClipboardActionDeps,
+  type ClipboardIpc,
+} from "../xterm/clipboard-actions";
 
 /** The xterm surface the store and the view actually use. Declared structurally so a real
  *  `@xterm/xterm` Terminal satisfies it AND a test fake can stand in without loading xterm. */
@@ -21,6 +29,14 @@ export interface XtermLike {
   resize(cols: number, rows: number): void;
   readonly cols: number;
   readonly rows: number;
+  /** Clipboard surface (see xterm/clipboard-actions): selection state + copy source + paste sink. */
+  hasSelection(): boolean;
+  getSelection(): string;
+  clearSelection(): void;
+  /** Feed text through xterm's paste path (bracketed-paste wrapping, \n → \r normalization). */
+  paste(data: string): void;
+  /** Live parser modes; the paste path reads bracketedPasteMode (real xterm exposes more fields). */
+  readonly modes: { readonly bracketedPasteMode: boolean };
 }
 
 /** One live terminal: the xterm instance and a persistent wrapper div that moves between
@@ -72,8 +88,11 @@ export interface TerminalStoreDeps {
     forceRefresh: () => void;
     dispose: () => void;
   };
-  /** True on macOS. Gates the cmd/option editing keys so we never hijack Super+arrow elsewhere. */
-  isMac: boolean;
+  /** Which OS family the app runs on. Keys the clipboard combos (win/linux, clipboard-keys) and
+   *  gates the macOS readline edit keys (key-bindings). */
+  os: OsKind;
+  /** The main-process clipboard IPC pair (read for paste, write for copy), injected for tests. */
+  clipboard: ClipboardIpc;
 }
 
 export interface TerminalStore {
@@ -105,8 +124,10 @@ export interface TerminalStore {
 export function createTerminalStore({
   api,
   createTerminal,
-  isMac,
+  os,
+  clipboard,
 }: TerminalStoreDeps): TerminalStore {
+  const isMac = os === "mac";
   const handles = new Map<string, TerminalHandle>();
   const pendingAck = new Map<string, number>(); // consumed-but-unsent ack chars, per id
 
@@ -174,9 +195,26 @@ export function createTerminalStore({
       const created = createTerminal((cols, rows) =>
         api.resize(handle.id, cols, rows),
       );
+      const clipDeps: ClipboardActionDeps = {
+        term: created.term,
+        // Reads handle.id so the ^V image-paste fallback follows a /clear rename too.
+        writePty: (data) => api.write(handle.id, data),
+        clipboard,
+      };
+      // Windows right-click copyPaste on the persistent wrapper (it survives attach/detach
+      // moves between workspace containers, so the listener attaches exactly once).
+      const detachContextMenu = attachClipboardContextMenu(
+        created.wrapper,
+        os,
+        clipDeps,
+      );
       handle = {
         id,
         ...created,
+        dispose: () => {
+          detachContextMenu();
+          created.dispose();
+        },
         opened: false,
         replayPending: opts?.replayOnCreate ?? false,
         replayQueue: [],
@@ -184,12 +222,20 @@ export function createTerminalStore({
       };
       // user keystrokes → pty (independent of DOM attach). Reads handle.id so a rename re-points input too.
       handle.term.onData((data) => api.write(handle.id, data));
-      // Keystrokes the Claude Code prompt understands but xterm won't emit on its own (see
-      // key-bindings): Shift+Enter → newline on every platform, plus cmd/option + arrows and deletes
-      // → readline control bytes on macOS. Reads handle.id so input still follows a /clear rename.
+      // Keys xterm must not process itself: the clipboard combos (win/linux copy/paste — mac
+      // rides the native menu, see clipboard-keys), then the keystrokes the Claude Code prompt
+      // understands but xterm won't emit (see key-bindings): Shift+Enter → newline everywhere,
+      // plus cmd/option + arrows and deletes → readline bytes on macOS. Reads handle.id so
+      // input still follows a /clear rename.
       handle.term.attachCustomKeyEventHandler((e) => {
+        const action = clipboardKeyAction(e, os, handle.term.hasSelection());
+        if (action !== null) {
+          e.preventDefault();
+          void runClipboardAction(action, clipDeps); // never rejects
+          return false; // we own the combo; xterm must not also emit its ^V/^C byte
+        }
         const seq = editSequence(e, isMac);
-        if (seq === null) return true; // not ours — plain keys, copy/paste, etc.
+        if (seq === null) return true; // not ours — plain keys, etc.
         e.preventDefault();
         api.write(handle.id, seq);
         return false; // we sent the bytes; stop xterm emitting its own sequence

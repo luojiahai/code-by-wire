@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { FLOW, type ReattachSnapshot } from "../../src/shared/terminal";
+import type { OsKind } from "../../src/shared/platform";
 import {
   createTerminalStore,
   type XtermLike,
@@ -9,6 +10,8 @@ import {
  *  key handler the store attaches. */
 function fakeXterm() {
   const writes: Array<{ data: string; cb?: () => void }> = [];
+  const pastes: string[] = [];
+  let selection = "";
   let inputCb: (d: string) => void = () => {};
   let keyHandler: (e: KeyboardEvent) => boolean = () => true;
   const attachKeyHandler = vi.fn((h: (e: KeyboardEvent) => boolean) => {
@@ -30,17 +33,30 @@ function fakeXterm() {
     resize: () => {},
     cols: 80,
     rows: 24,
+    hasSelection: () => selection.length > 0,
+    getSelection: () => selection,
+    clearSelection: () => {
+      selection = "";
+    },
+    paste: (data) => {
+      pastes.push(data);
+    },
+    modes: { bracketedPasteMode: false },
   };
   return {
     term,
     writes,
+    pastes,
     attachKeyHandler,
     typeInput: (d: string) => inputCb(d),
     pressKey: (e: KeyboardEvent) => keyHandler(e),
+    setSelection: (s: string) => {
+      selection = s;
+    },
   };
 }
 
-function harness(isMac = true) {
+function harness(os: OsKind = "mac") {
   let dataRouter: (id: string, d: string, offset: number) => void = () => {};
   let exitRouter: (id: string, c: number) => void = () => {};
   const api = {
@@ -63,20 +79,42 @@ function harness(isMac = true) {
     },
     onRename: () => () => {}, // the store exposes rename() directly; App drives it, not this channel
   };
+  let clipboardText = "";
+  const clipboard = {
+    readText: vi.fn(() => Promise.resolve(clipboardText)),
+    writeText: vi.fn((t: string) => {
+      clipboardText = t;
+      return Promise.resolve();
+    }),
+  };
   const made: Array<
     ReturnType<typeof fakeXterm> & {
       triggerResize: (cols: number, rows: number) => void;
+      wrapper: HTMLElement;
+      wrapperRemoveEventListener: ReturnType<typeof vi.fn>;
     }
   > = [];
   const store = createTerminalStore({
     api,
-    isMac,
+    os,
+    clipboard,
     createTerminal: (onResize) => {
       const f = fakeXterm();
-      made.push({ ...f, triggerResize: onResize });
+      const addEventListener = vi.fn();
+      const removeEventListener = vi.fn();
+      const wrapper = {
+        addEventListener,
+        removeEventListener,
+      } as unknown as HTMLElement;
+      made.push({
+        ...f,
+        triggerResize: onResize,
+        wrapper,
+        wrapperRemoveEventListener: removeEventListener,
+      });
       return {
         term: f.term,
-        wrapper: {} as HTMLElement,
+        wrapper,
         attach: () => {},
         layout: () => {},
         flush: () => {},
@@ -93,6 +131,10 @@ function harness(isMac = true) {
     store,
     api,
     made,
+    clipboard,
+    setClipboardText: (t: string) => {
+      clipboardText = t;
+    },
     route: (id: string, d: string, offset?: number) => {
       const end = offset ?? (outChars.get(id) ?? 0) + d.length;
       outChars.set(id, end);
@@ -200,7 +242,7 @@ describe("createTerminalStore", () => {
   });
 
   it("on non-mac, sends Shift+Enter as a newline but leaves the mac editing combos to xterm", () => {
-    const h = harness(false);
+    const h = harness("windows");
     h.store.create("a");
     expect(h.made[0].attachKeyHandler).toHaveBeenCalled(); // handler attaches everywhere now
 
@@ -477,5 +519,74 @@ describe("createTerminalStore", () => {
     expect(data[1]).toBe("L1");
     expect(data[2]).toContain("exited");
     expect(data).toHaveLength(3);
+  });
+});
+
+describe("clipboard keybindings (windows — the platforms where xterm swallowed Ctrl+C/V)", () => {
+  it("Ctrl+V pastes clipboard text through xterm instead of sending ^V", async () => {
+    const h = harness("windows");
+    h.setClipboardText("hello");
+    h.store.create("a");
+    const t = h.made[0];
+    expect(t.pressKey(keydown({ key: "v", ctrlKey: true }))).toBe(false);
+    await vi.waitFor(() => expect(t.pastes).toEqual(["hello"]));
+    expect(h.api.write).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+V with an empty clipboard falls back to the ^V byte (CLI image paste)", async () => {
+    const h = harness("windows");
+    h.store.create("a");
+    const t = h.made[0];
+    t.pressKey(keydown({ key: "v", ctrlKey: true }));
+    await vi.waitFor(() =>
+      expect(h.api.write).toHaveBeenCalledWith("a", "\x16"),
+    );
+    expect(t.pastes).toEqual([]);
+  });
+
+  it("the ^V fallback follows a /clear rename (writes under the new id)", async () => {
+    const h = harness("windows");
+    h.store.create("a");
+    h.store.rename("a", "b");
+    h.made[0].pressKey(keydown({ key: "v", ctrlKey: true }));
+    await vi.waitFor(() =>
+      expect(h.api.write).toHaveBeenCalledWith("b", "\x16"),
+    );
+  });
+
+  it("Ctrl+C with a selection copies-and-clears instead of sending SIGINT", async () => {
+    const h = harness("windows");
+    h.store.create("a");
+    const t = h.made[0];
+    t.setSelection("picked text");
+    expect(t.pressKey(keydown({ key: "c", ctrlKey: true }))).toBe(false);
+    await vi.waitFor(() =>
+      expect(h.clipboard.writeText).toHaveBeenCalledWith("picked text"),
+    );
+    expect(t.term.hasSelection()).toBe(false);
+    expect(h.api.write).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+C without a selection stays the shell's SIGINT (xterm keeps the key)", () => {
+    const h = harness("windows");
+    h.store.create("a");
+    expect(h.made[0].pressKey(keydown({ key: "c", ctrlKey: true }))).toBe(true);
+  });
+
+  it("clipboard combos never fire on macOS (the native menu owns Cmd+C/V)", () => {
+    const h = harness();
+    h.store.create("a");
+    expect(h.made[0].pressKey(keydown({ key: "v", ctrlKey: true }))).toBe(true);
+    expect(h.made[0].pastes).toEqual([]);
+  });
+
+  it("dispose detaches the right-click listener from the wrapper", () => {
+    const h = harness("windows");
+    h.store.create("a");
+    h.store.dispose("a");
+    expect(h.made[0].wrapperRemoveEventListener).toHaveBeenCalledWith(
+      "contextmenu",
+      expect.any(Function),
+    );
   });
 });

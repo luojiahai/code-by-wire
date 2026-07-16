@@ -43,6 +43,7 @@ export const IPC = {
   openExternal: "shell:openExternal",
   openIn: "shell:openIn",
   clipboardWriteText: "clipboard:writeText",
+  clipboardReadText: "clipboard:readText",
   renameSession: "session:rename",
   getToolResult: "toolResult:get",
   updateGetState: "update:getState",
@@ -223,6 +224,10 @@ export interface IpcApi {
   openIn(id: string, target: OpenInTarget): Promise<OpenInResult>;
   /** Copy text to the system clipboard (the Git popover's branch / commit copy buttons). */
   clipboardWriteText(text: string): Promise<void>;
+  /** Read text from the system clipboard (terminal paste — main-process clipboard for the same
+   *  reason as the write path: no focused-secure-context requirement). `type: "selection"` reads
+   *  the Linux X11 selection clipboard (Shift+Insert); only ever requested on Linux. */
+  clipboardReadText(type?: "selection"): Promise<string>;
   /** Persist a display-name override for a session id (null or a value that trims to empty clears it,
    *  reverting to the derived/live name), then return the fresh overview with the override applied.
    *  Both overview() and refresh() also carry the override, since it is applied in overviewNow(). */
