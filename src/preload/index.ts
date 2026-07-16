@@ -45,6 +45,8 @@ const api: AppApi = {
   getTerminalTheme: () => ipcRenderer.invoke(IPC.appearanceGetTerminalTheme),
   setTerminalTheme: (theme) =>
     ipcRenderer.invoke(IPC.appearanceSetTerminalTheme, theme),
+  getLocale: () => ipcRenderer.invoke(IPC.appearanceGetLocale),
+  setLocale: (locale) => ipcRenderer.invoke(IPC.appearanceSetLocale, locale),
   getStatuslineStatus: () => ipcRenderer.invoke(IPC.statuslineGetStatus),
   setStatuslineEnabled: (enabled) =>
     ipcRenderer.invoke(IPC.statuslineSetEnabled, enabled),

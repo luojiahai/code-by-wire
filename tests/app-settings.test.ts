@@ -121,3 +121,39 @@ describe("terminalTheme preference", () => {
     expect(store.read().terminalTheme).toBe("dark");
   });
 });
+
+describe("appLocale preference", () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+  function tmp(): string {
+    const d = mkdtempSync(join(tmpdir(), "cbw-app-settings-"));
+    dirs.push(d);
+    return d;
+  }
+
+  it('is undefined by default (the IPC read normalizes to "en"), persists, and round-trips', () => {
+    const dir = tmp();
+    const store = createAppSettingsStore({ dir });
+    expect(store.read().appLocale).toBeUndefined();
+
+    store.setAppLocale("zh");
+    expect(store.read().appLocale).toBe("zh");
+    expect(
+      JSON.parse(readFileSync(join(dir, "settings.json"), "utf8")).appLocale,
+    ).toBe("zh");
+
+    store.setAppLocale("en");
+    expect(store.read().appLocale).toBe("en");
+  });
+
+  it("preserves other keys when set", () => {
+    const dir = tmp();
+    const store = createAppSettingsStore({ dir });
+    store.setAppTheme("light");
+    store.setAppLocale("zh");
+    expect(store.read().appTheme).toBe("light");
+    expect(store.read().appLocale).toBe("zh");
+  });
+});

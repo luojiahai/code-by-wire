@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { homedir, tmpdir } from "node:os";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { PersistedSession } from "@shared/types";
 import { IPC, type OverviewData } from "@shared/ipc";
@@ -505,6 +505,42 @@ describe("registerIpc appearance", () => {
     expect(handlers.get(IPC.appearanceGetTerminalTheme)!()).toBe("light");
     expect(handlers.get(IPC.appearanceGetAppTheme)!()).toBe("dark");
     expect(nativeTheme.themeSource).toBe("system");
+
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("registerIpc locale", () => {
+  it("serves en from the inert default when no appSettings dep is wired", () => {
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider: provider(() => []) });
+    expect(handlers.get(IPC.appearanceGetLocale)!()).toBe("en");
+  });
+
+  it("persists appLocale and normalizes stored aliases/garbage on read", () => {
+    const db = openTestDb();
+    migrate(db);
+    const dir = mkdtempSync(join(tmpdir(), "cbw-ipc-locale-"));
+    const appSettings = createAppSettingsStore({ dir });
+    registerIpc({ db, provider: provider(() => []), appSettings });
+
+    handlers.get(IPC.appearanceSetLocale)!({}, "zh");
+    expect(handlers.get(IPC.appearanceGetLocale)!()).toBe("zh");
+
+    // A hand-edited settings.json with an alias still reads as "zh"…
+    writeFileSync(
+      join(dir, "settings.json"),
+      JSON.stringify({ appLocale: "zh-CN" }),
+    );
+    expect(handlers.get(IPC.appearanceGetLocale)!()).toBe("zh");
+
+    // …and garbage reads as "en", never reaching the renderer raw.
+    writeFileSync(
+      join(dir, "settings.json"),
+      JSON.stringify({ appLocale: "klingon" }),
+    );
+    expect(handlers.get(IPC.appearanceGetLocale)!()).toBe("en");
 
     rmSync(dir, { recursive: true, force: true });
   });

@@ -9,6 +9,7 @@ import {
   type UpdateState,
   type StatsDbInfo,
 } from "@shared/ipc";
+import { normalizeLocale, type Locale } from "@shared/locale";
 import type { Provider } from "./provider/types";
 import type { SqliteDb } from "./db/driver";
 import type { StatusLineReader } from "@shared/statusline";
@@ -175,6 +176,7 @@ export function registerIpc({
     setStatuslineEnabled: () => {},
     setAppTheme: () => {},
     setTerminalTheme: () => {},
+    setAppLocale: () => {},
   };
   const caff: Caffeinate = caffeinate ?? {
     isOn: () => false,
@@ -450,6 +452,13 @@ export function registerIpc({
   ipcMain.handle(
     IPC.appearanceSetTerminalTheme,
     (_e, theme: "dark" | "light"): void => settings.setTerminalTheme(theme),
+  );
+  ipcMain.handle(
+    IPC.appearanceGetLocale,
+    (): Locale => normalizeLocale(settings.read().appLocale),
+  );
+  ipcMain.handle(IPC.appearanceSetLocale, (_e, locale: Locale): void =>
+    settings.setAppLocale(locale),
   );
   ipcMain.handle(IPC.caffeinateGet, (): boolean => caff.isOn());
   ipcMain.handle(IPC.caffeinateSet, (_e, on: boolean): boolean => caff.set(on));
