@@ -6,6 +6,7 @@ import {
 } from "@shared/models";
 import { FAMILY_LABEL } from "../ui/meta";
 import { Icon } from "../ui/icons";
+import { useI18n } from "../i18n";
 import { PageHeader, Card } from "./page-primitives";
 
 /**
@@ -35,6 +36,7 @@ export function NewSessionView({
   /** Seeds the error line with the failure that routed here. Read once on mount. */
   initialError?: string;
 }) {
+  const { t } = useI18n();
   const [cwd, setCwd] = useState<string | null>(initialCwd ?? null);
   const [model, setModel] = useState<ModelSelection>("default");
   const [defaults, setDefaults] = useState<ModelDefaults | null>(null);
@@ -75,7 +77,9 @@ export function NewSessionView({
       await onCreate(cwd, model);
     } catch (e) {
       setInternalBusy(false);
-      setError(e instanceof Error ? e.message : "Failed to start the session");
+      setError(
+        e instanceof Error ? e.message : t.shell.newSession.failedToStart,
+      );
     }
   }
 
@@ -83,37 +87,39 @@ export function NewSessionView({
     <div className="flex h-full w-full items-center justify-center bg-ink-950 text-fg">
       <div className="w-full max-w-[420px]">
         <PageHeader
-          title="New session"
+          title={t.shell.sidebar.newSession}
           lede={
             <>
-              Spawns <span className="font-mono">claude</span> in the chosen
-              directory and drives it from a live terminal.
+              {t.shell.newSession.ledeBefore}{" "}
+              <span className="font-mono">claude</span>{" "}
+              {t.shell.newSession.ledeAfter}
             </>
           }
         />
         <div className="mt-4">
-          <Card title="Session setup">
+          <Card title={t.shell.newSession.sessionSetup}>
             <div className="flex flex-col gap-4 p-4">
               <div>
                 <label className="block text-meta font-semibold uppercase tracking-wider text-fg-muted">
-                  Directory
+                  {t.shell.newSession.directory}
                 </label>
                 <div className="mt-1.5 flex items-center gap-2">
                   <button
                     onClick={() => void pick()}
                     className="inline-flex items-center gap-1.5 rounded-md border border-ink-700 bg-ink-925 px-2.5 py-1 text-aux transition-colors hover:bg-ink-850"
                   >
-                    <Icon name="folder-open" size={13} /> Choose…
+                    <Icon name="folder-open" size={13} />{" "}
+                    {t.shell.newSession.choose}
                   </button>
                   <span className="truncate font-mono text-aux text-fg-faint">
-                    {cwd ?? "No directory chosen"}
+                    {cwd ?? t.shell.newSession.noDirectoryChosen}
                   </span>
                 </div>
               </div>
 
               <div>
                 <label className="block text-meta font-semibold uppercase tracking-wider text-fg-muted">
-                  Model
+                  {t.shell.newSession.model}
                 </label>
                 <div className="relative mt-1.5">
                   <select
@@ -121,7 +127,9 @@ export function NewSessionView({
                     onChange={(e) => setModel(e.target.value as ModelSelection)}
                     className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
                   >
-                    <option value="default">Default</option>
+                    <option value="default">
+                      {t.shell.newSession.modelDefault}
+                    </option>
                     {(defaults?.allowed ?? FAMILIES).map((id) => {
                       const override = defaults?.overrides[id];
                       return (
@@ -146,7 +154,7 @@ export function NewSessionView({
                   onClick={onCancel}
                   className="rounded-md px-3 py-1.5 text-body text-fg-muted transition-colors hover:text-fg"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   onClick={() => void create()}
@@ -154,7 +162,9 @@ export function NewSessionView({
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-body font-medium text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
                 >
                   <Icon name="plus" size={13} />
-                  {busy ? "Starting…" : "Create"}
+                  {busy
+                    ? t.shell.newSession.starting
+                    : t.shell.newSession.create}
                 </button>
               </div>
             </div>

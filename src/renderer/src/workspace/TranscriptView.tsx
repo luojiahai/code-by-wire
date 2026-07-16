@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { SessionState } from "@shared/types";
 import type { TranscriptEvent } from "@shared/transcript";
+import { useI18n } from "../i18n";
 import type { DocState } from "./use-transcript";
 import { EventItem, type OpenDetail } from "./events";
 import type { DispatchDrill } from "./drill-index";
@@ -67,12 +68,11 @@ export function TranscriptView({
   dispatchDrill?: DispatchDrill;
   onOpen?: (detail: OpenDetail) => void;
 }) {
+  const { t } = useI18n();
   if (doc === null) {
     return (
       <Center>
-        {readOnly
-          ? "No transcript on disk for this session yet."
-          : "No transcript yet — drive the session in the Terminal tab."}
+        {readOnly ? t.transcript.noneObserved : t.transcript.noneManaged}
       </Center>
     );
   }
@@ -87,10 +87,10 @@ export function TranscriptView({
           state === "waiting" ? (
             <div className="rounded-lg border border-accent/40 bg-accent/[0.08] p-3">
               <div className="text-meta font-semibold uppercase tracking-wider text-accent-bright">
-                Waiting for you
+                {t.transcript.waitingHeading}
               </div>
               <p className="mt-1 whitespace-pre-wrap font-mono text-aux text-accent-bright">
-                {doc?.waitingReason ?? "Waiting for your input"}
+                {doc?.waitingReason ?? t.transcript.waitingFallback}
               </p>
             </div>
           ) : null

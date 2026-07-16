@@ -3,7 +3,7 @@ import type { Session } from "../../src/shared/types";
 import {
   groupSessionsByProject,
   parentHint,
-  UNGROUPED_LABEL,
+  ungroupedLabel,
 } from "../../src/renderer/src/shell/session-list-model";
 
 let seq = 0;
@@ -46,8 +46,8 @@ describe("groupSessionsByProject", () => {
     const none = mk({ project: "" });
     const groups = groupSessionsByProject([none]);
     expect(groups).toHaveLength(1);
-    expect(groups[0].label).toBe(UNGROUPED_LABEL);
-    expect(groups[0].key).toBe(UNGROUPED_LABEL);
+    expect(groups[0].label).toBe(ungroupedLabel());
+    expect(groups[0].key).toBe(ungroupedLabel());
     expect(groups[0].cwd).toBeUndefined();
   });
 

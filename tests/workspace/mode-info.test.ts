@@ -1,23 +1,23 @@
 import { describe, it, expect } from "vitest";
 import {
-  MODE_INFO,
+  modeInfo,
   MODE_ORDER,
 } from "../../src/renderer/src/workspace/mode-info";
 
-describe("MODE_INFO", () => {
+describe("modeInfo", () => {
   it("labels both modes", () => {
-    expect(MODE_INFO.managed.label).toBe("Managed");
-    expect(MODE_INFO.observed.label).toBe("Observed");
+    expect(modeInfo().managed.label).toBe("Managed");
+    expect(modeInfo().observed.label).toBe("Observed");
   });
 
   it("carries a non-empty blurb for each mode", () => {
-    expect(MODE_INFO.managed.blurb).toMatch(/driven by Code-by-wire/);
-    expect(MODE_INFO.observed.blurb).toMatch(/read-only/);
+    expect(modeInfo().managed.blurb).toMatch(/driven by Code-by-wire/);
+    expect(modeInfo().observed.blurb).toMatch(/read-only/);
   });
 
   it("keeps each entry self-describing via its kind", () => {
-    expect(MODE_INFO.managed.kind).toBe("managed");
-    expect(MODE_INFO.observed.kind).toBe("observed");
+    expect(modeInfo().managed.kind).toBe("managed");
+    expect(modeInfo().observed.kind).toBe("observed");
   });
 });
 

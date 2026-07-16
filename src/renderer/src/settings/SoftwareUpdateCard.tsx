@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { UpdateState } from "@shared/update";
 import { Icon } from "../ui/icons";
 import { cx } from "../ui/atoms";
+import { useI18n } from "../i18n";
 
 /** Everything the card needs from App: the live state, the auto-check toggle value, and the actions. */
 export interface UpdateControls {
@@ -27,20 +28,23 @@ const LAMP: Record<LampTone, string> = {
  * check-on-launch toggle. Hidden entirely in dev (phase `unsupported`).
  */
 export function SoftwareUpdateCard({ update }: { update: UpdateControls }) {
+  const { t } = useI18n();
   const { state } = update;
   if (state.phase.kind === "unsupported") return null;
 
   return (
     <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-925">
       <div className="border-b border-ink-850 px-4 py-2.5 font-display text-label font-semibold uppercase tracking-[0.1em] text-fg-faint">
-        Software update
+        {t.settings.update.title}
       </div>
       <StatusRow update={update} />
       <div className="flex items-center justify-between gap-4 border-t border-ink-850 px-4 py-3">
         <div className="min-w-0">
-          <div className="text-body text-fg">Check for updates on launch</div>
+          <div className="text-body text-fg">
+            {t.settings.update.autoCheckLabel}
+          </div>
           <div className="mt-0.5 text-meta text-fg-faint">
-            Look for a new version each time the app starts
+            {t.settings.update.autoCheckDesc}
           </div>
         </div>
         <button
@@ -68,11 +72,12 @@ export function SoftwareUpdateCard({ update }: { update: UpdateControls }) {
 }
 
 function StatusRow({ update }: { update: UpdateControls }) {
+  const { t } = useI18n();
   const { state } = update;
   const p = state.phase;
 
   let tone: LampTone = "idle";
-  let headline = "Up to date";
+  let headline = t.settings.update.upToDate;
   let detail: ReactNode = `v${state.currentVersion}`;
   let version: string | null = null;
   let action: ReactNode = null;
@@ -80,22 +85,26 @@ function StatusRow({ update }: { update: UpdateControls }) {
 
   switch (p.kind) {
     case "idle":
-      headline = "Up to date";
+      headline = t.settings.update.upToDate;
       detail = `v${state.currentVersion}`;
       action = (
-        <GhostButton onClick={update.check}>Check for updates</GhostButton>
+        <GhostButton onClick={update.check}>
+          {t.settings.update.check}
+        </GhostButton>
       );
       break;
     case "upToDate":
       tone = "ok";
-      headline = "Up to date";
+      headline = t.settings.update.upToDate;
       detail = `v${state.currentVersion}`;
       action = (
-        <GhostButton onClick={update.check}>Check for updates</GhostButton>
+        <GhostButton onClick={update.check}>
+          {t.settings.update.check}
+        </GhostButton>
       );
       break;
     case "checking":
-      headline = "Checking for updates…";
+      headline = t.settings.update.checking;
       detail = `v${state.currentVersion}`;
       action = (
         <GhostButton disabled>
@@ -105,28 +114,39 @@ function StatusRow({ update }: { update: UpdateControls }) {
       break;
     case "available":
       tone = "warn";
-      headline = "Update available";
+      headline = t.settings.update.available;
       version = p.version;
       detail = p.releaseDate
-        ? `On v${state.currentVersion} · released ${p.releaseDate.slice(0, 10)}`
-        : `On v${state.currentVersion}`;
+        ? t.settings.update.onVersionReleased(
+            state.currentVersion,
+            p.releaseDate.slice(0, 10),
+          )
+        : t.settings.update.onVersion(state.currentVersion);
       extra = (
         <button
           type="button"
           onClick={() => void window.api.openExternal(p.notesUrl)}
           className="mt-1.5 inline-flex items-center gap-1 text-meta text-primary transition-colors hover:text-primary-bright"
         >
-          Release notes
+          {t.settings.update.releaseNotes}
           <Icon name="arrow-up-right" size={11} />
         </button>
       );
-      action = <SolidButton onClick={update.download}>Download</SolidButton>;
+      action = (
+        <SolidButton onClick={update.download}>
+          {t.settings.update.download}
+        </SolidButton>
+      );
       break;
     case "downloading":
       tone = "warn";
-      headline = "Downloading update…";
+      headline = t.settings.update.downloading;
       version = p.version;
-      detail = `${formatMB(p.transferred)} of ${formatMB(p.total)} · ${Math.round(p.percent)}%`;
+      detail = t.settings.update.downloadProgress(
+        formatMB(p.transferred),
+        formatMB(p.total),
+        Math.round(p.percent),
+      );
       extra = (
         <div className="mt-2 h-[5px] overflow-hidden rounded-full bg-ink-800">
           <span
@@ -138,26 +158,30 @@ function StatusRow({ update }: { update: UpdateControls }) {
       break;
     case "downloaded":
       tone = "hot";
-      headline = "Update ready";
+      headline = t.settings.update.ready;
       version = p.version;
-      detail = "Downloaded · installs when you next quit";
+      detail = t.settings.update.downloaded;
       extra = (
         <div className="mt-1 text-label text-fg-faint">
-          or restart now to apply it immediately
+          {t.settings.update.restartHint}
         </div>
       );
       action = (
         <SolidButton onClick={update.install}>
           <Icon name="rotate-ccw" size={13} className="mr-1.5" />
-          Restart now
+          {t.settings.update.restartNow}
         </SolidButton>
       );
       break;
     case "error":
       tone = "error";
-      headline = "Couldn't check for updates";
-      detail = `${p.message} · will retry on next launch`;
-      action = <GhostButton onClick={update.check}>Retry</GhostButton>;
+      headline = t.settings.update.checkError;
+      detail = t.settings.update.retryDetail(p.message);
+      action = (
+        <GhostButton onClick={update.check}>
+          {t.settings.update.retry}
+        </GhostButton>
+      );
       break;
   }
 

@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { type StatsBySession } from "@shared/stats";
-import {
-  formatTokensShort,
-  formatDuration,
-  formatRelativeTime,
-} from "@shared/format";
+import { useI18n } from "../i18n";
 import { Icon } from "../ui/icons";
 import { modelColorOf } from "../ui/meta";
 import { Swatch } from "../ui/atoms";
@@ -77,6 +73,7 @@ function SortHeader({
  *  recent activity first. The Tokens column shows totalTokens (all four kinds). Reveals SESSION_BATCH
  *  rows at a time by the active sort, via a "Show N more" button. */
 export function SessionsCard({ rows }: { rows: StatsBySession[] }) {
+  const { t } = useI18n();
   const [sort, setSort] = useState<SessionSort>(DEFAULT_SESSION_SORT);
   const [visible, setVisible] = useState(SESSION_BATCH);
   // Guard on the full set so the panel never vanishes on a pure-zero window (matches the other breakdowns).
@@ -93,7 +90,7 @@ export function SessionsCard({ rows }: { rows: StatsBySession[] }) {
   const now = Date.now();
   return (
     <StatsCard>
-      <CardRegion title="By session">
+      <CardRegion title={t.stats.sessions.title}>
         <table className="w-full table-fixed text-aux">
           <colgroup>
             <col className="w-[30%]" />
@@ -106,39 +103,39 @@ export function SessionsCard({ rows }: { rows: StatsBySession[] }) {
           <thead>
             <tr className="text-label uppercase tracking-wide text-fg-faint">
               <SortHeader
-                label="Session"
+                label={t.stats.sessions.colSession}
                 column="session"
                 sort={sort}
                 onSort={onSort}
                 align="left"
               />
               <SortHeader
-                label="Model"
+                label={t.stats.sessions.colModel}
                 column="model"
                 sort={sort}
                 onSort={onSort}
                 align="left"
               />
               <SortHeader
-                label="Last activity"
+                label={t.stats.sessions.colLastActivity}
                 column="lastActivity"
                 sort={sort}
                 onSort={onSort}
               />
               <SortHeader
-                label="Duration"
+                label={t.stats.sessions.colDuration}
                 column="duration"
                 sort={sort}
                 onSort={onSort}
               />
               <SortHeader
-                label="Turns"
+                label={t.stats.sessions.colTurns}
                 column="turns"
                 sort={sort}
                 onSort={onSort}
               />
               <SortHeader
-                label="Tokens"
+                label={t.stats.shared.tokensHeader}
                 column="tokens"
                 sort={sort}
                 onSort={onSort}
@@ -156,32 +153,35 @@ export function SessionsCard({ rows }: { rows: StatsBySession[] }) {
                   <span className="mt-0.5 flex items-center gap-1.5 text-meta text-fg-faint">
                     <span className="truncate">{r.project}</span>
                     <span className="font-mono">{r.sessionId.slice(0, 8)}</span>
-                    <CopyButton value={r.sessionId} label="Copy session id" />
+                    <CopyButton
+                      value={r.sessionId}
+                      label={t.stats.sessions.copySessionId}
+                    />
                   </span>
                 </td>
                 <td className="py-1 pr-3">
                   <span className="flex min-w-0 items-center gap-2">
                     <Swatch color={modelColorOf(r.modelRaw)} />
                     <span className="truncate font-mono text-fg-muted">
-                      {r.modelRaw ?? "Unknown"}
+                      {r.modelRaw ?? t.stats.shared.unknownModel}
                     </span>
                   </span>
                 </td>
                 <td className="py-1 pl-2 text-right tabular-nums text-fg-muted">
                   {/* lastActivityMs is 0 only when no turn had a known time; show a dash, not a
-                      formatRelativeTime epoch render ("20000d ago") that fakes exact data. */}
+                      t.time.ago epoch render ("20000d ago") that fakes exact data. */}
                   {r.lastActivityMs === 0
                     ? "—"
-                    : formatRelativeTime(r.lastActivityMs, now)}
+                    : t.time.ago(r.lastActivityMs, now)}
                 </td>
                 <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
-                  {formatDuration(r.durationMs)}
+                  {t.time.duration(r.durationMs)}
                 </td>
                 <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
                   {r.turns.toLocaleString("en-US")}
                 </td>
                 <td className="py-1 pl-2 text-right font-mono tabular-nums text-fg-muted">
-                  {formatTokensShort(r.totalTokens)}
+                  {t.numbers.tokensShort(r.totalTokens)}
                 </td>
               </tr>
             ))}
@@ -193,7 +193,10 @@ export function SessionsCard({ rows }: { rows: StatsBySession[] }) {
             onClick={() => setVisible((v) => v + SESSION_BATCH)}
             className="mt-2 text-meta text-fg-faint transition-colors hover:text-fg-muted"
           >
-            Show {Math.min(SESSION_BATCH, rest)} more ({sorted.length} total)
+            {t.stats.shared.showMore(
+              Math.min(SESSION_BATCH, rest),
+              sorted.length,
+            )}
           </button>
         )}
       </CardRegion>

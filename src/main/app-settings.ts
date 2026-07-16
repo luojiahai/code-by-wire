@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readTextOrNull } from "./claude-config";
+import type { Locale } from "../shared/locale";
 
 /** code-by-wire's own settings, stored under Electron's userData — NOT ~/.claude (that's Claude's). */
 export interface AppSettings {
@@ -16,6 +17,10 @@ export interface AppSettings {
   /** The terminal panels' theme (interactive shell rail + observed session terminal), independent
    *  of appTheme. Missing means dark; callers read `read().terminalTheme ?? "dark"`. */
   terminalTheme?: "dark" | "light";
+  /** The app's display language ("en" | "zh"). Missing means English; the IPC read runs
+   *  normalizeLocale over it, so a persisted alias ("zh-CN") or garbage still reads as a
+   *  supported locale. */
+  appLocale?: Locale;
 }
 
 export interface AppSettingsStore {
@@ -24,6 +29,7 @@ export interface AppSettingsStore {
   setStatuslineEnabled(enabled: boolean): void;
   setAppTheme(theme: "dark" | "light"): void;
   setTerminalTheme(theme: "dark" | "light"): void;
+  setAppLocale(locale: Locale): void;
 }
 
 export interface AppSettingsDeps {
@@ -65,6 +71,9 @@ export function createAppSettingsStore(
     },
     setTerminalTheme(theme) {
       write({ ...read(), terminalTheme: theme });
+    },
+    setAppLocale(locale) {
+      write({ ...read(), appLocale: locale });
     },
   };
 }

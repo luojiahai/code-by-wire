@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { StatuslineStatus } from "@shared/statusline-status";
-import { formatRelativeTime } from "@shared/format";
 import { Card } from "../shell/page-primitives";
+import { useI18n } from "../i18n";
+import type { Translations } from "../i18n";
 import {
   SubsystemHeader,
   ReadoutRow,
@@ -12,13 +13,6 @@ import {
 } from "./system-primitives";
 import { useStatuslineStatus } from "./use-statusline-status";
 
-const WORD: Record<StatuslineStatus["state"], string> = {
-  capturing: "CAPTURING",
-  stale: "STALE",
-  fault: "FAULT",
-  off: "OFF",
-};
-
 const TONE: Record<StatuslineStatus["state"], LampTone> = {
   capturing: "live",
   stale: "warn",
@@ -26,11 +20,31 @@ const TONE: Record<StatuslineStatus["state"], LampTone> = {
   off: "idle",
 };
 
-// Copy fixed by the design spec — do not reword.
-const NOTE_ON =
-  "Live duty, clock and rate limits reach the panels through Claude Code's statusline. Your own statusline renders as usual.";
-const NOTE_OFF =
-  "Capture is off: the panels fall back to transcript data — no live duty, clock or rate limits. Your statusline runs untouched.";
+/** The annunciator word per state. Built inside the component (not module scope) so a locale switch
+ *  re-resolves it; kept as a small function rather than an inline object for readability. */
+function stateWord(state: StatuslineStatus["state"], t: Translations): string {
+  switch (state) {
+    case "capturing":
+      return t.settings.statusline.stateCapturing;
+    case "stale":
+      return t.settings.statusline.stateStale;
+    case "fault":
+      return t.settings.statusline.stateFault;
+    case "off":
+      return t.settings.statusline.stateOff;
+  }
+}
+
+/** The coverage-row population label ("live" sessions vs "working" sessions — see
+ *  StatuslineStatus.watchKind). */
+function watchKindLabel(
+  kind: StatuslineStatus["watchKind"],
+  t: Translations,
+): string {
+  return kind === "live"
+    ? t.settings.statusline.watchKindLive
+    : t.settings.statusline.watchKindWorking;
+}
 
 /**
  * The Statusline subsystem card (design spec "subsystem grammar"): whether the capture wrapper is
@@ -39,13 +53,17 @@ const NOTE_OFF =
  * coverage, fault text) was made in the shared derivation.
  */
 export function StatuslineCard() {
+  const { t } = useI18n();
   const { status, setEnabled, setRefreshInterval, repair } =
     useStatuslineStatus();
 
   if (status === null) {
     return (
-      <Card title="Statusline">
-        <SubsystemHeader tone="idle" word="CHECKING" />
+      <Card title={t.settings.statusline.title}>
+        <SubsystemHeader
+          tone="idle"
+          word={t.settings.statusline.stateChecking}
+        />
       </Card>
     );
   }
@@ -56,34 +74,41 @@ export function StatuslineCard() {
     status.state === "fault"
       ? null
       : status.state === "off"
-        ? NOTE_OFF
-        : NOTE_ON;
+        ? t.settings.statusline.noteOff
+        : t.settings.statusline.noteOn;
+  const watchKind = watchKindLabel(status.watchKind, t);
   return (
-    <Card title="Statusline">
+    <Card title={t.settings.statusline.title}>
       <SubsystemHeader
         tone={TONE[status.state]}
-        word={WORD[status.state]}
+        word={stateWord(status.state, t)}
         action={
           <RailButton onClick={() => setEnabled(!on)}>
-            {on ? "Disable" : "Enable"}
+            {on ? t.settings.statusline.disable : t.settings.statusline.enable}
           </RailButton>
         }
       />
 
       {status.state === "stale" && (
         <FaultBand
-          headline="NO FRESH CAPTURES"
-          action={<RailButton onClick={repair}>Repair</RailButton>}
+          headline={t.settings.statusline.staleHeadline}
+          action={
+            <RailButton onClick={repair}>
+              {t.settings.statusline.repair}
+            </RailButton>
+          }
         >
-          {status.watchedSessions} {status.watchKind}{" "}
-          {status.watchedSessions === 1 ? "session" : "sessions"}, none
-          reporting — captures have stopped. Repair rewrites the wrapper.
+          {t.settings.statusline.staleBody(status.watchedSessions, watchKind)}
         </FaultBand>
       )}
       {status.state === "fault" && (
         <FaultBand
-          headline="CAPTURE FAULT"
-          action={<RailButton onClick={repair}>Repair</RailButton>}
+          headline={t.settings.statusline.faultHeadline}
+          action={
+            <RailButton onClick={repair}>
+              {t.settings.statusline.repair}
+            </RailButton>
+          }
         >
           {status.fault}
         </FaultBand>
@@ -96,19 +121,23 @@ export function StatuslineCard() {
             onSave={setRefreshInterval}
           />
           <ReadoutRow
-            label="Last capture"
+            label={t.settings.statusline.lastCapture}
             value={
               status.lastCaptureMs === null
-                ? "never"
-                : formatRelativeTime(status.lastCaptureMs, Date.now())
+                ? t.settings.statusline.never
+                : t.time.ago(status.lastCaptureMs, Date.now())
             }
           />
           <ReadoutRow
-            label="Sessions"
+            label={t.settings.statusline.sessions}
             value={
               status.watchedSessions === 0
-                ? `no ${status.watchKind} sessions`
-                : `${status.reportingSessions} of ${status.watchedSessions} ${status.watchKind} reporting`
+                ? t.settings.statusline.noSessions(watchKind)
+                : t.settings.statusline.sessionsReporting(
+                    status.reportingSessions,
+                    status.watchedSessions,
+                    watchKind,
+                  )
             }
           />
         </>
@@ -133,6 +162,7 @@ function RefreshRow({
   value: number | null;
   onSave: (seconds: number | null) => void;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -150,8 +180,12 @@ function RefreshRow({
 
   return (
     <ReadoutRow
-      label="Refresh"
-      value={value === null ? "on events only" : `every ${value}s`}
+      label={t.settings.statusline.refresh}
+      value={
+        value === null
+          ? t.settings.statusline.eventsOnly
+          : t.settings.statusline.every(value)
+      }
       edit={
         <EditLink
           onClick={() => {
@@ -159,7 +193,7 @@ function RefreshRow({
             setEditing((v) => !v);
           }}
         >
-          Edit
+          {t.settings.statusline.edit}
         </EditLink>
       }
       expanded={
@@ -168,12 +202,14 @@ function RefreshRow({
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="seconds (1–60), empty for events only"
+              placeholder={t.settings.statusline.refreshPlaceholder}
               inputMode="numeric"
               className="w-56 rounded-md border border-ink-700 bg-well px-2.5 py-1.5 font-mono text-aux text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
             />
-            <RailButton onClick={save}>Save</RailButton>
-            <RailButton onClick={() => setEditing(false)}>Cancel</RailButton>
+            <RailButton onClick={save}>{t.settings.statusline.save}</RailButton>
+            <RailButton onClick={() => setEditing(false)}>
+              {t.common.cancel}
+            </RailButton>
           </div>
         ) : undefined
       }

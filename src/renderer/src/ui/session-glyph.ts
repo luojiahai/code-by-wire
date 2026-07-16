@@ -1,5 +1,5 @@
 import type { Management, SessionState } from "@shared/types";
-import { STATE_META } from "./meta";
+import { tNow } from "../i18n";
 
 /** The lamp encoding (2026-07-04 sidebar spec §1): filled = live, hollow = quiet. Working is an
  *  11px spinning arc over a static 4px core; Waiting a 6px amber dot breathing a halo; Idle a 6px
@@ -24,10 +24,17 @@ export const LAMP: Record<SessionState, { outer: string; core?: string }> = {
   },
 };
 
-/** Hover tooltip for a session glyph: "waiting · observed". The one spot the dot is spelled out in full. */
+/** Hover tooltip for a session glyph: "waiting · observed". The one spot the dot is spelled out in full.
+ *  Plain function (not a hook), so it resolves the active locale via tNow() per call rather than
+ *  capturing a translated string at module scope. */
 export function glyphTitle(
   state: SessionState,
   management: Management,
 ): string {
-  return `${STATE_META[state].label.toLowerCase()} · ${management}`;
+  const t = tNow();
+  const managementLabel =
+    management === "managed"
+      ? t.workspace.mode.managed.label
+      : t.workspace.mode.observed.label;
+  return `${t.shell.sessionRow.state[state].toLowerCase()} · ${managementLabel.toLowerCase()}`;
 }

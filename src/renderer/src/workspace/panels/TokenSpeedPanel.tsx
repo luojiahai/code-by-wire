@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
 import type { TokenSpeed } from "@shared/metrics";
-import { formatTps } from "@shared/format";
 import { Sparkline } from "../../ui/charts";
-import { SPEED_WINDOW_LABEL } from "./speed-window";
+import { useI18n } from "../../i18n";
 import { PanelSection, PanelHeading, StatRow } from "./chrome";
-
-const SPEED_INFO =
-  "Token throughput over the last 60s of active generation. The sparkline traces total tokens/sec across recent samples; idle gaps between turns don't count.";
 
 const SPARK_SAMPLES = 30;
 
@@ -31,37 +27,44 @@ export function TokenSpeedPanel({
 }: {
   speed: TokenSpeed | null | undefined;
 }) {
+  const { t } = useI18n();
   const history = useSpeedHistory(speed?.totalTps ?? null);
   return (
     <PanelSection>
       <PanelHeading
         icon="activity"
-        info={SPEED_INFO}
+        info={t.dock.throughput.info}
         right={
           <span className="rounded-sm border border-(--ui-stroke-secondary) px-1.5 py-0.5 text-[0.65rem] font-medium leading-none text-(--ui-text-tertiary)">
-            {SPEED_WINDOW_LABEL}
+            {t.dock.throughput.windowLabel}
           </span>
         }
       >
-        Throughput
+        {t.dock.throughput.heading}
       </PanelHeading>
       <div className="flex items-baseline">
         {speed ? (
           <span className="font-mono text-title font-medium tabular-nums text-fg">
-            {formatTps(speed.totalTps).replace(/ tokens\/s$/, "")}
-            <span className="text-xs text-fg-faint"> tokens/s</span>
+            {t.time.tpsValue(speed.totalTps)}
+            <span className="text-xs text-fg-faint"> {t.time.tpsUnit}</span>
           </span>
         ) : (
           <span className="font-mono text-title font-medium tabular-nums text-fg-faint">
-            idle
+            {t.dock.throughput.idle}
           </span>
         )}
       </div>
       <Sparkline values={history} />
       {speed && (
         <div className="space-y-1.5">
-          <StatRow label="Input" value={formatTps(speed.inputTps)} />
-          <StatRow label="Output" value={formatTps(speed.outputTps)} />
+          <StatRow
+            label={t.dock.throughput.input}
+            value={t.time.tps(speed.inputTps)}
+          />
+          <StatRow
+            label={t.dock.throughput.output}
+            value={t.time.tps(speed.outputTps)}
+          />
         </div>
       )}
     </PanelSection>

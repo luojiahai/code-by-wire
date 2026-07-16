@@ -3,6 +3,7 @@ import type { Session } from "@shared/types";
 import { cx } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { useI18n } from "../i18n";
 import type { SessionMenuController } from "./use-session-menu";
 
 const MENU_WIDTH = 256;
@@ -39,6 +40,7 @@ export function SessionMenuDropdown({
     forkTitle,
     endTitle,
   } = menu;
+  const { t } = useI18n();
 
   return (
     <>
@@ -58,14 +60,18 @@ export function SessionMenuDropdown({
             >
               <MenuItem
                 icon="copy"
-                label="Copy session ID"
+                label={t.shell.sessionMenu.copySessionId}
                 title={session.id}
                 onClick={() => {
                   void window.api.clipboardWriteText(session.id);
                   closeMenu();
                 }}
               />
-              <MenuItem icon="pencil" label="Rename" onClick={openEdit} />
+              <MenuItem
+                icon="pencil"
+                label={t.shell.sessionMenu.rename}
+                onClick={openEdit}
+              />
 
               {adopt.error && (
                 <p role="alert" className="px-2 py-1 text-xs text-danger">
@@ -74,7 +80,11 @@ export function SessionMenuDropdown({
               )}
               <MenuItem
                 icon="git-pull-request-arrow"
-                label={adopt.busy ? "Adopting…" : "Adopt"}
+                label={
+                  adopt.busy
+                    ? t.shell.sessionMenu.adopting
+                    : t.shell.sessionMenu.adopt
+                }
                 onClick={adopt.request}
                 disabled={adoptDisabled || adopt.busy}
                 title={adoptTitle}
@@ -87,7 +97,11 @@ export function SessionMenuDropdown({
               )}
               <MenuItem
                 icon="git-branch"
-                label={fork.busy ? "Forking…" : "Fork"}
+                label={
+                  fork.busy
+                    ? t.shell.sessionMenu.forking
+                    : t.shell.sessionMenu.fork
+                }
                 onClick={fork.request}
                 disabled={forkDisabled || fork.busy}
                 title={forkTitle}
@@ -95,7 +109,7 @@ export function SessionMenuDropdown({
 
               <MenuItem
                 icon="square"
-                label="End session"
+                label={t.shell.sessionMenu.endSession}
                 onClick={end.request}
                 disabled={!live}
                 title={endTitle}
@@ -109,7 +123,7 @@ export function SessionMenuDropdown({
               />
 
               <div className="px-2 pb-1 pt-0.5 text-[0.64rem] font-semibold uppercase tracking-[0.16em] text-(--theme-primary)">
-                Open in
+                {t.shell.sessionMenu.openIn}
               </div>
               {items.map((item) => (
                 <MenuItem
@@ -132,27 +146,27 @@ export function SessionMenuDropdown({
 
       {adopt.confirmOpen && (
         <ConfirmDialog
-          title="Resume a session with no recorded model?"
-          body="This session never recorded a model — it likely errored before its first turn — so resuming it may fail with a model error. Continue anyway?"
-          confirmLabel="Resume anyway"
+          title={t.shell.sessionMenu.resumeConfirmTitle}
+          body={t.shell.sessionMenu.resumeConfirmBody}
+          confirmLabel={t.shell.sessionMenu.resumeConfirmLabel}
           onCancel={adopt.confirmNo}
           onConfirm={adopt.confirmYes}
         />
       )}
       {fork.confirmOpen && (
         <ConfirmDialog
-          title="Fork a session with no recorded model?"
-          body="This session never recorded a model — it likely errored before its first turn — so forking it may fail with a model error. Continue anyway?"
-          confirmLabel="Fork anyway"
+          title={t.shell.sessionMenu.forkConfirmTitle}
+          body={t.shell.sessionMenu.forkConfirmBody}
+          confirmLabel={t.shell.sessionMenu.forkConfirmLabel}
           onCancel={fork.confirmNo}
           onConfirm={fork.confirmYes}
         />
       )}
       {end.confirmOpen && (
         <ConfirmDialog
-          title="End this session?"
-          body="A turn is in progress and will be interrupted. The conversation is saved and can be resumed later with Adopt."
-          confirmLabel="End session"
+          title={t.shell.sessionMenu.endConfirmTitle}
+          body={t.shell.sessionMenu.endConfirmBody}
+          confirmLabel={t.shell.sessionMenu.endSession}
           tone="danger"
           onConfirm={end.confirmYes}
           onCancel={end.confirmNo}

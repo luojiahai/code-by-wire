@@ -1,6 +1,6 @@
 import type { BackgroundShell } from "@shared/types";
-import { formatDuration, formatRelativeTime } from "@shared/format";
 import { cx } from "../../ui/atoms";
+import { useI18n } from "../../i18n";
 import { EmptyState } from "./chrome";
 import { shellGlyph } from "./shell-view";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
@@ -19,6 +19,7 @@ function ShellRow({
   now: number;
   onDrill: (shell: BackgroundShell) => void;
 }) {
+  const { t } = useI18n();
   const glyph = shellGlyph(shell);
   const elapsed =
     shell.status === "running" && shell.startMs !== undefined
@@ -28,7 +29,7 @@ function ShellRow({
     <DockRow
       active={active}
       onClick={() => onDrill(shell)}
-      aria-label={`Open log for ${shell.command}`}
+      aria-label={t.dock.shells.openLogAria(shell.command)}
       leading={
         <span
           className={cx(
@@ -43,12 +44,12 @@ function ShellRow({
       }
       trailing={
         <MetricRack>
-          <MetricCell width="w-14" tone="text-(--ui-text-secondary)">
-            {formatDuration(elapsed)}
+          <MetricCell width="w-16" tone="text-(--ui-text-secondary)">
+            {t.time.duration(elapsed)}
           </MetricCell>
           {shell.startMs !== undefined && (
-            <MetricCell width="w-12">
-              {formatRelativeTime(shell.startMs, now)}
+            <MetricCell width="w-14">
+              {t.time.ago(shell.startMs, now)}
             </MetricCell>
           )}
         </MetricRack>
@@ -97,8 +98,9 @@ export function ShellsTab({
   activeShellId?: string;
   onDrill: (shell: BackgroundShell) => void;
 }) {
+  const { t } = useI18n();
   if (shells.length === 0)
-    return <EmptyState>No background shells.</EmptyState>;
+    return <EmptyState>{t.dock.shells.empty}</EmptyState>;
   return (
     <div className="py-1" role="list">
       {shells.map((s) => (

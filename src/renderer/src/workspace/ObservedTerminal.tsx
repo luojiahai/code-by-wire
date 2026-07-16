@@ -1,4 +1,5 @@
 import type { Session } from "@shared/types";
+import { useI18n } from "../i18n";
 import {
   useResumeAction,
   canAdoptSession,
@@ -26,6 +27,7 @@ export function ObservedTerminal({
   onAdopt: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const ended = s.state === "ended";
   const canAdopt = canAdoptSession(s);
   const modelUnknown = isModelUnknown(s);
@@ -47,13 +49,15 @@ export function ObservedTerminal({
     <div className="relative flex h-full items-center justify-center bg-ink-950">
       <span className="absolute left-4 top-3 inline-flex items-center gap-1.5 text-label uppercase tracking-wider text-fg-faint">
         <span className="h-1.5 w-1.5 rounded-full bg-ink-600" />
-        {ended ? "Ended" : "Observed"}
+        {ended
+          ? t.workspace.observedTerminal.endedBadge
+          : t.workspace.observedTerminal.observedBadge}
       </span>
       <div className="flex flex-col items-center gap-4 text-center">
         <p className="text-body text-fg-faint">
           {ended
-            ? "This session has ended. Bring it back to life."
-            : "This session is running in another terminal — read-only here."}
+            ? t.workspace.observedTerminal.endedBody
+            : t.workspace.observedTerminal.observedBody}
         </p>
         <div className="flex items-center gap-3">
           {ended && (
@@ -86,8 +90,8 @@ export function ObservedTerminal({
         )}
         <span className="text-meta text-fg-faint">
           {ended
-            ? "Adopt = take the wheel · Fork = explore a new branch"
-            : "Fork it to branch off into your own session."}
+            ? t.workspace.observedTerminal.endedFooter
+            : t.workspace.observedTerminal.observedFooter}
         </span>
       </div>
     </div>

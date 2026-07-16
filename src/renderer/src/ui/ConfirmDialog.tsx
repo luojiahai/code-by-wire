@@ -1,15 +1,19 @@
 import { cx, focusRing } from "./atoms";
 import { ModalShell } from "./ModalShell";
+import { useI18n } from "../i18n";
 
 /** A minimal confirm/cancel modal, gating a risky action behind an explicit choice. Built on ModalShell
  *  (overlay, centered panel, Escape/overlay to cancel, Tab trap, focus restored on close). The body
  *  carries the warning; the confirm button proceeds. `tone="danger"` reds the confirm button for a
- *  destructive action; the default primary tone is unchanged for every existing call site. */
+ *  destructive action; the default primary tone is unchanged for every existing call site.
+ *  `title`/`body`/`confirmLabel`/`cancelLabel` are caller-supplied — every caller already translates
+ *  its own copy when constructing them. This component only owns the two DEFAULT button labels, which
+ *  fall back to `common.continue`/`common.cancel` rather than a hardcoded English literal. */
 export function ConfirmDialog({
   title,
   body,
-  confirmLabel = "Continue",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   tone = "primary",
   onConfirm,
   onCancel,
@@ -22,6 +26,9 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
+  const resolvedConfirmLabel = confirmLabel ?? t.common.continue;
+  const resolvedCancelLabel = cancelLabel ?? t.common.cancel;
   // The filled confirm button already wears a static `ring-1 ring-{tone}/40` as its border, so a faint
   // focus ring on top would blend in. On `:focus-visible` brighten that ring to a full-opacity 2px in the
   // button's own tone, so keyboard focus reads clearly without mixing in a second color.
@@ -48,10 +55,10 @@ export function ConfirmDialog({
             focusRing,
           )}
         >
-          {cancelLabel}
+          {resolvedCancelLabel}
         </button>
         <button type="button" onClick={onConfirm} className={confirmClass}>
-          {confirmLabel}
+          {resolvedConfirmLabel}
         </button>
       </div>
     </ModalShell>

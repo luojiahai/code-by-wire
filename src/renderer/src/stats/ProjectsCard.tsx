@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { type StatsByProject } from "@shared/stats";
-import { formatTokensShort } from "@shared/format";
+import { useI18n } from "../i18n";
 import { Swatch } from "../ui/atoms";
 import { StatsCard, CardRegion } from "./shared";
 
@@ -39,6 +39,7 @@ function Breakdown({
   showSwatch?: boolean;
   batch: number;
 }) {
+  const { t } = useI18n();
   const [visible, setVisible] = useState(batch);
   const shown = rows.slice(0, visible);
   const max = Math.max(...shown.map((r) => r.tokens), 0);
@@ -63,7 +64,7 @@ function Breakdown({
                 scope="col"
                 className="whitespace-nowrap pb-1.5 text-right font-normal"
               >
-                Tokens
+                {t.stats.shared.tokensHeader}
               </th>
             </tr>
           </thead>
@@ -80,7 +81,7 @@ function Breakdown({
                     </span>
                   </td>
                   <td className="pt-2 pl-2 text-right align-middle font-mono tabular-nums text-fg-muted">
-                    {formatTokensShort(r.tokens)}
+                    {t.numbers.tokensShort(r.tokens)}
                   </td>
                 </tr>
                 <tr>
@@ -106,7 +107,7 @@ function Breakdown({
             onClick={() => setVisible((v) => v + batch)}
             className="mt-2 text-meta text-fg-faint transition-colors hover:text-fg-muted"
           >
-            Show {Math.min(batch, rest)} more ({rows.length} total)
+            {t.stats.shared.showMore(Math.min(batch, rest), rows.length)}
           </button>
         )}
       </CardRegion>
@@ -118,6 +119,7 @@ function Breakdown({
  *  on the full cwd so two repos that share a basename stay separate (the cwd rides along as the row's
  *  hover title). Ranks by total tokens, the displayed Tokens metric. */
 export function ProjectsCard({ rows }: { rows: StatsByProject[] }) {
+  const { t } = useI18n();
   if (!rows.some((r) => r.totalTokens > 0)) return null;
   const ranked: BreakdownRow[] = rows
     .slice()
@@ -131,8 +133,8 @@ export function ProjectsCard({ rows }: { rows: StatsByProject[] }) {
     }));
   return (
     <Breakdown
-      title="By project"
-      nameLabel="Project"
+      title={t.stats.projects.title}
+      nameLabel={t.stats.projects.nameLabel}
       rows={ranked}
       batch={PROJECT_BATCH}
     />

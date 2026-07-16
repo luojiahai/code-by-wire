@@ -1,5 +1,6 @@
 import { Icon, type IconName } from "../ui/icons";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { useI18n, type Translations } from "../i18n";
 import type { ResumeAction } from "./resume-action";
 
 export type ResumeKind = "adopt" | "fork";
@@ -8,8 +9,8 @@ interface KindSpec {
   label: string;
   busyLabel: string;
   icon: IconName;
-  /** Lowercase verb for the disabled tooltip ("Nothing to {verb} …"). */
-  verb: string;
+  /** The "nothing to {verb}" disabled-tooltip text, pre-resolved for this kind. */
+  noConversationTitle: string;
   /** Tooltip when the action is shown but not yet `available` (Adopt only — see the `available` prop). */
   unavailableTitle?: string;
   confirmTitle: string;
@@ -17,30 +18,37 @@ interface KindSpec {
   confirmLabel: string;
 }
 
-const KIND: Record<ResumeKind, KindSpec> = {
-  adopt: {
-    label: "Adopt",
-    busyLabel: "Adopting…",
-    icon: "git-pull-request-arrow",
-    verb: "adopt",
-    unavailableTitle:
-      "This session just exited. Adopt is available in a moment.",
-    confirmTitle: "Resume a session with no recorded model?",
-    confirmBody:
-      "This session never recorded a model — it likely errored before its first turn — so resuming it may fail with a model error. Continue anyway?",
-    confirmLabel: "Resume anyway",
-  },
-  fork: {
-    label: "Fork",
-    busyLabel: "Forking…",
+/**
+ * The per-kind copy, resolved fresh per call (never captured at module scope) so it tracks the active
+ * locale. Reuses `t.shell.sessionMenu.*` rather than minting a duplicate set of keys: this button and the
+ * session-menu dropdown's Adopt/Fork rows are two surfaces for the exact same actions and historically
+ * duplicated this copy verbatim (the same drift `settings.cli.unavailableReason`'s single-sourcing fixed
+ * for the CLI-unusable sentence).
+ */
+function kindSpec(kind: ResumeKind, t: Translations): KindSpec {
+  const sm = t.shell.sessionMenu;
+  if (kind === "adopt") {
+    return {
+      label: sm.adopt,
+      busyLabel: sm.adopting,
+      icon: "git-pull-request-arrow",
+      noConversationTitle: sm.adoptTitleNoConversation,
+      unavailableTitle: sm.adoptTitlePending,
+      confirmTitle: sm.resumeConfirmTitle,
+      confirmBody: sm.resumeConfirmBody,
+      confirmLabel: sm.resumeConfirmLabel,
+    };
+  }
+  return {
+    label: sm.fork,
+    busyLabel: sm.forking,
     icon: "git-branch",
-    verb: "fork",
-    confirmTitle: "Fork a session with no recorded model?",
-    confirmBody:
-      "This session never recorded a model — it likely errored before its first turn — so forking it may fail with a model error. Continue anyway?",
-    confirmLabel: "Fork anyway",
-  },
-};
+    noConversationTitle: sm.forkTitleNoConversation,
+    confirmTitle: sm.forkConfirmTitle,
+    confirmBody: sm.forkConfirmBody,
+    confirmLabel: sm.forkConfirmLabel,
+  };
+}
 
 /**
  * The shared Adopt/Fork action button, used by both the header cluster and the Ended/Observed terminal
@@ -74,13 +82,14 @@ export function ResumeButton({
   className: string;
   iconSize: number;
 }) {
-  const spec = KIND[kind];
+  const { t } = useI18n();
+  const spec = kindSpec(kind, t);
   const title = !canSpawn
-    ? "Claude Code CLI isn't usable — see Sys status in the title bar."
+    ? t.settings.cli.unavailableReason
     : !resumable
       ? // Temporally neutral so it reads right on both a live session that hasn't taken a turn yet
         // (Fork shows there too) and an Ended one that never did.
-        `Nothing to ${spec.verb} — this session has no saved conversation.`
+        spec.noConversationTitle
       : !available
         ? spec.unavailableTitle
         : undefined;

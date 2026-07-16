@@ -1,7 +1,7 @@
 // src/renderer/src/workspace/panels/shell-view.ts
 import type { BackgroundShell } from "@shared/types";
 import type { AnsiColor } from "./ansi-to-html";
-import { formatDuration } from "@shared/format";
+import { tNow } from "../../i18n";
 
 /** The status glyph + cbw tone for a shell row. A completed shell reads green/✓ on a clean exit and
  *  red/✕ on a non-zero code; running pulses blue; killed is a calm grey square. */
@@ -18,22 +18,25 @@ export function shellGlyph(
 }
 
 /** The status pill for the drilled-in shell header: the row glyph + tone (reused straight from shellGlyph,
- *  so the pill can never drift from the list-row glyph the user drilled from) plus a one-word status label.
- *  The pill carries the only color in the header. */
+ *  so the pill can never drift from the list-row glyph the user drilled from) plus a one-word status label,
+ *  read from the dock's shared status vocabulary (dock.status — also used by monitor-view.ts and
+ *  DockTasks.tsx) so the word is resolved fresh per call, never captured at module scope. The pill
+ *  carries the only color in the header. */
 export function shellStatusPill(
   shell: Pick<BackgroundShell, "status" | "exitCode">,
 ): { glyph: string; label: string; tone: string } {
   const { char, tone } = shellGlyph(shell);
+  const status = tNow().dock.status;
   // Glyph and tone are shellGlyph's; only the words are the pill's own. completed splits failed/clean on
   // the exit the same way shellGlyph splits ✕/✓ (0 and undefined both read clean).
   const label =
     shell.status === "running"
-      ? "running"
+      ? status.running
       : shell.status === "killed"
-        ? "killed"
+        ? status.killed
         : shell.exitCode
-          ? "failed"
-          : "completed";
+          ? status.failed
+          : status.completed;
   return { glyph: char, label, tone };
 }
 
@@ -54,15 +57,16 @@ export function shellDetailMeta(
   runtime: string;
 } {
   const pill = shellStatusPill(shell);
+  const t = tNow();
   const statusText =
     shell.status === "completed" && shell.exitCode
-      ? `${pill.label} (exit ${shell.exitCode})`
+      ? `${pill.label}${t.dock.shells.exitSuffix(shell.exitCode)}`
       : pill.label;
   const runtime =
     shell.status === "running" && shell.startMs !== undefined
-      ? formatDuration(now - shell.startMs)
+      ? t.time.duration(now - shell.startMs)
       : shell.durationMs !== undefined
-        ? formatDuration(shell.durationMs)
+        ? t.time.duration(shell.durationMs)
         : "—";
   return {
     statusGlyph: pill.glyph,
@@ -76,7 +80,7 @@ export function shellDetailMeta(
 export function truncLabel(bytes: number): string {
   if (bytes <= 0) return "";
   const kb = Math.round(bytes / 1024);
-  return `${kb} KB of earlier output hidden`;
+  return tNow().dock.shells.truncated(kb);
 }
 
 // ANSI color → nearest cbw hue token, mapped by hue not by name. After the teal rebrand the cool slots

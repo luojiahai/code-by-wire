@@ -1,31 +1,52 @@
 import type { CliStatusKind, InstallMethod } from "@shared/cli-status";
+import type { Translations } from "../i18n";
 
 export interface InstallTab {
   method: Exclude<InstallMethod, "unknown">;
-  label: string;
   command: string;
-  note?: string;
 }
 
-/** The install commands, current as of the Claude Code docs (setup guide). */
+/** The install commands, current as of the Claude Code docs (setup guide). Locale-invariant —
+ *  labels/notes are resolved separately via `installTabLabel`/`installTabNote` at render, never
+ *  captured here at module scope. */
 export const INSTALL_TABS: InstallTab[] = [
   {
     method: "native",
-    label: "Native installer",
     command: "curl -fsSL https://claude.ai/install.sh | bash",
-    note: "Installs to ~/.local/bin/claude — make sure ~/.local/bin is on your PATH.",
   },
   {
     method: "homebrew",
-    label: "Homebrew",
     command: "brew install --cask claude-code",
   },
   {
     method: "npm",
-    label: "npm",
     command: "npm install -g @anthropic-ai/claude-code",
   },
 ];
+
+/** The tab label. "Homebrew"/"npm" are brand names and stay untranslated (same rule as the product
+ *  name); "Native installer" is plain English and gets a real translation. */
+export function installTabLabel(
+  method: InstallTab["method"],
+  t: Translations,
+): string {
+  switch (method) {
+    case "native":
+      return t.settings.cli.installNativeLabel;
+    case "homebrew":
+      return "Homebrew";
+    case "npm":
+      return "npm";
+  }
+}
+
+/** The tab's install-path caveat, when it has one (only the native installer does). */
+export function installTabNote(
+  method: InstallTab["method"],
+  t: Translations,
+): string | undefined {
+  return method === "native" ? t.settings.cli.installNativeNote : undefined;
+}
 
 const UPGRADE: Record<InstallMethod, string> = {
   native: "claude update",

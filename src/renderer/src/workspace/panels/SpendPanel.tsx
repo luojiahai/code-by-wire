@@ -1,13 +1,11 @@
 import { useMemo } from "react";
 import type { ModelUsage, Usage } from "@shared/types";
 import { viewUsageByModel } from "@shared/usage-by-model";
-import { formatTokensShort, formatUsd } from "@shared/format";
+import { formatUsd } from "@shared/format";
 import { MetricTip } from "../../ui/MetricTip";
 import { TOKEN_KINDS, type TokenKind } from "../../ui/token-kinds";
+import { useI18n } from "../../i18n";
 import { PanelSection, PanelHeading, StatRow } from "./chrome";
-
-const SPEND_INFO =
-  "What this session has consumed: total tokens by kind — fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes. The $ is Claude Code's own session accounting; on a subscription it is the API-equivalent value, not a bill.";
 
 const POPOVER =
   "absolute left-0 top-full z-20 mt-1 w-60 rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2.5 py-2 text-left text-xs leading-snug text-(--ui-text-secondary) shadow-(--shadow-md) backdrop-blur-xl";
@@ -21,12 +19,21 @@ const KIND_TOKENS: Record<TokenKind["key"], (u: Usage) => number> = {
   cacheWrite1h: (u) => u.cacheCreation1hTokens,
 };
 
-/** A kind label wrapped in a MetricTip whose popover gives the spec description. */
-function KindLabel({ kind }: { kind: TokenKind }) {
+/** A kind label wrapped in a MetricTip whose popover gives the spec description. Label/description
+ *  come from the caller's t.dock.spend.kinds[key] catalog entry, not from TokenKind directly, so
+ *  the rendered text translates with the locale (TokenKind's own label/description stay English-only
+ *  spec copy used elsewhere in the app). */
+function KindLabel({
+  label,
+  description,
+}: {
+  label: string;
+  description: string;
+}) {
   return (
-    <MetricTip label={kind.label} popoverClassName={POPOVER}>
-      <span className="block font-medium text-fg">{kind.label}</span>
-      <span className="mt-0.5 block">{kind.description}</span>
+    <MetricTip label={label} popoverClassName={POPOVER}>
+      <span className="block font-medium text-fg">{label}</span>
+      <span className="mt-0.5 block">{description}</span>
     </MetricTip>
   );
 }
@@ -45,20 +52,21 @@ export function SpendPanel({
   usageByModel: ModelUsage[];
   costUsd: number | null;
 }) {
+  const { t } = useI18n();
   const view = useMemo(() => viewUsageByModel(usageByModel), [usageByModel]);
   const { usage } = view;
   const total = view.totalTokens;
 
   return (
     <PanelSection>
-      <PanelHeading icon="coins" info={SPEND_INFO}>
-        Spend
+      <PanelHeading icon="coins" info={t.dock.spend.info}>
+        {t.dock.spend.heading}
       </PanelHeading>
 
       <div className="flex items-baseline justify-between">
         <div className="font-mono text-title font-medium leading-none tabular-nums text-fg">
-          {formatTokensShort(total)}
-          <span className="text-xs text-fg-faint"> tokens</span>
+          {t.numbers.tokensShort(total)}
+          <span className="text-xs text-fg-faint"> {t.dock.tokensUnit}</span>
         </div>
         <span className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
           {costUsd != null ? formatUsd(costUsd) : "-"}
@@ -69,8 +77,8 @@ export function SpendPanel({
         {TOKEN_KINDS.map((k) => (
           <StatRow
             key={k.key}
-            label={<KindLabel kind={k} />}
-            value={formatTokensShort(KIND_TOKENS[k.key](usage))}
+            label={<KindLabel {...t.dock.spend.kinds[k.key]} />}
+            value={t.numbers.tokensShort(KIND_TOKENS[k.key](usage))}
           />
         ))}
       </div>

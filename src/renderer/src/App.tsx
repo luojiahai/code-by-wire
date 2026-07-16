@@ -18,6 +18,7 @@ import { newSessionId } from "@shared/terminal";
 import { orderedSessions } from "@shared/overview";
 import { applyTitleOverrides } from "@shared/title-override";
 import { isUpdatePending } from "@shared/update";
+import { useI18n } from "./i18n";
 import { Workspace } from "./workspace/Workspace";
 import { useMetrics } from "./workspace/use-metrics";
 import { terminalStore } from "./terminal/terminal-store-instance";
@@ -65,6 +66,7 @@ const NEW_SESSION_ID = "new-session";
 const SYNC_MS = 3000;
 
 export function App() {
+  const { t } = useI18n();
   // The app-lifetime analytics pump: ingests transcripts into the durable stats mirror even when the
   // Stats view never opens, so Claude Code's transcript cleanup can't outrun ingestion.
   useStatsPump();
@@ -240,7 +242,8 @@ export function App() {
     model: ModelSelection,
   ): Promise<void> {
     const gate = spawnGate(cliStatus);
-    if (!gate.canSpawn) throw new Error(gate.reason ?? "CLI unavailable");
+    if (!gate.canSpawn)
+      throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     // Mint the id here and stand the terminal up BEFORE spawning, so the very first pty bytes land on a
     // live handle. Rows match xterm's pre-fit default (80x24); the view's first fit corrects it.
     const id = newSessionId();
@@ -270,7 +273,8 @@ export function App() {
     } catch (e) {
       setQuickAddPrefill((p) => ({
         cwd,
-        error: e instanceof Error ? e.message : "Failed to start the session",
+        error:
+          e instanceof Error ? e.message : t.shell.newSession.failedToStart,
         nonce: (p?.nonce ?? 0) + 1,
       }));
       setSelectedId(NEW_SESSION_ID);
@@ -282,7 +286,8 @@ export function App() {
   // Managed and the workspace swaps to the live terminal — until the next sync confirms it.
   async function adoptSession(id: string): Promise<void> {
     const gate = spawnGate(cliStatus);
-    if (!gate.canSpawn) throw new Error(gate.reason ?? "CLI unavailable");
+    if (!gate.canSpawn)
+      throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     // Dispose any stale handle from a prior adopt of this id that has since ended (its buffer still holds
     // the old "[process exited]" scrollback), so a re-adopt starts on a fresh terminal.
     terminalStore.dispose(id);
@@ -303,8 +308,8 @@ export function App() {
       if (!result.ok) {
         throw new Error(
           result.reason === "alive"
-            ? "This session is alive again."
-            : "Could not resume this session.",
+            ? t.workspace.resume.aliveAgain
+            : t.workspace.resume.couldNotResume,
         );
       }
       // A racing End click during this in-flight adopt may have added id to `ending`. The End button reads
@@ -358,7 +363,8 @@ export function App() {
   // fork's own Transcript. The source's model rides in so the draft labels the right model up front.
   async function forkSession(source: Session): Promise<void> {
     const gate = spawnGate(cliStatus);
-    if (!gate.canSpawn) throw new Error(gate.reason ?? "CLI unavailable");
+    if (!gate.canSpawn)
+      throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     if (forkingRef.current.has(source.id)) return; // a fork of this source is already in flight
     forkingRef.current.add(source.id);
     const newId = newSessionId();
@@ -371,7 +377,7 @@ export function App() {
         cols: 80,
         rows: 24,
       });
-      if (!result.ok) throw new Error("Could not fork this session.");
+      if (!result.ok) throw new Error(t.workspace.resume.couldNotFork);
       setDrafts((ds) => [result.session, ...ds]);
       setSelectedId(newId);
     } catch (e) {
@@ -460,7 +466,10 @@ export function App() {
   // header), the live `Workspace` (which renders its own `MiddleHeader` + `SessionMenu`), or the
   // empty state when nothing is selected (e.g. a stale/vanished session id with no pinned route).
   const middle: ReactNode = isNewSession ? (
-    <MiddleNonSession title="New session" leftEdgeExposed={leftEdgeExposed}>
+    <MiddleNonSession
+      title={t.shell.sidebar.newSession}
+      leftEdgeExposed={leftEdgeExposed}
+    >
       <NewSessionView
         key={quickAddPrefill?.nonce ?? 0}
         onCreate={createSession}
@@ -470,11 +479,17 @@ export function App() {
       />
     </MiddleNonSession>
   ) : isOverview ? (
-    <MiddleNonSession title="Stats" leftEdgeExposed={leftEdgeExposed}>
+    <MiddleNonSession
+      title={t.shell.sidebar.stats}
+      leftEdgeExposed={leftEdgeExposed}
+    >
       <StatsView />
     </MiddleNonSession>
   ) : isSettings ? (
-    <MiddleNonSession title="Settings" leftEdgeExposed={leftEdgeExposed}>
+    <MiddleNonSession
+      title={t.settings.nav.settings}
+      leftEdgeExposed={leftEdgeExposed}
+    >
       <SettingsView
         cliStatus={cliStatus}
         checking={checking}
@@ -638,17 +653,18 @@ function MiddleNonSession({
 
 /** The detail pane before a session is selected, or when none exist. */
 function EmptyDetail({ empty, loading }: { empty: boolean; loading: boolean }) {
+  const { t } = useI18n();
   if (empty) {
     return (
       <div className="flex flex-1 items-center justify-center bg-ink-950 text-body text-fg-faint">
-        {loading ? null : "No Claude Code sessions found."}
+        {loading ? null : t.workspace.emptyStates.noSessions}
       </div>
     );
   }
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2.5 bg-ink-950 text-fg-faint">
       <Icon name="square-dashed-mouse-pointer" size={28} />
-      <p className="text-body">Select a session to open it.</p>
+      <p className="text-body">{t.workspace.emptyStates.selectSession}</p>
     </div>
   );
 }

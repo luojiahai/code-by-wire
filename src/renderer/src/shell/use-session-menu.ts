@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { Session } from "@shared/types";
 import { OPEN_IN_FAILED_MESSAGE, type OpenInTarget } from "@shared/ipc";
+import { useI18n } from "../i18n";
 import {
   useSessionActions,
   type SessionActions,
@@ -67,6 +68,7 @@ export function useSessionMenu(
     onRename: (id: string, title: string | null) => void;
   },
 ): SessionMenuController {
+  const { t } = useI18n();
   const { onRename } = callbacks;
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -188,28 +190,28 @@ export function useSessionMenu(
 
   const adoptDisabled = !canAdopt || !canSpawn || !session.resumable;
   const adoptTitle = !canSpawn
-    ? "Claude Code CLI isn't usable — see Sys status in the title bar."
+    ? t.settings.cli.unavailableReason
     : !session.resumable
-      ? "Nothing to adopt — this session has no saved conversation."
+      ? t.shell.sessionMenu.adoptTitleNoConversation
       : !canAdopt
-        ? "This session just exited. Adopt is available in a moment."
+        ? t.shell.sessionMenu.adoptTitlePending
         : undefined;
 
   const forkGateExtra = ended || session.management === "observed";
   const forkDisabled = forkGateExtra || !canSpawn || !session.resumable;
   const forkTitle = !canSpawn
-    ? "Claude Code CLI isn't usable — see Sys status in the title bar."
+    ? t.settings.cli.unavailableReason
     : !session.resumable
-      ? "Nothing to fork — this session has no saved conversation."
+      ? t.shell.sessionMenu.forkTitleNoConversation
       : ended
-        ? "This session has ended — there's nothing live left to fork."
+        ? t.shell.sessionMenu.forkTitleEnded
         : session.management === "observed"
-          ? "Fork isn't offered for an observed session — it isn't a session this app owns."
+          ? t.shell.sessionMenu.forkTitleObserved
           : undefined;
 
   const endTitle = live
-    ? "End this session"
-    : "End is only available for a live session you manage.";
+    ? t.shell.sessionMenu.endTitleLive
+    : t.shell.sessionMenu.endTitleUnavailable;
 
   return {
     open,

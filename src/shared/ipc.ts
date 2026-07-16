@@ -20,6 +20,7 @@ import type { StatsSnapshot, StatsRange, ScanProgress } from "./stats";
 import type { CliStatus } from "./cli-status";
 import type { UpdateState } from "./update";
 import type { StatuslineStatus } from "./statusline-status";
+import type { Locale } from "./locale";
 export { type UpdateState };
 export const IPC = {
   overview: "overview:get",
@@ -56,6 +57,8 @@ export const IPC = {
   appearanceSetAppTheme: "appearance:setAppTheme",
   appearanceGetTerminalTheme: "appearance:getTerminalTheme",
   appearanceSetTerminalTheme: "appearance:setTerminalTheme",
+  appearanceGetLocale: "appearance:getLocale",
+  appearanceSetLocale: "appearance:setLocale",
   statuslineGetStatus: "statusline:getStatus",
   statuslineSetEnabled: "statusline:setEnabled",
   statuslineSetRefreshInterval: "statusline:setRefreshInterval",
@@ -262,6 +265,12 @@ export interface IpcApi {
   getTerminalTheme(): Promise<"dark" | "light">;
   /** Persist the terminal theme. */
   setTerminalTheme(theme: "dark" | "light"): Promise<void>;
+  /** The app's display language (missing or invalid preference reads as "en" —
+   *  the handler runs normalizeLocale, so the renderer never sees a raw value). */
+  getLocale(): Promise<Locale>;
+  /** Persist the display language. The renderer's $locale atom is the live copy;
+   *  no native side effect (unlike setAppTheme's nativeTheme sync). */
+  setLocale(locale: Locale): Promise<void>;
   /** The Statusline card's readout: preference, install state, derived health, coverage. Assembled in
    *  main; polled by the System section every 3s while open. Never rejects. */
   getStatuslineStatus(): Promise<StatuslineStatus>;

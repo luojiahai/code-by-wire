@@ -1,5 +1,6 @@
 import type { Task } from "@shared/types";
 import { cx } from "../../ui/atoms";
+import { useI18n } from "../../i18n";
 import { EmptyState } from "./chrome";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
 
@@ -28,29 +29,33 @@ const SUBJECT_TONE: Record<Task["status"], string> = {
  * blocking task IDs in the metric rack. Completion reads from the row glyphs, so there's no summary line.
  */
 export function DockTasks({ tasks }: { tasks: Task[] }) {
-  if (tasks.length === 0) return <EmptyState>No tasks yet.</EmptyState>;
+  const { t: i18n } = useI18n();
+  if (tasks.length === 0)
+    return <EmptyState>{i18n.dock.tasks.empty}</EmptyState>;
   return (
     <div className="py-1" role="list">
-      {tasks.map((t) => {
-        const blockers = t.blockedBy ?? [];
+      {tasks.map((task) => {
+        const blockers = task.blockedBy ?? [];
         return (
           <DockRow
-            key={t.id}
+            key={task.id}
             leading={
               <span
                 className={cx(
                   DOCK_GUTTER,
                   "shrink-0 text-center font-mono text-meta",
-                  GLYPH_TONE[t.status],
+                  GLYPH_TONE[task.status],
                 )}
               >
-                {GLYPH[t.status]}
+                {GLYPH[task.status]}
               </span>
             }
             trailing={
               blockers.length > 0 ? (
                 <MetricRack>
-                  <MetricCell>blocked·{blockers.join(",")}</MetricCell>
+                  <MetricCell>
+                    {i18n.dock.status.blocked}·{blockers.join(",")}
+                  </MetricCell>
                 </MetricRack>
               ) : undefined
             }
@@ -58,11 +63,11 @@ export function DockTasks({ tasks }: { tasks: Task[] }) {
             <span
               className={cx(
                 "min-w-0 flex-1 truncate text-aux",
-                SUBJECT_TONE[t.status],
+                SUBJECT_TONE[task.status],
               )}
-              title={t.subject}
+              title={task.subject}
             >
-              {t.subject}
+              {task.subject}
             </span>
           </DockRow>
         );

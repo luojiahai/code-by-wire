@@ -1,6 +1,7 @@
 import { cx } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { useCopyFlash } from "../../ui/use-copy-flash";
+import { useI18n } from "../../i18n";
 
 /**
  * Copy-to-clipboard affordance shared by code blocks and assistant bubbles. Built on the shared
@@ -17,13 +18,14 @@ export function CopyButton({
   label?: string;
   className?: string;
 }) {
+  const { t } = useI18n();
   const { copied, copy } = useCopyFlash(text);
 
   return (
     <button
       type="button"
       onClick={copy}
-      aria-label={copied ? "Copied" : "Copy"}
+      aria-label={copied ? t.common.copied : t.common.copy}
       className={cx(
         "flex items-center gap-1.5 rounded-md px-1.5 py-1 text-meta text-fg-faint transition-colors hover:text-fg",
         className,
@@ -36,7 +38,7 @@ export function CopyButton({
       />
       {label && (
         <span className={cx(copied && "text-ok")}>
-          {copied ? "Copied" : label}
+          {copied ? t.common.copied : label}
         </span>
       )}
     </button>

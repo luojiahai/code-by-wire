@@ -72,17 +72,23 @@ export function DockRow({
   );
 }
 
-/** The right-aligned metric cluster shared by every dock row. */
+/** The right-aligned metric cluster shared by every dock row. Not shrink-0: when the row is squeezed
+ *  narrower than the label + every metric's preferred width, the rack (and in turn its MetricCells)
+ *  needs to be eligible to shrink too, or the label absorbs 100% of the deficit and the rack — despite
+ *  each cell nominally being shrinkable — never actually gets asked to compress, since a shrink-0
+ *  container is never offered less than its own natural content width in the first place. */
 export function MetricRack({ children }: { children: ReactNode }) {
   return (
-    <span className="flex shrink-0 items-center gap-3 font-mono text-meta tabular-nums">
+    <span className="flex min-w-0 items-center gap-3 font-mono text-meta tabular-nums">
       {children}
     </span>
   );
 }
 
 /** One right-aligned mono metric. `unit`, when present, renders dimmed after the value so the number
- *  leads regardless of the value's own tone. `width` fixes the column so values line up down the panel. */
+ *  leads regardless of the value's own tone. `width` is the preferred column size (values line up down
+ *  the panel at comfortable widths) but not a hard floor — cells shrink and their text wraps rather than
+ *  overflowing the row when the panel is squeezed narrower than the content needs. */
 export function MetricCell({
   width,
   tone = "text-(--ui-text-tertiary)",
@@ -98,7 +104,7 @@ export function MetricCell({
   return (
     <span
       className={cx(
-        "shrink-0 text-right font-mono text-meta tabular-nums",
+        "min-w-0 text-right font-mono text-meta tabular-nums",
         width,
         tone,
         className,

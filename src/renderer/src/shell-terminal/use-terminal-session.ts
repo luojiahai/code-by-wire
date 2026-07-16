@@ -2,6 +2,7 @@ import type { SerializeAddon } from "@xterm/addon-serialize";
 import { useEffect, useRef, useState } from "react";
 import { newSessionId } from "@shared/terminal";
 import { osKind } from "@shared/platform";
+import { tNow } from "../i18n";
 import { XtermTerminal } from "../xterm/xterm-terminal";
 import { terminalTheme } from "../xterm/terminal-theme";
 import { TerminalResizeDebouncer } from "../xterm/terminal-resize-debouncer";
@@ -386,9 +387,9 @@ export function useTerminalSession({
         .catch((error: unknown) => {
           setStatus("closed");
           term.write(
-            `\r\n\x1b[31mTerminal failed to start: ${
-              error instanceof Error ? error.message : String(error)
-            }\x1b[0m\r\n`,
+            `\r\n\x1b[31m${tNow().terminal.spawnFailed(
+              error instanceof Error ? error.message : String(error),
+            )}\x1b[0m\r\n`,
           );
         });
 

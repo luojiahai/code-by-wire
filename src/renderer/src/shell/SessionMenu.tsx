@@ -2,6 +2,7 @@ import { MAX_SESSION_TITLE_LEN } from "@shared/title-override";
 import type { Session } from "@shared/types";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { useI18n } from "../i18n";
 import { useSessionMenu } from "./use-session-menu";
 import { SessionMenuDropdown } from "./SessionMenuDropdown";
 
@@ -28,6 +29,7 @@ export function SessionMenu({
   /** Persist a display-name override for this session (null/empty clears it). */
   onRename: (id: string, title: string | null) => void;
 }) {
+  const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
     onAdopt,
     onFork,
@@ -40,7 +42,7 @@ export function SessionMenu({
     return (
       <input
         ref={renameField.inputRef}
-        aria-label="Rename session"
+        aria-label={t.shell.sessionMenu.renameFieldLabel}
         value={renameField.value}
         maxLength={MAX_SESSION_TITLE_LEN}
         onChange={renameField.onChange}
@@ -59,7 +61,7 @@ export function SessionMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-controls={open ? menuId : undefined}
-        title="Session menu"
+        title={t.shell.sessionMenu.menuTitle}
         className="flex h-6 min-w-0 max-w-full items-center gap-1 overflow-hidden rounded-xs border border-transparent bg-transparent px-2 py-0 text-left text-(--ui-text-secondary) transition-colors duration-100 hover:border-(--ui-stroke-tertiary) hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none aria-expanded:border-(--ui-stroke-tertiary) aria-expanded:bg-(--ui-control-active-background)"
       >
         <span className="min-w-0 truncate text-[0.75rem] font-medium leading-none">

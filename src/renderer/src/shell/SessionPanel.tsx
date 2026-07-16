@@ -1,13 +1,9 @@
 import type { ReactNode } from "react";
 import type { Session } from "@shared/types";
 import type { GitInfo, PrInfo } from "@shared/metrics";
-import {
-  formatClock,
-  formatRelativeTime,
-  formatTokensShort,
-} from "@shared/format";
 import { modelLabel } from "../ui/meta";
 import { PanelSection, PanelHeading } from "../workspace/panels/chrome";
+import { useI18n } from "../i18n";
 import { GitReadout } from "./GitReadout";
 
 /**
@@ -25,32 +21,36 @@ export function SessionPanel({
   git?: GitInfo | null;
   pr?: PrInfo | null;
 }) {
+  const { t } = useI18n();
   const model = modelLabel(
     s.model,
     s.modelId ?? s.modelRaw,
     s.modelDisplayName,
     { known: s.management === "managed" },
   );
-  const clock = s.sessionClockMs != null ? formatClock(s.sessionClockMs) : null;
+  const clock =
+    s.sessionClockMs != null ? t.time.duration(s.sessionClockMs) : null;
   const hasLines = s.linesAdded != null || s.linesRemoved != null;
   const prView = s.pr ?? pr ?? null;
-  const prStatus =
-    ((s.pr?.reviewState ?? pr?.reviewDecision) || pr?.state)
-      ?.toLowerCase()
-      .replace(/_/g, " ") ?? null;
+  const prStatusRaw = (s.pr?.reviewState ?? pr?.reviewDecision) || pr?.state;
+  const prStatus = prStatusRaw
+    ? t.shell.sessionPanel.prStatus(prStatusRaw)
+    : null;
   return (
     <PanelSection>
-      <PanelHeading icon="id-card">Session</PanelHeading>
-      <SessionRow label="Model">
+      <PanelHeading icon="id-card">{t.shell.sessionPanel.heading}</PanelHeading>
+      <SessionRow label={t.shell.sessionPanel.model}>
         <span className="min-w-0 truncate" title={model}>
           {model}
         </span>
       </SessionRow>
-      <SessionRow label="Effort">{s.effortLevel ?? "-"}</SessionRow>
-      <SessionRow label="Git">
+      <SessionRow label={t.shell.sessionPanel.effort}>
+        {s.effortLevel ?? "-"}
+      </SessionRow>
+      <SessionRow label={t.shell.sessionPanel.git}>
         <GitReadout session={s} git={git} />
       </SessionRow>
-      <SessionRow label="PR">
+      <SessionRow label={t.shell.sessionPanel.pr}>
         {prView ? (
           <>
             <button
@@ -69,7 +69,7 @@ export function SessionPanel({
           "-"
         )}
       </SessionRow>
-      <SessionRow label="Lines">
+      <SessionRow label={t.shell.sessionPanel.lines}>
         {hasLines ? (
           <>
             <span className="text-(--ui-green)">+{s.linesAdded ?? 0}</span>
@@ -79,13 +79,15 @@ export function SessionPanel({
           "-"
         )}
       </SessionRow>
-      <SessionRow label="Clock">{clock ?? "-"}</SessionRow>
+      <SessionRow label={t.shell.sessionPanel.clock}>{clock ?? "-"}</SessionRow>
       {(s.compactionCount ?? 0) > 0 && (
-        <SessionRow label="Compactions">
+        <SessionRow label={t.shell.sessionPanel.compactions}>
           <span
             title={
               s.compactionTokensReclaimed
-                ? `${formatTokensShort(s.compactionTokensReclaimed)} tokens reclaimed`
+                ? t.shell.sessionPanel.tokensReclaimed(
+                    t.numbers.tokensShort(s.compactionTokensReclaimed),
+                  )
                 : undefined
             }
           >
@@ -93,8 +95,8 @@ export function SessionPanel({
           </span>
         </SessionRow>
       )}
-      <SessionRow label="Active">
-        {formatRelativeTime(s.lastActivityMs, Date.now())}
+      <SessionRow label={t.shell.sessionPanel.active}>
+        {t.time.ago(s.lastActivityMs, Date.now())}
       </SessionRow>
     </PanelSection>
   );

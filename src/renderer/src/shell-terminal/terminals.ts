@@ -1,4 +1,5 @@
 import { atom } from "nanostores";
+import { tNow } from "../i18n";
 import { $activeSessionCwd, setTerminalTakeover } from "./store";
 
 /** One in-app terminal tab. `id` is the renderer-side handle — distinct from the pty session id
@@ -37,7 +38,7 @@ function sanitize(value: unknown): TerminalEntry | null {
     typeof r.reviveBuffer === "string" ? r.reviveBuffer : undefined;
   return {
     id,
-    title: title || "Terminal",
+    title: title || tNow().terminal.defaultTitle,
     auto: typeof r.auto === "boolean" ? r.auto : true,
     cwd: typeof r.cwd === "string" ? r.cwd : "",
     ...(reviveBuffer ? { reviveBuffer } : {}),
@@ -115,7 +116,7 @@ export function createTerminal(
   const id = newId();
   $terminals.set([
     ...$terminals.get(),
-    { id, title: "Terminal", auto: true, cwd },
+    { id, title: tNow().terminal.defaultTitle, auto: true, cwd },
   ]);
   $activeTerminalId.set(id);
   return id;

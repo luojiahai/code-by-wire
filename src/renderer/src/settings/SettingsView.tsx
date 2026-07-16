@@ -11,13 +11,14 @@ import type { IconName } from "../ui/icon-names";
 import { Wordmark, cx } from "../ui/atoms";
 import { footerView } from "../ui/rail-footer";
 import { PageHeader, Card } from "../shell/page-primitives";
+import { useI18n } from "../i18n";
 
 export type SettingsSection = "system" | "appearance" | "about";
 
-const NAV: { key: SettingsSection; label: string; icon: IconName }[] = [
-  { key: "system", label: "System", icon: "monitor" },
-  { key: "appearance", label: "Appearance", icon: "palette" },
-  { key: "about", label: "About", icon: "info" },
+const NAV: { key: SettingsSection; icon: IconName }[] = [
+  { key: "system", icon: "monitor" },
+  { key: "appearance", icon: "palette" },
+  { key: "about", icon: "info" },
 ];
 
 /**
@@ -41,6 +42,7 @@ export function SettingsView({
   onSectionChange: (section: SettingsSection) => void;
   update?: UpdateControls;
 }) {
+  const { t } = useI18n();
   const cliDot = footerView(cliStatus).dot;
   const cliTrips = cliDot === "warn" || cliDot === "error";
   const updatePending = update ? isUpdatePending(update.state.phase) : false;
@@ -49,7 +51,7 @@ export function SettingsView({
     <div className="flex h-full min-w-0 flex-1 bg-ink-950 text-fg">
       <nav className="flex w-44 shrink-0 flex-col gap-0.5 border-r border-ink-800 px-2 py-4">
         <div className="px-2.5 pb-2 font-display text-label font-semibold uppercase tracking-[0.1em] text-fg-faint">
-          Settings
+          {t.settings.nav.settings}
         </div>
         {NAV.map((n) => {
           const active = section === n.key;
@@ -70,7 +72,7 @@ export function SettingsView({
                 size={15}
                 className="shrink-0 text-fg-faint"
               />
-              <span className="flex-1">{n.label}</span>
+              <span className="flex-1">{t.settings.nav[n.key]}</span>
               {n.key === "system" && cliTrips && (
                 <span
                   className={cx(
@@ -105,8 +107,8 @@ export function SettingsView({
           {section === "appearance" && (
             <>
               <PageHeader
-                title="Appearance"
-                lede="Dark is the default for both the app and the terminal — light is opt-in."
+                title={t.settings.appearance.title}
+                lede={t.settings.appearance.lede}
               />
               <AppearanceCard />
             </>
@@ -127,11 +129,12 @@ function SystemSection({
   checking: boolean;
   onRecheck: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
       <PageHeader
-        title="System"
-        lede="The machinery feeding this app. Keep it green."
+        title={t.settings.system.title}
+        lede={t.settings.system.lede}
       />
       <CliCard
         cliStatus={cliStatus}
@@ -145,15 +148,15 @@ function SystemSection({
 }
 
 function AboutSection({ update }: { update?: UpdateControls }) {
+  const { t } = useI18n();
   return (
     <>
-      <PageHeader title="About" />
+      <PageHeader title={t.settings.about.title} />
       <Card title="Code-by-wire">
         <div className="flex flex-col gap-3 px-4 py-4">
           <Wordmark />
           <p className="max-w-[54ch] text-body leading-relaxed text-fg-muted">
-            Pilot every Claude Code session and monitor its telemetry, from one
-            cockpit.
+            {t.settings.about.tagline}
           </p>
           <button
             type="button"

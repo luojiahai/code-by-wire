@@ -2,6 +2,7 @@ import { MAX_SESSION_TITLE_LEN } from "@shared/title-override";
 import type { Session } from "@shared/types";
 import { cx, Lamp } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { useI18n } from "../i18n";
 import { useSessionMenu } from "./use-session-menu";
 import { SessionMenuDropdown } from "./SessionMenuDropdown";
 
@@ -34,6 +35,7 @@ export function SessionRow({
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
 }) {
+  const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
     onAdopt,
     onFork,
@@ -49,7 +51,7 @@ export function SessionRow({
         </span>
         <input
           ref={menu.renameField.inputRef}
-          aria-label="Rename session"
+          aria-label={t.shell.sessionMenu.renameFieldLabel}
           value={menu.renameField.value}
           maxLength={MAX_SESSION_TITLE_LEN}
           onChange={menu.renameField.onChange}
@@ -67,7 +69,7 @@ export function SessionRow({
         type="button"
         onClick={onSelect}
         aria-pressed={selected}
-        aria-label={`Open ${session.title}`}
+        aria-label={t.shell.sessionRow.openSession(session.title)}
         className={cx(
           "flex min-h-[1.625rem] w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-2 text-left transition-colors duration-100 ease-out hover:transition-none",
           selected
@@ -111,7 +113,7 @@ export function SessionRow({
         <button
           type="button"
           onClick={() => menu.toggleMenu()}
-          aria-label="Session actions"
+          aria-label={t.shell.sessionRow.sessionActions}
           aria-expanded={menu.open}
           aria-haspopup="menu"
           className={cx(
