@@ -5,6 +5,7 @@ import {
   type TerminalApi,
 } from "@shared/terminal";
 import type { OsKind } from "@shared/platform";
+import { tNow } from "../i18n";
 import { editSequence } from "./key-bindings";
 import { clipboardKeyAction } from "../xterm/clipboard-keys";
 import {
@@ -170,7 +171,7 @@ export function createTerminalStore({
     const h = handles.get(id);
     if (!h) return;
     // Keep the scrollback; just mark the end inline (dim).
-    const notice = `\r\n\x1b[2m[process exited${code ? ` (${code})` : ""}]\x1b[0m\r\n`;
+    const notice = `\r\n\x1b[2m[${tNow().terminal.processExited}${code ? ` (${code})` : ""}]\x1b[0m\r\n`;
     if (h.replayPending) {
       // A reattach is in flight: queue the notice behind the gate, exactly like live output (see onData),
       // so it lands AFTER the snapshot and queued output instead of on top of the fresh xterm — otherwise

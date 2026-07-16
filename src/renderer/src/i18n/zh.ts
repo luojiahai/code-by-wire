@@ -254,6 +254,8 @@ export const zh: Translations = {
     closeOthers: "关闭其他",
     closeAll: "关闭全部",
     defaultTitle: "终端",
+    processExited: "进程已退出",
+    spawnFailed: (message) => `终端启动失败：${message}`,
   },
   workspace: {
     emptyStates: {

@@ -276,16 +276,24 @@ export const en = {
       ungrouped: "(no project)",
     },
   },
-  /** The interactive shell-terminal pane's tab rail (rail.tsx) and its context menu. Terminal
-   *  CONTENT (pty/shell output) is the shell's own — never translated; only this rail chrome
-   *  around it is. `defaultTitle` is the tab's placeholder label until the pty reports the
-   *  resolved shell name or the user renames it. */
+  /** Chrome for both terminal surfaces: the interactive shell-terminal pane's tab rail
+   *  (rail.tsx) and its context menu, AND the renderer-synthesized banners each terminal writes
+   *  directly into its own xterm viewport (the Managed pty's exit notice in terminal-store.ts;
+   *  the interactive shell's spawn-failure notice in use-terminal-session.ts). Terminal CONTENT
+   *  (pty/shell output) is the shell's own — never translated; only chrome the app itself writes
+   *  is. `defaultTitle` is the tab's placeholder label until the pty reports the resolved shell
+   *  name or the user renames it. `processExited`/`spawnFailed` are substituted into hand-built
+   *  ANSI escape sequences at the call site — keep them as bare word phrases (or, for
+   *  `spawnFailed`, a function around the interpolated error message); never fold the escape
+   *  codes themselves into the catalog. */
   terminal: {
     tabListAria: "Terminals",
     newTerminal: "New terminal",
     closeOthers: "Close others",
     closeAll: "Close all",
     defaultTitle: "Terminal",
+    processExited: "process exited",
+    spawnFailed: (message: string) => `Terminal failed to start: ${message}`,
   },
   workspace: {
     emptyStates: {
