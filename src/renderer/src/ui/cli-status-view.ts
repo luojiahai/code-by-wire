@@ -1,4 +1,6 @@
 import type { CliStatus, CliStatusKind } from "@shared/cli-status";
+import { tNow } from "../i18n";
+import type { Translations } from "../i18n";
 
 /** The three CLI-status tones. Shared so the modal banner and the rail-footer dot speak one vocabulary. */
 export type CliStatusTone = "ok" | "warn" | "error";
@@ -27,24 +29,36 @@ export interface CliStatusView {
   detail: string;
 }
 
-const HEADLINE: Record<CliStatusKind, string> = {
-  ready: "Ready",
-  outdated: "Update available",
-  loggedOut: "Logged out",
-  unknown: "Status unknown",
-  notFound: "Not found",
-};
+function headlineFor(kind: CliStatusKind, t: Translations): string {
+  switch (kind) {
+    case "ready":
+      return t.settings.cli.headlineReady;
+    case "outdated":
+      return t.settings.cli.headlineOutdated;
+    case "loggedOut":
+      return t.settings.cli.headlineLoggedOut;
+    case "unknown":
+      return t.settings.cli.headlineUnknown;
+    case "notFound":
+      return t.settings.cli.headlineNotFound;
+  }
+}
 
 /** Resolve the banner's tone, headline, and detail from a CLI status. `ready` reads as a calm
  *  confirmation; every other kind surfaces the status's own one-liner (`detail`), falling back to a
- *  generic nudge when the check left none. */
-export function cliStatusView(status: CliStatus): CliStatusView {
+ *  generic nudge when the check left none. `t` defaults to the live locale via `tNow()` — evaluated
+ *  per call, never captured — so existing single-arg call sites (and tests, which pin the English
+ *  default) keep working while CliCard.tsx passes its own `useI18n()` catalog explicitly. */
+export function cliStatusView(
+  status: CliStatus,
+  t: Translations = tNow(),
+): CliStatusView {
   return {
     tone: STATUS_TONE[status.kind],
-    headline: HEADLINE[status.kind],
+    headline: headlineFor(status.kind, t),
     detail:
       status.kind === "ready"
-        ? "Up to date and ready."
-        : (status.detail ?? "Action needed."),
+        ? t.settings.cli.detailReady
+        : (status.detail ?? t.settings.cli.detailFallback),
   };
 }

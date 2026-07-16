@@ -11,15 +11,11 @@ import {
 } from "./system-primitives";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { $scanProgress, kickStatsPump } from "../stats/use-stats-pump";
+import { useI18n } from "../i18n";
 
 /** The dbinfo poll cadence while the System section is open — the stats warm cadence, so a running
  *  backfill's size/counts tick along with the lamp. */
 const POLL_MS = 1500;
-
-// Copy fixed by the design spec (2026-07-10) — do not reword.
-const DANGER_HEADLINE = "IRREVERSIBLE BEYOND RETENTION";
-const DANGER_BODY =
-  "Rebuilds from transcripts on disk. History older than Claude Code's cleanup window is lost for good.";
 
 /**
  * The Stats database subsystem card (design spec 2026-07-10): the durable analytics mirror's
@@ -30,6 +26,7 @@ const DANGER_BODY =
  * Claude Code's transcript cleanup, so a rebuild-from-disk can only see what cleanup has spared.
  */
 export function StatsDbCard() {
+  const { t } = useI18n();
   const progress = useStore($scanProgress);
   const [info, setInfo] = useState<StatsDbInfo | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -63,10 +60,13 @@ export function StatsDbCard() {
     progress === null ? "idle" : backfilling ? "warn" : "live";
   const word =
     progress === null
-      ? "CHECKING"
+      ? t.settings.statsDb.stateChecking
       : backfilling
-        ? `BACKFILLING · ${progress.filesDone}/${progress.filesTotal}`
-        : "MIRRORED";
+        ? t.settings.statsDb.backfilling(
+            progress.filesDone,
+            progress.filesTotal,
+          )
+        : t.settings.statsDb.mirrored;
 
   async function handleReset(): Promise<void> {
     setConfirmReset(false);
@@ -87,26 +87,32 @@ export function StatsDbCard() {
   }
 
   return (
-    <Card title="Stats database">
+    <Card title={t.settings.statsDb.title}>
       <SubsystemHeader tone={tone} word={word} />
-      <ReadoutRow label="Location" value={info ? info.path : "—"} />
       <ReadoutRow
-        label="Size"
+        label={t.settings.statsDb.location}
+        value={info ? info.path : "—"}
+      />
+      <ReadoutRow
+        label={t.settings.statsDb.size}
         value={info ? formatBytes(info.sizeBytes) : "—"}
       />
       <ReadoutRow
-        label="Ingested"
+        label={t.settings.statsDb.ingested}
         value={
           info
-            ? `${info.turns.toLocaleString("en-US")} turns · ${info.sessions.toLocaleString("en-US")} sessions`
+            ? t.settings.statsDb.ingestedValue(
+                info.turns.toLocaleString("en-US"),
+                info.sessions.toLocaleString("en-US"),
+              )
             : "—"
         }
       />
       <ReadoutRow
-        label="History"
+        label={t.settings.statsDb.history}
         value={
           info && info.oldestTs !== null
-            ? `since ${localDayKey(info.oldestTs)}`
+            ? t.settings.statsDb.since(localDayKey(info.oldestTs))
             : "—"
         }
       />
@@ -115,12 +121,14 @@ export function StatsDbCard() {
       <div className="flex items-center gap-3 bg-danger/5 px-4 py-3">
         <div className="min-w-0 flex-1">
           <div className="font-mono text-meta tracking-[0.1em] text-danger">
-            {DANGER_HEADLINE}
+            {t.settings.statsDb.dangerHeadline}
           </div>
-          <div className="mt-1 text-aux text-fg-muted">{DANGER_BODY}</div>
+          <div className="mt-1 text-aux text-fg-muted">
+            {t.settings.statsDb.dangerBody}
+          </div>
           {resetError && (
             <div className="mt-1 text-meta text-danger">
-              Couldn&apos;t reset. Please try again.
+              {t.settings.statsDb.resetError}
             </div>
           )}
         </div>
@@ -133,14 +141,15 @@ export function StatsDbCard() {
           disabled={backfilling}
           className="inline-flex shrink-0 items-center rounded-md border border-danger/40 px-2.5 py-1 text-aux text-danger transition-colors hover:border-danger hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Reset
+          {t.settings.statsDb.reset}
         </button>
       </div>
       {confirmReset && (
         <ConfirmDialog
-          title="Reset the stats database?"
-          body="Clears the computed stats and rebuilds them from the transcripts on disk. History older than Claude Code's transcript retention is lost for good."
-          confirmLabel="Reset"
+          title={t.settings.statsDb.confirmTitle}
+          body={t.settings.statsDb.confirmBody}
+          confirmLabel={t.settings.statsDb.reset}
+          cancelLabel={t.common.cancel}
           tone="danger"
           onCancel={() => setConfirmReset(false)}
           onConfirm={() => void handleReset()}
