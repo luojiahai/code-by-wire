@@ -31,7 +31,11 @@ describe("catalog time formatters", () => {
     expect(zh.time.dayShort("2026-06-14")).toBe("6月14日");
     expect(zh.time.dayLong("2026-06-14")).toBe("2026年6月14日");
     expect(zh.time.monthShort("2026-06-14")).toBe("6月");
-    // "tokens/s" is a technical unit — kept as-is in zh.
-    expect(zh.time.tps(86.4)).toBe("86.4 tokens/s");
+    // Unlike en (which delegates to formatTps), zh formats its own throughput unit —
+    // reviewer decision: "tokens/s" is loanword-standard in en dev tooling, but the
+    // Chinese locale should say 词元 (token) consistently, including here.
+    expect(zh.time.tps(86.4)).toBe("86.4 词元/秒");
+    expect(zh.time.tps(1234)).toBe("1.2k 词元/秒");
+    expect(zh.time.tps(0)).toBe("0 词元/秒");
   });
 });

@@ -1,4 +1,3 @@
-import { formatTps } from "@shared/format";
 import type { Translations } from "./en";
 
 /** 简体中文 catalog. Full (not partial) — typed `: Translations` so tsc fails on any
@@ -248,7 +247,7 @@ export const zh: Translations = {
       clock: "时长",
       compactions: "压缩次数",
       active: "活跃",
-      tokensReclaimed: (tokens) => `已回收 ${tokens} 个 token`,
+      tokensReclaimed: (tokens) => `已回收 ${tokens} 个词元`,
     },
     sessionList: {
       ungrouped: "（无项目）",
@@ -304,7 +303,7 @@ export const zh: Translations = {
     noUsage: "暂无使用记录。",
     shared: {
       unknownModel: "未知",
-      tokensHeader: "Token",
+      tokensHeader: "词元",
       showMore: (n, total) => `再显示 ${n} 个（共 ${total} 个）`,
       rangeToday: "今天",
       range7d: "7天",
@@ -314,7 +313,7 @@ export const zh: Translations = {
     },
     overview: {
       sessions: "会话",
-      tokens: "Token",
+      tokens: "词元",
       favoriteModel: "最常用模型",
       activeDays: "活跃天数",
       mostActiveDay: "最活跃日",
@@ -326,11 +325,11 @@ export const zh: Translations = {
       less: "少",
       more: "多",
       trailingYear: "最近 12 个月",
-      tokensLabel: (value) => `${value} 个 token`,
+      tokensLabel: (value) => `${value} 个词元`,
       dayTokensAria: (day, tokens) => `${day}：${tokens}`,
     },
     models: {
-      title: "每日 Token 用量",
+      title: "每日词元用量",
       tooltipNoUsage: "暂无用量",
       total: "总计",
       inOut: (input, output) => `输入：${input} · 输出：${output}`,
@@ -373,7 +372,7 @@ export const zh: Translations = {
       blocked: "阻塞",
     },
     aboutMetric: (title) => (title ? `关于${title}` : "关于此指标"),
-    tokensUnit: "token",
+    tokensUnit: "词元",
     tasks: {
       empty: "暂无任务。",
     },
@@ -407,15 +406,15 @@ export const zh: Translations = {
     },
     spend: {
       heading: "花费",
-      info: "本会话已消耗的用量：按种类划分的 token 总量——新输入、生成输出、缓存读取，以及 5 分钟和 1 小时的缓存写入。$ 是 Claude Code 自身的会话记账；在订阅方案下它是等价 API 价值，并非实际账单。",
+      info: "本会话已消耗的用量：按种类划分的词元总量——新输入、生成输出、缓存读取，以及 5 分钟和 1 小时的缓存写入。$ 是 Claude Code 自身的会话记账；在订阅方案下它是等价 API 价值，并非实际账单。",
       kinds: {
         input: {
           label: "输入",
-          description: "本会话处理的新提示词 token，按全价计费。",
+          description: "本会话处理的新提示词的词元，按全价计费。",
         },
         output: {
           label: "输出",
-          description: "模型生成的 token。",
+          description: "模型生成的词元。",
         },
         cacheRead: {
           label: "缓存读取",
@@ -440,7 +439,7 @@ export const zh: Translations = {
     },
     throughput: {
       heading: "吞吐量",
-      info: "最近 60 秒内活跃生成的 token 吞吐量。走势图描绘近期样本的总 tokens/秒；轮次之间的空闲间隙不计入统计。",
+      info: "最近 60 秒内活跃生成的词元吞吐量。走势图描绘近期样本的总词元/秒；轮次之间的空闲间隙不计入统计。",
       idle: "空闲",
       input: "输入",
       output: "输出",
@@ -533,8 +532,11 @@ export const zh: Translations = {
       const m = totalMin % 60;
       return m > 0 ? `${h}小时${m}分` : `${h}小时`;
     },
-    // "tokens/s" is a technical unit, kept untranslated (loanword-standard in zh dev tools).
-    tps: (tps) => formatTps(tps),
+    tps: (tps) => {
+      if (!Number.isFinite(tps) || tps <= 0) return "0 词元/秒";
+      if (tps >= 1000) return (tps / 1000).toFixed(1) + "k 词元/秒";
+      return tps.toFixed(1) + " 词元/秒";
+    },
     dayShort: (day) => {
       const [, m, d] = day.split("-").map(Number);
       return `${m}月${d}日`;
