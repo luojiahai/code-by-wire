@@ -335,6 +335,12 @@ export const en = {
     resume: {
       // useResumeAction's generic fallback when the thrown error carries no message of its own.
       failed: "Failed to resume",
+      // App.tsx's adoptSession/forkSession throw Error(...) with these exact messages, surfaced
+      // verbatim as e.message by useResumeAction's catch — must stay translated, not just the
+      // generic `failed` fallback above (which only fires for a non-Error throw).
+      aliveAgain: "This session is alive again.",
+      couldNotResume: "Could not resume this session.",
+      couldNotFork: "Could not fork this session.",
     },
     openIn: {
       target: (name: string) => `Open in ${name}`,

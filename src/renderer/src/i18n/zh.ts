@@ -289,6 +289,9 @@ export const zh: Translations = {
     },
     resume: {
       failed: "恢复失败",
+      aliveAgain: "该会话已重新激活。",
+      couldNotResume: "无法恢复此会话。",
+      couldNotFork: "无法复刻此会话。",
     },
     openIn: {
       target: (name) => `在${name}中打开`,

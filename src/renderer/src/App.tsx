@@ -242,7 +242,8 @@ export function App() {
     model: ModelSelection,
   ): Promise<void> {
     const gate = spawnGate(cliStatus);
-    if (!gate.canSpawn) throw new Error(gate.reason ?? "CLI unavailable");
+    if (!gate.canSpawn)
+      throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     // Mint the id here and stand the terminal up BEFORE spawning, so the very first pty bytes land on a
     // live handle. Rows match xterm's pre-fit default (80x24); the view's first fit corrects it.
     const id = newSessionId();
@@ -272,7 +273,8 @@ export function App() {
     } catch (e) {
       setQuickAddPrefill((p) => ({
         cwd,
-        error: e instanceof Error ? e.message : "Failed to start the session",
+        error:
+          e instanceof Error ? e.message : t.shell.newSession.failedToStart,
         nonce: (p?.nonce ?? 0) + 1,
       }));
       setSelectedId(NEW_SESSION_ID);
@@ -284,7 +286,8 @@ export function App() {
   // Managed and the workspace swaps to the live terminal — until the next sync confirms it.
   async function adoptSession(id: string): Promise<void> {
     const gate = spawnGate(cliStatus);
-    if (!gate.canSpawn) throw new Error(gate.reason ?? "CLI unavailable");
+    if (!gate.canSpawn)
+      throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     // Dispose any stale handle from a prior adopt of this id that has since ended (its buffer still holds
     // the old "[process exited]" scrollback), so a re-adopt starts on a fresh terminal.
     terminalStore.dispose(id);
@@ -305,8 +308,8 @@ export function App() {
       if (!result.ok) {
         throw new Error(
           result.reason === "alive"
-            ? "This session is alive again."
-            : "Could not resume this session.",
+            ? t.workspace.resume.aliveAgain
+            : t.workspace.resume.couldNotResume,
         );
       }
       // A racing End click during this in-flight adopt may have added id to `ending`. The End button reads
@@ -360,7 +363,8 @@ export function App() {
   // fork's own Transcript. The source's model rides in so the draft labels the right model up front.
   async function forkSession(source: Session): Promise<void> {
     const gate = spawnGate(cliStatus);
-    if (!gate.canSpawn) throw new Error(gate.reason ?? "CLI unavailable");
+    if (!gate.canSpawn)
+      throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     if (forkingRef.current.has(source.id)) return; // a fork of this source is already in flight
     forkingRef.current.add(source.id);
     const newId = newSessionId();
@@ -373,7 +377,7 @@ export function App() {
         cols: 80,
         rows: 24,
       });
-      if (!result.ok) throw new Error("Could not fork this session.");
+      if (!result.ok) throw new Error(t.workspace.resume.couldNotFork);
       setDrafts((ds) => [result.session, ...ds]);
       setSelectedId(newId);
     } catch (e) {
