@@ -97,6 +97,15 @@ tools haven't been used recently" reminder while you're executing these
 steps, that's a generic prompt, not a sign this skill needs one — keep
 following the steps directly instead.
 
+If a long release loses its place — a compaction event drops earlier turns,
+or a fresh conversation picks up a run that stalled between phases — don't
+reach for a todo list to reconstruct where you were. Re-orient from the same
+real state "Orient first" and Phase 2 step 1 already check: PR merge status,
+whether the bump commit landed on `main`, whether the tag exists, and
+`gh run list`/`gh run view` for the Release workflow. That state is
+authoritative and always current; a todo list would just be a stale copy of
+it.
+
 ## Phase 1 — "bump version" (before release)
 
 Do all the prep on a branch and open the PR. **Do not tag.**
