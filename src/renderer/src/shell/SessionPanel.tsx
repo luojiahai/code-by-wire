@@ -32,10 +32,10 @@ export function SessionPanel({
     s.sessionClockMs != null ? t.time.duration(s.sessionClockMs) : null;
   const hasLines = s.linesAdded != null || s.linesRemoved != null;
   const prView = s.pr ?? pr ?? null;
-  const prStatus =
-    ((s.pr?.reviewState ?? pr?.reviewDecision) || pr?.state)
-      ?.toLowerCase()
-      .replace(/_/g, " ") ?? null;
+  const prStatusRaw = (s.pr?.reviewState ?? pr?.reviewDecision) || pr?.state;
+  const prStatus = prStatusRaw
+    ? t.shell.sessionPanel.prStatus(prStatusRaw)
+    : null;
   return (
     <PanelSection>
       <PanelHeading icon="id-card">{t.shell.sessionPanel.heading}</PanelHeading>

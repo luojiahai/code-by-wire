@@ -280,6 +280,13 @@ export const en = {
       compactions: "Compactions",
       active: "Active",
       tokensReclaimed: (tokens: string) => `${tokens} tokens reclaimed`,
+      // The PR review/merge status word next to the #number link. Source is gh's own stable enums
+      // (state: OPEN|CLOSED|MERGED, reviewDecision: APPROVED|CHANGES_REQUESTED|REVIEW_REQUIRED) or
+      // the statusLine capture's reviewState (currently pending/approved/changes_requested, "or
+      // anything newer" per its own doc comment — not a fully closed set). En just normalizes case
+      // and underscores; zh translates the known words and falls back to this same normalized
+      // string for anything it doesn't recognize, so a future gh/capture value never breaks.
+      prStatus: (raw: string) => raw.toLowerCase().replace(/_/g, " "),
     },
     sessionList: {
       ungrouped: "(no project)",
