@@ -13,6 +13,12 @@ describe("catalog time formatters", () => {
     expect(en.time.monthShort("2026-06-14")).toBe("Jun");
     expect(en.time.countdown(now + 8_040_000, now)).toBe("2h 14m");
     expect(en.time.tps(86.4)).toBe("86.4 tokens/s");
+    // tpsValue + " " + tpsUnit must reproduce tps()'s own combined output — the hero
+    // throughput readout styles them as separate elements instead of splitting the string.
+    expect(en.time.tpsValue(86.4)).toBe("86.4");
+    expect(en.time.tpsValue(1234)).toBe("1.2k");
+    expect(en.time.tpsValue(0)).toBe("0");
+    expect(en.time.tpsUnit).toBe("tokens/s");
   });
 
   it("zh renders Chinese units on the same thresholds", () => {
@@ -37,5 +43,9 @@ describe("catalog time formatters", () => {
     expect(zh.time.tps(86.4)).toBe("86.4 词元/秒");
     expect(zh.time.tps(1234)).toBe("1.2k 词元/秒");
     expect(zh.time.tps(0)).toBe("0 词元/秒");
+    expect(zh.time.tpsValue(86.4)).toBe("86.4");
+    expect(zh.time.tpsValue(1234)).toBe("1.2k");
+    expect(zh.time.tpsValue(0)).toBe("0");
+    expect(zh.time.tpsUnit).toBe("词元/秒");
   });
 });

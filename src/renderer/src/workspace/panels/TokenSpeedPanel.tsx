@@ -45,8 +45,8 @@ export function TokenSpeedPanel({
       <div className="flex items-baseline">
         {speed ? (
           <span className="font-mono text-title font-medium tabular-nums text-fg">
-            {t.time.tps(speed.totalTps).replace(/ tokens\/s$/, "")}
-            <span className="text-xs text-fg-faint"> tokens/s</span>
+            {t.time.tpsValue(speed.totalTps)}
+            <span className="text-xs text-fg-faint"> {t.time.tpsUnit}</span>
           </span>
         ) : (
           <span className="font-mono text-title font-medium tabular-nums text-fg-faint">

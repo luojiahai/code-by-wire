@@ -537,6 +537,12 @@ export const zh: Translations = {
       if (tps >= 1000) return (tps / 1000).toFixed(1) + "k 词元/秒";
       return tps.toFixed(1) + " 词元/秒";
     },
+    tpsValue: (tps) => {
+      if (!Number.isFinite(tps) || tps <= 0) return "0";
+      if (tps >= 1000) return (tps / 1000).toFixed(1) + "k";
+      return tps.toFixed(1);
+    },
+    tpsUnit: "词元/秒",
     dayShort: (day) => {
       const [, m, d] = day.split("-").map(Number);
       return `${m}月${d}日`;

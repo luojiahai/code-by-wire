@@ -581,6 +581,15 @@ export const en = {
       formatResetCountdown(resetsAt, now),
     duration: (ms: number) => formatDuration(ms),
     tps: (tps: number) => formatTps(tps),
+    // Split form of tps(), for callers that style the number and the unit separately (e.g. a hero
+    // number with a small unit label beside it) — avoids string-splitting the combined tps() output
+    // with a locale-specific regex. tpsValue + " " + tpsUnit reproduces tps()'s own output.
+    tpsValue: (tps: number) => {
+      if (!Number.isFinite(tps) || tps <= 0) return "0";
+      if (tps >= 1000) return (tps / 1000).toFixed(1) + "k";
+      return tps.toFixed(1);
+    },
+    tpsUnit: "tokens/s",
     dayShort: (day: string) => formatDayShort(day),
     dayLong: (day: string) => formatDayLong(day),
     monthShort: (day: string) => formatMonthShort(day),
