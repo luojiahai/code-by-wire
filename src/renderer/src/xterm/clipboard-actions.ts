@@ -1,3 +1,4 @@
+import type { OsKind } from "@shared/platform";
 import {
   preparePasteText,
   rightClickAction,
@@ -73,15 +74,11 @@ export async function runClipboardAction(
  *  null from rightClickAction, leaving the browser default untouched. */
 export function attachClipboardContextMenu(
   el: Pick<HTMLElement, "addEventListener" | "removeEventListener">,
-  platform: string,
+  os: OsKind,
   deps: ClipboardActionDeps,
 ): () => void {
   const onContextMenu = (e: MouseEvent): void => {
-    const action = rightClickAction(
-      platform,
-      deps.term.hasSelection(),
-      e.shiftKey,
-    );
+    const action = rightClickAction(os, deps.term.hasSelection(), e.shiftKey);
     if (action === null) return;
     e.preventDefault();
     if (action === "paste-no-fallback") deps.term.focus(); // vscode focuses before a mouse paste

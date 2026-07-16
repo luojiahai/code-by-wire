@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { FLOW, type ReattachSnapshot } from "../../src/shared/terminal";
+import type { OsKind } from "../../src/shared/platform";
 import {
   createTerminalStore,
   type XtermLike,
@@ -55,7 +56,7 @@ function fakeXterm() {
   };
 }
 
-function harness(platform = "darwin") {
+function harness(os: OsKind = "mac") {
   let dataRouter: (id: string, d: string, offset: number) => void = () => {};
   let exitRouter: (id: string, c: number) => void = () => {};
   const api = {
@@ -95,7 +96,7 @@ function harness(platform = "darwin") {
   > = [];
   const store = createTerminalStore({
     api,
-    platform,
+    os,
     clipboard,
     createTerminal: (onResize) => {
       const f = fakeXterm();
@@ -241,7 +242,7 @@ describe("createTerminalStore", () => {
   });
 
   it("on non-mac, sends Shift+Enter as a newline but leaves the mac editing combos to xterm", () => {
-    const h = harness("win32");
+    const h = harness("windows");
     h.store.create("a");
     expect(h.made[0].attachKeyHandler).toHaveBeenCalled(); // handler attaches everywhere now
 
@@ -521,9 +522,9 @@ describe("createTerminalStore", () => {
   });
 });
 
-describe("clipboard keybindings (win32 — the platforms where xterm swallowed Ctrl+C/V)", () => {
+describe("clipboard keybindings (windows — the platforms where xterm swallowed Ctrl+C/V)", () => {
   it("Ctrl+V pastes clipboard text through xterm instead of sending ^V", async () => {
-    const h = harness("win32");
+    const h = harness("windows");
     h.setClipboardText("hello");
     h.store.create("a");
     const t = h.made[0];
@@ -533,7 +534,7 @@ describe("clipboard keybindings (win32 — the platforms where xterm swallowed C
   });
 
   it("Ctrl+V with an empty clipboard falls back to the ^V byte (CLI image paste)", async () => {
-    const h = harness("win32");
+    const h = harness("windows");
     h.store.create("a");
     const t = h.made[0];
     t.pressKey(keydown({ key: "v", ctrlKey: true }));
@@ -544,7 +545,7 @@ describe("clipboard keybindings (win32 — the platforms where xterm swallowed C
   });
 
   it("the ^V fallback follows a /clear rename (writes under the new id)", async () => {
-    const h = harness("win32");
+    const h = harness("windows");
     h.store.create("a");
     h.store.rename("a", "b");
     h.made[0].pressKey(keydown({ key: "v", ctrlKey: true }));
@@ -554,7 +555,7 @@ describe("clipboard keybindings (win32 — the platforms where xterm swallowed C
   });
 
   it("Ctrl+C with a selection copies-and-clears instead of sending SIGINT", async () => {
-    const h = harness("win32");
+    const h = harness("windows");
     h.store.create("a");
     const t = h.made[0];
     t.setSelection("picked text");
@@ -567,7 +568,7 @@ describe("clipboard keybindings (win32 — the platforms where xterm swallowed C
   });
 
   it("Ctrl+C without a selection stays the shell's SIGINT (xterm keeps the key)", () => {
-    const h = harness("win32");
+    const h = harness("windows");
     h.store.create("a");
     expect(h.made[0].pressKey(keydown({ key: "c", ctrlKey: true }))).toBe(true);
   });
@@ -580,7 +581,7 @@ describe("clipboard keybindings (win32 — the platforms where xterm swallowed C
   });
 
   it("dispose detaches the right-click listener from the wrapper", () => {
-    const h = harness("win32");
+    const h = harness("windows");
     h.store.create("a");
     h.store.dispose("a");
     expect(h.made[0].wrapperRemoveEventListener).toHaveBeenCalledWith(

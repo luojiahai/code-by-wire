@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isMacPlatform, toPosixPath } from "../src/shared/platform";
+import { isMacPlatform, osKind, toPosixPath } from "../src/shared/platform";
 
 describe("isMacPlatform", () => {
   it("is true only for darwin", () => {
@@ -7,6 +7,15 @@ describe("isMacPlatform", () => {
     expect(isMacPlatform("win32")).toBe(false);
     expect(isMacPlatform("linux")).toBe(false);
     expect(isMacPlatform("")).toBe(false);
+  });
+});
+
+describe("osKind", () => {
+  it("maps platform strings to their OS family, defaulting unixes to linux", () => {
+    expect(osKind("darwin")).toBe("mac");
+    expect(osKind("win32")).toBe("windows");
+    expect(osKind("linux")).toBe("linux");
+    expect(osKind("freebsd")).toBe("linux");
   });
 });
 

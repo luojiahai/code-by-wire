@@ -1,4 +1,5 @@
 import type { EditKey } from "../ui/mac-edit-sequence";
+import type { OsKind } from "@shared/platform";
 
 /**
  * The clipboard keymap both terminals share — VS Code's platform defaults
@@ -10,7 +11,7 @@ import type { EditKey } from "../ui/mac-edit-sequence";
  * Windows/Linux xterm swallows Ctrl+V/Ctrl+C into `^V`/`^C` pty bytes (preventDefault included),
  * so the menu accelerator never fires and keyboard copy AND paste are both dead.
  *
- * darwin maps to null for everything, deliberately: the menu path already works, and plain
+ * mac maps to null for everything, deliberately: the menu path already works, and plain
  * `^C`/`^V` bytes must keep reaching the pty (the Claude CLI binds `^V` to image paste).
  */
 export type ClipboardKeyAction =
@@ -23,20 +24,20 @@ export type ClipboardKeyAction =
 /** Classify a keydown into a clipboard action, or null to let xterm process the key. */
 export function clipboardKeyAction(
   e: EditKey,
-  platform: string,
+  os: OsKind,
   hasSelection: boolean,
 ): ClipboardKeyAction | null {
   if (e.type !== "keydown") return null;
   // Mid-composition (CJK/dead-key): the keystroke belongs to xterm's IME handler.
   if (e.isComposing) return null;
-  if (platform === "darwin") return null;
+  if (os === "mac") return null;
   // metaKey never participates; altKey excluded because AltGr = Ctrl+Alt on European Windows
   // layouts — Ctrl+Alt+V is how you TYPE a character there, never a paste.
   if (e.metaKey || e.altKey) return null;
   if (!e.ctrlKey) {
     // Shift+Insert: X11 selection paste on Linux. On Windows Chromium's native insert
     // handling already pastes (xterm doesn't swallow Insert), so we leave it alone.
-    if (platform === "linux" && e.shiftKey && e.key === "Insert") {
+    if (os === "linux" && e.shiftKey && e.key === "Insert") {
       return "paste-selection";
     }
     return null;
@@ -47,7 +48,7 @@ export function clipboardKeyAction(
     if (k === "c") return hasSelection ? "copy" : null;
     return null;
   }
-  if (platform === "win32") {
+  if (os === "windows") {
     if (k === "v") return "paste";
     // Only with a selection — without one Ctrl+C must stay the shell's SIGINT.
     if (k === "c") return hasSelection ? "copy-and-clear" : null;
@@ -59,11 +60,11 @@ export function clipboardKeyAction(
  *  else paste. Shift forces the (nonexistent) context menu in VS Code, so shift+right-click is
  *  ignored. mac/linux defaults need a terminal context menu this app doesn't have — untouched. */
 export function rightClickAction(
-  platform: string,
+  os: OsKind,
   hasSelection: boolean,
   shiftKey: boolean,
 ): "copy-and-clear" | "paste-no-fallback" | null {
-  if (platform !== "win32" || shiftKey) return null;
+  if (os !== "windows" || shiftKey) return null;
   return hasSelection ? "copy-and-clear" : "paste-no-fallback";
 }
 

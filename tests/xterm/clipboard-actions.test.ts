@@ -159,20 +159,20 @@ describe("attachClipboardContextMenu — Windows right-click copyPaste", () => {
     return e;
   }
 
-  it("win32 + selection: consumes the event and copies-and-clears", async () => {
+  it("windows + selection: consumes the event and copies-and-clears", async () => {
     const f = fakeDeps({ selection: "picked" });
     const el = document.createElement("div");
-    attachClipboardContextMenu(el, "win32", f.deps);
+    attachClipboardContextMenu(el, "windows", f.deps);
     const e = contextMenu(el);
     expect(e.defaultPrevented).toBe(true);
     await vi.waitFor(() => expect(f.writeText).toHaveBeenCalledWith("picked"));
     expect(f.clearSelection).toHaveBeenCalled();
   });
 
-  it("win32 + no selection: focuses the terminal and pastes (no fallback byte)", async () => {
+  it("windows + no selection: focuses the terminal and pastes (no fallback byte)", async () => {
     const f = fakeDeps({ clipboardText: "hello" });
     const el = document.createElement("div");
-    attachClipboardContextMenu(el, "win32", f.deps);
+    attachClipboardContextMenu(el, "windows", f.deps);
     const e = contextMenu(el);
     expect(e.defaultPrevented).toBe(true);
     expect(f.focus).toHaveBeenCalled();
@@ -180,26 +180,26 @@ describe("attachClipboardContextMenu — Windows right-click copyPaste", () => {
     expect(f.ptyWrites).toEqual([]);
   });
 
-  it("win32 + shift: untouched (event not consumed, nothing runs)", () => {
+  it("windows + shift: untouched (event not consumed, nothing runs)", () => {
     const f = fakeDeps({ selection: "picked" });
     const el = document.createElement("div");
-    attachClipboardContextMenu(el, "win32", f.deps);
+    attachClipboardContextMenu(el, "windows", f.deps);
     const e = contextMenu(el, true);
     expect(e.defaultPrevented).toBe(false);
     expect(f.writeText).not.toHaveBeenCalled();
   });
 
-  it("darwin: right-click is untouched", () => {
+  it("mac: right-click is untouched", () => {
     const f = fakeDeps({ selection: "picked" });
     const el = document.createElement("div");
-    attachClipboardContextMenu(el, "darwin", f.deps);
+    attachClipboardContextMenu(el, "mac", f.deps);
     expect(contextMenu(el).defaultPrevented).toBe(false);
   });
 
   it("the returned cleanup detaches the listener", () => {
     const f = fakeDeps({ selection: "picked" });
     const el = document.createElement("div");
-    const detach = attachClipboardContextMenu(el, "win32", f.deps);
+    const detach = attachClipboardContextMenu(el, "windows", f.deps);
     detach();
     expect(contextMenu(el).defaultPrevented).toBe(false);
     expect(f.writeText).not.toHaveBeenCalled();

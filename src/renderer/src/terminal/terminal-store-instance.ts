@@ -1,3 +1,4 @@
+import { osKind } from "@shared/platform";
 import { createTerminalStore } from "./terminal-store";
 import { createXterm } from "./xterm-factory";
 
@@ -7,7 +8,7 @@ import { createXterm } from "./xterm-factory";
 export const terminalStore = createTerminalStore({
   api: window.api.terminal,
   createTerminal: createXterm,
-  platform: window.api.platform,
+  os: osKind(window.api.platform),
   clipboard: {
     readText: (type) => window.api.clipboardReadText(type),
     writeText: (text) => window.api.clipboardWriteText(text),

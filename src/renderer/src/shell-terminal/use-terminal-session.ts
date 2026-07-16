@@ -1,7 +1,7 @@
 import type { SerializeAddon } from "@xterm/addon-serialize";
 import { useEffect, useRef, useState } from "react";
 import { newSessionId } from "@shared/terminal";
-import { isMacPlatform } from "@shared/platform";
+import { osKind } from "@shared/platform";
 import { XtermTerminal } from "../xterm/xterm-terminal";
 import { terminalTheme } from "../xterm/terminal-theme";
 import { TerminalResizeDebouncer } from "../xterm/terminal-resize-debouncer";
@@ -343,8 +343,7 @@ export function useTerminalSession({
     // there's no Shift+Enter remap here: a real shell reads bare Enter as submit and that must stay
     // untouched. Clipboard combos run first on every platform (win/linux copy/paste — mac rides
     // the native menu, see clipboard-keys).
-    const platform = window.api.platform;
-    const isMac = isMacPlatform(platform);
+    const os = osKind(window.api.platform);
     const clipDeps: ClipboardActionDeps = {
       term,
       writePty: (data) => api.write(sessionId, data),
@@ -354,13 +353,13 @@ export function useTerminalSession({
       },
     };
     term.attachCustomKeyEventHandler((e) => {
-      const action = clipboardKeyAction(e, platform, term.hasSelection());
+      const action = clipboardKeyAction(e, os, term.hasSelection());
       if (action !== null) {
         e.preventDefault();
         void runClipboardAction(action, clipDeps); // never rejects
         return false; // we own the combo; xterm must not also emit its ^V/^C byte
       }
-      if (!isMac) return true;
+      if (os !== "mac") return true;
       const seq = macEditSequence(e);
       if (seq === null) return true; // not ours — plain keys, etc.
       e.preventDefault();
@@ -368,7 +367,7 @@ export function useTerminalSession({
       return false; // we sent the bytes; stop xterm emitting its own sequence
     });
     // Windows right-click copyPaste on the host (the shell tab's mount element).
-    cleanup.push(attachClipboardContextMenu(host, platform, clipDeps));
+    cleanup.push(attachClipboardContextMenu(host, os, clipDeps));
 
     const startSession = (): void =>
       void api

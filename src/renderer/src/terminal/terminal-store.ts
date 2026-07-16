@@ -4,7 +4,7 @@ import {
   type ReattachSnapshot,
   type TerminalApi,
 } from "@shared/terminal";
-import { isMacPlatform } from "@shared/platform";
+import type { OsKind } from "@shared/platform";
 import { editSequence } from "./key-bindings";
 import { clipboardKeyAction } from "../xterm/clipboard-keys";
 import {
@@ -88,9 +88,9 @@ export interface TerminalStoreDeps {
     forceRefresh: () => void;
     dispose: () => void;
   };
-  /** `window.api.platform` — the keymap is platform-keyed: win/linux clipboard combos
-   *  (clipboard-keys) and the macOS readline edit keys (key-bindings). */
-  platform: string;
+  /** Which OS family the app runs on. Keys the clipboard combos (win/linux, clipboard-keys) and
+   *  gates the macOS readline edit keys (key-bindings). */
+  os: OsKind;
   /** The main-process clipboard IPC pair (read for paste, write for copy), injected for tests. */
   clipboard: ClipboardIpc;
 }
@@ -124,10 +124,10 @@ export interface TerminalStore {
 export function createTerminalStore({
   api,
   createTerminal,
-  platform,
+  os,
   clipboard,
 }: TerminalStoreDeps): TerminalStore {
-  const isMac = isMacPlatform(platform);
+  const isMac = os === "mac";
   const handles = new Map<string, TerminalHandle>();
   const pendingAck = new Map<string, number>(); // consumed-but-unsent ack chars, per id
 
@@ -205,7 +205,7 @@ export function createTerminalStore({
       // moves between workspace containers, so the listener attaches exactly once).
       const detachContextMenu = attachClipboardContextMenu(
         created.wrapper,
-        platform,
+        os,
         clipDeps,
       );
       handle = {
@@ -228,11 +228,7 @@ export function createTerminalStore({
       // plus cmd/option + arrows and deletes → readline bytes on macOS. Reads handle.id so
       // input still follows a /clear rename.
       handle.term.attachCustomKeyEventHandler((e) => {
-        const action = clipboardKeyAction(
-          e,
-          platform,
-          handle.term.hasSelection(),
-        );
+        const action = clipboardKeyAction(e, os, handle.term.hasSelection());
         if (action !== null) {
           e.preventDefault();
           void runClipboardAction(action, clipDeps); // never rejects

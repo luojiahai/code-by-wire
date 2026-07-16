@@ -20,34 +20,34 @@ function key(props: Partial<EditKey> & { key: string }): EditKey {
 }
 
 describe("clipboardKeyAction — VS Code's platform clipboard keymap, hardcoded", () => {
-  it("win32: Ctrl+V pastes (with ^V fallback), selection state irrelevant", () => {
+  it("windows: Ctrl+V pastes (with ^V fallback), selection state irrelevant", () => {
     const e = key({ key: "v", ctrlKey: true });
-    expect(clipboardKeyAction(e, "win32", false)).toBe("paste");
-    expect(clipboardKeyAction(e, "win32", true)).toBe("paste");
+    expect(clipboardKeyAction(e, "windows", false)).toBe("paste");
+    expect(clipboardKeyAction(e, "windows", true)).toBe("paste");
   });
 
-  it("win32: Ctrl+Shift+V pastes without the ^V fallback (key arrives uppercase)", () => {
+  it("windows: Ctrl+Shift+V pastes without the ^V fallback (key arrives uppercase)", () => {
     const e = key({ key: "V", ctrlKey: true, shiftKey: true });
-    expect(clipboardKeyAction(e, "win32", false)).toBe("paste-no-fallback");
+    expect(clipboardKeyAction(e, "windows", false)).toBe("paste-no-fallback");
   });
 
-  it("win32: Ctrl+C copies-and-clears only when there is a selection (else SIGINT passes)", () => {
+  it("windows: Ctrl+C copies-and-clears only when there is a selection (else SIGINT passes)", () => {
     const e = key({ key: "c", ctrlKey: true });
-    expect(clipboardKeyAction(e, "win32", true)).toBe("copy-and-clear");
-    expect(clipboardKeyAction(e, "win32", false)).toBeNull();
+    expect(clipboardKeyAction(e, "windows", true)).toBe("copy-and-clear");
+    expect(clipboardKeyAction(e, "windows", false)).toBeNull();
   });
 
-  it("win32: Ctrl+Shift+C copies (no clear) only when there is a selection", () => {
+  it("windows: Ctrl+Shift+C copies (no clear) only when there is a selection", () => {
     const e = key({ key: "C", ctrlKey: true, shiftKey: true });
-    expect(clipboardKeyAction(e, "win32", true)).toBe("copy");
-    expect(clipboardKeyAction(e, "win32", false)).toBeNull();
+    expect(clipboardKeyAction(e, "windows", true)).toBe("copy");
+    expect(clipboardKeyAction(e, "windows", false)).toBeNull();
   });
 
-  it("win32: Shift+Insert is left to Chromium's native paste", () => {
+  it("windows: Shift+Insert is left to Chromium's native paste", () => {
     expect(
       clipboardKeyAction(
         key({ key: "Insert", shiftKey: true }),
-        "win32",
+        "windows",
         false,
       ),
     ).toBeNull();
@@ -93,26 +93,22 @@ describe("clipboardKeyAction — VS Code's platform clipboard keymap, hardcoded"
     ).toBeNull();
   });
 
-  it("darwin: every combo returns null (Cmd+C/V ride the native menu; ^C/^V stay shell bytes)", () => {
+  it("mac: every combo returns null (Cmd+C/V ride the native menu; ^C/^V stay shell bytes)", () => {
     expect(
-      clipboardKeyAction(key({ key: "v", ctrlKey: true }), "darwin", true),
+      clipboardKeyAction(key({ key: "v", ctrlKey: true }), "mac", true),
     ).toBeNull();
     expect(
       clipboardKeyAction(
         key({ key: "V", ctrlKey: true, shiftKey: true }),
-        "darwin",
+        "mac",
         true,
       ),
     ).toBeNull();
     expect(
-      clipboardKeyAction(key({ key: "c", ctrlKey: true }), "darwin", true),
+      clipboardKeyAction(key({ key: "c", ctrlKey: true }), "mac", true),
     ).toBeNull();
     expect(
-      clipboardKeyAction(
-        key({ key: "Insert", shiftKey: true }),
-        "darwin",
-        true,
-      ),
+      clipboardKeyAction(key({ key: "Insert", shiftKey: true }), "mac", true),
     ).toBeNull();
   });
 
@@ -120,7 +116,7 @@ describe("clipboardKeyAction — VS Code's platform clipboard keymap, hardcoded"
     expect(
       clipboardKeyAction(
         key({ key: "v", ctrlKey: true, altKey: true }),
-        "win32",
+        "windows",
         false,
       ),
     ).toBeNull();
@@ -130,7 +126,7 @@ describe("clipboardKeyAction — VS Code's platform clipboard keymap, hardcoded"
     expect(
       clipboardKeyAction(
         key({ key: "v", ctrlKey: true, metaKey: true }),
-        "win32",
+        "windows",
         false,
       ),
     ).toBeNull();
@@ -140,7 +136,7 @@ describe("clipboardKeyAction — VS Code's platform clipboard keymap, hardcoded"
     expect(
       clipboardKeyAction(
         key({ key: "v", ctrlKey: true, type: "keyup" }),
-        "win32",
+        "windows",
         false,
       ),
     ).toBeNull();
@@ -150,33 +146,33 @@ describe("clipboardKeyAction — VS Code's platform clipboard keymap, hardcoded"
     expect(
       clipboardKeyAction(
         key({ key: "v", ctrlKey: true, isComposing: true }),
-        "win32",
+        "windows",
         false,
       ),
     ).toBeNull();
   });
 
   it("plain keys and unrelated ctrl combos pass through", () => {
-    expect(clipboardKeyAction(key({ key: "v" }), "win32", false)).toBeNull();
+    expect(clipboardKeyAction(key({ key: "v" }), "windows", false)).toBeNull();
     expect(
-      clipboardKeyAction(key({ key: "x", ctrlKey: true }), "win32", true),
+      clipboardKeyAction(key({ key: "x", ctrlKey: true }), "windows", true),
     ).toBeNull();
   });
 });
 
 describe("rightClickAction — VS Code's Windows rightClickBehavior:'copyPaste' default", () => {
-  it("win32: copy-and-clear with a selection, paste without", () => {
-    expect(rightClickAction("win32", true, false)).toBe("copy-and-clear");
-    expect(rightClickAction("win32", false, false)).toBe("paste-no-fallback");
+  it("windows: copy-and-clear with a selection, paste without", () => {
+    expect(rightClickAction("windows", true, false)).toBe("copy-and-clear");
+    expect(rightClickAction("windows", false, false)).toBe("paste-no-fallback");
   });
 
-  it("win32: shift+right-click is ignored (VS Code reserves it for the context menu)", () => {
-    expect(rightClickAction("win32", true, true)).toBeNull();
-    expect(rightClickAction("win32", false, true)).toBeNull();
+  it("windows: shift+right-click is ignored (VS Code reserves it for the context menu)", () => {
+    expect(rightClickAction("windows", true, true)).toBeNull();
+    expect(rightClickAction("windows", false, true)).toBeNull();
   });
 
-  it("darwin/linux: right-click is untouched (their VS Code defaults need a context menu we don't have)", () => {
-    expect(rightClickAction("darwin", true, false)).toBeNull();
+  it("mac/linux: right-click is untouched (their VS Code defaults need a context menu we don't have)", () => {
+    expect(rightClickAction("mac", true, false)).toBeNull();
     expect(rightClickAction("linux", false, false)).toBeNull();
   });
 });
