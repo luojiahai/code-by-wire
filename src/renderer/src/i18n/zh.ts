@@ -10,6 +10,7 @@ export const zh: Translations = {
     close: "关闭",
     copy: "复制",
     copied: "已复制",
+    continue: "继续",
   },
   settings: {
     nav: {
@@ -252,6 +253,35 @@ export const zh: Translations = {
       noSessions: "未找到 Claude Code 会话。",
       selectSession: "选择一个会话以打开。",
     },
+    mode: {
+      managed: {
+        label: "托管",
+        blurb:
+          "由 Code-by-wire 启动并驱动。你可以在这里发送输入、中断或结束它。",
+      },
+      observed: {
+        label: "观察中",
+        blurb:
+          "正在另一个终端或设备中运行。Code-by-wire 仅只读镜像其记录，你无法在此输入。领养它即可接管。",
+      },
+    },
+    observedTerminal: {
+      endedBadge: "已结束",
+      observedBadge: "观察中",
+      endedBody: "该会话已结束，可将其重新唤醒。",
+      observedBody: "该会话正在另一个终端中运行 — 此处为只读。",
+      endedFooter: "领养 = 接管操作 · 复刻 = 探索新分支",
+      observedFooter: "复刻它以分出你自己的会话。",
+    },
+    resume: {
+      failed: "恢复失败",
+    },
+    openIn: {
+      target: (name) => `在${name}中打开`,
+      finder: "访达",
+      fileExplorer: "文件资源管理器",
+      fileManager: "文件管理器",
+    },
   },
   stats: {
     clearDayFilter: "清除日期筛选",
@@ -399,6 +429,57 @@ export const zh: Translations = {
       idle: "空闲",
       input: "输入",
       output: "输出",
+    },
+  },
+  transcript: {
+    noneObserved: "该会话在磁盘上还没有记录。",
+    noneManaged: "暂无记录 — 请在终端标签页中操作该会话。",
+    noneSubagent: "该子代理在磁盘上还没有记录。",
+    waitingHeading: "等待你的操作",
+    waitingFallback: "等待你的输入",
+    you: "你",
+    claude: "Claude",
+    thinking: "思考中",
+    toolRunning: "运行中…",
+    toolNoOutput: "无输出",
+    toolOutputLines: (n) => `${n} 行`,
+    viewToolOutput: (name) => `查看 ${name} 的输出`,
+    viewDiff: (tool, file) => `查看 ${tool} 对 ${file} 的改动`,
+    subagentLabel: "子代理",
+    session: "会话",
+    subagentCrumb: (type, description) =>
+      description ? `子代理（${type}）：${description}` : `子代理（${type}）`,
+  },
+  modals: {
+    escToClose: "按 Esc 关闭",
+    shellTitle: "Shell 详情",
+    monitorTitle: "监控详情",
+    detail: {
+      status: "状态",
+      runtime: "运行时长",
+      command: "命令",
+      script: "脚本",
+      output: "输出",
+    },
+    turnStatus: {
+      ok: "通过",
+      error: "失败",
+      pending: "运行中",
+    },
+    toolResult: {
+      loading: "正在加载输出…",
+      loadError: "输出加载失败。",
+      runningNoOutput: "运行中 — 暂无输出。",
+      copyOutput: "复制输出",
+    },
+    diff: {
+      noChanges: "无更改",
+      copyPath: "复制路径",
+      copyDiff: "复制改动",
+    },
+    outputBox: {
+      reading: "正在读取输出…",
+      unavailable: "无可用输出",
     },
   },
   time: {

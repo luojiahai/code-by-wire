@@ -22,6 +22,7 @@ export const en = {
     close: "Close",
     copy: "Copy",
     copied: "Copied",
+    continue: "Continue",
   },
   settings: {
     nav: {
@@ -280,6 +281,39 @@ export const en = {
       noSessions: "No Claude Code sessions found.",
       selectSession: "Select a session to open it.",
     },
+    // The Managed/Observed legend (currently unwired to any live popover — see mode-info.ts's
+    // docstring — but kept translated since the table itself still ships).
+    mode: {
+      managed: {
+        label: "Managed",
+        blurb:
+          "Spawned and driven by Code-by-wire. You can send input, interrupt it, and end it from here.",
+      },
+      observed: {
+        label: "Observed",
+        blurb:
+          "Running in another terminal or machine. Code-by-wire mirrors its transcript read-only. You can't type in. Adopt it to take the wheel.",
+      },
+    },
+    observedTerminal: {
+      endedBadge: "Ended",
+      observedBadge: "Observed",
+      endedBody: "This session has ended. Bring it back to life.",
+      observedBody:
+        "This session is running in another terminal — read-only here.",
+      endedFooter: "Adopt = take the wheel · Fork = explore a new branch",
+      observedFooter: "Fork it to branch off into your own session.",
+    },
+    resume: {
+      // useResumeAction's generic fallback when the thrown error carries no message of its own.
+      failed: "Failed to resume",
+    },
+    openIn: {
+      target: (name: string) => `Open in ${name}`,
+      finder: "Finder",
+      fileExplorer: "File Explorer",
+      fileManager: "File Manager",
+    },
   },
   stats: {
     clearDayFilter: "Clear the day filter",
@@ -445,6 +479,66 @@ export const en = {
       idle: "idle",
       input: "Input",
       output: "Output",
+    },
+  },
+  /** The transcript feed: message bubbles, tool/edit rows, subagent dispatches, and the subagent
+   *  drill-in breadcrumb. Transcript CONTENT itself (message text, tool input/output, code) is Claude
+   *  Code's own — never translated here; only the chrome around it (labels, empty states, aria text). */
+  transcript: {
+    noneObserved: "No transcript on disk for this session yet.",
+    noneManaged: "No transcript yet — drive the session in the Terminal tab.",
+    noneSubagent: "No transcript on disk for this subagent yet.",
+    waitingHeading: "Waiting for you",
+    // Shown only when the CLI's own waitingReason is unset — the reason text itself (when present)
+    // is Claude Code's own content and is never translated.
+    waitingFallback: "Waiting for your input",
+    you: "You",
+    claude: "Claude",
+    thinking: "Thinking",
+    toolRunning: "running…",
+    toolNoOutput: "no output",
+    toolOutputLines: (n: number) => `${n} line${n === 1 ? "" : "s"}`,
+    viewToolOutput: (name: string) => `View ${name} output`,
+    viewDiff: (tool: string, file: string) => `View ${tool} diff for ${file}`,
+    subagentLabel: "Subagent",
+    session: "Session",
+    subagentCrumb: (type: string, description?: string) =>
+      description ? `Subagent (${type}): ${description}` : `Subagent (${type})`,
+  },
+  /** The tool-result/diff/shell/monitor detail modals (ToolResultModal, DiffModal, ShellDetailModal,
+   *  MonitorDetailModal) plus the OutputBox they share. Close/Copy reuse `common.close`/`common.copy`
+   *  rather than minting per-modal duplicates. */
+  modals: {
+    escToClose: "Esc to close",
+    shellTitle: "Shell details",
+    monitorTitle: "Monitor details",
+    detail: {
+      status: "Status",
+      runtime: "Runtime",
+      command: "Command",
+      script: "Script",
+      output: "Output",
+    },
+    // Mirrors turn-status.ts's status union (ok/error/pending) shared by the tool and diff rows.
+    turnStatus: {
+      ok: "passed",
+      error: "failed",
+      pending: "running",
+    },
+    toolResult: {
+      loading: "Loading output…",
+      loadError: "Couldn't load output.",
+      runningNoOutput: "Running — no output yet.",
+      copyOutput: "Copy output",
+    },
+    diff: {
+      noChanges: "no changes",
+      copyPath: "Copy path",
+      copyDiff: "Copy diff",
+    },
+    outputBox: {
+      reading: "Reading output…",
+      unavailable: "No output available",
     },
   },
   /** Wordy time/rate formatting (relative times, durations, month dates). English

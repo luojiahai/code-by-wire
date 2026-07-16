@@ -4,9 +4,10 @@ import { ModalShell } from "../ui/ModalShell";
 import { Icon } from "../ui/icons";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import { cx } from "../ui/atoms";
+import { useI18n } from "../i18n";
 import { toolIcon } from "./tool-icon";
 import { AnsiLine } from "./panels/AnsiLine";
-import { TURN_STATUS } from "./turn-status";
+import { turnStatus } from "./turn-status";
 import { POLL_MS } from "./use-polled-read";
 import { useCopyFlash } from "../ui/use-copy-flash";
 
@@ -31,6 +32,7 @@ export function ToolResultModal({
   tool: ToolEvent;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [state, setState] = useState<FetchState>({ phase: "loading" });
 
   useEffect(() => {
@@ -65,8 +67,10 @@ export function ToolResultModal({
   // Status comes from the fetched result once loaded — it's the on-disk truth and outlives the row
   // event's status, which is a poll behind. Fall back to the row's status only while the first read is
   // in flight.
-  const status =
-    TURN_STATUS[state.phase === "ready" ? state.detail.status : tool.status];
+  const status = turnStatus(
+    state.phase === "ready" ? state.detail.status : tool.status,
+    t,
+  );
   const command = state.phase === "ready" ? state.detail.command : tool.input;
   const cmd = useCopyFlash(command);
   const out = useCopyFlash(state.phase === "ready" ? state.detail.output : "");
@@ -108,12 +112,12 @@ export function ToolResultModal({
               : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
           )}
         >
-          {cmd.copied ? "Copied" : "Copy"}
+          {cmd.copied ? t.common.copied : t.common.copy}
         </button>
       </div>
 
       <div className="mb-1 mt-3 text-label uppercase tracking-wider text-fg-faint">
-        Output
+        {t.modals.detail.output}
       </div>
       <OverlayScroll
         axis="both"
@@ -121,17 +125,17 @@ export function ToolResultModal({
         contentClassName="max-h-[60vh] p-3 font-mono text-meta leading-relaxed text-fg-muted"
       >
         {state.phase === "loading" && (
-          <span className="text-fg-faint">Loading output…</span>
+          <span className="text-fg-faint">{t.modals.toolResult.loading}</span>
         )}
         {state.phase === "error" && (
-          <span className="text-fg-faint">Couldn't load output.</span>
+          <span className="text-fg-faint">{t.modals.toolResult.loadError}</span>
         )}
         {state.phase === "ready" &&
           (state.detail.output === "" ? (
             <span className="text-fg-faint">
               {state.detail.status === "pending"
-                ? "Running — no output yet."
-                : "no output"}
+                ? t.modals.toolResult.runningNoOutput
+                : t.transcript.toolNoOutput}
             </span>
           ) : (
             state.detail.output
@@ -153,9 +157,9 @@ export function ToolResultModal({
               : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
           )}
         >
-          {out.copied ? "Copied" : "Copy output"}
+          {out.copied ? t.common.copied : t.modals.toolResult.copyOutput}
         </button>
-        <span className="ml-auto">Esc to close</span>
+        <span className="ml-auto">{t.modals.escToClose}</span>
       </div>
     </ModalShell>
   );

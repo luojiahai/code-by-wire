@@ -2,8 +2,9 @@ import type { ReactNode } from "react";
 import type { DiffEvent, ToolEvent, TranscriptEvent } from "@shared/transcript";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { useI18n } from "../i18n";
 import { toolIcon } from "./tool-icon";
-import { TURN_STATUS } from "./turn-status";
+import { turnStatus } from "./turn-status";
 import type { DispatchDrill } from "./drill-index";
 import { CopyButton } from "./markdown/CopyButton";
 import { MarkdownMessage } from "./markdown/MarkdownMessage";
@@ -83,13 +84,15 @@ function Bubble({
   role: "user" | "assistant";
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const user = role === "user";
+  const who = user ? t.transcript.you : t.transcript.claude;
   return (
     <div className={cx("flex gap-2.5", user && "flex-row-reverse")}>
       <div
         role="img"
-        aria-label={user ? "You" : "Claude"}
-        title={user ? "You" : "Claude"}
+        aria-label={who}
+        title={who}
         className={cx(
           "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
           user
@@ -114,9 +117,12 @@ function Bubble({
 }
 
 function Thinking({ text }: { text: string }) {
+  const { t } = useI18n();
   return (
     <details className="ml-[34px] text-meta text-fg-faint">
-      <summary className="cursor-pointer select-none">Thinking</summary>
+      <summary className="cursor-pointer select-none">
+        {t.transcript.thinking}
+      </summary>
       <p className="mt-1 whitespace-pre-wrap border-l border-ink-700 pl-2 leading-relaxed">
         {text}
       </p>
@@ -128,13 +134,14 @@ function Thinking({ text }: { text: string }) {
  *  the output size. When `onOpen` is given the whole row is a button (with a drill chevron) that opens
  *  the detail modal; without it the row is a plain, non-interactive line (the subagent drill view). */
 function ToolCall({ tool, onOpen }: { tool: ToolEvent; onOpen?: () => void }) {
-  const st = TURN_STATUS[tool.status];
+  const { t } = useI18n();
+  const st = turnStatus(tool.status, t);
   const size =
     tool.status === "pending"
-      ? "running…"
+      ? t.transcript.toolRunning
       : tool.outputLines === 0
-        ? "no output"
-        : `${tool.outputLines} line${tool.outputLines === 1 ? "" : "s"}`;
+        ? t.transcript.toolNoOutput
+        : t.transcript.toolOutputLines(tool.outputLines);
   const base =
     "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-meta";
   const body = (
@@ -160,7 +167,7 @@ function ToolCall({ tool, onOpen }: { tool: ToolEvent; onOpen?: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`View ${tool.name} output`}
+      aria-label={t.transcript.viewToolOutput(tool.name)}
       className={cx(
         base,
         "w-full text-left transition-colors hover:border-ink-700",
@@ -175,7 +182,8 @@ function ToolCall({ tool, onOpen }: { tool: ToolEvent; onOpen?: () => void }) {
  *  When `onOpen` is given the whole row is a button (with a drill chevron) that opens the diff modal;
  *  without it the row is a plain, non-interactive line (the subagent drill view). */
 function DiffRow({ diff, onOpen }: { diff: DiffEvent; onOpen?: () => void }) {
-  const st = TURN_STATUS[diff.status];
+  const { t } = useI18n();
+  const st = turnStatus(diff.status, t);
   const base =
     "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-ink-800 bg-well px-3 py-1.5 font-mono text-meta";
   const body = (
@@ -202,7 +210,7 @@ function DiffRow({ diff, onOpen }: { diff: DiffEvent; onOpen?: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`View ${diff.tool} diff for ${diff.file}`}
+      aria-label={t.transcript.viewDiff(diff.tool, diff.file)}
       className={cx(
         base,
         "w-full text-left transition-colors hover:border-ink-700",
@@ -222,12 +230,15 @@ function SubagentDispatch({
   description: string;
   onDrill?: () => void;
 }) {
+  const { t } = useI18n();
   const base =
     "ml-[34px] max-w-[85%] flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-meta";
   const body = (
     <>
       <Icon name="bot" size={13} className="shrink-0 text-primary-bright" />
-      <span className="shrink-0 text-primary-bright">Subagent</span>
+      <span className="shrink-0 text-primary-bright">
+        {t.transcript.subagentLabel}
+      </span>
       <span className="font-mono text-fg">{agentType}</span>
       {description && (
         <span className="truncate text-fg-faint">— {description}</span>
@@ -246,7 +257,7 @@ function SubagentDispatch({
     <button
       type="button"
       onClick={onDrill}
-      aria-label={`Drill into ${agentType} subagent`}
+      aria-label={t.dock.subagents.drillAria(agentType)}
       className={cx(
         base,
         "w-full text-left transition-colors hover:border-primary/50 hover:bg-primary/[0.10]",

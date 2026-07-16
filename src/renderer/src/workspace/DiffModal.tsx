@@ -4,8 +4,9 @@ import { Icon } from "../ui/icons";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import { cx } from "../ui/atoms";
 import { useCopyFlash } from "../ui/use-copy-flash";
+import { useI18n } from "../i18n";
 import { toolIcon } from "./tool-icon";
-import { TURN_STATUS } from "./turn-status";
+import { turnStatus } from "./turn-status";
 import { splitFilePath } from "./file-path";
 
 /** The detail modal for one edit (Edit / Write / MultiEdit): a header with the tool, file, and change
@@ -18,8 +19,9 @@ export function DiffModal({
   diff: DiffEvent;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const empty = diff.hunk.removed.length === 0 && diff.hunk.added.length === 0;
-  const st = TURN_STATUS[diff.status];
+  const st = turnStatus(diff.status, t);
   const file = splitFilePath(diff.file);
   const patch = [
     ...diff.hunk.removed.map((l) => `- ${l}`),
@@ -70,7 +72,7 @@ export function DiffModal({
                 : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
             )}
           >
-            {pathCopy.copied ? "Copied" : "Copy path"}
+            {pathCopy.copied ? t.common.copied : t.modals.diff.copyPath}
           </button>
         </div>
       </div>
@@ -81,7 +83,7 @@ export function DiffModal({
         contentClassName="max-h-[60vh] p-3 font-mono text-meta leading-relaxed"
       >
         {empty ? (
-          <span className="text-fg-faint">no changes</span>
+          <span className="text-fg-faint">{t.modals.diff.noChanges}</span>
         ) : (
           <>
             {diff.hunk.removed.map((l, i) => (
@@ -109,9 +111,9 @@ export function DiffModal({
               : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
           )}
         >
-          {copied ? "Copied" : "Copy diff"}
+          {copied ? t.common.copied : t.modals.diff.copyDiff}
         </button>
-        <span className="ml-auto">Esc to close</span>
+        <span className="ml-auto">{t.modals.escToClose}</span>
       </div>
     </ModalShell>
   );

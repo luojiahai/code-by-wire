@@ -1,4 +1,5 @@
 import type { Management } from "@shared/types";
+import { tNow, type Translations } from "../i18n";
 
 export interface ModeInfo {
   kind: Management;
@@ -9,21 +10,24 @@ export interface ModeInfo {
 }
 
 /** The Managed/Observed legend. Lives JSX-free so the copy is unit-tested and the header popover and any
- *  future caller share one source of truth. */
-export const MODE_INFO: Record<Management, ModeInfo> = {
-  managed: {
-    kind: "managed",
-    label: "Managed",
-    blurb:
-      "Spawned and driven by Code-by-wire. You can send input, interrupt it, and end it from here.",
-  },
-  observed: {
-    kind: "observed",
-    label: "Observed",
-    blurb:
-      "Running in another terminal or machine. Code-by-wire mirrors its transcript read-only. You can't type in. Adopt it to take the wheel.",
-  },
-};
+ *  future caller share one source of truth. `t` defaults to the live locale via `tNow()` — resolved fresh
+ *  per call, never captured at module scope, so a language switch reaches this table too. */
+export function modeInfo(
+  t: Translations = tNow(),
+): Record<Management, ModeInfo> {
+  return {
+    managed: {
+      kind: "managed",
+      label: t.workspace.mode.managed.label,
+      blurb: t.workspace.mode.managed.blurb,
+    },
+    observed: {
+      kind: "observed",
+      label: t.workspace.mode.observed.label,
+      blurb: t.workspace.mode.observed.blurb,
+    },
+  };
+}
 
 /** Popover display order: managed first, so the legend is stable regardless of the current session. */
 export const MODE_ORDER: readonly Management[] = ["managed", "observed"];

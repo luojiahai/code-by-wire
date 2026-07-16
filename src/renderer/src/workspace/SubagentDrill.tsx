@@ -2,6 +2,7 @@ import { Center, TranscriptFeed } from "./TranscriptView";
 import type { DocState } from "./use-transcript";
 import { cx, focusRing, ScrollHintShadow } from "../ui/atoms";
 import { OverlayScroll } from "../ui/OverlayScroll";
+import { useI18n, type Translations } from "../i18n";
 import type { DispatchDrill } from "./drill-index";
 import { useTranscriptModals } from "./use-transcript-modals";
 
@@ -23,10 +24,8 @@ export type DrillCrumb = {
 
 /** The current crumb's label: "Subagent (<type>): <description>", or just "Subagent (<type>)" when the
  *  dispatch carried no description. Ancestor crumbs stay terse (the bare type) so the path reads compact. */
-function subagentCrumbLabel(crumb: SubagentCrumb): string {
-  return crumb.description
-    ? `Subagent (${crumb.type}): ${crumb.description}`
-    : `Subagent (${crumb.type})`;
+function subagentCrumbLabel(crumb: SubagentCrumb, t: Translations): string {
+  return t.transcript.subagentCrumb(crumb.type, crumb.description);
 }
 
 /**
@@ -49,6 +48,7 @@ export function SubagentDrill({
   dispatchDrill?: DispatchDrill;
   sessionId: string;
 }) {
+  const { t } = useI18n();
   const current = crumbs[crumbs.length - 1];
   // Open-state for this subagent's detail modals. agentId is the current crumb, so a tool's full output
   // is fetched from this subagent's own transcript file.
@@ -62,7 +62,7 @@ export function SubagentDrill({
       <ScrollHintShadow />
       <OverlayScroll className="min-h-0 flex-1">
         {doc === null ? (
-          <Center>No transcript on disk for this subagent yet.</Center>
+          <Center>{t.transcript.noneSubagent}</Center>
         ) : (
           <TranscriptFeed
             key={current.agentId}
@@ -86,6 +86,7 @@ function Breadcrumb({
   crumbs: SubagentCrumb[];
   onNavigate: (depth: number) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-ink-800 bg-ink-925 px-4 py-2 text-meta">
       <button
@@ -96,7 +97,7 @@ function Breadcrumb({
           focusRing,
         )}
       >
-        <span aria-hidden>←</span> Session
+        <span aria-hidden>←</span> {t.transcript.session}
       </button>
       {crumbs.map((c, i) => {
         const last = i === crumbs.length - 1;
@@ -112,9 +113,9 @@ function Breadcrumb({
             {last ? (
               <span
                 className="min-w-0 flex-1 truncate font-medium text-fg"
-                title={subagentCrumbLabel(c)}
+                title={subagentCrumbLabel(c, t)}
               >
-                {subagentCrumbLabel(c)}
+                {subagentCrumbLabel(c, t)}
               </span>
             ) : (
               <button

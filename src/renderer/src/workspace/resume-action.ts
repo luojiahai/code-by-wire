@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@shared/types";
+import { tNow } from "../i18n";
 
 /**
  * Whether Adopt (resume under this session's own id) is available *right now*. Both resume surfaces show
@@ -71,7 +72,7 @@ export function useResumeAction(opts: {
     try {
       await run();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to resume");
+      setError(e instanceof Error ? e.message : tNow().workspace.resume.failed);
     } finally {
       // Clear busy so an in-place failure (button still shown) leaves it usable, not stuck on "…".
       setBusy(false);
