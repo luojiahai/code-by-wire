@@ -267,7 +267,7 @@ export function BarSeries({
           {xLabels.map(({ index, label }) => (
             <span
               key={index}
-              className="absolute -translate-x-1/2 text-micro tabular-nums text-fg-faint"
+              className="absolute -translate-x-1/2 whitespace-nowrap text-micro tabular-nums text-fg-faint"
               style={{ left: `${((index + 0.5) / Math.max(n, 1)) * 100}%` }}
             >
               {label}
