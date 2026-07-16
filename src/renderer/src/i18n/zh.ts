@@ -304,6 +304,79 @@ export const zh: Translations = {
       copySessionId: "复制会话 ID",
     },
   },
+  dock: {
+    label: "活动",
+    resizeAria: "调整活动面板高度",
+    collapseAria: "收起活动面板",
+    collapseTitle: "收起",
+    expandAria: "展开活动面板",
+    expandTitle: "展开",
+    tabs: {
+      tasks: "任务",
+      subagents: "子代理",
+      shells: "Shell",
+      monitors: "监控",
+    },
+    tally: (tasks, subagents, shells, monitors) =>
+      `${tasks} 个任务 · ${subagents} 个子代理 · ${shells} 个 Shell · ${monitors} 个监控`,
+    status: {
+      running: "运行中",
+      completed: "已完成",
+      failed: "失败",
+      killed: "已终止",
+      stopped: "已停止",
+      blocked: "阻塞",
+    },
+    aboutMetric: (title) => (title ? `关于${title}` : "关于此指标"),
+    tokensUnit: "token",
+    tasks: {
+      empty: "暂无任务。",
+    },
+    subagents: {
+      empty: "暂无子代理。",
+      drillAria: (type) => `查看 ${type} 子代理详情`,
+      toolUse: "次工具调用",
+      toolUses: "次工具调用",
+      toolUsesAria: (n) => `${n} 次工具调用`,
+    },
+    shells: {
+      empty: "暂无后台 Shell。",
+      openLogAria: (command) => `打开 ${command} 的日志`,
+      exitSuffix: (code) => `（退出码 ${code}）`,
+      truncated: (kb) => `已隐藏 ${kb} KB 的早期输出`,
+    },
+    monitors: {
+      empty: "暂无监控。",
+      openDetailsAria: (command) => `打开 ${command} 的详情`,
+    },
+    pressure: {
+      heading: "压力",
+      info: "剩余多少余量：当前提示词的上下文占用超过窗口的比例，随后是本会话的速率限制窗口（已用百分比、重置倒计时——优先取会话自身的数据，会话未上报时用账户 API 数据补全）。Extra 为账户的付费额外用量额度。柱状条超过 70% 转琥珀色，超过 85% 转红色警戒。",
+      noContext: "尚未采集到上下文数据。",
+      contextWindowUnit: "% 上下文窗口",
+      extra: "Extra",
+      windowFiveHour: "5h",
+      windowSevenDay: "7d",
+      windowSevenDaySonnet: "7d S",
+      windowSevenDayOpus: "7d O",
+    },
+    spend: {
+      heading: "花费",
+      info: "本会话已消耗的用量：按种类划分的 token 总量——新输入、生成输出、缓存读取，以及 5 分钟和 1 小时的缓存写入。$ 是 Claude Code 自身的会话记账；在订阅方案下它是等价 API 价值，并非实际账单。",
+    },
+    duty: {
+      heading: "占空比",
+      info: "会话的占空比：会话生命周期中，API 请求实际在途的时间占比——模型工作的时间相对于会话保持打开的时间。自会话开始起累计，因此长时间空闲的会话即便当前正忙，读数也会偏低。",
+      apiUnit: "% api",
+    },
+    throughput: {
+      heading: "吞吐量",
+      info: "最近 60 秒内活跃生成的 token 吞吐量。走势图描绘近期样本的总 tokens/秒；轮次之间的空闲间隙不计入统计。",
+      idle: "空闲",
+      input: "输入",
+      output: "输出",
+    },
+  },
   time: {
     ago: (ms, now) => {
       const s = Math.max(0, Math.round((now - ms) / 1000));

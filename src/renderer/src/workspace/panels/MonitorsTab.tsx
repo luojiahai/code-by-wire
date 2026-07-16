@@ -1,6 +1,6 @@
 import type { Monitor } from "@shared/types";
-import { formatDuration, formatRelativeTime } from "@shared/format";
 import { cx } from "../../ui/atoms";
+import { useI18n } from "../../i18n";
 import { EmptyState } from "./chrome";
 import { monitorGlyph } from "./monitor-view";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
@@ -18,6 +18,7 @@ function MonitorRow({
   now: number;
   onDrill: (monitor: Monitor) => void;
 }) {
+  const { t } = useI18n();
   const glyph = monitorGlyph(monitor);
   const elapsed =
     monitor.status === "running" && monitor.startMs !== undefined
@@ -27,7 +28,7 @@ function MonitorRow({
     <DockRow
       active={active}
       onClick={() => onDrill(monitor)}
-      aria-label={`Open details for ${monitor.command}`}
+      aria-label={t.dock.monitors.openDetailsAria(monitor.command)}
       leading={
         <span
           className={cx(
@@ -43,11 +44,11 @@ function MonitorRow({
       trailing={
         <MetricRack>
           <MetricCell width="w-14" tone="text-(--ui-text-secondary)">
-            {formatDuration(elapsed)}
+            {t.time.duration(elapsed)}
           </MetricCell>
           {monitor.startMs !== undefined && (
             <MetricCell width="w-12">
-              {formatRelativeTime(monitor.startMs, now)}
+              {t.time.ago(monitor.startMs, now)}
             </MetricCell>
           )}
         </MetricRack>
@@ -96,7 +97,9 @@ export function MonitorsTab({
   activeMonitorId?: string;
   onDrill: (monitor: Monitor) => void;
 }) {
-  if (monitors.length === 0) return <EmptyState>No monitors.</EmptyState>;
+  const { t } = useI18n();
+  if (monitors.length === 0)
+    return <EmptyState>{t.dock.monitors.empty}</EmptyState>;
   return (
     <div className="py-1" role="list">
       {monitors.map((m) => (

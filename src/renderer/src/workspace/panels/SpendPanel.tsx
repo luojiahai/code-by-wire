@@ -4,10 +4,8 @@ import { viewUsageByModel } from "@shared/usage-by-model";
 import { formatTokensShort, formatUsd } from "@shared/format";
 import { MetricTip } from "../../ui/MetricTip";
 import { TOKEN_KINDS, type TokenKind } from "../../ui/token-kinds";
+import { useI18n } from "../../i18n";
 import { PanelSection, PanelHeading, StatRow } from "./chrome";
-
-const SPEND_INFO =
-  "What this session has consumed: total tokens by kind — fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes. The $ is Claude Code's own session accounting; on a subscription it is the API-equivalent value, not a bill.";
 
 const POPOVER =
   "absolute left-0 top-full z-20 mt-1 w-60 rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2.5 py-2 text-left text-xs leading-snug text-(--ui-text-secondary) shadow-(--shadow-md) backdrop-blur-xl";
@@ -45,20 +43,21 @@ export function SpendPanel({
   usageByModel: ModelUsage[];
   costUsd: number | null;
 }) {
+  const { t } = useI18n();
   const view = useMemo(() => viewUsageByModel(usageByModel), [usageByModel]);
   const { usage } = view;
   const total = view.totalTokens;
 
   return (
     <PanelSection>
-      <PanelHeading icon="coins" info={SPEND_INFO}>
-        Spend
+      <PanelHeading icon="coins" info={t.dock.spend.info}>
+        {t.dock.spend.heading}
       </PanelHeading>
 
       <div className="flex items-baseline justify-between">
         <div className="font-mono text-title font-medium leading-none tabular-nums text-fg">
           {formatTokensShort(total)}
-          <span className="text-xs text-fg-faint"> tokens</span>
+          <span className="text-xs text-fg-faint"> {t.dock.tokensUnit}</span>
         </div>
         <span className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
           {costUsd != null ? formatUsd(costUsd) : "-"}

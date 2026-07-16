@@ -26,6 +26,7 @@ import {
 import { useStore } from "@nanostores/react";
 import { $paneHeightOverride, setPaneHeightOverride } from "../../shell/panes";
 import { DOCK_DEFAULT_HEIGHT, clampDockHeight } from "./dock-resize";
+import { useI18n } from "../../i18n";
 
 /**
  * The Session workspace's bottom Activity dock: a single tabbed section (Tasks / Subagents / Shells /
@@ -58,6 +59,7 @@ export function ActivityDock({
   onDrillShell: (shell: BackgroundShell) => void;
   onDrillMonitor: (monitor: Monitor) => void;
 }) {
+  const { t } = useI18n();
   const [collapseOverride, setCollapseOverride] =
     useState<DockCollapseOverride | null>(null);
   const subagents = doc?.subagents ?? [];
@@ -153,7 +155,7 @@ export function ActivityDock({
       <div
         role="separator"
         aria-orientation="horizontal"
-        aria-label="Resize activity dock"
+        aria-label={t.dock.resizeAria}
         tabIndex={0}
         onPointerDown={startResize}
         className="group absolute inset-x-0 top-0 z-20 h-1 -translate-y-1/2 cursor-row-resize [-webkit-app-region:no-drag]"
@@ -162,7 +164,7 @@ export function ActivityDock({
       </div>
       <DockTabBar
         tab={tab}
-        onChange={(t) => setPick({ tab: t, alive })}
+        onChange={(tabId) => setPick({ tab: tabId, alive })}
         taskCount={tasks.length}
         subagentCount={stats.total}
         shellCount={shells.length}
@@ -218,17 +220,26 @@ function DockTabBar({
   monitorCount: number;
   onCollapse: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex h-8 shrink-0 items-stretch gap-3 border-b border-(--ui-stroke-tertiary) pl-3 pr-2">
       <span className="flex items-center">
-        <SidebarPanelLabel>Activity</SidebarPanelLabel>
+        <SidebarPanelLabel>{t.dock.label}</SidebarPanelLabel>
       </span>
       <Tabs<DockTab>
         tabs={[
-          { id: "tasks", label: "Tasks", count: taskCount },
-          { id: "subagents", label: "Subagents", count: subagentCount },
-          { id: "shells", label: "Shells", count: shellCount },
-          { id: "monitors", label: "Monitors", count: monitorCount },
+          { id: "tasks", label: t.dock.tabs.tasks, count: taskCount },
+          {
+            id: "subagents",
+            label: t.dock.tabs.subagents,
+            count: subagentCount,
+          },
+          { id: "shells", label: t.dock.tabs.shells, count: shellCount },
+          {
+            id: "monitors",
+            label: t.dock.tabs.monitors,
+            count: monitorCount,
+          },
         ]}
         value={tab}
         onChange={onChange}
@@ -236,8 +247,8 @@ function DockTabBar({
       <button
         type="button"
         onClick={onCollapse}
-        aria-label="Collapse activity dock"
-        title="Collapse"
+        aria-label={t.dock.collapseAria}
+        title={t.dock.collapseTitle}
         className="my-auto ml-auto inline-flex size-6 items-center justify-center rounded-sm text-(--ui-text-tertiary) transition-colors hover:bg-(--ui-control-hover-background) hover:text-(--ui-text-primary)"
       >
         <Icon name="chevron-down" size={14} />
@@ -263,18 +274,18 @@ function DockTally({
   monitorCount: number;
   onExpand: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
       onClick={onExpand}
-      aria-label="Expand activity dock"
-      title="Expand"
+      aria-label={t.dock.expandAria}
+      title={t.dock.expandTitle}
       className="hidden h-8 w-full shrink-0 items-center gap-3 border-t border-(--ui-stroke-tertiary) bg-(--ui-surface-background) pl-3 pr-2 text-left transition-colors hover:bg-(--ui-row-hover-background) lg:flex"
     >
-      <SidebarPanelLabel>Activity</SidebarPanelLabel>
+      <SidebarPanelLabel>{t.dock.label}</SidebarPanelLabel>
       <span className="min-w-0 flex-1 truncate font-mono text-[0.72rem] tabular-nums text-(--ui-text-quaternary)">
-        {taskCount} tasks · {stats.total} subagents · {shellCount} shells ·{" "}
-        {monitorCount} monitors
+        {t.dock.tally(taskCount, stats.total, shellCount, monitorCount)}
       </span>
       <Icon
         name="chevron-up"

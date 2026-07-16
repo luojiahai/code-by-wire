@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import type { Subagent } from "@shared/types";
-import { formatDuration, formatTokensShort } from "@shared/format";
+import { formatTokensShort } from "@shared/format";
 import { cx } from "../../ui/atoms";
 import { FAMILY_LABEL } from "../../ui/meta";
+import { useI18n } from "../../i18n";
 import { EmptyState } from "./chrome";
 import { flattenSubagents } from "./dock-tabs";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
@@ -33,6 +34,7 @@ function SubagentRow({
   active: boolean;
   onDrill: (agent: Subagent) => void;
 }) {
+  const { t } = useI18n();
   const meta = STATUS_META[agent.status];
   const elapsed =
     agent.status === "working" && agent.startMs !== undefined
@@ -44,7 +46,7 @@ function SubagentRow({
     <DockRow
       active={active}
       onClick={() => onDrill(agent)}
-      aria-label={`Drill into ${agent.type} subagent`}
+      aria-label={t.dock.subagents.drillAria(agent.type)}
       leading={
         <span
           className={cx(
@@ -64,20 +66,24 @@ function SubagentRow({
           <MetricCell
             width="w-22"
             tone="text-(--ui-text-secondary)"
-            unit="tokens"
+            unit={t.dock.tokensUnit}
           >
             {formatTokensShort(agent.tokens)}
           </MetricCell>
           <MetricCell
             width="w-24"
             tone="text-(--ui-text-secondary)"
-            unit={agent.toolCount === 1 ? "tool use" : "tool uses"}
-            aria-label={`${agent.toolCount} tool ${agent.toolCount === 1 ? "use" : "uses"}`}
+            unit={
+              agent.toolCount === 1
+                ? t.dock.subagents.toolUse
+                : t.dock.subagents.toolUses
+            }
+            aria-label={t.dock.subagents.toolUsesAria(agent.toolCount)}
           >
             {agent.toolCount}
           </MetricCell>
           <MetricCell width="w-12" tone="text-(--ui-text-secondary)">
-            {formatDuration(elapsed)}
+            {t.time.duration(elapsed)}
           </MetricCell>
         </MetricRack>
       }
@@ -114,8 +120,10 @@ export function SubagentsTab({
   activeAgentId?: string;
   onDrill: (agent: Subagent) => void;
 }) {
+  const { t } = useI18n();
   const lanes = useMemo(() => flattenSubagents(subagents), [subagents]);
-  if (subagents.length === 0) return <EmptyState>No subagents yet.</EmptyState>;
+  if (subagents.length === 0)
+    return <EmptyState>{t.dock.subagents.empty}</EmptyState>;
   return (
     <div role="list" className="py-1">
       {lanes.map((a) => (

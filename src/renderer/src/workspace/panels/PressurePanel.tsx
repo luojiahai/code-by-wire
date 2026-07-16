@@ -8,7 +8,7 @@ import type {
 } from "@shared/types";
 import { pickWindow } from "@shared/statusline";
 import { contextView } from "@shared/context";
-import { formatTokensShort, formatResetCountdown } from "@shared/format";
+import { formatTokensShort } from "@shared/format";
 import { cx } from "../../ui/atoms";
 import { FillGauge } from "../../ui/charts";
 import { clampPct } from "../../ui/charts-geom";
@@ -18,10 +18,8 @@ import {
   CONTEXT_WARN_PCT,
   CONTEXT_DANGER_PCT,
 } from "../../ui/meta";
+import { useI18n } from "../../i18n";
 import { PanelSection, PanelHeading } from "./chrome";
-
-const PRESSURE_INFO =
-  "How much headroom is left: the current prompt's context fill over the window, then this session's rate-limit windows (% used, time to reset — the session's own numbers, filled from the account API where the session hasn't reported). Extra is the account's paid extra-usage credit. Bars warm to amber past 70% and redline past 85%.";
 
 /** One rate-limit window row: label · bar · % · resets-in. A missing window renders dimmed with
  *  dashes (the section never disappears — an API-billed account simply has no windows). */
@@ -34,6 +32,7 @@ function RateRow({
   window?: RateLimit;
   now: number;
 }) {
+  const { t } = useI18n();
   const pct = w ? clampPct(Math.round(w.usedPct)) : 0;
   return (
     <div className={cx("flex items-center gap-2", !w && "opacity-40")}>
@@ -53,7 +52,7 @@ function RateRow({
         {w ? `${pct}%` : "-"}
       </span>
       <span className="w-11 shrink-0 text-right font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
-        {w ? formatResetCountdown(w.resetsAt, now) : "-"}
+        {w ? t.time.countdown(w.resetsAt, now) : "-"}
       </span>
     </div>
   );
@@ -83,6 +82,7 @@ export function PressurePanel({
   /** The selected session's own capture windows — the merge's winning side. */
   rateLimits?: RateLimitWindows | null;
 }) {
+  const { t } = useI18n();
   const view = useMemo(
     () =>
       contextView({
@@ -112,8 +112,8 @@ export function PressurePanel({
 
   return (
     <PanelSection>
-      <PanelHeading icon="gauge" info={PRESSURE_INFO}>
-        Pressure
+      <PanelHeading icon="gauge" info={t.dock.pressure.info}>
+        {t.dock.pressure.heading}
       </PanelHeading>
       {view ? (
         <>
@@ -125,7 +125,9 @@ export function PressurePanel({
               )}
             >
               {view.pct}
-              <span className="text-xs text-fg-faint">% context window</span>
+              <span className="text-xs text-fg-faint">
+                {t.dock.pressure.contextWindowUnit}
+              </span>
             </div>
             <div className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
               {formatTokensShort(view.total)} /{" "}
@@ -142,17 +144,33 @@ export function PressurePanel({
         </>
       ) : (
         <p className="text-xs text-(--ui-text-quaternary)">
-          No context sampled yet.
+          {t.dock.pressure.noContext}
         </p>
       )}
       <div className="mt-1 space-y-1.5">
-        <RateRow label="5h" window={fiveHour} now={now} />
-        <RateRow label="7d" window={sevenDay} now={now} />
+        <RateRow
+          label={t.dock.pressure.windowFiveHour}
+          window={fiveHour}
+          now={now}
+        />
+        <RateRow
+          label={t.dock.pressure.windowSevenDay}
+          window={sevenDay}
+          now={now}
+        />
         {sevenDaySonnet && (
-          <RateRow label="7d S" window={sevenDaySonnet} now={now} />
+          <RateRow
+            label={t.dock.pressure.windowSevenDaySonnet}
+            window={sevenDaySonnet}
+            now={now}
+          />
         )}
         {sevenDayOpus && (
-          <RateRow label="7d O" window={sevenDayOpus} now={now} />
+          <RateRow
+            label={t.dock.pressure.windowSevenDayOpus}
+            window={sevenDayOpus}
+            now={now}
+          />
         )}
         {account?.extraUsage?.enabled && (
           <ExtraRow extra={account.extraUsage} />
@@ -165,6 +183,7 @@ export function PressurePanel({
 /** The account's paid extra-usage credit: label · bar · % · a dash where the countdown would sit
  *  (extra usage has no reset). Credits arrive in cents; the tooltip shows used/limit in currency. */
 function ExtraRow({ extra }: { extra: ExtraUsage }) {
+  const { t } = useI18n();
   const pct = clampPct(Math.round(extra.utilization ?? 0));
   const detail =
     extra.used != null && extra.limit != null
@@ -173,7 +192,7 @@ function ExtraRow({ extra }: { extra: ExtraUsage }) {
   return (
     <div className="flex items-center gap-2" title={detail}>
       <span className="w-7 shrink-0 text-xs text-(--ui-text-tertiary)">
-        Extra
+        {t.dock.pressure.extra}
       </span>
       <div className="min-w-0 flex-1">
         <FillGauge

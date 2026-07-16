@@ -332,6 +332,93 @@ export const en = {
       copySessionId: "Copy session ID",
     },
   },
+  /** The Activity dock (Tasks/Subagents/Shells/Monitors tabs) plus the right-rail telemetry panels
+   *  (Pressure/Spend/Duty/Throughput) that share its `chrome.tsx` PanelSection/PanelHeading shell. */
+  dock: {
+    label: "Activity",
+    resizeAria: "Resize activity dock",
+    collapseAria: "Collapse activity dock",
+    collapseTitle: "Collapse",
+    expandAria: "Expand activity dock",
+    expandTitle: "Expand",
+    tabs: {
+      tasks: "Tasks",
+      subagents: "Subagents",
+      shells: "Shells",
+      monitors: "Monitors",
+    },
+    tally: (
+      tasks: number,
+      subagents: number,
+      shells: number,
+      monitors: number,
+    ) =>
+      `${tasks} tasks · ${subagents} subagents · ${shells} shells · ${monitors} monitors`,
+    // One shared status-word group for every dock tab's glyph label / status pill / metric tag, so
+    // Tasks (blocked), Shells and Monitors (running/completed/failed/killed/stopped) all read from
+    // here instead of each tab minting its own copy of the same words.
+    status: {
+      running: "running",
+      completed: "completed",
+      failed: "failed",
+      killed: "killed",
+      stopped: "stopped",
+      blocked: "blocked",
+    },
+    aboutMetric: (title?: string) =>
+      title ? `About ${title}` : "About this metric",
+    tokensUnit: "tokens",
+    tasks: {
+      empty: "No tasks yet.",
+    },
+    subagents: {
+      empty: "No subagents yet.",
+      drillAria: (type: string) => `Drill into ${type} subagent`,
+      toolUse: "tool use",
+      toolUses: "tool uses",
+      toolUsesAria: (n: number) => `${n} tool ${n === 1 ? "use" : "uses"}`,
+    },
+    shells: {
+      empty: "No background shells.",
+      openLogAria: (command: string) => `Open log for ${command}`,
+      // Appended to a completed shell's status word on a non-zero exit, e.g. "failed (exit 1)".
+      exitSuffix: (code: number) => ` (exit ${code})`,
+      truncated: (kb: number) => `${kb} KB of earlier output hidden`,
+    },
+    monitors: {
+      empty: "No monitors.",
+      openDetailsAria: (command: string) => `Open details for ${command}`,
+    },
+    pressure: {
+      heading: "Pressure",
+      info: "How much headroom is left: the current prompt's context fill over the window, then this session's rate-limit windows (% used, time to reset — the session's own numbers, filled from the account API where the session hasn't reported). Extra is the account's paid extra-usage credit. Bars warm to amber past 70% and redline past 85%.",
+      noContext: "No context sampled yet.",
+      contextWindowUnit: "% context window",
+      extra: "Extra",
+      // Fixed-width technical shorthand (a 28px/w-7 label column) — kept identical across locales so
+      // the rate-limit rows don't overflow their gutter; S/O are the Sonnet/Opus initials.
+      windowFiveHour: "5h",
+      windowSevenDay: "7d",
+      windowSevenDaySonnet: "7d S",
+      windowSevenDayOpus: "7d O",
+    },
+    spend: {
+      heading: "Spend",
+      info: "What this session has consumed: total tokens by kind — fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes. The $ is Claude Code's own session accounting; on a subscription it is the API-equivalent value, not a bill.",
+    },
+    duty: {
+      heading: "Duty",
+      info: "The session's duty cycle: how much of its lifetime an API request was actually in flight — time the model was working versus the session sitting open. Cumulative since the session started, so a long-idle session reads low even while currently busy.",
+      apiUnit: "% api",
+    },
+    throughput: {
+      heading: "Throughput",
+      info: "Token throughput over the last 60s of active generation. The sparkline traces total tokens/sec across recent samples; idle gaps between turns don't count.",
+      idle: "idle",
+      input: "Input",
+      output: "Output",
+    },
+  },
   /** Wordy time/rate formatting (relative times, durations, month dates). English
    *  delegates to the deterministic @shared/format helpers; zh re-implements the
    *  same thresholds with Chinese units (hermes-style per-locale function values).

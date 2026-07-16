@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { InfoButton } from "../../ui/InfoButton";
 import type { IconName } from "../../ui/icon-names";
 import { SidebarPanelLabel } from "../../shell/SidebarPanelLabel";
+import { useI18n } from "../../i18n";
 
 // Shared chrome for the workspace rail panels and the Activity dock, so a retone lands in one place.
 
@@ -43,6 +44,7 @@ export function PanelHeading({
   /** The panel's dedicated lucide glyph (cockpit rail); omitted, the label wears the dither dot. */
   icon?: IconName;
 }) {
+  const { t } = useI18n();
   const title = typeof children === "string" ? children : undefined;
   return (
     <div className="relative -mx-2.5 flex h-7 shrink-0 items-center justify-between gap-2 px-2.5">
@@ -54,7 +56,7 @@ export function PanelHeading({
           // The popover is absolute against this outer relative strip, so left-0/right-0 span its full
           // width and top-full drops it below the strip.
           <InfoButton
-            label={title ? `About ${title}` : "About this metric"}
+            label={t.dock.aboutMetric(title)}
             popoverClassName="left-0 right-0 top-full mt-1.5 rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2.5 py-2 text-xs leading-snug text-(--ui-text-secondary) shadow-(--shadow-md) backdrop-blur-xl"
           >
             {info}

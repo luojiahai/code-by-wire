@@ -1,10 +1,7 @@
-import { formatDuration } from "@shared/format";
 import { dutyPct } from "@shared/duty";
 import { FillGauge } from "../../ui/charts";
+import { useI18n } from "../../i18n";
 import { PanelSection, PanelHeading } from "./chrome";
-
-const DUTY_INFO =
-  "The session's duty cycle: how much of its lifetime an API request was actually in flight — time the model was working versus the session sitting open. Cumulative since the session started, so a long-idle session reads low even while currently busy.";
 
 /**
  * The cockpit's work-rate character readout (cockpit spec §Duty): api time over wall time as a
@@ -18,17 +15,18 @@ export function DutyPanel({
   apiDurationMs: number | null;
   sessionClockMs: number | null;
 }) {
+  const { t } = useI18n();
   const pct = dutyPct(apiDurationMs, sessionClockMs);
   return (
     <PanelSection>
-      <PanelHeading icon="timer" info={DUTY_INFO}>
-        Duty
+      <PanelHeading icon="timer" info={t.dock.duty.info}>
+        {t.dock.duty.heading}
       </PanelHeading>
       <div className="flex items-baseline justify-between">
         {pct != null ? (
           <span className="font-mono text-title font-medium tabular-nums text-fg">
             {pct}
-            <span className="text-xs text-fg-faint">% api</span>
+            <span className="text-xs text-fg-faint">{t.dock.duty.apiUnit}</span>
           </span>
         ) : (
           <span className="font-mono text-title font-medium text-fg-faint">
@@ -37,7 +35,7 @@ export function DutyPanel({
         )}
         <span className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
           {apiDurationMs != null && sessionClockMs != null
-            ? `${formatDuration(apiDurationMs)} / ${formatDuration(sessionClockMs)}`
+            ? `${t.time.duration(apiDurationMs)} / ${t.time.duration(sessionClockMs)}`
             : ""}
         </span>
       </div>
