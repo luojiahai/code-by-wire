@@ -73,6 +73,7 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
+        data-selectable-text="true"
         tabIndex={-1}
         className={cx(
           "rounded-xl border border-ink-700 bg-ink-900 p-5 text-fg shadow-2xl outline-none",

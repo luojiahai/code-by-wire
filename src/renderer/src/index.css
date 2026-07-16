@@ -727,3 +727,38 @@ body:has([data-suppress-pane-reveal]:hover) [data-pane-reveal-trigger] {
 .title-bar {
   zoom: calc(1 / var(--zoom-factor, 1));
 }
+
+/* Native-app selection model (hermes styles.css:467, 754-761): chrome is not
+   selectable; content opts in via data-selectable-text, form fields always.
+   All three rules are unlayered so they beat Tailwind's layered utilities.
+   Two deliberate deltas from hermes: descendants opt in through :where() —
+   at zero specificity the button/summary re-assert below actually wins,
+   where hermes' bare `… *` (0,1,0) beats its own `button` (0,0,1) re-assert
+   and leaves button labels selectable — and `summary` joins the re-assert
+   because the transcript's <summary> carries a Tailwind select-none that
+   would otherwise lose to the unlayered opt-in. The re-assert also covers
+   button/summary *descendants* at zero specificity: label spans inside
+   drillable rows are direct-matched by the opt-in, and a direct match beats
+   the none inherited from the button element — the (0,0,0) tie goes to
+   source order, so the later re-assert wins, while input/textarea (0,0,1)
+   still beat both. If a live xterm ever mounts inside a tagged region,
+   xterm.css asserts none only on the .xterm root — re-check selection. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable]:not([contenteditable="false"]),
+[data-selectable-text="true"],
+:where([data-selectable-text="true"] *) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+button,
+[role="button"],
+summary,
+:where(button, [role="button"], summary) * {
+  -webkit-user-select: none;
+  user-select: none;
+}
