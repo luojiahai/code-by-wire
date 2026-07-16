@@ -82,7 +82,7 @@ function SubagentRow({
           >
             {agent.toolCount}
           </MetricCell>
-          <MetricCell width="w-12" tone="text-(--ui-text-secondary)">
+          <MetricCell width="w-16" tone="text-(--ui-text-secondary)">
             {t.time.duration(elapsed)}
           </MetricCell>
         </MetricRack>

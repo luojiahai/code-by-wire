@@ -43,11 +43,11 @@ function MonitorRow({
       }
       trailing={
         <MetricRack>
-          <MetricCell width="w-14" tone="text-(--ui-text-secondary)">
+          <MetricCell width="w-16" tone="text-(--ui-text-secondary)">
             {t.time.duration(elapsed)}
           </MetricCell>
           {monitor.startMs !== undefined && (
-            <MetricCell width="w-12">
+            <MetricCell width="w-14">
               {t.time.ago(monitor.startMs, now)}
             </MetricCell>
           )}
