@@ -21,6 +21,7 @@ import {
   EyeOff,
   Filter,
   Folder,
+  FolderGit2,
   FolderOpen,
   Gauge,
   GitBranch,
@@ -153,6 +154,7 @@ const ICONS = {
   terminal: Terminal,
   timer: Timer,
   "triangle-alert": TriangleAlert,
+  worktree: FolderGit2,
   x: X,
 } satisfies Record<IconName, LucideIcon>;
 
