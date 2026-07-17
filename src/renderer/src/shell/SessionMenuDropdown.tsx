@@ -8,7 +8,7 @@ import type { SessionMenuController } from "./use-session-menu";
 
 const MENU_WIDTH = 256;
 
-/** The portaled dropdown body shared by every session-menu trigger: six always-rendered action rows
+/** The portaled dropdown body shared by every session-menu trigger: seven always-rendered action rows
  *  (only `disabled`/`title` vary — the design's "never hide an action, dim the unavailable ones with a
  *  reason" rule) plus the confirm dialogs Adopt/Fork/End can raise. Pure rendering — all state lives in
  *  `useSessionMenu`. */
@@ -26,6 +26,8 @@ export function SessionMenuDropdown({
     menuRef,
     closeMenu,
     openEdit,
+    pinned,
+    togglePin,
     items,
     openInBusy,
     openInError,
@@ -58,6 +60,13 @@ export function SessionMenuDropdown({
               }}
               className="z-50 rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl"
             >
+              <MenuItem
+                icon={pinned ? "pin-off" : "pin"}
+                label={
+                  pinned ? t.shell.sessionMenu.unpin : t.shell.sessionMenu.pin
+                }
+                onClick={togglePin}
+              />
               <MenuItem
                 icon="copy"
                 label={t.shell.sessionMenu.copySessionId}

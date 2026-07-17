@@ -38,6 +38,7 @@ export function Workspace({
   onFork,
   onEnd,
   onRename,
+  onTogglePin,
   leftEdgeExposed,
   rightEdgeExposed,
 }: {
@@ -50,6 +51,8 @@ export function Workspace({
   onEnd: (id: string) => void;
   /** Persist a display-name override for this session (null/empty clears it). Applies to any session. */
   onRename: (id: string, title: string | null) => void;
+  /** Persist (or clear) the pin mark for this session. Applies to any session. */
+  onTogglePin: (id: string, pinned: boolean) => void;
   /** Whether the left pane isn't actually docked next to the header — reserves the cluster inset. */
   leftEdgeExposed: boolean;
   /** Whether the right pane isn't docked — the header clears the fixed right toggle cluster. */
@@ -95,6 +98,7 @@ export function Workspace({
             onFork={onFork}
             onEnd={onEnd}
             onRename={onRename}
+            onTogglePin={onTogglePin}
           />
         }
       />

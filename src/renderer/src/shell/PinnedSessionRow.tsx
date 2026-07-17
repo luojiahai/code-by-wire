@@ -3,20 +3,19 @@ import type { Session } from "@shared/types";
 import { cx, Lamp } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { useI18n } from "../i18n";
+import { ungroupedLabel } from "./session-list-model";
 import { useSessionMenu } from "./use-session-menu";
 import { SessionMenuDropdown } from "./SessionMenuDropdown";
 
 /**
- * The hermes single-line sidebar row: a 26px-tall strip with a state `Lamp` and the title. A
- * hover-revealed 3-dot button opens the same menu as the session header's title menu (Copy ID,
- * Rename, Adopt, Fork, End session, Open in), sharing its state machine via `useSessionMenu` — see
- * `SessionMenu.tsx` for the header's own trigger over the same hook. Renaming swaps this row's
- * select-button for a plain (non-button) container so the inline `<input>` never nests inside a
- * `<button>`, which HTML disallows. The relative-time stamp and context-% chip live in the right
- * sidebar's Session panel; the only extra here is the dimmed worktree hint on sessions that merged
- * into their repo's folder (2026-07-09 worktree-merge spec).
+ * The PINNED section's enriched two-line row (2026-07-17 pinned-sessions spec, style B): lamp +
+ * title with a right-aligned relative time, then a dimmed meta line — repo · branch — with a small
+ * model-family chip on the right. Folder-free: a pin is a standalone shortcut, so the row carries
+ * the context its folder header would have given it. Shares SessionRow's menu machinery verbatim
+ * (same `useSessionMenu` hook, same dropdown, same inline-rename input swap); the relative time
+ * re-renders with the overview poll, so no timer lives here.
  */
-export function SessionRow({
+export function PinnedSessionRow({
   session,
   selected,
   onSelect,
@@ -45,6 +44,9 @@ export function SessionRow({
     onRename,
     onTogglePin,
   });
+  const repo =
+    session.worktree?.repoLabel ?? (session.project || ungroupedLabel());
+  const branch = session.worktree?.name ?? session.branch;
 
   if (menu.editing) {
     return (
@@ -74,32 +76,43 @@ export function SessionRow({
         aria-pressed={selected}
         aria-label={t.shell.sessionRow.openSession(session.title)}
         className={cx(
-          "flex min-h-[1.625rem] w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-2 text-left transition-colors duration-100 ease-out hover:transition-none",
+          "flex w-full min-w-0 cursor-pointer flex-col gap-1 rounded-md px-2 py-1 text-left transition-colors duration-100 ease-out hover:transition-none",
           selected
             ? "bg-(--ui-row-active-background)"
             : "hover:bg-(--ui-row-hover-background)",
         )}
       >
-        <span className="grid size-3.5 shrink-0 place-items-center">
-          <Lamp state={session.state} management={session.management} />
-        </span>
-        <span
-          className={cx(
-            "min-w-0 flex-1 truncate text-[0.8125rem] leading-none text-(--ui-text-secondary) group-hover:text-fg",
-            selected && "text-fg",
-          )}
-          title={session.title}
-        >
-          {session.title}
-        </span>
-        {session.worktree && (
-          <span className="flex min-w-0 shrink-[2] items-center gap-1 text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-            <Icon name="git-branch" size={10} className="shrink-0" />
-            <span className="truncate">{session.worktree.name}</span>
+        <span className="flex w-full min-w-0 items-center gap-1.5">
+          <span className="grid size-3.5 shrink-0 place-items-center">
+            <Lamp state={session.state} management={session.management} />
           </span>
-        )}
+          <span
+            className={cx(
+              "min-w-0 flex-1 truncate text-[0.8125rem] leading-none text-(--ui-text-secondary) group-hover:text-fg",
+              selected && "text-fg",
+            )}
+            title={session.title}
+          >
+            {session.title}
+          </span>
+          <span className="shrink-0 text-[0.68rem] leading-none text-(--ui-text-quaternary)">
+            {t.time.ago(session.lastActivityMs, Date.now())}
+          </span>
+        </span>
+        <span className="flex w-full min-w-0 items-center gap-1 pl-5 text-[0.72rem] leading-none text-(--ui-text-quaternary)">
+          <span className="min-w-0 truncate">{repo}</span>
+          {branch && (
+            <>
+              <Icon name="git-branch" size={10} className="ml-0.5 shrink-0" />
+              <span className="min-w-0 shrink-[2] truncate">{branch}</span>
+            </>
+          )}
+          <span className="ml-auto shrink-0 rounded-sm border border-(--ui-stroke-tertiary) px-1 py-px text-[0.6rem] leading-none text-(--ui-text-tertiary)">
+            {session.model}
+          </span>
+        </span>
       </button>
-      {/* Fade so the 3-dot button doesn't land on abruptly-truncated worktree text on hover. */}
+      {/* Fade so the 3-dot button doesn't land on abruptly-truncated text on hover. */}
       <span
         aria-hidden
         className={cx(

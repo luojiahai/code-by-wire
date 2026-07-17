@@ -27,6 +27,8 @@ const api: AppApi = {
   clipboardReadText: (type) => ipcRenderer.invoke(IPC.clipboardReadText, type),
   renameSession: (id, title) =>
     ipcRenderer.invoke(IPC.renameSession, id, title),
+  setSessionPinned: (id, pinned) =>
+    ipcRenderer.invoke(IPC.setSessionPinned, id, pinned),
   readTranscript: (id, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readTranscript, id, sinceMtimeMs),
   getToolResult: (id, toolUseId, agentId) =>

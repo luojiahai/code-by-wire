@@ -154,6 +154,8 @@ export const zh: Translations = {
       searchLabel: "搜索会话",
       clearSearch: "清除搜索",
       sessionsLabel: "会话",
+      pinnedLabel: "置顶",
+      noPinnedSessions: "没有置顶会话。",
       expandAll: "展开全部",
       collapseAll: "折叠全部",
       showAllSessions: "显示所有会话",
@@ -175,6 +177,8 @@ export const zh: Translations = {
     sessionMenu: {
       renameFieldLabel: "重命名会话",
       menuTitle: "会话菜单",
+      pin: "置顶会话",
+      unpin: "取消置顶",
       copySessionId: "复制会话 ID",
       rename: "重命名",
       adopt: "领养",

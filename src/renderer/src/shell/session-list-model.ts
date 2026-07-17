@@ -52,6 +52,23 @@ export type SessionGroup = {
   sessions: Session[];
 };
 
+/** The PINNED section's selection (2026-07-17 pinned-sessions spec): pinned sessions only, newest
+ *  pin first. Composes AFTER filterSessions (search narrows pins too); the active-only filter is
+ *  never applied here — pins are explicit favorites, so ended pins stay visible. */
+export function pinnedSessions(sessions: Session[]): Session[] {
+  return sessions
+    .filter((s) => s.pinnedAtMs !== undefined)
+    .sort((a, b) => (b.pinnedAtMs ?? 0) - (a.pinnedAtMs ?? 0));
+}
+
+/** The active-only toggle's group-level filter (2026-07-17 spec): every group survives — folders
+ *  always render — but each group's rows narrow to live sessions. Runs AFTER grouping, so folder
+ *  ordering derives from all (search-matched) sessions and toggling the filter never reshuffles
+ *  folders; a group can come back empty, which the sidebar renders as a bare folder header. */
+export function filterGroupsActive(groups: SessionGroup[]): SessionGroup[] {
+  return groups.map((g) => ({ ...g, sessions: filterActive(g.sessions) }));
+}
+
 /** The parent directory of `cwd`, with a leading homeDir abbreviated to `~`:
  *  "/Users/x/a/test" → "~/a". Absolute when outside home; raw parent when homeDir is unknown.
  *  Pure string math on posix separators (the app targets macOS chrome). */
