@@ -98,10 +98,26 @@ export function useSessionMenu(
   const editingRef = useRef(false);
   const menuId = useId();
 
-  const { ended, live, canAdopt, adopt, fork, end } = useSessionActions(
-    session,
-    callbacks,
-  );
+  // Wraps each action's callback to also close the dropdown — but only once the action actually
+  // completes (or, for the fire-and-forget End, once it actually fires), matching `handleOpenIn`'s
+  // own "close on success" rule below rather than closing the instant the row is clicked. A
+  // resume that throws leaves the menu open so `adopt.error`/`fork.error` stays visible instead of
+  // vanishing with the dropdown; End has no busy/error state, so closing when it fires is the
+  // direct equivalent of "on success" for a fire-and-forget action.
+  const { live, canAdopt, adopt, fork, end } = useSessionActions(session, {
+    onAdopt: async (id) => {
+      await callbacks.onAdopt(id);
+      setOpen(false);
+    },
+    onFork: async (target) => {
+      await callbacks.onFork(target);
+      setOpen(false);
+    },
+    onEnd: (id) => {
+      callbacks.onEnd(id);
+      setOpen(false);
+    },
+  });
 
   // The dropdown is portaled to `document.body` (its trigger may sit somewhere overflow-clipped), so its
   // position has to be computed from the trigger's live rect rather than left to CSS.
@@ -231,17 +247,16 @@ export function useSessionMenu(
         ? t.shell.sessionMenu.adoptTitlePending
         : undefined;
 
-  const forkGateExtra = ended || session.management === "observed";
-  const forkDisabled = forkGateExtra || !canSpawn || !session.resumable;
+  // Matches ResumeButton/ObservedTerminal's Fork gate exactly (canSpawn + resumable only) — Fork
+  // is available on ended/observed sessions there, so the menu must agree rather than additionally
+  // gating on `ended`/`management === "observed"` (a since-reconciled divergence between the two
+  // surfaces, see the 2026-07-17 fork-gate-parity investigation).
+  const forkDisabled = !canSpawn || !session.resumable;
   const forkTitle = !canSpawn
     ? t.settings.cli.unavailableReason
     : !session.resumable
       ? t.shell.sessionMenu.forkTitleNoConversation
-      : ended
-        ? t.shell.sessionMenu.forkTitleEnded
-        : session.management === "observed"
-          ? t.shell.sessionMenu.forkTitleObserved
-          : undefined;
+      : undefined;
 
   const endTitle = live
     ? t.shell.sessionMenu.endTitleLive

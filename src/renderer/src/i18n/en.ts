@@ -233,10 +233,6 @@ export const en = {
         "This session just exited. Adopt is available in a moment.",
       forkTitleNoConversation:
         "Nothing to fork — this session has no saved conversation.",
-      forkTitleEnded:
-        "This session has ended — there's nothing live left to fork.",
-      forkTitleObserved:
-        "Fork isn't offered for an observed session — it isn't a session this app owns.",
       endTitleLive: "End this session",
       endTitleUnavailable:
         "End is only available for a live session you manage.",

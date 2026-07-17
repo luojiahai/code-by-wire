@@ -202,8 +202,6 @@ export const zh: Translations = {
       adoptTitleNoConversation: "无内容可领养 — 该会话没有已保存的对话记录。",
       adoptTitlePending: "该会话刚刚退出，稍后即可领养。",
       forkTitleNoConversation: "无内容可复刻 — 该会话没有已保存的对话记录。",
-      forkTitleEnded: "该会话已结束 — 已没有可复刻的活跃内容。",
-      forkTitleObserved: "观察中的会话不支持复刻 — 该会话并非由本应用管理。",
       endTitleLive: "结束此会话",
       endTitleUnavailable: "仅当会话处于本应用管理的活跃状态时才能结束。",
     },
