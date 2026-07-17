@@ -5,6 +5,7 @@ import {
   net,
   powerSaveBlocker,
 } from "electron";
+import { applyLegacyDockIconIfNeeded } from "./dock-icon";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { openDb } from "./db/sqlite";
@@ -130,6 +131,7 @@ function createWindow(
 app
   .whenReady()
   .then(() => {
+    applyLegacyDockIconIfNeeded(app);
     const db = openDb(join(app.getPath("userData"), "index.db"));
     migrate(db); // bring the index schema up to date before the first sync
     // The durable, non-pruned analytics store (#107). A separate file with its own user_version, so a
