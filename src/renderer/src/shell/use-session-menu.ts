@@ -30,6 +30,7 @@ export interface SessionRenameField {
 export interface SessionMenuController {
   open: boolean;
   toggleMenu: () => void;
+  openAt: (x: number, y: number) => void;
   closeMenu: () => void;
   rootRef: RefObject<HTMLDivElement | null>;
   menuRef: RefObject<HTMLDivElement | null>;
@@ -81,6 +82,11 @@ export function useSessionMenu(
   const [openInBusy, setOpenInBusy] = useState(false);
   const [openInError, setOpenInError] = useState<string | null>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  // Whether the currently open menu is anchored under its trigger (ellipsis button / header
+  // title) or fixed at the cursor position a right-click opened it at. Gates whether the
+  // scroll/resize listener below is allowed to recompute `pos` from `rootRef` — a cursor-opened
+  // menu must not snap back to the row's position on the next scroll.
+  const [anchoredToTrigger, setAnchoredToTrigger] = useState(true);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -106,11 +112,23 @@ export function useSessionMenu(
     setPos({ left, top: r.bottom + 6 });
   }, []);
 
+  // Opens the menu fixed at an explicit viewport position (a right-click's clientX/clientY)
+  // instead of anchored under `rootRef`. Clamped horizontally the same way `place()` clamps the
+  // trigger-anchored case; always opens rather than toggling, so a second right-click elsewhere
+  // while the menu is already open just repositions it.
+  function openAt(x: number, y: number): void {
+    const left = Math.min(x, window.innerWidth - MENU_WIDTH - 8);
+    setPos({ left, top: y });
+    setAnchoredToTrigger(false);
+    setOpen(true);
+  }
+
   function toggleMenu(): void {
     if (open) {
       setOpen(false);
       return;
     }
+    setAnchoredToTrigger(true);
     place();
     setOpen(true);
   }
@@ -135,17 +153,22 @@ export function useSessionMenu(
     function onKey(e: globalThis.KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    // Only the trigger-anchored case tracks the trigger's live rect; a cursor-opened menu stays
+    // where it was opened, matching the existing right-click precedent in shell-terminal/rail.tsx.
+    function onReposition() {
+      if (anchoredToTrigger) place();
+    }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", place, true);
-    window.addEventListener("resize", place);
+    window.addEventListener("scroll", onReposition, true);
+    window.addEventListener("resize", onReposition);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", place, true);
-      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", onReposition, true);
+      window.removeEventListener("resize", onReposition);
     };
-  }, [open, place]);
+  }, [open, place, anchoredToTrigger]);
 
   // Drop a stale Open-in error whenever the menu closes, so reopening starts clean.
   useEffect(() => {
@@ -227,6 +250,7 @@ export function useSessionMenu(
   return {
     open,
     toggleMenu,
+    openAt,
     closeMenu,
     rootRef,
     menuRef,
