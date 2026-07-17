@@ -6,6 +6,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.36] - 2026-07-17
+
+### Added
+
+- Transcript messages typeset LaTeX math with KaTeX: inline `\(…\)`/`$…$`
+  and display `\[…\]`/`$$…$$`, plus ```` ```math ```` fences (`latex`/`tex`
+  fences stay syntax-highlighted code). A standalone single-line `$$…$$`
+  promotes to true display math, currency like `$5` is guarded from
+  misparsing as math, and malformed LaTeX degrades to muted source text
+  instead of crashing.
+- The left sidebar gains a PINNED section, above Sessions: pin any session
+  from its context menu (Pin/Unpin is now the first item in all three menu
+  triggers) for an enriched two-line row — title + relative time, repo/branch
+  + model chip — sorted newest-pin-first. The session stays in its normal
+  folder too; pins persist durably in a `session-pins.json` store, so they
+  survive a cache rebuild. The active-only sidebar filter now narrows
+  sessions inside each project folder instead of hiding the whole folder,
+  with an empty-state line shown only on manual expand.
+
+### Changed
+
+- The dither glyph before "Activity" in the bottom dock and "Sessions" in the
+  left sidebar switches from a checkerboard texture to evenly-spaced vertical
+  stripes, echoing the app logo.
+
+### Fixed
+
+- The Dock icon regressed to a hard-cornered square on macOS 15 and earlier
+  after the app icon was made full-bleed to suit Tahoe's auto-squircle
+  masking. The app now detects pre-Tahoe macOS at launch and swaps in the
+  traditional padded/rounded Dock icon; Tahoe and later are unaffected.
+
 ## [0.1.35] - 2026-07-17
 
 ### Added
@@ -820,7 +852,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.35...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.36...HEAD
+[0.1.36]: https://github.com/luojiahai/code-by-wire/compare/v0.1.35...v0.1.36
 [0.1.35]: https://github.com/luojiahai/code-by-wire/compare/v0.1.34...v0.1.35
 [0.1.34]: https://github.com/luojiahai/code-by-wire/compare/v0.1.33...v0.1.34
 [0.1.33]: https://github.com/luojiahai/code-by-wire/compare/v0.1.32...v0.1.33
