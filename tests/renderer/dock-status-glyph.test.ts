@@ -40,7 +40,9 @@ describe("DOCK_GLYPH — one status vocabulary for all four dock tabs", () => {
     expect(animated).toEqual(["active"]);
   });
   it("the pulse class carries the reduced-motion guard", () => {
-    expect(DOCK_GLYPH_PULSE).toBe("animate-pulse-soft motion-reduce:animate-none");
+    expect(DOCK_GLYPH_PULSE).toBe(
+      "animate-pulse-soft motion-reduce:animate-none",
+    );
   });
 });
 
