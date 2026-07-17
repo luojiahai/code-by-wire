@@ -1,7 +1,7 @@
 import { Icon, type IconName } from "../ui/icons";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { useI18n, type Translations } from "../i18n";
-import type { ResumeAction } from "./resume-action";
+import { resumeActionDisabled, type ResumeAction } from "./resume-action";
 
 export type ResumeKind = "adopt" | "fork";
 
@@ -98,7 +98,10 @@ export function ResumeButton({
       <button
         type="button"
         onClick={action.request}
-        disabled={action.busy || !canSpawn || !resumable || !available}
+        disabled={
+          action.busy ||
+          resumeActionDisabled({ canSpawn, resumable, available })
+        }
         title={title}
         className={className}
       >

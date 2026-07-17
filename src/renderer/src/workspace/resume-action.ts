@@ -22,6 +22,23 @@ export function isModelUnknown(s: Session): boolean {
   return s.modelId == null && s.modelRaw == null;
 }
 
+/**
+ * The core Adopt/Fork gate, single-sourced so the menu (`use-session-menu.ts`) and the Ended/Observed
+ * terminal hero (`ResumeButton`) can't drift the way they did once already (2026-07-17 fork-gate-parity
+ * fix: the menu grew an extra ended/observed check `ResumeButton` never had). Deliberately excludes
+ * `busy` — that lives on the action object, not the session, so each caller ORs its own `action.busy` in.
+ * `available` defaults to `true` (Fork's case, which never gates on anything beyond canSpawn/resumable);
+ * Adopt passes `canAdoptSession(session)` here.
+ */
+export function resumeActionDisabled(opts: {
+  canSpawn: boolean;
+  resumable: boolean;
+  available?: boolean;
+}): boolean {
+  const { canSpawn, resumable, available = true } = opts;
+  return !canSpawn || !resumable || !available;
+}
+
 export interface ResumeAction {
   busy: boolean;
   error: string | null;

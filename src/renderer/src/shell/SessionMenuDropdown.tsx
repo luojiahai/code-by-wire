@@ -4,9 +4,7 @@ import { cx } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { useI18n } from "../i18n";
-import type { SessionMenuController } from "./use-session-menu";
-
-const MENU_WIDTH = 256;
+import { MENU_WIDTH, type SessionMenuController } from "./use-session-menu";
 
 /** The portaled dropdown body shared by every session-menu trigger: seven always-rendered action rows
  *  (only `disabled`/`title` vary — the design's "never hide an action, dim the unavailable ones with a

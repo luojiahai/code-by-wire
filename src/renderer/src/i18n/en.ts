@@ -206,15 +206,15 @@ export const en = {
     sessionMenu: {
       renameFieldLabel: "Rename session",
       menuTitle: "Session menu",
-      pin: "Pin session",
-      unpin: "Unpin session",
-      copySessionId: "Copy session ID",
+      pin: "Pin",
+      unpin: "Unpin",
+      copySessionId: "Copy ID",
       rename: "Rename",
       adopt: "Adopt",
       adopting: "Adopting…",
       fork: "Fork",
       forking: "Forking…",
-      endSession: "End session",
+      endSession: "End",
       openIn: "Open in",
       resumeConfirmTitle: "Resume a session with no recorded model?",
       resumeConfirmBody:
@@ -233,10 +233,6 @@ export const en = {
         "This session just exited. Adopt is available in a moment.",
       forkTitleNoConversation:
         "Nothing to fork — this session has no saved conversation.",
-      forkTitleEnded:
-        "This session has ended — there's nothing live left to fork.",
-      forkTitleObserved:
-        "Fork isn't offered for an observed session — it isn't a session this app owns.",
       endTitleLive: "End this session",
       endTitleUnavailable:
         "End is only available for a live session you manage.",
@@ -357,7 +353,6 @@ export const en = {
       couldNotFork: "Could not fork this session.",
     },
     openIn: {
-      target: (name: string) => `Open in ${name}`,
       finder: "Finder",
       fileExplorer: "File Explorer",
       fileManager: "File Manager",

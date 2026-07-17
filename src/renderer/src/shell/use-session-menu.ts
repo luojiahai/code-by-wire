@@ -16,8 +16,9 @@ import {
   type SessionActions,
 } from "../workspace/session-actions";
 import { openInItems, type OpenInItem } from "../workspace/open-in-items";
+import { resumeActionDisabled } from "../workspace/resume-action";
 
-const MENU_WIDTH = 256;
+export const MENU_WIDTH = 176;
 
 export interface SessionRenameField {
   value: string;
@@ -30,6 +31,7 @@ export interface SessionRenameField {
 export interface SessionMenuController {
   open: boolean;
   toggleMenu: () => void;
+  openAt: (x: number, y: number) => void;
   closeMenu: () => void;
   rootRef: RefObject<HTMLDivElement | null>;
   menuRef: RefObject<HTMLDivElement | null>;
@@ -81,6 +83,11 @@ export function useSessionMenu(
   const [openInBusy, setOpenInBusy] = useState(false);
   const [openInError, setOpenInError] = useState<string | null>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  // Whether the currently open menu is anchored under its trigger (ellipsis button / header
+  // title) or fixed at the cursor position a right-click opened it at. Gates whether the
+  // scroll/resize listener below is allowed to recompute `pos` from `rootRef` — a cursor-opened
+  // menu must not snap back to the row's position on the next scroll.
+  const [anchoredToTrigger, setAnchoredToTrigger] = useState(true);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -92,10 +99,26 @@ export function useSessionMenu(
   const editingRef = useRef(false);
   const menuId = useId();
 
-  const { ended, live, canAdopt, adopt, fork, end } = useSessionActions(
-    session,
-    callbacks,
-  );
+  // Wraps each action's callback to also close the dropdown — but only once the action actually
+  // completes (or, for the fire-and-forget End, once it actually fires), matching `handleOpenIn`'s
+  // own "close on success" rule below rather than closing the instant the row is clicked. A
+  // resume that throws leaves the menu open so `adopt.error`/`fork.error` stays visible instead of
+  // vanishing with the dropdown; End has no busy/error state, so closing when it fires is the
+  // direct equivalent of "on success" for a fire-and-forget action.
+  const { live, canAdopt, adopt, fork, end } = useSessionActions(session, {
+    onAdopt: async (id) => {
+      await callbacks.onAdopt(id);
+      setOpen(false);
+    },
+    onFork: async (target) => {
+      await callbacks.onFork(target);
+      setOpen(false);
+    },
+    onEnd: (id) => {
+      callbacks.onEnd(id);
+      setOpen(false);
+    },
+  });
 
   // The dropdown is portaled to `document.body` (its trigger may sit somewhere overflow-clipped), so its
   // position has to be computed from the trigger's live rect rather than left to CSS.
@@ -106,11 +129,23 @@ export function useSessionMenu(
     setPos({ left, top: r.bottom + 6 });
   }, []);
 
+  // Opens the menu fixed at an explicit viewport position (a right-click's clientX/clientY)
+  // instead of anchored under `rootRef`. Clamped horizontally the same way `place()` clamps the
+  // trigger-anchored case; always opens rather than toggling, so a second right-click elsewhere
+  // while the menu is already open just repositions it.
+  function openAt(x: number, y: number): void {
+    const left = Math.min(x, window.innerWidth - MENU_WIDTH - 8);
+    setPos({ left, top: y });
+    setAnchoredToTrigger(false);
+    setOpen(true);
+  }
+
   function toggleMenu(): void {
     if (open) {
       setOpen(false);
       return;
     }
+    setAnchoredToTrigger(true);
     place();
     setOpen(true);
   }
@@ -135,17 +170,22 @@ export function useSessionMenu(
     function onKey(e: globalThis.KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    // Only the trigger-anchored case tracks the trigger's live rect; a cursor-opened menu stays
+    // where it was opened, matching the existing right-click precedent in shell-terminal/rail.tsx.
+    function onReposition() {
+      if (anchoredToTrigger) place();
+    }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", place, true);
-    window.addEventListener("resize", place);
+    window.addEventListener("scroll", onReposition, true);
+    window.addEventListener("resize", onReposition);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", place, true);
-      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", onReposition, true);
+      window.removeEventListener("resize", onReposition);
     };
-  }, [open, place]);
+  }, [open, place, anchoredToTrigger]);
 
   // Drop a stale Open-in error whenever the menu closes, so reopening starts clean.
   useEffect(() => {
@@ -199,7 +239,11 @@ export function useSessionMenu(
     }
   }
 
-  const adoptDisabled = !canAdopt || !canSpawn || !session.resumable;
+  const adoptDisabled = resumeActionDisabled({
+    canSpawn,
+    resumable: session.resumable,
+    available: canAdopt,
+  });
   const adoptTitle = !canSpawn
     ? t.settings.cli.unavailableReason
     : !session.resumable
@@ -208,17 +252,19 @@ export function useSessionMenu(
         ? t.shell.sessionMenu.adoptTitlePending
         : undefined;
 
-  const forkGateExtra = ended || session.management === "observed";
-  const forkDisabled = forkGateExtra || !canSpawn || !session.resumable;
+  // Single-sourced with ResumeButton/ObservedTerminal's Fork gate via `resumeActionDisabled` — Fork
+  // is available on ended/observed sessions there, so the menu must agree rather than additionally
+  // gating on `ended`/`management === "observed"` (the 2026-07-17 fork-gate-parity fix; this shared
+  // function is what makes the two surfaces structurally unable to drift like that again).
+  const forkDisabled = resumeActionDisabled({
+    canSpawn,
+    resumable: session.resumable,
+  });
   const forkTitle = !canSpawn
     ? t.settings.cli.unavailableReason
     : !session.resumable
       ? t.shell.sessionMenu.forkTitleNoConversation
-      : ended
-        ? t.shell.sessionMenu.forkTitleEnded
-        : session.management === "observed"
-          ? t.shell.sessionMenu.forkTitleObserved
-          : undefined;
+      : undefined;
 
   const endTitle = live
     ? t.shell.sessionMenu.endTitleLive
@@ -227,6 +273,7 @@ export function useSessionMenu(
   return {
     open,
     toggleMenu,
+    openAt,
     closeMenu,
     rootRef,
     menuRef,
