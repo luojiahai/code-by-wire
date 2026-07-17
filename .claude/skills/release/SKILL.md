@@ -163,12 +163,32 @@ Do all the prep on a branch and open the PR. **Do not tag.**
    "merge" (to merge it) or "release it" (once merged, to start Phase 2)
    both work whenever they come back to it.
 
-   Otherwise, poll until CI is green
-   (`GH_HOST=github.com gh pr view <N> -R luojiahai/code-by-wire --json mergeStateStatus,statusCheckRollup`)
-   — this is still a real precondition to wait out, not a re-ask of the
-   go-ahead already given — then merge with a **merge commit** to match the history
-   (`main` is all "Merge pull request #NNN from …", never squashes), and
-   tidy up:
+   Otherwise, poll until CI is green — this is still a real precondition to
+   wait out, not a re-ask of the go-ahead already given. `statusCheckRollup`
+   mixes two GraphQL shapes on the same array: GitHub Actions checks come
+   back as `CheckRun` (`status: "COMPLETED"`, `conclusion: "SUCCESS"`/…), but
+   non-Actions integrations — this repo's Vercel preview deployment, in
+   particular — report a `StatusContext` instead, which has no `status`
+   field at all, only `state`. A poll that maps every entry through `.status`
+   and waits for them all to equal `"COMPLETED"` will loop forever the moment
+   a `StatusContext` entry is present, since its `.status` is always `null`
+   and never joins the rest at `"COMPLETED"` — indistinguishable from CI
+   actually hanging, so don't just add a timeout; read each entry through
+   whichever field it actually has:
+
+   ```
+   until st=$(GH_HOST=github.com gh pr view <N> -R luojiahai/code-by-wire --json statusCheckRollup \
+     --jq '[.statusCheckRollup[] | select((.status // "COMPLETED") != "COMPLETED" or .state == "PENDING")] | length'); [ "$st" = "0" ]; do
+     sleep 15
+   done
+   GH_HOST=github.com gh pr view <N> -R luojiahai/code-by-wire --json mergeStateStatus,statusCheckRollup \
+     --jq '{mergeStateStatus, checks: [.statusCheckRollup[] | {name, status, conclusion, state}]}'
+   ```
+
+   then confirm every entry's terminal value (`conclusion` for `CheckRun`,
+   `state` for `StatusContext`) is a pass, not just that it's done — then
+   merge with a **merge commit** to match the history (`main` is all "Merge
+   pull request #NNN from …", never squashes), and tidy up:
 
    ```
    GH_HOST=github.com gh pr merge <N> -R luojiahai/code-by-wire --merge
