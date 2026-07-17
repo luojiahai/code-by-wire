@@ -1,23 +1,33 @@
 // src/renderer/src/workspace/panels/monitor-view.ts
 import type { Monitor } from "@shared/types";
 import { tNow } from "../../i18n";
+import { DOCK_GLYPH, type DockStatus } from "./dock-status-glyph";
 
-/** The status glyph + cbw tone for a monitor row. running pulses blue; completed reads green/✓; failed
- *  red/✕; killed or stopped a calm grey square. Monitors carry no exit code — the status is pass/fail. */
+/** A monitor's canonical dock status. Monitors carry no exit code — completed is pass, failed is
+ *  fail, killed/stopped are the user's own call. */
+export function monitorDockStatus(
+  monitor: Pick<Monitor, "status">,
+): DockStatus {
+  switch (monitor.status) {
+    case "running":
+      return "active";
+    case "completed":
+      return "done";
+    case "failed":
+      return "failed";
+    default: // killed | stopped
+      return "stopped";
+  }
+}
+
+/** The status glyph + cbw tone for a monitor row, read from the dock's canonical table
+ *  (dock-status-glyph.ts) via monitorDockStatus. Signature preserved. */
 export function monitorGlyph(monitor: Pick<Monitor, "status">): {
   char: string;
   tone: string;
 } {
-  switch (monitor.status) {
-    case "running":
-      return { char: "●", tone: "text-working-bright" };
-    case "completed":
-      return { char: "✓", tone: "text-ok" };
-    case "failed":
-      return { char: "✕", tone: "text-danger" };
-    default: // killed | stopped
-      return { char: "■", tone: "text-fg-faint" };
-  }
+  const g = DOCK_GLYPH[monitorDockStatus(monitor)];
+  return { char: g.char, tone: g.tone };
 }
 
 /** The status pill for the drilled-in monitor header: monitorGlyph's glyph/tone (so the pill can never

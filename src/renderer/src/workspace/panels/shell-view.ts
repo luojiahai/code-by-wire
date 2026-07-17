@@ -2,19 +2,26 @@
 import type { BackgroundShell } from "@shared/types";
 import type { AnsiColor } from "./ansi-to-html";
 import { tNow } from "../../i18n";
+import { DOCK_GLYPH, type DockStatus } from "./dock-status-glyph";
 
-/** The status glyph + cbw tone for a shell row. A completed shell reads green/✓ on a clean exit and
- *  red/✕ on a non-zero code; running pulses blue; killed is a calm grey square. */
+/** A shell's canonical dock status: running is active; killed is stopped; completed splits on the
+ *  exit code (0 and undefined both read as clean → done, non-zero → failed). */
+export function shellDockStatus(
+  shell: Pick<BackgroundShell, "status" | "exitCode">,
+): DockStatus {
+  if (shell.status === "running") return "active";
+  if (shell.status === "killed") return "stopped";
+  return shell.exitCode ? "failed" : "done";
+}
+
+/** The status glyph + cbw tone for a shell row, read from the dock's canonical table
+ *  (dock-status-glyph.ts) via shellDockStatus. Signature preserved from the pre-unification
+ *  per-tab table so ShellsTab and the pill/detail helpers below are untouched. */
 export function shellGlyph(
   shell: Pick<BackgroundShell, "status" | "exitCode">,
 ): { char: string; tone: string } {
-  if (shell.status === "running")
-    return { char: "●", tone: "text-working-bright" };
-  if (shell.status === "killed") return { char: "■", tone: "text-fg-faint" };
-  // completed: a non-zero exit reads as failed (0 and undefined both read as clean)
-  return shell.exitCode
-    ? { char: "✕", tone: "text-danger" }
-    : { char: "✓", tone: "text-ok" };
+  const g = DOCK_GLYPH[shellDockStatus(shell)];
+  return { char: g.char, tone: g.tone };
 }
 
 /** The status pill for the drilled-in shell header: the row glyph + tone (reused straight from shellGlyph,

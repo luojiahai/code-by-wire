@@ -4,6 +4,7 @@ import { useI18n } from "../../i18n";
 import { EmptyState } from "./chrome";
 import { shellGlyph } from "./shell-view";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
+import { DOCK_GLYPH_PULSE } from "./dock-status-glyph";
 
 /** One background shell as a compact, clickable row: status glyph, command, duration, and a relative
  *  start. The exit code lives on the drill-in; the glyph carries pass/fail here. Clicking drills into the
@@ -36,7 +37,7 @@ function ShellRow({
             DOCK_GUTTER,
             "shrink-0 text-center font-mono text-meta",
             glyph.tone,
-            shell.status === "running" && "animate-pulse-soft",
+            shell.status === "running" && DOCK_GLYPH_PULSE,
           )}
         >
           {glyph.char}
