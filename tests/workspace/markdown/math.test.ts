@@ -13,9 +13,9 @@ describe("preprocessMath — LaTeX delimiter rewriting and currency escaping", (
     expect(preprocessMath(input)).toBe(input);
   });
 
-  it("rewrites \\[...\\] display math to double-dollar form, multiline allowed", () => {
+  it("rewrites \\[...\\] display math to fence form, multiline allowed", () => {
     expect(preprocessMath("\\[\n\\int_0^1 x\\,dx\n\\]")).toBe(
-      "$$\n\\int_0^1 x\\,dx\n$$",
+      "\n\n$$\n\\int_0^1 x\\,dx\n$$\n\n",
     );
   });
 
@@ -75,6 +75,59 @@ describe("preprocessMath — LaTeX delimiter rewriting and currency escaping", (
 
   it("returns text without math or currency unchanged", () => {
     const input = "plain prose with *emphasis* and a [link](https://x.y)";
+    expect(preprocessMath(input)).toBe(input);
+  });
+
+  it("promotes a standalone single-line $$...$$ to fence form", () => {
+    expect(preprocessMath("**Euler**\n\n$$e^{i\\pi} + 1 = 0$$\n\nnice")).toBe(
+      "**Euler**\n\n\n$$\ne^{i\\pi} + 1 = 0\n$$\n\n\nnice",
+    );
+  });
+
+  it("promotes when the $$...$$ line is the whole text", () => {
+    expect(preprocessMath("$$x^2$$")).toBe("\n$$\nx^2\n$$\n");
+  });
+
+  it("does not promote $$...$$ embedded in a sentence", () => {
+    const input = "The result $$x^2$$ holds";
+    expect(preprocessMath(input)).toBe(input);
+  });
+
+  it("does not promote a line holding two $$...$$ spans", () => {
+    const input = "$$a$$ and $$b$$";
+    expect(preprocessMath(input)).toBe(input);
+  });
+
+  it("promotion protects digit-leading display math from the currency escape", () => {
+    const output = preprocessMath("$$5x = 10$$");
+    expect(output).toBe("\n$$\n5x = 10\n$$\n");
+    expect(output).not.toContain("\\$");
+  });
+
+  it("keeps $<digit> spans that look like math ($1/\\pi$)", () => {
+    const input = "Ramanujan's series for $1/\\pi$";
+    expect(preprocessMath(input)).toBe(input);
+  });
+
+  it("escapes prose dollars but keeps the math span on the same line", () => {
+    expect(preprocessMath("pay $5, since $1/\\pi$ is small")).toBe(
+      "pay \\$5, since $1/\\pi$ is small",
+    );
+  });
+
+  it("emits fence form for mid-sentence \\[...\\]", () => {
+    expect(preprocessMath("before \\[x\\] after")).toBe(
+      "before \n\n$$\nx\n$$\n\n after",
+    );
+  });
+
+  it("does not promote $$...$$ lines inside fenced code", () => {
+    const input = ["```", "$$x$$", "```"].join("\n");
+    expect(preprocessMath(input)).toBe(input);
+  });
+
+  it("does not promote a line that is an inline code span", () => {
+    const input = "`$$x$$`";
     expect(preprocessMath(input)).toBe(input);
   });
 });
