@@ -681,6 +681,16 @@ body:has([data-suppress-pane-reveal]:hover) [data-pane-reveal-trigger] {
     --color-data-4: #b0b0b0;
     --color-data-5: #d0d0d0;
 
+    /* Model identity — monochrome in light theme. The dark theme's jewel hues clash with the
+       light UI's black-on-paper look (the contributions ramp above the chart is already shades
+       of black via --color-primary), so models climb an ink ramp instead: assigned by typical
+       share so the dominant family reads darkest. Stacked bars stay tellable-apart at 4 steps;
+       unknown models fall to --color-data-1 (#3a3a3a) between opus and fable. */
+    --color-model-opus: #1a1a1a; /* near-black */
+    --color-model-fable: #55555a; /* dark gray */
+    --color-model-sonnet: #8e8e93; /* mid gray */
+    --color-model-haiku: #bfbfc4; /* light gray */
+
     /* Recessed sidebar surfaces. */
     --color-sidebar: #ececed;
     --color-sidebar-border: #dcdce0;
