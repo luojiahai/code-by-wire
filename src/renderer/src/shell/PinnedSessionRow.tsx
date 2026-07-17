@@ -86,7 +86,10 @@ export function PinnedSessionRow({
   // `invisible` — both are wider than the 20px trigger, so it lands inside their kept-open space
   // and neither line reflows. The branch/worktree name span stays visible, keeping its tooltip
   // reachable. No fade gradient.
-  const metaHide = "group-hover:invisible group-has-[:focus-visible]:invisible";
+  const metaHide = cx(
+    "group-hover:invisible group-has-[:focus-visible]:invisible",
+    menu.open && "invisible",
+  );
   return (
     <div className="group relative">
       <button
@@ -118,7 +121,6 @@ export function PinnedSessionRow({
             className={cx(
               "shrink-0 text-[0.68rem] leading-none text-(--ui-text-quaternary)",
               metaHide,
-              menu.open && "invisible",
             )}
           >
             {t.time.ago(session.lastActivityMs, Date.now())}
@@ -149,7 +151,6 @@ export function PinnedSessionRow({
             className={cx(
               "ml-auto shrink-0 rounded-sm border border-(--ui-stroke-tertiary) px-1 py-px text-[0.6rem] leading-none text-(--ui-text-tertiary)",
               metaHide,
-              menu.open && "invisible",
             )}
           >
             {session.model}
