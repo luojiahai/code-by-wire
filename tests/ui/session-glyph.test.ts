@@ -28,6 +28,14 @@ describe("working bar-sweep constants", () => {
   });
   it("has 4 staggered delays, one per bar, in ascending order", () => {
     expect(WORKING_BAR_DELAYS_MS).toEqual([0, 160, 320, 480]);
+    // Ascending order is what makes the brightness peak travel left-to-right (then, via the
+    // CSS animation's `alternate` direction, back right-to-left) — a descending or shuffled
+    // order would still animate, just not sweep in a readable direction.
+    expect(
+      WORKING_BAR_DELAYS_MS.every(
+        (delay, i) => i === 0 || delay > WORKING_BAR_DELAYS_MS[i - 1],
+      ),
+    ).toBe(true);
   });
 });
 

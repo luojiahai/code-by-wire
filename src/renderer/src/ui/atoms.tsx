@@ -41,9 +41,9 @@ function WorkingBars() {
 
 /** The session status glyph (2026-07-17 spec §4, working redesigned same day): working renders as
  *  WorkingBars (4 sweeping bars); the other three states render a mono character from the GLYPH
- *  table, color as the second signal. management is spoken only in the tooltip. font-mono is
- *  load-bearing for the character states so their advance width stays fixed. Renders inside the
- *  rows' 14px (size-3.5) grid cell. */
+ *  table, color as the second signal. management is spoken only in the tooltip. font-mono keeps
+ *  the three character states visually uniform (same aesthetic, no horizontal jitter across a
+ *  waiting/idle/ended transition). Renders inside the rows' 14px (size-3.5) grid cell. */
 export function Lamp({
   state,
   management,
