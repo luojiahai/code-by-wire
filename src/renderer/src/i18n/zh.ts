@@ -175,6 +175,8 @@ export const zh: Translations = {
     sessionMenu: {
       renameFieldLabel: "重命名会话",
       menuTitle: "会话菜单",
+      pin: "置顶会话",
+      unpin: "取消置顶",
       copySessionId: "复制会话 ID",
       rename: "重命名",
       adopt: "领养",

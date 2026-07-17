@@ -37,6 +37,10 @@ export interface SessionMenuController {
   pos: { left: number; top: number } | null;
   editing: boolean;
   openEdit: () => void;
+  /** Whether the session is currently pinned (drives the Pin/Unpin item's label and icon). */
+  pinned: boolean;
+  /** Toggle the pin and close the menu. */
+  togglePin: () => void;
   renameField: SessionRenameField;
   items: OpenInItem[];
   openInBusy: boolean;
@@ -66,6 +70,7 @@ export function useSessionMenu(
     onFork: (session: Session) => Promise<void>;
     onEnd: (id: string) => void;
     onRename: (id: string, title: string | null) => void;
+    onTogglePin: (id: string, pinned: boolean) => void;
   },
 ): SessionMenuController {
   const { t } = useI18n();
@@ -111,6 +116,12 @@ export function useSessionMenu(
   }
 
   function closeMenu(): void {
+    setOpen(false);
+  }
+
+  const pinned = session.pinnedAtMs !== undefined;
+  function togglePin(): void {
+    callbacks.onTogglePin(session.id, !pinned);
     setOpen(false);
   }
 
@@ -223,6 +234,8 @@ export function useSessionMenu(
     pos,
     editing,
     openEdit,
+    pinned,
+    togglePin,
     renameField: {
       value: draft,
       onChange: (e) => setDraft(e.target.value),

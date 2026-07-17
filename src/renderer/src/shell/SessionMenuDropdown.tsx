@@ -26,6 +26,8 @@ export function SessionMenuDropdown({
     menuRef,
     closeMenu,
     openEdit,
+    pinned,
+    togglePin,
     items,
     openInBusy,
     openInError,
@@ -58,6 +60,13 @@ export function SessionMenuDropdown({
               }}
               className="z-50 rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl"
             >
+              <MenuItem
+                icon={pinned ? "pin-off" : "pin"}
+                label={
+                  pinned ? t.shell.sessionMenu.unpin : t.shell.sessionMenu.pin
+                }
+                onClick={togglePin}
+              />
               <MenuItem
                 icon="copy"
                 label={t.shell.sessionMenu.copySessionId}

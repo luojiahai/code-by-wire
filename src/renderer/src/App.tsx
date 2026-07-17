@@ -355,6 +355,13 @@ export function App() {
     applyOverview(await window.api.renameSession(id, title));
   }
 
+  // Persist (or clear) a pin and apply the fresh overview the main process returns. No draft-overlay
+  // mirror (unlike rename): pinnedAtMs only rides indexed rows, so a pin on a not-yet-indexed draft
+  // simply surfaces once discovery indexes it.
+  async function togglePinSession(id: string, pinned: boolean): Promise<void> {
+    applyOverview(await window.api.setSessionPinned(id, pinned));
+  }
+
   // Fork a session: resume its conversation into a fresh id under `--fork-session`. Unlike Adopt (which
   // resumes the SAME id, so its row already exists in the list), a fork's id is brand new, so it follows
   // the spawn path: stand the terminal up first, then show the optimistic Managed draft main echoes back.
@@ -508,6 +515,7 @@ export function App() {
       onFork={forkSession}
       onEnd={endSession}
       onRename={(id, title) => void renameSession(id, title)}
+      onTogglePin={(id, pinned) => void togglePinSession(id, pinned)}
       leftEdgeExposed={leftEdgeExposed}
       rightEdgeExposed={rightEdgeExposed}
     />
@@ -546,6 +554,7 @@ export function App() {
             onFork={forkSession}
             onEnd={endSession}
             onRename={(id, title) => void renameSession(id, title)}
+            onTogglePin={(id, pinned) => void togglePinSession(id, pinned)}
             updatePending={updatePending}
             route={route}
             onRoute={setSelectedId}

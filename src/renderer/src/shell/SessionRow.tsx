@@ -25,6 +25,7 @@ export function SessionRow({
   onFork,
   onEnd,
   onRename,
+  onTogglePin,
 }: {
   session: Session;
   selected: boolean;
@@ -34,6 +35,7 @@ export function SessionRow({
   onFork: (session: Session) => Promise<void>;
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
+  onTogglePin: (id: string, pinned: boolean) => void;
 }) {
   const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
@@ -41,6 +43,7 @@ export function SessionRow({
     onFork,
     onEnd,
     onRename,
+    onTogglePin,
   });
 
   if (menu.editing) {

@@ -18,6 +18,7 @@ export function SessionMenu({
   onFork,
   onEnd,
   onRename,
+  onTogglePin,
 }: {
   session: Session;
   /** Whether the Claude Code CLI is usable; Adopt and Fork both resume by spawning it. */
@@ -28,6 +29,8 @@ export function SessionMenu({
   onEnd: (id: string) => void;
   /** Persist a display-name override for this session (null/empty clears it). */
   onRename: (id: string, title: string | null) => void;
+  /** Persist (or clear) the pin mark for this session. */
+  onTogglePin: (id: string, pinned: boolean) => void;
 }) {
   const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
@@ -35,6 +38,7 @@ export function SessionMenu({
     onFork,
     onEnd,
     onRename,
+    onTogglePin,
   });
   const { open, toggleMenu, rootRef, menuId, editing, renameField } = menu;
 

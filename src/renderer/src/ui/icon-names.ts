@@ -49,6 +49,7 @@ export type IconName =
   | "pause"
   | "pencil"
   | "pin"
+  | "pin-off"
   | "plus"
   | "rocket"
   | "rotate-ccw"

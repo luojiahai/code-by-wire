@@ -43,6 +43,7 @@ export function LeftSidebar({
   onFork,
   onEnd,
   onRename,
+  onTogglePin,
   updatePending,
   route,
   onRoute,
@@ -61,6 +62,7 @@ export function LeftSidebar({
   onFork: (session: Session) => Promise<void>;
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
+  onTogglePin: (id: string, pinned: boolean) => void;
   /** True while a software update is pending (available/downloading/downloaded) —
    *  badges the Settings gear (design spec 2026-07-09-update-dot). */
   updatePending: boolean;
@@ -358,6 +360,7 @@ export function LeftSidebar({
                           onFork={onFork}
                           onEnd={onEnd}
                           onRename={onRename}
+                          onTogglePin={onTogglePin}
                         />
                       ))}
                     </div>

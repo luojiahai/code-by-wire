@@ -201,6 +201,8 @@ export const en = {
     sessionMenu: {
       renameFieldLabel: "Rename session",
       menuTitle: "Session menu",
+      pin: "Pin session",
+      unpin: "Unpin session",
       copySessionId: "Copy session ID",
       rename: "Rename",
       adopt: "Adopt",
