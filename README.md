@@ -1,17 +1,15 @@
-# <img src="docs/assets/logo.svg" alt="" height="64" align="center"> Code-by-wire
+# <img src="docs/assets/logo.svg" alt="" height="64" align="center"> FlightDeck
 
 English | [简体中文](README.zh-CN.md)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/luojiahai/code-by-wire/ci.yml?style=flat-square&label=CI)](https://github.com/luojiahai/code-by-wire/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/wilsonwang0713/code-by-wilson/ci.yml?style=flat-square&label=CI)](https://github.com/wilsonwang0713/code-by-wilson/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/luojiahai/code-by-wire?style=flat-square)](https://github.com/luojiahai/code-by-wire/releases)
-
-[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=luojiahai&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/luojiahai)
+[![Latest release](https://img.shields.io/github/v/release/wilsonwang0713/code-by-wilson?style=flat-square)](https://github.com/wilsonwang0713/code-by-wilson/releases)
 
 **Pilot every Claude Code session, view its enriched transcript, and monitor
 the telemetry, in one interface.**
 
-![Code-by-wire: a live Claude Code session with the session rail, transcript, and telemetry panels](docs/assets/cbw-screenshot.png)
+![FlightDeck: a live Claude Code session with the session rail, transcript, and telemetry panels](docs/assets/cbw-screenshot.png)
 
 ## Features
 
@@ -34,18 +32,18 @@ running on your machine is there.
 
 ## Download
 
-| Platform              | File                                                                                                                              |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| macOS · Apple Silicon | [`Code-by-wire-arm64.dmg`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-arm64.dmg)             |
-| macOS · Intel         | [`Code-by-wire-x64.dmg`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-x64.dmg)                 |
-| Windows · x64         | [`Code-by-wire-Setup-x64.exe`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-Setup-x64.exe)     |
-| Windows · ARM64       | [`Code-by-wire-Setup-arm64.exe`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-Setup-arm64.exe) |
+| Platform              | File                                                                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| macOS · Apple Silicon | [`FlightDeck-arm64.dmg`](https://github.com/wilsonwang0713/code-by-wilson/releases/latest/download/FlightDeck-arm64.dmg)             |
+| macOS · Intel         | [`FlightDeck-x64.dmg`](https://github.com/wilsonwang0713/code-by-wilson/releases/latest/download/FlightDeck-x64.dmg)                 |
+| Windows · x64         | [`FlightDeck-Setup-x64.exe`](https://github.com/wilsonwang0713/code-by-wilson/releases/latest/download/FlightDeck-Setup-x64.exe)     |
+| Windows · ARM64       | [`FlightDeck-Setup-arm64.exe`](https://github.com/wilsonwang0713/code-by-wilson/releases/latest/download/FlightDeck-Setup-arm64.exe) |
 
 One click starts the download. Always the latest release. You'll need
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
 locally, so there are sessions to observe and control.
 
-On macOS, open the `.dmg` and drag Code-by-wire to Applications. The app is
+On macOS, open the `.dmg` and drag FlightDeck to Applications. The app is
 signed and notarized by Apple, so it opens straight away. On Windows, run the
 `.exe`; it's unsigned for now, so if SmartScreen warns, click
 **More info → Run anyway**.
@@ -64,7 +62,7 @@ pnpm dist:win         # Windows: writes the .exe to release/
 
 A locally built app is unsigned: on macOS the first launch may need a
 right-click → **Open**, or clearing the quarantine flag with
-`xattr -dr com.apple.quarantine /Applications/Code-by-wire.app`; on Windows,
+`xattr -dr com.apple.quarantine /Applications/FlightDeck.app`; on Windows,
 SmartScreen may warn: click **More info → Run anyway**.
 
 ## Develop
@@ -79,7 +77,7 @@ pnpm dev              # launch the app
 in `tests/fixtures/`. `pnpm typecheck` checks the main and renderer projects.
 
 This is a personal project and isn't taking outside code, but bug reports and
-ideas are welcome. [Open an issue](https://github.com/luojiahai/code-by-wire/issues/new/choose),
+ideas are welcome. [Open an issue](https://github.com/wilsonwang0713/code-by-wilson/issues/new/choose),
 or see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License

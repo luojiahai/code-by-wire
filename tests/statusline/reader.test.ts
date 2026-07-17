@@ -11,14 +11,14 @@ const NOW_MS = 1_781_000_000 + 1000;
 const open = (home: string) =>
   createStatusLineReader({ claudeDir: home, now: () => NOW_MS });
 
-/** Write a capture file into <home>/.code-by-wilson/statusline/<sid>.json and stamp its mtime. */
+/** Write a capture file into <home>/.flightdeck/statusline/<sid>.json and stamp its mtime. */
 function writeCapture(
   home: string,
   sid: string,
   json: unknown,
   mtimeSec = 1_781_000,
 ): void {
-  const dir = join(home, ".code-by-wilson", "statusline");
+  const dir = join(home, ".flightdeck", "statusline");
   mkdirSync(dir, { recursive: true });
   const path = join(dir, `${sid}.json`);
   writeFileSync(path, JSON.stringify(json));
@@ -109,7 +109,7 @@ describe("createStatusLineReader", () => {
 
   it("skips a malformed file and a file with no session id, keeping the good ones", () => {
     const home = makeHome();
-    const dir = join(home, ".code-by-wilson", "statusline");
+    const dir = join(home, ".flightdeck", "statusline");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "broken.json"), "{ not json");
     writeFileSync(
@@ -133,7 +133,7 @@ describe("createStatusLineReader", () => {
 
   it("skips files whose top-level JSON is not an object (array or primitive)", () => {
     const home = makeHome();
-    const dir = join(home, ".code-by-wilson", "statusline");
+    const dir = join(home, ".flightdeck", "statusline");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "arr.json"), JSON.stringify([1, 2, 3]));
     writeFileSync(join(dir, "num.json"), JSON.stringify(42));
@@ -178,10 +178,10 @@ describe("createStatusLineReader", () => {
 
     expect(out.map((s) => s.sessionId)).toEqual(["fresh"]); // the dead session's capture is gone
     expect(
-      existsSync(join(home, ".code-by-wilson", "statusline", "stale.json")),
+      existsSync(join(home, ".flightdeck", "statusline", "stale.json")),
     ).toBe(false); // deleted on read
     expect(
-      existsSync(join(home, ".code-by-wilson", "statusline", "fresh.json")),
+      existsSync(join(home, ".flightdeck", "statusline", "fresh.json")),
     ).toBe(true); // live one untouched
   });
 

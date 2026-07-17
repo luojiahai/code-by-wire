@@ -72,11 +72,7 @@ describe.skipIf(process.platform === "win32")(
       const mgr = createSettingsManager({ claudeDir: home, now: () => NOW });
       mgr.install();
 
-      const wrapperPath = join(
-        home,
-        ".code-by-wilson",
-        "statusline-wrapper.sh",
-      );
+      const wrapperPath = join(home, ".flightdeck", "statusline-wrapper.sh");
       const stdout = execFileSync("sh", [wrapperPath], {
         input: SAMPLE,
         encoding: "utf8",
@@ -85,12 +81,7 @@ describe.skipIf(process.platform === "win32")(
       // (a) the prompt rendered: the wrapped `cat` echoed the JSON back
       expect(stdout).toBe(SAMPLE);
       // (b) the side-channel capture landed, keyed by session_id
-      const capture = join(
-        home,
-        ".code-by-wilson",
-        "statusline",
-        "abc-123.json",
-      );
+      const capture = join(home, ".flightdeck", "statusline", "abc-123.json");
       expect(existsSync(capture)).toBe(true);
       expect(readFileSync(capture, "utf8")).toBe(SAMPLE);
     });
@@ -100,11 +91,7 @@ describe.skipIf(process.platform === "win32")(
       const mgr = createSettingsManager({ claudeDir: home, now: () => NOW }); // no settings.json → no original
       mgr.install();
 
-      const wrapperPath = join(
-        home,
-        ".code-by-wilson",
-        "statusline-wrapper.sh",
-      );
+      const wrapperPath = join(home, ".flightdeck", "statusline-wrapper.sh");
       const stdout = execFileSync("sh", [wrapperPath], {
         input: SAMPLE,
         encoding: "utf8",
@@ -112,7 +99,7 @@ describe.skipIf(process.platform === "win32")(
 
       expect(stdout).toBe(""); // blank prompt, safe
       expect(
-        existsSync(join(home, ".code-by-wilson", "statusline", "abc-123.json")),
+        existsSync(join(home, ".flightdeck", "statusline", "abc-123.json")),
       ).toBe(true);
     });
 
@@ -124,11 +111,7 @@ describe.skipIf(process.platform === "win32")(
       );
       createSettingsManager({ claudeDir: home, now: () => NOW }).install();
 
-      const wrapperPath = join(
-        home,
-        ".code-by-wilson",
-        "statusline-wrapper.sh",
-      );
+      const wrapperPath = join(home, ".flightdeck", "statusline-wrapper.sh");
       const withNewline = SAMPLE + "\n";
       const stdout = execFileSync("sh", [wrapperPath], {
         input: withNewline,
@@ -138,7 +121,7 @@ describe.skipIf(process.platform === "win32")(
       expect(stdout).toBe(withNewline); // the wrapped `cat` saw the trailing newline (no $(cat) strip)
       expect(
         readFileSync(
-          join(home, ".code-by-wilson", "statusline", "abc-123.json"),
+          join(home, ".flightdeck", "statusline", "abc-123.json"),
           "utf8",
         ),
       ).toBe(withNewline);
@@ -152,11 +135,7 @@ describe.skipIf(process.platform === "win32")(
       );
       createSettingsManager({ claudeDir: home, now: () => NOW }).install();
 
-      const wrapperPath = join(
-        home,
-        ".code-by-wilson",
-        "statusline-wrapper.sh",
-      );
+      const wrapperPath = join(home, ".flightdeck", "statusline-wrapper.sh");
       const stdout = execFileSync("sh", [wrapperPath], {
         input: '{"session_id":"../../escape"}',
         encoding: "utf8",
@@ -164,9 +143,7 @@ describe.skipIf(process.platform === "win32")(
 
       expect(stdout).toBe('{"session_id":"../../escape"}'); // still rendered through
       expect(existsSync(join(home, "escape.json"))).toBe(false); // did not write outside statusline/
-      expect(existsSync(join(home, ".code-by-wilson", "escape.json"))).toBe(
-        false,
-      );
+      expect(existsSync(join(home, ".flightdeck", "escape.json"))).toBe(false);
     });
   },
 );

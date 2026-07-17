@@ -1,7 +1,7 @@
 ---
 name: release
 description: >-
-  Use when the maintainer wants to cut, prepare, or ship a code-by-wire release
+  Use when the maintainer wants to cut, prepare, or ship a flightdeck release
   — e.g. says "bump version", "bump vX.Y.Z", "release it", "ship it", or "cut a
   release" — whether before the release (preparing the version bump and the
   changelog PR) or after the bump PR has merged (tagging and publishing).
@@ -40,7 +40,7 @@ unsure, `git log --oneline --first-parent vLAST..HEAD` shows what's unreleased.
 defaults to the work host, so every `gh` call needs both the host and the repo:
 
 ```
-GH_HOST=github.com gh <cmd> -R luojiahai/code-by-wire ...
+GH_HOST=github.com gh <cmd> -R wilsonwang0713/code-by-wilson ...
 ```
 
 Plain `git push`/`git tag` are fine — only `gh` needs the prefix.
@@ -85,8 +85,8 @@ Do all the prep on a branch and open the PR. **Do not tag.**
    (`main` is all "Merge pull request #NNN from …", never squashes), and tidy up:
 
    ```
-   GH_HOST=github.com gh pr view <N> -R luojiahai/code-by-wire --json mergeStateStatus,statusCheckRollup
-   GH_HOST=github.com gh pr merge <N> -R luojiahai/code-by-wire --merge
+   GH_HOST=github.com gh pr view <N> -R wilsonwang0713/code-by-wilson --json mergeStateStatus,statusCheckRollup
+   GH_HOST=github.com gh pr merge <N> -R wilsonwang0713/code-by-wilson --merge
    git switch main && git pull
    git branch -d build/release-vX.Y.Z
    ```
@@ -126,8 +126,8 @@ The tag is the trigger; CI builds the dmg into a draft release.
    as webhook events, so you have to poll. Find the run and watch its jobs:
 
    ```
-   GH_HOST=github.com gh run list -R luojiahai/code-by-wire --workflow=Release --limit 3 --json databaseId,headBranch,status
-   GH_HOST=github.com gh run view <id> -R luojiahai/code-by-wire --json jobs --jq '.jobs[] | {name,status,conclusion}'
+   GH_HOST=github.com gh run list -R wilsonwang0713/code-by-wilson --workflow=Release --limit 3 --json databaseId,headBranch,status
+   GH_HOST=github.com gh run view <id> -R wilsonwang0713/code-by-wilson --json jobs --jq '.jobs[] | {name,status,conclusion}'
    ```
 
    `verify` fails fast if tag ≠ `package.json`; then `draft` creates the GitHub
@@ -143,11 +143,11 @@ The tag is the trigger; CI builds the dmg into a draft release.
    - **On success:** confirm the **draft** release carries all assets:
 
      ```
-     GH_HOST=github.com gh release view vX.Y.Z -R luojiahai/code-by-wire --json isDraft,assets --jq '{draft:.isDraft, assets:[.assets[].name]}'
+     GH_HOST=github.com gh release view vX.Y.Z -R wilsonwang0713/code-by-wilson --json isDraft,assets --jq '{draft:.isDraft, assets:[.assets[].name]}'
      ```
 
-     Expect `draft: true` and `Code-by-wire-X.Y.Z-arm64.dmg` + `.blockmap` +
-     `latest-mac.yml` (from macOS), and `Code-by-wire Setup X.Y.Z.exe` +
+     Expect `draft: true` and `FlightDeck-X.Y.Z-arm64.dmg` + `.blockmap` +
+     `latest-mac.yml` (from macOS), and `FlightDeck Setup X.Y.Z.exe` +
      `.blockmap` + `latest.yml` (from Windows). An empty or partial asset list
      means an upload step didn't run — read the relevant `build` job log.
      (`isLatest` isn't valid on `gh release view` — use `isDraft`/`isPrerelease`
@@ -156,7 +156,7 @@ The tag is the trigger; CI builds the dmg into a draft release.
    so it's ready to read, keeping it a draft:
 
    ```
-   GH_HOST=github.com gh release edit vX.Y.Z -R luojiahai/code-by-wire --notes "$(...)"
+   GH_HOST=github.com gh release edit vX.Y.Z -R wilsonwang0713/code-by-wilson --notes "$(...)"
    ```
 
    Editing a draft prints an `untagged-…` URL — that's just how GitHub addresses
@@ -167,7 +167,7 @@ The tag is the trigger; CI builds the dmg into a draft release.
    explicitly say "you publish" and the draft is verified, do it:
 
    ```
-   GH_HOST=github.com gh release edit vX.Y.Z -R luojiahai/code-by-wire --draft=false --latest
+   GH_HOST=github.com gh release edit vX.Y.Z -R wilsonwang0713/code-by-wilson --draft=false --latest
    ```
 
    Publishing flips `latest-mac.yml` into the public auto-update feed, so existing
@@ -194,11 +194,11 @@ old `--publish always` run):
 
 1. The dmg may already be on GitHub, just attached to the wrong/duplicate draft.
    Download each asset by id:
-   `GH_HOST=github.com gh api repos/luojiahai/code-by-wire/releases/assets/<id> -H "Accept: application/octet-stream" > <name>`.
+   `GH_HOST=github.com gh api repos/wilsonwang0713/code-by-wilson/releases/assets/<id> -H "Accept: application/octet-stream" > <name>`.
 2. Delete the bad release(s), keeping the git tag:
-   `GH_HOST=github.com gh api -X DELETE repos/luojiahai/code-by-wire/releases/<release_id>`.
+   `GH_HOST=github.com gh api -X DELETE repos/wilsonwang0713/code-by-wilson/releases/<release_id>`.
 3. Assemble one clean release from the downloaded files:
-   `GH_HOST=github.com gh release create vX.Y.Z -R luojiahai/code-by-wire --latest --title "code-by-wire vX.Y.Z" --notes "..." <files>`.
+   `GH_HOST=github.com gh release create vX.Y.Z -R wilsonwang0713/code-by-wilson --latest --title "flightdeck vX.Y.Z" --notes "..." <files>`.
 
    Or, to rebuild from scratch, re-push the tag
    (`git push origin :refs/tags/vX.Y.Z && git push origin vX.Y.Z`) and let CI

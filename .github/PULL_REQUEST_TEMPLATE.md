@@ -1,4 +1,4 @@
-> ⚠️ **This is a personal project and doesn't accept external pull requests.** PRs from non-maintainers will be closed. To report a bug or suggest a feature, please [open an issue](https://github.com/luojiahai/code-by-wire/issues/new/choose) instead. Thanks!
+> ⚠️ **This is a personal project and doesn't accept external pull requests.** PRs from non-maintainers will be closed. To report a bug or suggest a feature, please [open an issue](https://github.com/wilsonwang0713/code-by-wilson/issues/new/choose) instead. Thanks!
 
 ## Summary
 

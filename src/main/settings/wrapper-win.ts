@@ -43,7 +43,7 @@ export function wrapperScriptWin({ wrappedCommand }: WrapperSpec): string {
         `$json | & cmd.exe /c $cbwCmd 2>$null\n`
       : "";
   return (
-    `# code-by-wilson statusLine wrapper (PowerShell) — AUTO-GENERATED, do not edit.\n` +
+    `# flightdeck statusLine wrapper (PowerShell) — AUTO-GENERATED, do not edit.\n` +
     `$ErrorActionPreference = 'SilentlyContinue'\n` +
     // Read stdin and feed the call-through as UTF-8, independent of the host console code page. Windows
     // PowerShell's default $OutputEncoding is US-ASCII, which would turn every non-ASCII byte (a cwd under

@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest released version of code-by-wire receives security fixes.
+Only the latest released version of flightdeck receives security fixes.
 
 ## Reporting a vulnerability
 
@@ -13,7 +13,7 @@ days.
 
 ## What the app can access
 
-code-by-wire is a local desktop application. It:
+flightdeck is a local desktop application. It:
 
 - reads files under `~/.claude` (session transcripts and configuration) to
   display and reconstruct Claude Code sessions, and

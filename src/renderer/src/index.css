@@ -121,13 +121,13 @@
   --titlebar-height: 34px; /* Must stay in lockstep with HEADER_HEIGHT_PX in src/shared/chrome.ts. */
   /* Single knob for every corner radius: feeds the @theme inline ladder above
      and the `rounded-full` override below (hermes styles.css:540-545). Hermes
-     ships 0.6; code-by-wilson runs compact at 0.3 (2026-07-05 spec). */
+     ships 0.6; flightdeck runs compact at 0.3 (2026-07-05 spec). */
   --radius-scalar: 0.3;
 
   /* Hermes Mono seeds — the raw grayscale values hermes's monoTheme preset
      (apps/desktop/src/themes/presets.ts) assigns to foreground/primary/midground/
      background/sidebarBackground/card. Hermes applies these at runtime per active
-     skin via applyTheme(); code-by-wilson has no theme switcher, so they're
+     skin via applyTheme(); flightdeck has no theme switcher, so they're
      hardcoded here and consumed by the --ui-* layer below exactly like hermes's
      styles.css does. */
   --theme-foreground: #eaeaea;
@@ -146,7 +146,7 @@
   --theme-card-seed: var(--theme-neutral-card);
   --theme-elevated-seed: var(--theme-neutral-card);
 
-  /* Mix knobs — hermes's :root.dark values (styles.css:400-426); code-by-wilson
+  /* Mix knobs — hermes's :root.dark values (styles.css:400-426); flightdeck
      is dark-only, so there's no light branch to fall back to. */
   --theme-mix-chrome: 74%;
   --theme-mix-sidebar: 100%;
@@ -306,7 +306,7 @@
   --chrome-action-hover: var(--ui-control-hover-background);
 
   /* Shadows (hermes styles.css:91-116). hermes's var(--dt-foreground) is
-     resolved to its alias target var(--ui-text-primary) directly — code-by-wilson
+     resolved to its alias target var(--ui-text-primary) directly — flightdeck
      doesn't carry hermes's shadcn --dt-* bridge layer. */
   --shadow-xs: 0 0.0625rem 0.125rem color-mix(in srgb, #000 5%, transparent);
   --shadow-sm:
@@ -430,7 +430,7 @@ body {
 
 /* hermes's working-session arc (styles.css:574-683, reduced-motion rule at 698-702):
    a masked 1.25px ring whose ::before slides three faint comet arcs diagonally around
-   the edge. Adapted for code-by-wilson: colors pinned to the dark-only theme (bright edge
+   the edge. Adapted for flightdeck: colors pinned to the dark-only theme (bright edge
    = --color-fg, hermes's dark-mode choice; trail = the footer surface), and --arc-inset 0
    instead of hermes's -0.125rem — the footer button sits flush against the
    window's bottom edge, so an outset ring would clip its bottom arc. */

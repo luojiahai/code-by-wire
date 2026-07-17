@@ -1,16 +1,16 @@
 ---
 title: "Getting Started"
-description: "Install Code-by-wire, launch it, and take a tour of the main views."
+description: "Install FlightDeck, launch it, and take a tour of the main views."
 order: 1
 ---
 
 ## Install
 
-Code-by-wire needs [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
+FlightDeck needs [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 installed locally. That's what it reads sessions from.
 
 Grab the build for your platform from the [Download page](/download/).
-On macOS, open the `.dmg` and drag Code-by-wire to Applications. The app is signed
+On macOS, open the `.dmg` and drag FlightDeck to Applications. The app is signed
 and notarized, so it opens straight away. On Windows, run the `.exe`; it's unsigned
 for now, so if SmartScreen warns, click **More info → Run anyway**.
 

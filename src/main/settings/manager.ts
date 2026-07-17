@@ -96,7 +96,7 @@ export function createSettingsManager(
   const isWin = platform === "win32";
 
   const settingsPath = join(claudeDir, "settings.json");
-  const appDir = join(claudeDir, ".code-by-wilson");
+  const appDir = join(claudeDir, ".flightdeck");
   const statePath = join(appDir, "state.json");
   // The wrapper script the installed statusLine points at. Platform-aware: .ps1 on win32, .sh on POSIX.
   // Issue #11 materializes it; this slice only records what it must call through to.
@@ -123,12 +123,12 @@ export function createSettingsManager(
       value = JSON.parse(raw);
     } catch {
       throw new Error(
-        "code-by-wilson: settings.json is not valid JSON; refusing to touch it",
+        "flightdeck: settings.json is not valid JSON; refusing to touch it",
       );
     }
     if (value === null || typeof value !== "object" || Array.isArray(value)) {
       throw new Error(
-        "code-by-wilson: settings.json is not a JSON object; refusing to touch it",
+        "flightdeck: settings.json is not a JSON object; refusing to touch it",
       );
     }
     return { raw, parsed: value as ClaudeSettings };
@@ -171,10 +171,10 @@ export function createSettingsManager(
     try {
       value = JSON.parse(raw);
     } catch {
-      throw new Error("code-by-wilson: state.json is corrupt or unreadable");
+      throw new Error("flightdeck: state.json is corrupt or unreadable");
     }
     if (!isInstallState(value)) {
-      throw new Error("code-by-wilson: state.json is corrupt or invalid");
+      throw new Error("flightdeck: state.json is corrupt or invalid");
     }
     return value;
   }
@@ -184,7 +184,7 @@ export function createSettingsManager(
       mkdirSync(appDir, { recursive: true });
     } catch (err) {
       throw new Error(
-        `code-by-wilson: cannot create ${appDir}: ${(err as Error).message}`,
+        `flightdeck: cannot create ${appDir}: ${(err as Error).message}`,
         { cause: err },
       );
     }
@@ -404,7 +404,7 @@ export function createSettingsManager(
       if (isInstalled()) {
         // Wrapped on disk with no record to restore from: silently no-op'ing would strand the user wrapped.
         throw new Error(
-          "code-by-wilson: settings.json is wrapped but the install record is missing; cannot restore. " +
+          "flightdeck: settings.json is wrapped but the install record is missing; cannot restore. " +
             "Remove the statusLine from settings.json by hand.",
         );
       }
@@ -417,7 +417,7 @@ export function createSettingsManager(
       if (!state.backupPath || !existsSync(state.backupPath)) {
         // leave state.json intact so a retry can still restore once the backup is back
         throw new Error(
-          `code-by-wilson: cannot restore settings.json; backup missing (${state.backupPath})`,
+          `flightdeck: cannot restore settings.json; backup missing (${state.backupPath})`,
         );
       }
       copyFileSync(state.backupPath, settingsPath); // byte-for-byte restore

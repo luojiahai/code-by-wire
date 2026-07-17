@@ -10,7 +10,7 @@ function s(
   return {
     id,
     title: `Session ${id}`,
-    project: "code-by-wilson",
+    project: "flightdeck",
     state,
     management: "managed",
     resumable: true,

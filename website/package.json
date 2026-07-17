@@ -1,7 +1,7 @@
 {
-  "name": "code-by-wire-website",
+  "name": "flightdeck-website",
   "version": "1.0.0",
-  "description": "Marketing site for code-by-wire.",
+  "description": "Marketing site for flightdeck.",
   "scripts": {
     "test": "vitest run",
     "dev": "astro dev",
@@ -9,7 +9,7 @@
     "preview": "astro preview",
     "check": "astro check"
   },
-  "author": "luojiahai",
+  "author": "wilsonwang0713",
   "license": "MIT",
   "type": "module",
   "private": true,

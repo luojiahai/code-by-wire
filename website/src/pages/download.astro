@@ -7,15 +7,15 @@ const APPLE_PATH =
 const WINDOWS_PATH =
   'M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.851';
 
-const releaseBase = 'https://github.com/luojiahai/code-by-wire/releases/latest/download';
+const releaseBase = 'https://github.com/wilsonwang0713/code-by-wilson/releases/latest/download';
 const groups = [
   {
     id: 'macos',
     label: 'macOS',
     iconPath: APPLE_PATH,
     platforms: [
-      { name: 'Apple Silicon', file: 'Code-by-wire-arm64.dmg' },
-      { name: 'Intel', file: 'Code-by-wire-x64.dmg' },
+      { name: 'Apple Silicon', file: 'FlightDeck-arm64.dmg' },
+      { name: 'Intel', file: 'FlightDeck-x64.dmg' },
     ],
   },
   {
@@ -23,15 +23,15 @@ const groups = [
     label: 'Windows',
     iconPath: WINDOWS_PATH,
     platforms: [
-      { name: 'x64', file: 'Code-by-wire-Setup-x64.exe' },
-      { name: 'ARM64', file: 'Code-by-wire-Setup-arm64.exe' },
+      { name: 'x64', file: 'FlightDeck-Setup-x64.exe' },
+      { name: 'ARM64', file: 'FlightDeck-Setup-arm64.exe' },
     ],
   },
 ];
 ---
 <NarrowLayout
-  title="Download · Code-by-wire"
-  description="Download Code-by-wire for macOS or Windows."
+  title="Download · FlightDeck"
+  description="Download FlightDeck for macOS or Windows."
 >
   <h1>Download</h1>
   <p class="lead">

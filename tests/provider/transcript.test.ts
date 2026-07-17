@@ -16,12 +16,12 @@ describe("parseTranscript", () => {
   it("extracts title, project, branch, model, and last activity", () => {
     const s = parseTranscript(
       fx(
-        "projects/-work-code-by-wire/aaaa1111-1111-1111-1111-111111111111.jsonl",
+        "projects/-work-flightdeck/aaaa1111-1111-1111-1111-111111111111.jsonl",
       ),
     );
     expect(s.title).toBe("Add a login form to the settings page");
-    expect(s.project).toBe("code-by-wire");
-    expect(s.cwd).toBe("/work/code-by-wire");
+    expect(s.project).toBe("flightdeck");
+    expect(s.cwd).toBe("/work/flightdeck");
     expect(s.branch).toBe("feature/login");
     expect(s.model).toBe("sonnet");
     expect(s.lastActivityMs).toBe(Date.parse("2026-06-08T22:54:06.078Z"));

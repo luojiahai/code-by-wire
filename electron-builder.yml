@@ -1,5 +1,5 @@
-appId: io.github.wilsonwang0713.code-by-wilson
-productName: Code-by-wilson
+appId: io.github.wilsonwang0713.flightdeck
+productName: FlightDeck
 copyright: Copyright © 2026 wilsonwang0713
 # Native modules are rebuilt explicitly via `pnpm rebuild:native`; don't let
 # electron-builder run its own (it misbehaves under pnpm).
@@ -37,7 +37,7 @@ mac:
     - target: zip
 dmg:
   # Force ${arch} into the filename. electron-builder's default drops it for x64, so the Intel dmg
-  # would ship as Code-by-wilson.dmg with no arch label next to Code-by-wilson-arm64.dmg — distinct
+  # would ship as FlightDeck.dmg with no arch label next to FlightDeck-arm64.dmg — distinct
   # enough not to clobber, but confusing for a four-target release. Make both arches explicit.
   artifactName: ${productName}-${arch}.${ext}
   title: ${productName} ${version}

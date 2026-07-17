@@ -1,7 +1,7 @@
 {
-  "name": "code-by-wilson",
+  "name": "flightdeck",
   "private": true,
-  "version": "0.1.30",
+  "version": "0.1.0",
   "description": "Pilot every Claude Code session on your machine.",
   "author": "wilsonwang0713",
   "license": "MIT",

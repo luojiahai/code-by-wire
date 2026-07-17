@@ -15,7 +15,7 @@ export interface StatusLineReaderDeps {
 
 /** Where the wrapper writes one JSON capture per Session (`<sessionId>.json`). */
 function statusLineDir(claudeDir: string): string {
-  return join(claudeDir, ".code-by-wilson", "statusline");
+  return join(claudeDir, ".flightdeck", "statusline");
 }
 
 /** A finite number, or null — the trust-boundary coercion for every numeric field. Accepts a

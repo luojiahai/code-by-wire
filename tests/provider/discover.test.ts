@@ -58,12 +58,12 @@ describe("summarize", () => {
     const s = summarize(
       fixtureCandidate(
         "aaaa1111-1111-1111-1111-111111111111",
-        "-work-code-by-wire",
+        "-work-flightdeck",
       ),
     );
     expect(s.title).toBe("Add a login form to the settings page");
-    expect(s.project).toBe("code-by-wire");
-    expect(s.cwd).toBe("/work/code-by-wire"); // the fixture transcript's recorded cwd
+    expect(s.project).toBe("flightdeck");
+    expect(s.cwd).toBe("/work/flightdeck"); // the fixture transcript's recorded cwd
     expect(s.branch).toBe("feature/login");
     expect(s.model).toBe("sonnet");
     expect(s.management).toBe("observed");
@@ -86,7 +86,7 @@ describe("summarize", () => {
     const s = summarize(
       fixtureCandidate(
         "aaaa1111-1111-1111-1111-111111111111",
-        "-work-code-by-wire",
+        "-work-flightdeck",
         { alive: false },
       ),
     );
@@ -172,14 +172,14 @@ describe("restate", () => {
     const prev = summarize(
       fixtureCandidate(
         "aaaa1111-1111-1111-1111-111111111111",
-        "-work-code-by-wire",
+        "-work-flightdeck",
       ),
     );
     expect(prev.state).toBe("working");
     const dead = {
       ...fixtureCandidate(
         "aaaa1111-1111-1111-1111-111111111111",
-        "-work-code-by-wire",
+        "-work-flightdeck",
       ),
       alive: false,
     };

@@ -37,8 +37,8 @@ const turn = (
     ts: 1000,
     modelRaw: "claude-opus-4-8",
     usage: mkUsage(usage),
-    cwd: "/work/code-by-wilson",
-    project: "code-by-wilson",
+    cwd: "/work/flightdeck",
+    project: "flightdeck",
     branch: "main",
     ...rest,
   };
@@ -99,7 +99,7 @@ describe("analytics store", () => {
     // that the manually-created old table lacks, so it would fail.
     db.exec(
       `INSERT INTO turns (message_id, session_id, ts, model_raw, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cwd, project, branch)
-       VALUES ('msg-1','sess-1',1000,'claude-opus-4-8',0,0,0,0,'/work/code-by-wilson','code-by-wilson','main')`,
+       VALUES ('msg-1','sess-1',1000,'claude-opus-4-8',0,0,0,0,'/work/flightdeck','flightdeck','main')`,
     );
     // Verify the row landed using a direct count (not readTotals — the new query references columns the
     // pre-migration table lacks).
@@ -134,7 +134,7 @@ describe("analytics store", () => {
     // that the manually-created old table lacks, so it would fail.
     db.exec(
       `INSERT INTO turns (message_id, session_id, ts, model_raw, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cwd, project, branch)
-       VALUES ('msg-1','sess-1',1000,'claude-opus-4-8',0,0,0,0,'/work/code-by-wilson','code-by-wilson','main')`,
+       VALUES ('msg-1','sess-1',1000,'claude-opus-4-8',0,0,0,0,'/work/flightdeck','flightdeck','main')`,
     );
 
     migrateAnalytics(db); // enters the block (0 < 5) but `from !== 1`, so turns survive
@@ -1102,7 +1102,7 @@ describe("readBySession", () => {
     expect(rows[0].totalTokens).toBe(150);
     expect(rows[0].lastActivityMs).toBe(5000);
     expect(rows[0].durationMs).toBe(4000); // 5000 - 1000
-    expect(rows[0].project).toBe("code-by-wilson");
+    expect(rows[0].project).toBe("flightdeck");
   });
 
   it("gives a single-turn session a zero duration (earliest equals latest)", () => {

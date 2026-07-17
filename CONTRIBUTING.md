@@ -1,4 +1,4 @@
-# Contributing to code-by-wire
+# Contributing to flightdeck
 
 This is a personal project, built by the owner and Claude Code. I'm not taking
 outside code contributions, and pull requests from non-maintainers will be
@@ -10,8 +10,8 @@ Bug reports and ideas are genuinely welcome, though.
 
 The most useful thing you can send is a clear, specific issue:
 
-- **Found a bug?** [Open a bug report.](https://github.com/luojiahai/code-by-wire/issues/new?template=bug_report.yml)
-- **Want a feature?** [Open a feature request.](https://github.com/luojiahai/code-by-wire/issues/new?template=feature_request.yml)
+- **Found a bug?** [Open a bug report.](https://github.com/wilsonwang0713/code-by-wilson/issues/new?template=bug_report.yml)
+- **Want a feature?** [Open a feature request.](https://github.com/wilsonwang0713/code-by-wilson/issues/new?template=feature_request.yml)
 
 ## Running it locally
 

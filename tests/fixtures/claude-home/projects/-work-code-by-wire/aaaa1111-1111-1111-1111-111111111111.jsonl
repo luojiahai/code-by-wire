@@ -1,2 +1,0 @@
-{"type":"user","isMeta":false,"cwd":"/work/code-by-wire","gitBranch":"feature/login","timestamp":"2026-06-08T22:53:40.000Z","message":{"role":"user","content":"Add a login form to the settings page"}}
-{"type":"assistant","cwd":"/work/code-by-wire","gitBranch":"feature/login","timestamp":"2026-06-08T22:54:06.078Z","message":{"role":"assistant","model":"claude-sonnet-4-6","usage":{"input_tokens":100,"output_tokens":50,"cache_read_input_tokens":10,"cache_creation_input_tokens":5}}}

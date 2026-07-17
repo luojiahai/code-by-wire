@@ -103,7 +103,7 @@ export function safeShellCwd(opts: {
  * The child env for a user shell (hermes terminalShellEnv): strip npm's managed prefix and
  * package vars (Electron is often launched via `pnpm dev`; nvm/proto warn loudly on the leak),
  * strip color/theme-detection overrides that ride along from non-tty launchers, then declare what
- * this pty really is — a truecolor xterm-256color owned by Code-by-wilson.
+ * this pty really is — a truecolor xterm-256color owned by FlightDeck.
  */
 export function buildShellEnv(opts: {
   baseEnv: NodeJS.ProcessEnv;
@@ -125,7 +125,7 @@ export function buildShellEnv(opts: {
   env.COLORTERM = "truecolor";
   env.LC_CTYPE = env.LC_CTYPE || "UTF-8";
   env.TERM = "xterm-256color";
-  env.TERM_PROGRAM = "Code-by-wilson";
+  env.TERM_PROGRAM = "FlightDeck";
   env.TERM_PROGRAM_VERSION = opts.appVersion;
   return env;
 }

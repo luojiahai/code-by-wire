@@ -162,7 +162,7 @@ function AboutSection({ update }: { update?: UpdateControls }) {
   return (
     <>
       <PageHeader title="About" />
-      <Card title="Code-by-wilson">
+      <Card title="FlightDeck">
         <div className="flex flex-col gap-3 px-4 py-4">
           <Wordmark />
           <p className="max-w-[54ch] text-body leading-relaxed text-fg-muted">

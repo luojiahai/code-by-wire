@@ -36,7 +36,7 @@ jobs:
         run: |
           tag="${GITHUB_REF_NAME}"
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --draft --title "Code-by-wire $tag" --generate-notes
+            gh release create "$tag" --draft --title "FlightDeck $tag" --generate-notes
           fi
 
   build:

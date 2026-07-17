@@ -1,5 +1,5 @@
 ---
-title: "Introducing Code-by-wire"
+title: "Introducing FlightDeck"
 description: "Pilot every Claude Code session, view its enriched transcript, and monitor the telemetry, in one interface."
 publishDate: "2026-07-12"
 ---

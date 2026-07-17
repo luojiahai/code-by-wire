@@ -191,7 +191,7 @@ describe("buildShellEnv", () => {
     expect(env.COLORFGBG).toBeUndefined();
     expect(env.COLORTERM).toBe("truecolor");
     expect(env.TERM).toBe("xterm-256color");
-    expect(env.TERM_PROGRAM).toBe("Code-by-wilson");
+    expect(env.TERM_PROGRAM).toBe("FlightDeck");
     expect(env.TERM_PROGRAM_VERSION).toBe("0.1.20");
     expect(env.LC_CTYPE).toBe("UTF-8");
   });

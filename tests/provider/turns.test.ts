@@ -11,7 +11,7 @@ const assistant = (over: Record<string, unknown> = {}): string => {
   const { message: msgOver, ...topOver } = over;
   return line({
     type: "assistant",
-    cwd: "/work/code-by-wilson",
+    cwd: "/work/flightdeck",
     gitBranch: "main",
     timestamp: "2026-06-09T03:00:00.000Z",
     message: {
@@ -40,8 +40,8 @@ describe("extractTurns", () => {
       sessionId: "sess-1",
       ts: Date.parse("2026-06-09T03:00:00.000Z"),
       modelRaw: "claude-opus-4-8",
-      cwd: "/work/code-by-wilson",
-      project: "code-by-wilson",
+      cwd: "/work/flightdeck",
+      project: "flightdeck",
       branch: "main",
       usage: {
         inputTokens: 100,

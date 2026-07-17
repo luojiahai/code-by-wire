@@ -7,9 +7,9 @@ import { tempHomes } from "./helpers/temp-home";
 const makeHome = tempHomes("cbw-slreader-");
 const NOW = 1_781_000_000_000;
 
-/** Write one capture JSON into <home>/.code-by-wilson/statusline/<sid>.json with a fresh mtime. */
+/** Write one capture JSON into <home>/.flightdeck/statusline/<sid>.json with a fresh mtime. */
 function writeCapture(home: string, sid: string, json: unknown): void {
-  const dir = join(home, ".code-by-wilson", "statusline");
+  const dir = join(home, ".flightdeck", "statusline");
   mkdirSync(dir, { recursive: true });
   const path = join(dir, `${sid}.json`);
   writeFileSync(path, JSON.stringify(json));

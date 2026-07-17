@@ -37,7 +37,7 @@ export function wrapperScript({ wrappedCommand }: WrapperSpec): string {
       ? `${CALL_THROUGH_PREFIX}${wrappedCommand}\n`
       : "";
   return `#!/bin/sh
-# code-by-wilson statusLine wrapper — AUTO-GENERATED, do not edit (regenerated on every install).
+# flightdeck statusLine wrapper — AUTO-GENERATED, do not edit (regenerated on every install).
 # Captures Claude Code's statusLine JSON to a per-Session file, then renders the user's own statusLine.
 dir="\${0%/*}/statusline"
 mkdir -p "$dir" 2>/dev/null
