@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "katex/dist/katex.min.css";
 
 /* Grayscale palette matching hermes desktop's "Mono" theme (apps/desktop/src/themes/presets.ts):
    neutral surfaces, no accent hue — primary = foreground. Amber still reserved for Waiting,
@@ -761,4 +762,13 @@ summary,
 :where(button, [role="button"], summary) * {
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* KaTeX display math: long equations scroll within the message instead of
+   blowing out the transcript width. Our addition — hermes has no such rule.
+   overflow-y hidden because a lone overflow-x:auto computes overflow-y to
+   auto too, which can add a spurious vertical scrollbar on tall glyphs. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
 }
