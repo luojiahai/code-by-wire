@@ -4,7 +4,7 @@ import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { useI18n } from "../i18n";
 import {
-  filterActive,
+  filterGroupsActive,
   filterSessions,
   groupSessionsByProject,
   pinnedSessions,
@@ -74,13 +74,20 @@ export function LeftSidebar({
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  // Folders expanded by a direct click, as opposed to the expand-all button: only these show the
+  // per-folder "No active sessions." line when the active filter empties them (2026-07-17 spec §3
+  // — expand-all must not flood the list with empty-state lines).
+  const [manuallyExpanded, setManuallyExpanded] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
   const [activeOnly, setActiveOnly] = useState(loadActiveOnly);
   const searched = filterSessions(sessions, query);
   const pinned = pinnedSessions(searched);
-  const groups = groupSessionsByProject(
-    filterSessions(activeOnly ? filterActive(sessions) : sessions, query),
-    homeDir,
-  );
+  // Search decides which folders exist; the active filter then narrows rows INSIDE the groups so
+  // a folder with only ended sessions still renders (2026-07-17 spec §3). Grouping before the
+  // filter also keeps folder order derived from all matched sessions — toggling never reshuffles.
+  const allGroups = groupSessionsByProject(searched, homeDir);
+  const groups = activeOnly ? filterGroupsActive(allGroups) : allGroups;
   const allCollapsed =
     groups.length > 0 && groups.every((g) => collapsed.has(g.key));
   const toggleActiveOnly = () => {
@@ -92,13 +99,21 @@ export function LeftSidebar({
     }
     setActiveOnly(next);
   };
-  const toggleGroup = (key: string) =>
+  const toggleGroup = (key: string) => {
+    const expanding = collapsed.has(key);
     setCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
+    setManuallyExpanded((prev) => {
+      const next = new Set(prev);
+      if (expanding) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  };
   const [quickAdding, setQuickAdding] = useState<ReadonlySet<string>>(
     new Set(),
   );
@@ -266,13 +281,15 @@ export function LeftSidebar({
             <div className="flex items-center gap-0.5">
               <button
                 type="button"
-                onClick={() =>
-                  setCollapsed(
-                    allCollapsed
-                      ? new Set()
-                      : new Set(groups.map((g) => g.key)),
-                  )
-                }
+                onClick={() => {
+                  if (allCollapsed) {
+                    // Expand-all is NOT a manual expand: empty folders open silently, no empty-state line.
+                    setCollapsed(new Set());
+                  } else {
+                    setCollapsed(new Set(groups.map((g) => g.key)));
+                    setManuallyExpanded(new Set());
+                  }
+                }}
                 title={
                   allCollapsed
                     ? t.shell.sidebar.expandAll
@@ -388,24 +405,31 @@ export function LeftSidebar({
                           </button>
                         )}
                       </div>
-                      {!collapsed.has(g.key) && (
-                        <div className="flex flex-col gap-px pb-1">
-                          {g.sessions.map((s) => (
-                            <SessionRow
-                              key={s.id}
-                              session={s}
-                              selected={s.id === selectedId}
-                              onSelect={() => onSelect(s.id)}
-                              canSpawn={canSpawn}
-                              onAdopt={onAdopt}
-                              onFork={onFork}
-                              onEnd={onEnd}
-                              onRename={onRename}
-                              onTogglePin={onTogglePin}
-                            />
-                          ))}
-                        </div>
-                      )}
+                      {!collapsed.has(g.key) &&
+                        (g.sessions.length === 0 ? (
+                          manuallyExpanded.has(g.key) && (
+                            <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
+                              {t.shell.sidebar.noActiveSessions}
+                            </p>
+                          )
+                        ) : (
+                          <div className="flex flex-col gap-px pb-1">
+                            {g.sessions.map((s) => (
+                              <SessionRow
+                                key={s.id}
+                                session={s}
+                                selected={s.id === selectedId}
+                                onSelect={() => onSelect(s.id)}
+                                canSpawn={canSpawn}
+                                onAdopt={onAdopt}
+                                onFork={onFork}
+                                onEnd={onEnd}
+                                onRename={onRename}
+                                onTogglePin={onTogglePin}
+                              />
+                            ))}
+                          </div>
+                        ))}
                     </div>
                   );
                 })}
