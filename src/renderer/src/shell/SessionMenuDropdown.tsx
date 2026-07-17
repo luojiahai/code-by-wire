@@ -8,7 +8,7 @@ import type { SessionMenuController } from "./use-session-menu";
 
 const MENU_WIDTH = 256;
 
-/** The portaled dropdown body shared by every session-menu trigger: six always-rendered action rows
+/** The portaled dropdown body shared by every session-menu trigger: seven always-rendered action rows
  *  (only `disabled`/`title` vary — the design's "never hide an action, dim the unavailable ones with a
  *  reason" rule) plus the confirm dialogs Adopt/Fork/End can raise. Pure rendering — all state lives in
  *  `useSessionMenu`. */

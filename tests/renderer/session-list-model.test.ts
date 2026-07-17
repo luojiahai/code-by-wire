@@ -142,5 +142,6 @@ describe("session list model", () => {
     const out = filterGroupsActive(groups);
     expect(out.map((g) => g.key)).toEqual(groups.map((g) => g.key));
     expect(out.map((g) => g.cwd)).toEqual(groups.map((g) => g.cwd));
+    expect(out.map((g) => g.label)).toEqual(groups.map((g) => g.label));
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyPinOverrides } from "../src/shared/pin-override";
+import { applyPinOverrides } from "@shared/pin-override";
 import type { Session } from "@shared/types";
 
 const mk = (id: string): Session => ({
