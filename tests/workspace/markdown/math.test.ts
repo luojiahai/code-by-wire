@@ -98,6 +98,11 @@ describe("preprocessMath — LaTeX delimiter rewriting and currency escaping", (
     expect(preprocessMath(input)).toBe(input);
   });
 
+  it("does not promote a tab-indented $$...$$ line (markdown code indent)", () => {
+    const input = "\t$$x^2$$";
+    expect(preprocessMath(input)).toBe(input);
+  });
+
   it("promotion protects digit-leading display math from the currency escape", () => {
     const output = preprocessMath("$$5x = 10$$");
     expect(output).toBe("\n$$\n5x = 10\n$$\n");

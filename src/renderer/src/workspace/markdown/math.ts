@@ -39,7 +39,7 @@ const INLINE_CODE_SPLIT_RE = /(`[^`\n]+`)/g;
 // markdown code — and no `$$` inside). Promoted to fence form before any
 // other rewrite so its body is never mistaken for currency.
 const SINGLE_LINE_DISPLAY_RE =
-  /^[ \t]{0,3}\$\$((?:[^$\n]|\$(?!\$))+?)\$\$[ \t]*$/gm;
+  /^ {0,3}\$\$((?:[^$\n]|\$(?!\$))+?)\$\$[ \t]*$/gm;
 
 const CURRENCY_DOLLAR_RE = /(^|[^\\])\$(?=\d)/g;
 
@@ -55,8 +55,10 @@ function promoteSingleLineDisplayMath(text: string): string {
 }
 
 // `$` before a digit is escaped as currency unless it opens a math-like
-// span: a closing `$` later on the same line with a `\` (TeX command)
-// somewhere between. `$1/\pi$` is math; `$5 and $10 today` is prose.
+// span: a closing `$` later on the same line (within the same prose
+// segment — the inline-code split bounds the scan) with a `\` (TeX
+// command) somewhere between. `$1/\pi$` is math; `$5 and $10 today` is
+// prose.
 function escapeCurrencyDollars(text: string): string {
   return text.replace(
     CURRENCY_DOLLAR_RE,
