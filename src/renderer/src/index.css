@@ -59,6 +59,42 @@
   --color-model-sonnet: #b37bd9; /* orchid */
   --color-model-haiku: #db7fa4; /* rose */
 
+  /* Bklit chart tokens (ui/bklit/**, vendored) — bridged onto the app palette instead of Bklit's
+     `.dark`-class scheme (this app themes via prefers-color-scheme). The --chart-N series routes
+     through --color-model-* / --color-data-*, so the light branch's monochrome overrides cascade
+     into the charts with no second mapping. */
+  --chart-1: var(--color-model-opus);
+  --chart-2: var(--color-model-fable);
+  --chart-3: var(--color-model-sonnet);
+  --chart-4: var(--color-model-haiku);
+  --chart-5: var(--color-data-2);
+  --chart-background: transparent;
+  --chart-foreground: var(--color-fg);
+  --chart-foreground-muted: var(--color-fg-muted);
+  --chart-label: var(--color-fg-faint);
+  --chart-grid: var(--color-ink-800);
+  --chart-crosshair: var(--color-fg-faint);
+  --chart-line-primary: var(--color-primary);
+  --chart-line-secondary: var(--color-steel);
+  --chart-brush-border: var(--color-ink-700);
+  --chart-indicator-color: var(--color-primary);
+  --chart-indicator-secondary-color: var(--color-steel);
+  --chart-marker-background: var(--color-ink-900);
+  --chart-marker-border: var(--color-ink-700);
+  --chart-marker-foreground: var(--color-fg);
+  --chart-marker-badge-background: var(--color-ink-850);
+  --chart-marker-badge-foreground: var(--color-fg-muted);
+  --chart-segment-background: color-mix(
+    in srgb,
+    var(--color-primary) 12%,
+    transparent
+  );
+  --chart-segment-line: var(--color-primary);
+  --chart-tooltip-background: var(--color-ink-900);
+  /* Bklit tooltips also read the shadcn-standard names. */
+  --foreground: var(--color-fg);
+  --muted-foreground: var(--color-fg-muted);
+
   /* Recessed sidebar — darkened surfaces for the sidebar column */
   --color-sidebar: #0a0a0a;
   --color-sidebar-border: #202020;

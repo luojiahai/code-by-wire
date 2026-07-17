@@ -85,6 +85,21 @@ export default tseslint.config(
     },
   },
 
+  // Vendored Bklit chart sources (MIT, https://github.com/bklit/bklit-ui) — kept byte-close to
+  // upstream so future registry pulls diff cleanly, so their style is exempt from our stricter
+  // rules. Our own chart code (stats/, ui/charts.tsx) stays fully linted.
+  {
+    files: ["src/renderer/src/ui/bklit/**"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "no-useless-assignment": "off",
+    },
+  },
+
   // Disable any lint rule that overlaps with Prettier. MUST be last.
   prettier,
 );
