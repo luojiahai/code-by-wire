@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.37] - 2026-07-17
+
+### Added
+
+- Worktree sessions get their own sidebar icon, distinct from a plain git
+  branch; pinned rows show the real branch as a tooltip when it diverges
+  from the worktree's directory name.
+
+### Changed
+
+- Sidebar session status glyphs are redesigned as terminal characters (a
+  `-\|/` spinner, `?`, `○`, `–`) instead of SVG shapes, with a single shared
+  timer driving every spinning row. The Activity dock's Tasks/Subagents/
+  Shells/Monitors tabs now read from the same canonical status-glyph table,
+  so active/done states render consistently across all four.
+
+### Fixed
+
+- The sidebar's 3-dot hover button no longer overlaps row content (worktree
+  name, or pinned time/model chip) — content vacates instead of relying on
+  a fade mask, which also fixed a corner-seam rendering artifact.
+
 ## [0.1.36] - 2026-07-17
 
 ### Added
@@ -852,7 +874,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.36...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.37...HEAD
+[0.1.37]: https://github.com/luojiahai/code-by-wire/compare/v0.1.36...v0.1.37
 [0.1.36]: https://github.com/luojiahai/code-by-wire/compare/v0.1.35...v0.1.36
 [0.1.35]: https://github.com/luojiahai/code-by-wire/compare/v0.1.34...v0.1.35
 [0.1.34]: https://github.com/luojiahai/code-by-wire/compare/v0.1.33...v0.1.34
