@@ -155,6 +155,7 @@ export const zh: Translations = {
       clearSearch: "清除搜索",
       sessionsLabel: "会话",
       pinnedLabel: "置顶",
+      noPinnedSessions: "没有置顶会话。",
       expandAll: "展开全部",
       collapseAll: "折叠全部",
       showAllSessions: "显示所有会话",

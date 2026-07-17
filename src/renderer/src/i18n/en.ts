@@ -180,6 +180,7 @@ export const en = {
       clearSearch: "Clear search",
       sessionsLabel: "Sessions",
       pinnedLabel: "Pinned",
+      noPinnedSessions: "No pinned sessions.",
       expandAll: "Expand all",
       collapseAll: "Collapse all",
       showAllSessions: "Show all sessions",

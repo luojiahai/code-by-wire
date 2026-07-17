@@ -227,13 +227,17 @@ export function LeftSidebar({
       </div>
 
       <OverlayScroll className="min-h-0 flex-1" contentClassName="pb-2">
-        {pinned.length > 0 && (
-          <div>
-            <div className="sticky top-0 z-10 flex items-center bg-(--ui-sidebar-surface-background) px-2.5 pb-1 pt-1.5">
-              <SidebarPanelLabel className="pl-2">
-                {t.shell.sidebar.pinnedLabel}
-              </SidebarPanelLabel>
-            </div>
+        <div>
+          <div className="sticky top-0 z-10 flex items-center bg-(--ui-sidebar-surface-background) px-2.5 pb-1 pt-1.5">
+            <SidebarPanelLabel className="pl-2">
+              {t.shell.sidebar.pinnedLabel}
+            </SidebarPanelLabel>
+          </div>
+          {pinned.length === 0 ? (
+            <p className="px-2 py-1 text-xs text-(--ui-text-quaternary)">
+              {t.shell.sidebar.noPinnedSessions}
+            </p>
+          ) : (
             <div className="flex flex-col gap-px px-2.5">
               {pinned.map((s) => (
                 <PinnedSessionRow
@@ -250,8 +254,8 @@ export function LeftSidebar({
                 />
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
         <div>
           <div className="sticky top-0 z-10 flex items-center justify-between gap-1 bg-(--ui-sidebar-surface-background) px-2.5 pb-1 pt-1.5">
             <SidebarPanelLabel className="pl-2">
