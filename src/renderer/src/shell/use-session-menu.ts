@@ -17,7 +17,7 @@ import {
 } from "../workspace/session-actions";
 import { openInItems, type OpenInItem } from "../workspace/open-in-items";
 
-const MENU_WIDTH = 256;
+export const MENU_WIDTH = 176;
 
 export interface SessionRenameField {
   value: string;
