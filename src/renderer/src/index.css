@@ -453,11 +453,18 @@ body {
   color: inherit;
 }
 
-/* Ordered-dither texture (hermes styles.css:484-486) — a 2x2 checkerboard of currentColor vs
-   transparent, used as a low-cost placeholder/skeleton fill that reads as texture, not a flat block. */
+/* Vertical-hatch dither texture — a code-by-wire original (hermes' styles.css:484-486 used a 2x2
+   checkerboard instead), evenly-spaced currentColor-vs-transparent stripes echoing the vertical bars
+   in the app logo (build/icon.svg). Low-cost placeholder/skeleton fill that reads as texture, not a
+   flat block. Cell in %, not px/rem, so it scales with the swatch instead of assuming an 8px box;
+   12.5% = 1px-equivalent bar/gap at today's size. Repeats 4x, ending on a gap rather than a bar —
+   an accepted trade for a plain 2-stop gradient over hand-listing stops for symmetric edges. */
 .dither {
-  background: repeating-conic-gradient(currentColor 0% 25%, transparent 0% 50%)
-    0 0 / 0.125rem 0.125rem;
+  background: repeating-linear-gradient(
+    90deg,
+    currentColor 0 12.5%,
+    transparent 12.5% 25%
+  );
 }
 
 /* hermes scales `rounded-full` pills by --radius-scalar too, instead of leaving them at Tailwind's
