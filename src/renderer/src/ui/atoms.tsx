@@ -1,5 +1,6 @@
 import type { Management, SessionState } from "@shared/types";
-import { LAMP, glyphTitle } from "./session-glyph";
+import { GLYPH, glyphTitle } from "./session-glyph";
+import { useSpinnerFrame } from "./use-spinner-frame";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -13,9 +14,17 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 export const focusRing = "";
 export const focusRingInset = "";
 
-/** The session lamp (2026-07-04 spec §1): filled = live, hollow = quiet. Shape, size and motion come
- *  from the LAMP table; management is spoken only in the tooltip. Working layers a static core dot
- *  inside its spinning arc, so the outer span is the positioning context. */
+/** Subscribes to the shared spinner ticker — a separate component so only working-state rows
+ *  mount it (hooks can't be conditional inside Lamp, and an unconditional subscription would keep
+ *  the timer alive for every row on screen). */
+function SpinnerChar() {
+  return <>{useSpinnerFrame()}</>;
+}
+
+/** The session status glyph (2026-07-17 spec §4): a mono character from the GLYPH table, color as
+ *  the second signal; management is spoken only in the tooltip. font-mono is load-bearing — the
+ *  spinner's four frames must share one advance width or the centered char jitters per frame.
+ *  Renders inside the rows' 14px (size-3.5) grid cell. */
 export function Lamp({
   state,
   management,
@@ -23,13 +32,17 @@ export function Lamp({
   state: SessionState;
   management: Management;
 }) {
-  const lamp = LAMP[state];
+  const glyph = GLYPH[state];
   return (
     <span
       title={glyphTitle(state, management)}
-      className={cx("relative inline-flex", lamp.outer)}
+      className={cx(
+        "font-mono text-[0.75rem] font-semibold leading-none",
+        glyph.tone,
+        glyph.animate,
+      )}
     >
-      {lamp.core && <span className={lamp.core} />}
+      {state === "working" ? <SpinnerChar /> : glyph.char}
     </span>
   );
 }

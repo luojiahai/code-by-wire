@@ -1,41 +1,52 @@
 import { describe, it, expect } from "vitest";
-import { LAMP, glyphTitle } from "../../src/renderer/src/ui/session-glyph";
+import {
+  GLYPH,
+  SPINNER_FRAMES,
+  SPINNER_INTERVAL_MS,
+  SPINNER_STATIC_FRAME,
+  nextSpinnerFrame,
+  glyphTitle,
+} from "../../src/renderer/src/ui/session-glyph";
 
-describe("LAMP — filled = live, hollow = quiet", () => {
-  it("working is an 11px spinning arc with a static teal core", () => {
-    expect(LAMP.working.outer).toBe(
-      "h-[11px] w-[11px] rounded-full border-[1.5px] border-working/25 border-t-working animate-spin motion-reduce:animate-none",
-    );
-    expect(LAMP.working.core).toBe(
-      "absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-working",
-    );
+describe("GLYPH — terminal-character session states (2026-07-17 spec §4)", () => {
+  it("working is the spinner's slot — char is the reduced-motion frame, teal", () => {
+    expect(GLYPH.working).toEqual({
+      char: "|",
+      tone: "text-working-bright",
+    });
   });
-
-  it("waiting is a filled amber dot breathing a halo", () => {
-    expect(LAMP.waiting.outer).toBe(
-      "h-1.5 w-1.5 rounded-full bg-accent animate-halo motion-reduce:animate-none",
-    );
+  it("waiting is a breathing ? in amber, with the reduced-motion guard", () => {
+    expect(GLYPH.waiting).toEqual({
+      char: "?",
+      tone: "text-accent-bright",
+      animate: "animate-glyph-breathe motion-reduce:animate-none",
+    });
   });
-
-  it("idle is a hollow ring — quiet, not gone", () => {
-    expect(LAMP.idle.outer).toBe(
-      "h-1.5 w-1.5 rounded-full border-[1.5px] border-idle bg-transparent",
-    );
+  it("idle is a hollow circle — hollow still means not-live", () => {
+    expect(GLYPH.idle).toEqual({ char: "○", tone: "text-idle" });
   });
-
-  it("ended is a barely-there ember", () => {
-    expect(LAMP.ended.outer).toBe("h-1 w-1 rounded-full bg-ink-700");
-  });
-
-  it("only working carries a core layer", () => {
-    expect(LAMP.working.core).toBeDefined();
-    expect(LAMP.waiting.core).toBeUndefined();
-    expect(LAMP.idle.core).toBeUndefined();
-    expect(LAMP.ended.core).toBeUndefined();
+  it("ended is a dim en dash", () => {
+    expect(GLYPH.ended).toEqual({ char: "–", tone: "text-ink-700" });
   });
 });
 
-describe("glyphTitle — hover tooltip spells the lamp out", () => {
+describe("spinner constants", () => {
+  it("cycles the classic shell frames", () => {
+    expect(SPINNER_FRAMES).toEqual(["-", "\\", "|", "/"]);
+    expect(nextSpinnerFrame(0)).toBe(1);
+    expect(nextSpinnerFrame(3)).toBe(0);
+  });
+  it("ticks at ~120ms", () => {
+    expect(SPINNER_INTERVAL_MS).toBe(120);
+  });
+  it("the reduced-motion frame is | — never confusable with ended's en dash", () => {
+    expect(SPINNER_FRAMES[SPINNER_STATIC_FRAME]).toBe("|");
+    expect(SPINNER_FRAMES[SPINNER_STATIC_FRAME]).not.toBe(GLYPH.ended.char);
+    expect(GLYPH.working.char).toBe(SPINNER_FRAMES[SPINNER_STATIC_FRAME]);
+  });
+});
+
+describe("glyphTitle — hover tooltip spells the glyph out", () => {
   it('reads "state · management", lowercased', () => {
     expect(glyphTitle("waiting", "observed")).toBe("waiting · observed");
     expect(glyphTitle("working", "managed")).toBe("working · managed");

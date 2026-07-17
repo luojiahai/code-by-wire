@@ -498,20 +498,20 @@ body {
   animation: pulse-soft 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
-/* The Waiting lamp's breathing halo — box-shadow spread swells as opacity falls. */
-@keyframes halo {
+/* The Waiting glyph's breathing (halo's successor for the character-glyph encoding). Opacity
+   floors at .45 — unlike pulse-soft's .28, waiting is the one state blocked on the user, so it
+   must stay legible at the bottom of the cycle. */
+@keyframes glyph-breathe {
   0%,
   100% {
-    box-shadow: 0 0 0 2.5px
-      color-mix(in srgb, var(--color-accent) 22%, transparent);
+    opacity: 1;
   }
   50% {
-    box-shadow: 0 0 0 4.5px
-      color-mix(in srgb, var(--color-accent) 7%, transparent);
+    opacity: 0.45;
   }
 }
-.animate-halo {
-  animation: halo 2s ease-in-out infinite;
+.animate-glyph-breathe {
+  animation: glyph-breathe 1.8s ease-in-out infinite;
 }
 
 @keyframes blink {
