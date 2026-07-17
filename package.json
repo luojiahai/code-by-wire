@@ -48,7 +48,7 @@
     "@xterm/xterm": "^5.5.0",
     "better-sqlite3": "^12.10.0",
     "electron-updater": "^6.6.2",
-    "katex": "^0.17.0",
+    "katex": "^0.16.47",
     "lucide-react": "^1.17.0",
     "nanostores": "^1.4.0",
     "node-pty": "^1.1.0",
