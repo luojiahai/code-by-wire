@@ -16,6 +16,7 @@ import {
   type SessionActions,
 } from "../workspace/session-actions";
 import { openInItems, type OpenInItem } from "../workspace/open-in-items";
+import { resumeActionDisabled } from "../workspace/resume-action";
 
 export const MENU_WIDTH = 176;
 
@@ -238,7 +239,11 @@ export function useSessionMenu(
     }
   }
 
-  const adoptDisabled = !canAdopt || !canSpawn || !session.resumable;
+  const adoptDisabled = resumeActionDisabled({
+    canSpawn,
+    resumable: session.resumable,
+    available: canAdopt,
+  });
   const adoptTitle = !canSpawn
     ? t.settings.cli.unavailableReason
     : !session.resumable
@@ -247,11 +252,14 @@ export function useSessionMenu(
         ? t.shell.sessionMenu.adoptTitlePending
         : undefined;
 
-  // Matches ResumeButton/ObservedTerminal's Fork gate exactly (canSpawn + resumable only) — Fork
+  // Single-sourced with ResumeButton/ObservedTerminal's Fork gate via `resumeActionDisabled` — Fork
   // is available on ended/observed sessions there, so the menu must agree rather than additionally
-  // gating on `ended`/`management === "observed"` (a since-reconciled divergence between the two
-  // surfaces, see the 2026-07-17 fork-gate-parity investigation).
-  const forkDisabled = !canSpawn || !session.resumable;
+  // gating on `ended`/`management === "observed"` (the 2026-07-17 fork-gate-parity fix; this shared
+  // function is what makes the two surfaces structurally unable to drift like that again).
+  const forkDisabled = resumeActionDisabled({
+    canSpawn,
+    resumable: session.resumable,
+  });
   const forkTitle = !canSpawn
     ? t.settings.cli.unavailableReason
     : !session.resumable
