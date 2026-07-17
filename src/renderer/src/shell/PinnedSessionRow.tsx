@@ -13,7 +13,12 @@ import { SessionMenuDropdown } from "./SessionMenuDropdown";
  * model-family chip on the right. Folder-free: a pin is a standalone shortcut, so the row carries
  * the context its folder header would have given it. Shares SessionRow's menu machinery verbatim
  * (same `useSessionMenu` hook, same dropdown, same inline-rename input swap); the relative time
- * re-renders with the overview poll, so no timer lives here.
+ * re-renders with the overview poll, so no timer lives here. The trigger is absolutely positioned
+ * and vertically centered across both lines, independent of their content; on reveal (hover,
+ * keyboard focus inside the row, or an open menu) the line-1 time and line-2 model chip go
+ * `invisible` in place — not removed — so the trigger lands in already-reserved space without
+ * reflowing either line, and the branch/worktree name (with its own tooltip) stays visible
+ * throughout.
  */
 export function PinnedSessionRow({
   session,
@@ -47,6 +52,14 @@ export function PinnedSessionRow({
   const repo =
     session.worktree?.repoLabel ?? (session.project || ungroupedLabel());
   const branch = session.worktree?.name ?? session.branch;
+  // The real checked-out branch, only when the row is showing a worktree *directory* name that
+  // differs from it — surfaced as a tooltip so it costs no row width (2026-07-17 spec §2).
+  const divergedBranch =
+    session.worktree &&
+    session.branch &&
+    session.branch !== session.worktree.name
+      ? session.branch
+      : undefined;
 
   if (menu.editing) {
     return (
@@ -68,6 +81,12 @@ export function PinnedSessionRow({
     );
   }
 
+  // Reveal model mirrors SessionRow: hover / keyboard-focus-inside / menu-open all reveal the
+  // trigger and simultaneously vacate the right-aligned meta (line-1 time, line-2 model chip) via
+  // `invisible` — both are wider than the 20px trigger, so it lands inside their kept-open space
+  // and neither line reflows. The branch/worktree name span stays visible, keeping its tooltip
+  // reachable. No fade gradient.
+  const metaHide = "group-hover:invisible group-has-[:focus-visible]:invisible";
   return (
     <div className="group relative">
       <button
@@ -95,7 +114,13 @@ export function PinnedSessionRow({
           >
             {session.title}
           </span>
-          <span className="shrink-0 text-[0.68rem] leading-none text-(--ui-text-quaternary)">
+          <span
+            className={cx(
+              "shrink-0 text-[0.68rem] leading-none text-(--ui-text-quaternary)",
+              metaHide,
+              menu.open && "invisible",
+            )}
+          >
             {t.time.ago(session.lastActivityMs, Date.now())}
           </span>
         </span>
@@ -103,25 +128,34 @@ export function PinnedSessionRow({
           <span className="min-w-0 truncate">{repo}</span>
           {branch && (
             <>
-              <Icon name="git-branch" size={10} className="ml-0.5 shrink-0" />
-              <span className="min-w-0 shrink-[2] truncate">{branch}</span>
+              <Icon
+                name={session.worktree ? "worktree" : "git-branch"}
+                size={10}
+                className="ml-0.5 shrink-0"
+              />
+              <span
+                className="min-w-0 shrink-[2] truncate"
+                title={
+                  divergedBranch
+                    ? t.shell.sessionRow.branchTooltip(divergedBranch)
+                    : undefined
+                }
+              >
+                {branch}
+              </span>
             </>
           )}
-          <span className="ml-auto shrink-0 rounded-sm border border-(--ui-stroke-tertiary) px-1 py-px text-[0.6rem] leading-none text-(--ui-text-tertiary)">
+          <span
+            className={cx(
+              "ml-auto shrink-0 rounded-sm border border-(--ui-stroke-tertiary) px-1 py-px text-[0.6rem] leading-none text-(--ui-text-tertiary)",
+              metaHide,
+              menu.open && "invisible",
+            )}
+          >
             {session.model}
           </span>
         </span>
       </button>
-      {/* Fade so the 3-dot button doesn't land on abruptly-truncated text on hover. */}
-      <span
-        aria-hidden
-        className={cx(
-          "pointer-events-none absolute right-0.5 top-0 bottom-0 w-8 rounded-r-md bg-linear-to-l to-transparent opacity-0 transition-opacity duration-100 ease-out group-hover:opacity-100",
-          selected
-            ? "from-(--ui-row-active-background)"
-            : "from-(--ui-row-hover-background)",
-        )}
-      />
       <div
         ref={menu.rootRef}
         className="absolute right-1 top-1/2 -translate-y-1/2"
@@ -133,7 +167,7 @@ export function PinnedSessionRow({
           aria-expanded={menu.open}
           aria-haspopup="menu"
           className={cx(
-            "grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:opacity-100 group-hover:opacity-100",
+            "grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:opacity-100 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100",
             menu.open &&
               "opacity-100 bg-(--ui-control-active-background) text-fg",
           )}
