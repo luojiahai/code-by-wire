@@ -81,6 +81,10 @@ export function SessionRow({
       <button
         type="button"
         onClick={onSelect}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          menu.openAt(event.clientX, event.clientY);
+        }}
         aria-pressed={selected}
         aria-label={t.shell.sessionRow.openSession(session.title)}
         className={cx(
