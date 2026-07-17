@@ -6,17 +6,11 @@ import { useI18n } from "../../i18n";
 import { EmptyState } from "./chrome";
 import { flattenSubagents } from "./dock-tabs";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
-
-/** Per-status glyph + tone. Working pulses via its bright tone; done stays calm so working (blue) and
- *  failed (red) read as the states worth acting on. Stopped is the user's own call, so it gets the same
- *  calm grey square as a killed/stopped monitor (monitorGlyph) — terminal, but nothing to act on. */
-const STATUS_META: Record<Subagent["status"], { char: string; tone: string }> =
-  {
-    working: { char: "◐", tone: "text-working-bright" },
-    done: { char: "✓", tone: "text-(--ui-text-secondary)" },
-    failed: { char: "✕", tone: "text-danger" },
-    stopped: { char: "■", tone: "text-fg-faint" },
-  };
+import {
+  DOCK_GLYPH,
+  DOCK_GLYPH_PULSE,
+  subagentDockStatus,
+} from "./dock-status-glyph";
 
 /** One Subagent as a plain list row: a status glyph, the label (description, falling back to the type,
  *  with a small type tag when the description owns the label), and a right-aligned metric rack (model,
@@ -34,7 +28,7 @@ function SubagentRow({
   onDrill: (agent: Subagent) => void;
 }) {
   const { t } = useI18n();
-  const meta = STATUS_META[agent.status];
+  const glyph = DOCK_GLYPH[subagentDockStatus(agent.status)];
   const elapsed =
     agent.status === "working" && agent.startMs !== undefined
       ? now - agent.startMs
@@ -51,10 +45,11 @@ function SubagentRow({
           className={cx(
             DOCK_GUTTER,
             "shrink-0 text-center font-mono text-meta",
-            meta.tone,
+            glyph.tone,
+            glyph.animate && DOCK_GLYPH_PULSE,
           )}
         >
-          {meta.char}
+          {glyph.char}
         </span>
       }
       trailing={

@@ -3,20 +3,14 @@ import { cx } from "../../ui/atoms";
 import { useI18n } from "../../i18n";
 import { EmptyState } from "./chrome";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
+import {
+  DOCK_GLYPH,
+  DOCK_GLYPH_PULSE,
+  taskDockStatus,
+} from "./dock-status-glyph";
 
-/** Glyph + tone per task status, reusing the app's palette (no new color tokens). */
-const GLYPH: Record<Task["status"], string> = {
-  completed: "✓",
-  in_progress: "◐",
-  blocked: "⊘",
-  pending: "○",
-};
-const GLYPH_TONE: Record<Task["status"], string> = {
-  completed: "text-(--ui-text-tertiary)",
-  in_progress: "text-working-bright",
-  blocked: "text-accent-bright",
-  pending: "text-(--ui-text-secondary)",
-};
+/** Status rendering reads the dock's canonical table (dock-status-glyph.ts) via taskDockStatus;
+ *  SUBJECT_TONE below styles the subject text only. */
 const SUBJECT_TONE: Record<Task["status"], string> = {
   completed: "text-(--ui-text-tertiary) line-through",
   in_progress: "text-(--ui-text-secondary)",
@@ -36,6 +30,7 @@ export function DockTasks({ tasks }: { tasks: Task[] }) {
     <div className="py-1" role="list">
       {tasks.map((task) => {
         const blockers = task.blockedBy ?? [];
+        const glyph = DOCK_GLYPH[taskDockStatus(task.status)];
         return (
           <DockRow
             key={task.id}
@@ -44,10 +39,11 @@ export function DockTasks({ tasks }: { tasks: Task[] }) {
                 className={cx(
                   DOCK_GUTTER,
                   "shrink-0 text-center font-mono text-meta",
-                  GLYPH_TONE[task.status],
+                  glyph.tone,
+                  glyph.animate && DOCK_GLYPH_PULSE,
                 )}
               >
-                {GLYPH[task.status]}
+                {glyph.char}
               </span>
             }
             trailing={
