@@ -46,6 +46,7 @@ export const IPC = {
   clipboardWriteText: "clipboard:writeText",
   clipboardReadText: "clipboard:readText",
   renameSession: "session:rename",
+  setSessionPinned: "session:setPinned",
   getToolResult: "toolResult:get",
   updateGetState: "update:getState",
   updateCheck: "update:check",
@@ -235,6 +236,9 @@ export interface IpcApi {
    *  reverting to the derived/live name), then return the fresh overview with the override applied.
    *  Both overview() and refresh() also carry the override, since it is applied in overviewNow(). */
   renameSession(id: string, title: string | null): Promise<OverviewData>;
+  /** Persist (or clear) the durable pin mark for a session id, then return the fresh overview with
+   *  pinnedAtMs stamped. Applied in overviewNow(), so overview() and refresh() carry it too. */
+  setSessionPinned(id: string, pinned: boolean): Promise<OverviewData>;
   /** Fetch one tool call's full command + output on demand (the tool turn's detail modal). Not polled;
    *  a one-shot read keyed by the tool_use id. `agentId` reads the call from that subagent's own
    *  transcript file instead of the session transcript (the drilled Subagent view). */

@@ -34,6 +34,7 @@ import { resolveClaudeDir } from "./claude-config";
 import { createAppSettingsStore } from "./app-settings";
 import { createCaffeinate } from "./caffeinate";
 import { createSessionTitleStore } from "./session-titles";
+import { createSessionPinStore } from "./session-pins";
 import { createCliStatusController } from "./cli-check";
 import { createUpdater } from "./updater";
 import { createUsageService } from "./usage/fetch";
@@ -278,6 +279,9 @@ app
     const sessionTitles = createSessionTitleStore({
       dir: app.getPath("userData"),
     });
+    const sessionPins = createSessionPinStore({
+      dir: app.getPath("userData"),
+    });
     const cliStatus = createCliStatusController({
       activeConfigDir: claudeDir,
     });
@@ -332,6 +336,7 @@ app
       claudeDir,
       cliStatus,
       sessionTitles,
+      sessionPins,
       updater,
       appSettings,
       settingsManager,

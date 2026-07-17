@@ -31,7 +31,9 @@ import type { StatuslineStatus } from "@shared/statusline-status";
 import type { SettingsManager } from "./settings/manager";
 import { readDefaultEffort } from "./settings/default-effort";
 import { applyTitleOverrides } from "@shared/title-override";
+import { applyPinOverrides } from "@shared/pin-override";
 import type { SessionTitleStore } from "./session-titles";
+import type { SessionPinStore } from "./session-pins";
 import { getOverview, readSessionTitles } from "./db/store";
 import {
   readTotals,
@@ -107,6 +109,8 @@ export interface IpcDeps {
   /** Durable user-chosen title overrides, applied over the live overlay so a rename wins over the
    *  derived title and Claude's live session_name. Defaults to no overrides. */
   sessionTitles?: SessionTitleStore;
+  /** Durable pinned-session marks, stamped onto overview rows as pinnedAtMs. Defaults to no pins. */
+  sessionPins?: SessionPinStore;
   /** The update controller. Defaults to an inert "unsupported" updater when not wired. */
   updater?: Updater;
   /** The app's own settings store (auto-check preference). Defaults to a no-op. */
@@ -143,6 +147,7 @@ export function registerIpc({
   analyticsDbPath,
   cliStatus,
   sessionTitles,
+  sessionPins,
   updater,
   appSettings,
   settingsManager,
@@ -235,13 +240,14 @@ export function registerIpc({
     // Claude's live session_name. Read fresh each call so a just-persisted rename shows immediately.
     const overlaid = overlaySessions(base.sessions, byId);
     const named = applyTitleOverrides(overlaid, sessionTitles?.read() ?? {});
+    const pinned = applyPinOverrides(named, sessionPins?.read() ?? {});
     // A6 last tier: fill the settings.json default only where no per-session source (capture or
     // transcript scan) answered.
     const withEffort = defaultEffort
-      ? named.map((s) =>
+      ? pinned.map((s) =>
           s.effortLevel ? s : { ...s, effortLevel: defaultEffort },
         )
-      : named;
+      : pinned;
     // Worktree sessions merge into their main repo's sidebar folder; tag them here, after the
     // overlay and renames, so the lookup sees the best-known cwd.
     const withWorktrees = withEffort.map((s) => {
@@ -354,6 +360,19 @@ export function registerIpc({
       // resilience the refresh handler gives a failed sync.
       console.error(
         "renameSession persist failed; serving unchanged rows",
+        err,
+      );
+    }
+    return overviewNow();
+  });
+  ipcMain.handle(IPC.setSessionPinned, (_e, id: string, pinned: boolean) => {
+    try {
+      sessionPins?.set(id, pinned);
+    } catch (err) {
+      // Same contract as renameSession: a failed write must not reject the renderer's
+      // fire-and-forget toggle; log and serve the unchanged overview so the next attempt retries.
+      console.error(
+        "setSessionPinned persist failed; serving unchanged rows",
         err,
       );
     }

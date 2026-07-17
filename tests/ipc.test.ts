@@ -427,6 +427,82 @@ describe("registerIpc renameSession", () => {
   });
 });
 
+describe("registerIpc setSessionPinned", () => {
+  // A tiny in-memory stand-in for the durable pin store, stamping a fixed clock.
+  const fakePinStore = (pins: Record<string, number>) => ({
+    read: () => pins,
+    set: (id: string, pinned: boolean) => {
+      if (pinned) pins[id] = 999;
+      else delete pins[id];
+    },
+  });
+
+  it("persists the pin via the store and stamps pinnedAtMs onto the overview", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [seed]);
+    const pins: Record<string, number> = {};
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      sessionPins: fakePinStore(pins),
+    });
+
+    const o = handlers.get(IPC.setSessionPinned)!(
+      {},
+      "seed",
+      true,
+    ) as OverviewData;
+    expect(pins).toEqual({ seed: 999 });
+    expect(o.sessions.find((s) => s.id === "seed")!.pinnedAtMs).toBe(999);
+  });
+
+  it("unpin clears the store and the overview field", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [seed]);
+    const pins: Record<string, number> = { seed: 111 };
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      sessionPins: fakePinStore(pins),
+    });
+    const o = handlers.get(IPC.setSessionPinned)!(
+      {},
+      "seed",
+      false,
+    ) as OverviewData;
+    expect(pins).toEqual({});
+    expect(o.sessions.find((s) => s.id === "seed")!.pinnedAtMs).toBeUndefined();
+  });
+
+  it("overview() also carries pins (applied in overviewNow, not just the setter)", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [seed]);
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      sessionPins: fakePinStore({ seed: 42 }),
+    });
+    const o = handlers.get(IPC.overview)!() as OverviewData;
+    expect(o.sessions.find((s) => s.id === "seed")!.pinnedAtMs).toBe(42);
+  });
+
+  it("serves an unpinned overview when no sessionPins dep is provided", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [seed]);
+    registerIpc({ db, provider: provider(() => []) });
+    const o = handlers.get(IPC.setSessionPinned)!(
+      {},
+      "seed",
+      true,
+    ) as OverviewData;
+    expect(o.sessions.find((s) => s.id === "seed")!.pinnedAtMs).toBeUndefined();
+  });
+});
+
 describe("registerIpc caffeinate", () => {
   it("serves off from the inert default when no caffeinate dep is wired", () => {
     const db = openTestDb();
