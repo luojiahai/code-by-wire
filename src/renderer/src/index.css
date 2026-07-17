@@ -514,6 +514,21 @@ body {
   animation: glyph-breathe 1.8s ease-in-out infinite;
 }
 
+/* The Working glyph's 4 sweeping bars (session-glyph.ts's WORKING_BAR_*): each bar runs this same
+   keyframe on its own clock, offset by a staggered animation-delay, so the brightness peak appears
+   to travel left-to-right then right-to-left forever — no shared JS ticker needed. */
+@keyframes bar-sweep {
+  0% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+.animate-bar-sweep {
+  animation: bar-sweep 1s ease-in-out infinite alternate;
+}
+
 @keyframes blink {
   0%,
   49% {

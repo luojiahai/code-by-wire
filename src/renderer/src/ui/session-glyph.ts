@@ -1,17 +1,16 @@
 import type { Management, SessionState } from "@shared/types";
 import { tNow } from "../i18n";
 
-/** The session status glyph (2026-07-17 spec §4): terminal characters over the old SVG shapes,
- *  color as the second signal. working's char is the reduced-motion/static frame — live rows swap
- *  it per tick via useSpinnerFrame() (kept in its own module: this one stays pure and node-safe
- *  for tests/ui). waiting breathes via animate-glyph-breathe (index.css; floor .45 so the
- *  blocked-on-you state never fades out). idle keeps the old encoding's "hollow = not live" logic;
- *  ended's en dash is deliberately not a cross — a session ending isn't a failure. */
+/** The session status glyph (2026-07-17 spec §4, working redesigned same day): terminal
+ *  characters for the three static/breathing states, color as the second signal. waiting breathes
+ *  via animate-glyph-breathe (index.css; floor .45 so the blocked-on-you state never fades out).
+ *  idle keeps the old encoding's "hollow = not live" logic; ended's en dash is deliberately not a
+ *  cross — a session ending isn't a failure. working isn't in this table — it renders as
+ *  WorkingBars (atoms.tsx) instead of a character; see WORKING_BAR_* below. */
 export const GLYPH: Record<
-  SessionState,
+  Exclude<SessionState, "working">,
   { char: string; tone: string; animate?: string }
 > = {
-  working: { char: "|", tone: "text-working-bright" },
   waiting: {
     char: "?",
     tone: "text-accent-bright",
@@ -21,22 +20,13 @@ export const GLYPH: Record<
   ended: { char: "–", tone: "text-ink-700" },
 };
 
-/** The working spinner's frames, in draw order — the classic shell cadence. The first frame is
- *  GLYPH.ended's own en dash (not a plain hyphen), so the two states share one dash glyph; only
- *  the reduced-motion frozen frame (`|`, below) is kept distinct from it. */
-export const SPINNER_FRAMES = ["–", "\\", "|", "/"] as const;
-
-/** ~200ms per frame — quick enough to read as motion, slow enough not to strobe. */
-export const SPINNER_INTERVAL_MS = 200;
-
-/** The frame shown under prefers-reduced-motion: `|`, chosen over `-` because a static hyphen and
- *  ended's en dash would differ only by dash length. GLYPH.working.char must stay in sync. */
-export const SPINNER_STATIC_FRAME = 2;
-
-/** Pure frame advance — unit-testable without the ticker. */
-export function nextSpinnerFrame(i: number): number {
-  return (i + 1) % SPINNER_FRAMES.length;
-}
+/** The working glyph: 4 bars sweeping left-to-right-to-left, like the wordmark's own ░▒▓█ density
+ *  ramp — pure CSS (animate-bar-sweep, index.css), no shared ticker. Each bar runs the same
+ *  keyframe on its own clock, offset by one of these delays, so the brightness peak appears to
+ *  travel across the row and back. Tone is a background (not text) color since bars are painted
+ *  divs, not glyph characters. */
+export const WORKING_BAR_TONE = "bg-working-bright";
+export const WORKING_BAR_DELAYS_MS = [0, 160, 320, 480] as const;
 
 /** Hover tooltip for a session glyph: "waiting · observed". The one spot the dot is spelled out in full.
  *  Plain function (not a hook), so it resolves the active locale via tNow() per call rather than

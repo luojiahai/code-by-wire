@@ -1,20 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   GLYPH,
-  SPINNER_FRAMES,
-  SPINNER_INTERVAL_MS,
-  SPINNER_STATIC_FRAME,
-  nextSpinnerFrame,
+  WORKING_BAR_DELAYS_MS,
+  WORKING_BAR_TONE,
   glyphTitle,
 } from "../../src/renderer/src/ui/session-glyph";
 
-describe("GLYPH — terminal-character session states (2026-07-17 spec §4)", () => {
-  it("working is the spinner's slot — char is the reduced-motion frame, teal", () => {
-    expect(GLYPH.working).toEqual({
-      char: "|",
-      tone: "text-working-bright",
-    });
-  });
+describe("GLYPH — terminal-character session states (waiting/idle/ended)", () => {
   it("waiting is a breathing ? in amber, with the reduced-motion guard", () => {
     expect(GLYPH.waiting).toEqual({
       char: "?",
@@ -30,20 +22,12 @@ describe("GLYPH — terminal-character session states (2026-07-17 spec §4)", ()
   });
 });
 
-describe("spinner constants", () => {
-  it("cycles the classic shell frames, first frame sharing ended's en dash", () => {
-    expect(SPINNER_FRAMES).toEqual(["–", "\\", "|", "/"]);
-    expect(SPINNER_FRAMES[0]).toBe(GLYPH.ended.char);
-    expect(nextSpinnerFrame(0)).toBe(1);
-    expect(nextSpinnerFrame(3)).toBe(0);
+describe("working bar-sweep constants", () => {
+  it("uses the teal working tone as a background (bars are divs, not text)", () => {
+    expect(WORKING_BAR_TONE).toBe("bg-working-bright");
   });
-  it("ticks at ~200ms", () => {
-    expect(SPINNER_INTERVAL_MS).toBe(200);
-  });
-  it("the reduced-motion frame is | — never confusable with ended's en dash", () => {
-    expect(SPINNER_FRAMES[SPINNER_STATIC_FRAME]).toBe("|");
-    expect(SPINNER_FRAMES[SPINNER_STATIC_FRAME]).not.toBe(GLYPH.ended.char);
-    expect(GLYPH.working.char).toBe(SPINNER_FRAMES[SPINNER_STATIC_FRAME]);
+  it("has 4 staggered delays, one per bar, in ascending order", () => {
+    expect(WORKING_BAR_DELAYS_MS).toEqual([0, 160, 320, 480]);
   });
 });
 

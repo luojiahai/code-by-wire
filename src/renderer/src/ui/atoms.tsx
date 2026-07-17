@@ -1,6 +1,10 @@
 import type { Management, SessionState } from "@shared/types";
-import { GLYPH, glyphTitle } from "./session-glyph";
-import { useSpinnerFrame } from "./use-spinner-frame";
+import {
+  GLYPH,
+  glyphTitle,
+  WORKING_BAR_DELAYS_MS,
+  WORKING_BAR_TONE,
+} from "./session-glyph";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -14,17 +18,32 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 export const focusRing = "";
 export const focusRingInset = "";
 
-/** Subscribes to the shared spinner ticker — a separate component so only working-state rows
- *  mount it (hooks can't be conditional inside Lamp, and an unconditional subscription would keep
- *  the timer alive for every row on screen). */
-function SpinnerChar() {
-  return <>{useSpinnerFrame()}</>;
+/** The working glyph: 4 bars sweeping left-to-right-to-left (pure CSS, animate-bar-sweep in
+ *  index.css — no shared ticker, each bar just runs the same keyframe on its own clock, offset by
+ *  WORKING_BAR_DELAYS_MS). Sized to fit the row's 14px (size-3.5) grid cell alongside the other
+ *  three states' single characters. */
+function WorkingBars() {
+  return (
+    <span className="flex h-[11px] items-center justify-center gap-px">
+      {WORKING_BAR_DELAYS_MS.map((delayMs) => (
+        <span
+          key={delayMs}
+          className={cx(
+            "h-2.5 w-0.5 rounded-[0.5px] animate-bar-sweep motion-reduce:animate-none",
+            WORKING_BAR_TONE,
+          )}
+          style={{ animationDelay: `${delayMs}ms` }}
+        />
+      ))}
+    </span>
+  );
 }
 
-/** The session status glyph (2026-07-17 spec §4): a mono character from the GLYPH table, color as
- *  the second signal; management is spoken only in the tooltip. font-mono is load-bearing — the
- *  spinner's four frames must share one advance width or the centered char jitters per frame.
- *  Renders inside the rows' 14px (size-3.5) grid cell. */
+/** The session status glyph (2026-07-17 spec §4, working redesigned same day): working renders as
+ *  WorkingBars (4 sweeping bars); the other three states render a mono character from the GLYPH
+ *  table, color as the second signal. management is spoken only in the tooltip. font-mono is
+ *  load-bearing for the character states so their advance width stays fixed. Renders inside the
+ *  rows' 14px (size-3.5) grid cell. */
 export function Lamp({
   state,
   management,
@@ -32,17 +51,25 @@ export function Lamp({
   state: SessionState;
   management: Management;
 }) {
+  const title = glyphTitle(state, management);
+  if (state === "working") {
+    return (
+      <span title={title}>
+        <WorkingBars />
+      </span>
+    );
+  }
   const glyph = GLYPH[state];
   return (
     <span
-      title={glyphTitle(state, management)}
+      title={title}
       className={cx(
         "font-mono text-[0.75rem] font-semibold leading-none",
         glyph.tone,
         glyph.animate,
       )}
     >
-      {state === "working" ? <SpinnerChar /> : glyph.char}
+      {glyph.char}
     </span>
   );
 }
