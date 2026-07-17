@@ -192,6 +192,9 @@ export const en = {
     sessionRow: {
       openSession: (title: string) => `Open ${title}`,
       sessionActions: "Session actions",
+      // Pinned-row worktree hint: the real checked-out branch, shown only when it differs from
+      // the worktree directory name (they're independent fields and can diverge).
+      branchTooltip: (branch: string) => `Branch: ${branch}`,
       // The Lamp glyph's hover-tooltip state word (session-glyph.ts's glyphTitle lowercases it).
       state: {
         working: "Working",

@@ -4,6 +4,7 @@ import { useI18n } from "../../i18n";
 import { EmptyState } from "./chrome";
 import { monitorGlyph } from "./monitor-view";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
+import { DOCK_GLYPH_PULSE } from "./dock-status-glyph";
 
 /** One monitor as a compact, clickable row: status glyph, description + command, duration, and a relative
  *  start. Clicking drills into the full "Monitor details" modal. */
@@ -35,7 +36,7 @@ function MonitorRow({
             DOCK_GUTTER,
             "shrink-0 text-center font-mono text-meta",
             glyph.tone,
-            monitor.status === "running" && "animate-pulse-soft",
+            monitor.status === "running" && DOCK_GLYPH_PULSE,
           )}
         >
           {glyph.char}

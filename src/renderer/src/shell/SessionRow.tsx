@@ -14,7 +14,10 @@ import { SessionMenuDropdown } from "./SessionMenuDropdown";
  * select-button for a plain (non-button) container so the inline `<input>` never nests inside a
  * `<button>`, which HTML disallows. The relative-time stamp and context-% chip live in the right
  * sidebar's Session panel; the only extra here is the dimmed worktree hint on sessions that merged
- * into their repo's folder (2026-07-09 worktree-merge spec).
+ * into their repo's folder (2026-07-09 worktree-merge spec). On reveal (hover, keyboard focus
+ * inside the row, or an open menu) the hint hides and the row gains right padding instead of the
+ * trigger being masked over it, so right-aligned content vacates rather than getting painted under
+ * the button.
  */
 export function SessionRow({
   session,
@@ -66,6 +69,13 @@ export function SessionRow({
     );
   }
 
+  // The trigger reveals on hover, keyboard focus inside the row, or while its menu is open. The
+  // same `revealed` condition hides the worktree hint and pads the row's right edge, so the
+  // content underneath vacates instead of being masked — overlap is structurally impossible and
+  // the old fade gradient (with its corner-seam artifact) is gone. group-has-[:focus-visible]
+  // (not group-focus-within) so a plain click doesn't leave the row stuck revealed.
+  const reveal =
+    "group-hover:opacity-100 group-has-[:focus-visible]:opacity-100";
   return (
     <div className="group relative">
       <button
@@ -75,6 +85,8 @@ export function SessionRow({
         aria-label={t.shell.sessionRow.openSession(session.title)}
         className={cx(
           "flex min-h-[1.625rem] w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-2 text-left transition-colors duration-100 ease-out hover:transition-none",
+          "group-hover:pr-7 group-has-[:focus-visible]:pr-7",
+          menu.open && "pr-7",
           selected
             ? "bg-(--ui-row-active-background)"
             : "hover:bg-(--ui-row-hover-background)",
@@ -93,22 +105,18 @@ export function SessionRow({
           {session.title}
         </span>
         {session.worktree && (
-          <span className="flex min-w-0 shrink-[2] items-center gap-1 text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-            <Icon name="git-branch" size={10} className="shrink-0" />
+          <span
+            className={cx(
+              "flex min-w-0 shrink-[2] items-center gap-1 text-[0.72rem] leading-none text-(--ui-text-quaternary)",
+              "group-hover:hidden group-has-[:focus-visible]:hidden",
+              menu.open && "hidden",
+            )}
+          >
+            <Icon name="worktree" size={10} className="shrink-0" />
             <span className="truncate">{session.worktree.name}</span>
           </span>
         )}
       </button>
-      {/* Fade so the 3-dot button doesn't land on abruptly-truncated worktree text on hover. */}
-      <span
-        aria-hidden
-        className={cx(
-          "pointer-events-none absolute right-0.5 top-0 bottom-0 w-8 rounded-r-md bg-linear-to-l to-transparent opacity-0 transition-opacity duration-100 ease-out group-hover:opacity-100",
-          selected
-            ? "from-(--ui-row-active-background)"
-            : "from-(--ui-row-hover-background)",
-        )}
-      />
       <div
         ref={menu.rootRef}
         className="absolute right-1 top-1/2 -translate-y-1/2"
@@ -120,7 +128,8 @@ export function SessionRow({
           aria-expanded={menu.open}
           aria-haspopup="menu"
           className={cx(
-            "grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:opacity-100 group-hover:opacity-100",
+            "grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:opacity-100",
+            reveal,
             menu.open &&
               "opacity-100 bg-(--ui-control-active-background) text-fg",
           )}

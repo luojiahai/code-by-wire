@@ -1,5 +1,10 @@
 import type { Management, SessionState } from "@shared/types";
-import { LAMP, glyphTitle } from "./session-glyph";
+import {
+  GLYPH,
+  glyphTitle,
+  WORKING_BAR_DELAYS_MS,
+  WORKING_BAR_TONE,
+} from "./session-glyph";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -13,9 +18,32 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 export const focusRing = "";
 export const focusRingInset = "";
 
-/** The session lamp (2026-07-04 spec §1): filled = live, hollow = quiet. Shape, size and motion come
- *  from the LAMP table; management is spoken only in the tooltip. Working layers a static core dot
- *  inside its spinning arc, so the outer span is the positioning context. */
+/** The working glyph: 4 bars sweeping left-to-right-to-left (pure CSS, animate-bar-sweep in
+ *  index.css — no shared ticker, each bar just runs the same keyframe on its own clock, offset by
+ *  WORKING_BAR_DELAYS_MS). Sized to fit the row's 14px (size-3.5) grid cell alongside the other
+ *  three states' single characters. */
+function WorkingBars() {
+  return (
+    <span className="flex h-[11px] items-center justify-center gap-px">
+      {WORKING_BAR_DELAYS_MS.map((delayMs) => (
+        <span
+          key={delayMs}
+          className={cx(
+            "h-2.5 w-0.5 rounded-[0.5px] animate-bar-sweep motion-reduce:animate-none",
+            WORKING_BAR_TONE,
+          )}
+          style={{ animationDelay: `${delayMs}ms` }}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** The session status glyph (2026-07-17 spec §4, working redesigned same day): working renders as
+ *  WorkingBars (4 sweeping bars); the other three states render a mono character from the GLYPH
+ *  table, color as the second signal. management is spoken only in the tooltip. font-mono keeps
+ *  the three character states visually uniform (same aesthetic, no horizontal jitter across a
+ *  waiting/idle/ended transition). Renders inside the rows' 14px (size-3.5) grid cell. */
 export function Lamp({
   state,
   management,
@@ -23,13 +51,25 @@ export function Lamp({
   state: SessionState;
   management: Management;
 }) {
-  const lamp = LAMP[state];
+  const title = glyphTitle(state, management);
+  if (state === "working") {
+    return (
+      <span title={title}>
+        <WorkingBars />
+      </span>
+    );
+  }
+  const glyph = GLYPH[state];
   return (
     <span
-      title={glyphTitle(state, management)}
-      className={cx("relative inline-flex", lamp.outer)}
+      title={title}
+      className={cx(
+        "font-mono text-[0.75rem] font-semibold leading-none",
+        glyph.tone,
+        glyph.animate,
+      )}
     >
-      {lamp.core && <span className={lamp.core} />}
+      {glyph.char}
     </span>
   );
 }

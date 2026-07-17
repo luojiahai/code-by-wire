@@ -167,6 +167,7 @@ export const zh: Translations = {
     sessionRow: {
       openSession: (title) => `打开 ${title}`,
       sessionActions: "会话操作",
+      branchTooltip: (branch) => `分支：${branch}`,
       state: {
         working: "进行中",
         waiting: "等待中",

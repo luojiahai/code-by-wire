@@ -1,41 +1,45 @@
 import { describe, it, expect } from "vitest";
-import { LAMP, glyphTitle } from "../../src/renderer/src/ui/session-glyph";
+import {
+  GLYPH,
+  WORKING_BAR_DELAYS_MS,
+  WORKING_BAR_TONE,
+  glyphTitle,
+} from "../../src/renderer/src/ui/session-glyph";
 
-describe("LAMP — filled = live, hollow = quiet", () => {
-  it("working is an 11px spinning arc with a static teal core", () => {
-    expect(LAMP.working.outer).toBe(
-      "h-[11px] w-[11px] rounded-full border-[1.5px] border-working/25 border-t-working animate-spin motion-reduce:animate-none",
-    );
-    expect(LAMP.working.core).toBe(
-      "absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-working",
-    );
+describe("GLYPH — terminal-character session states (waiting/idle/ended)", () => {
+  it("waiting is a breathing ? in amber, with the reduced-motion guard", () => {
+    expect(GLYPH.waiting).toEqual({
+      char: "?",
+      tone: "text-accent-bright",
+      animate: "animate-glyph-breathe motion-reduce:animate-none",
+    });
   });
-
-  it("waiting is a filled amber dot breathing a halo", () => {
-    expect(LAMP.waiting.outer).toBe(
-      "h-1.5 w-1.5 rounded-full bg-accent animate-halo motion-reduce:animate-none",
-    );
+  it("idle is a hollow circle — hollow still means not-live", () => {
+    expect(GLYPH.idle).toEqual({ char: "○", tone: "text-idle" });
   });
-
-  it("idle is a hollow ring — quiet, not gone", () => {
-    expect(LAMP.idle.outer).toBe(
-      "h-1.5 w-1.5 rounded-full border-[1.5px] border-idle bg-transparent",
-    );
-  });
-
-  it("ended is a barely-there ember", () => {
-    expect(LAMP.ended.outer).toBe("h-1 w-1 rounded-full bg-ink-700");
-  });
-
-  it("only working carries a core layer", () => {
-    expect(LAMP.working.core).toBeDefined();
-    expect(LAMP.waiting.core).toBeUndefined();
-    expect(LAMP.idle.core).toBeUndefined();
-    expect(LAMP.ended.core).toBeUndefined();
+  it("ended is a dim en dash", () => {
+    expect(GLYPH.ended).toEqual({ char: "–", tone: "text-ink-700" });
   });
 });
 
-describe("glyphTitle — hover tooltip spells the lamp out", () => {
+describe("working bar-sweep constants", () => {
+  it("uses the teal working tone as a background (bars are divs, not text)", () => {
+    expect(WORKING_BAR_TONE).toBe("bg-working-bright");
+  });
+  it("has 4 staggered delays, one per bar, in ascending order", () => {
+    expect(WORKING_BAR_DELAYS_MS).toEqual([0, 160, 320, 480]);
+    // Ascending order is what makes the brightness peak travel left-to-right (then, via the
+    // CSS animation's `alternate` direction, back right-to-left) — a descending or shuffled
+    // order would still animate, just not sweep in a readable direction.
+    expect(
+      WORKING_BAR_DELAYS_MS.every(
+        (delay, i) => i === 0 || delay > WORKING_BAR_DELAYS_MS[i - 1],
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("glyphTitle — hover tooltip spells the glyph out", () => {
   it('reads "state · management", lowercased', () => {
     expect(glyphTitle("waiting", "observed")).toBe("waiting · observed");
     expect(glyphTitle("working", "managed")).toBe("working · managed");
