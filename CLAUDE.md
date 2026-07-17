@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Package manager is **pnpm** (pinned), Node 24. Use `pnpm`, never `npm`.
 - `pnpm dev` runs the app (electron-vite). `pnpm test` runs the suite (vitest); tests live in `tests/` mirroring the source tree. `tests/renderer/**` and `tests/xterm/**` run under jsdom (renderer logic only); there's no component-render harness, so verify actual UI by hand. Vitest only picks up `tests/**/*.test.ts` — no `.tsx` tests.
+- CI runs `pnpm test` on both `ubuntu-latest` and `windows-latest` (`.github/workflows/ci.yml`) — terminal/pty and path-handling code must work on both, not just macOS where local dev happens.
 - After `pnpm install` or any Electron upgrade, run `pnpm rebuild:native` — `better-sqlite3` and `node-pty` are native modules and must be rebuilt against Electron's ABI, or the app crashes on launch.
 - `pnpm typecheck` runs two passes: `tsconfig.node.json` (main/preload/shared/tests) and `tsconfig.web.json` (React renderer, JSX). Test-reachable types must live in JSX-free `.ts` so they pass under the node config.
 - Before pushing, run `pnpm format` and `pnpm lint` — CI's lint job runs `format:check` then `lint` and fails on either.
