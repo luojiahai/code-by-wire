@@ -178,15 +178,15 @@ export const zh: Translations = {
     sessionMenu: {
       renameFieldLabel: "重命名会话",
       menuTitle: "会话菜单",
-      pin: "置顶会话",
+      pin: "置顶",
       unpin: "取消置顶",
-      copySessionId: "复制会话 ID",
+      copySessionId: "复制 ID",
       rename: "重命名",
       adopt: "领养",
       adopting: "领养中…",
       fork: "复刻",
       forking: "复刻中…",
-      endSession: "结束会话",
+      endSession: "结束",
       openIn: "打开方式",
       resumeConfirmTitle: "恢复未记录模型的会话？",
       resumeConfirmBody:
