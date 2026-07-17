@@ -1,7 +1,7 @@
 {
   "name": "code-by-wire",
   "private": true,
-  "version": "0.1.35",
+  "version": "0.1.36",
   "description": "Pilot every Claude Code session and monitor its telemetry, from one cockpit.",
   "author": "luojiahai",
   "license": "MIT",
