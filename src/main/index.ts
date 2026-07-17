@@ -5,6 +5,7 @@ import {
   net,
   powerSaveBlocker,
 } from "electron";
+import { applyLegacyDockIconIfNeeded } from "./dock-icon";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { openDb } from "./db/sqlite";
@@ -131,6 +132,14 @@ function createWindow(
 app
   .whenReady()
   .then(() => {
+    // Purely cosmetic (pre-Tahoe Dock icon shape); a failure here must never cost the user a window,
+    // and this runs before openWindow() below so an unguarded throw would be worse than the guarded
+    // calls further down that at least run after the window is up.
+    try {
+      applyLegacyDockIconIfNeeded(app);
+    } catch (err) {
+      console.error("could not apply the pre-Tahoe Dock icon", err);
+    }
     const db = openDb(join(app.getPath("userData"), "index.db"));
     migrate(db); // bring the index schema up to date before the first sync
     // The durable, non-pruned analytics store (#107). A separate file with its own user_version, so a
