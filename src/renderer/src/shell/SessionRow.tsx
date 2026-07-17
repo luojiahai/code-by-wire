@@ -9,7 +9,7 @@ import { SessionMenuDropdown } from "./SessionMenuDropdown";
 /**
  * The hermes single-line sidebar row: a 26px-tall strip with a state `Lamp` and the title. A
  * hover-revealed 3-dot button opens the same menu as the session header's title menu (Copy ID,
- * Rename, Adopt, Fork, End session, Open in), sharing its state machine via `useSessionMenu` — see
+ * Rename, Adopt, Fork, End, Open in), sharing its state machine via `useSessionMenu` — see
  * `SessionMenu.tsx` for the header's own trigger over the same hook. Renaming swaps this row's
  * select-button for a plain (non-button) container so the inline `<input>` never nests inside a
  * `<button>`, which HTML disallows. The relative-time stamp and context-% chip live in the right
