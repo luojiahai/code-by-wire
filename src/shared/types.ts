@@ -203,6 +203,10 @@ export interface Session {
   /** Session creation time (epoch ms); see PersistedSession.createdMs. The rail orders Active
    *  sessions by this, newest first. */
   createdMs: number;
+  /** Epoch ms when the user pinned this session; absent ⇒ not pinned. Stamped from the durable
+   *  pin store at overview time — never persisted in the SQLite index — so a cache rebuild can't
+   *  lose pins. The sidebar's PINNED section orders by this, newest first. */
+  pinnedAtMs?: number;
   currentTask?: string;
   waitingReason?: string;
 }
