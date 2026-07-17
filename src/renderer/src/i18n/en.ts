@@ -179,6 +179,7 @@ export const en = {
       searchLabel: "Search sessions",
       clearSearch: "Clear search",
       sessionsLabel: "Sessions",
+      pinnedLabel: "Pinned",
       expandAll: "Expand all",
       collapseAll: "Collapse all",
       showAllSessions: "Show all sessions",

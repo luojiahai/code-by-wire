@@ -7,8 +7,10 @@ import {
   filterActive,
   filterSessions,
   groupSessionsByProject,
+  pinnedSessions,
 } from "./session-list-model";
 import { SessionRow } from "./SessionRow";
+import { PinnedSessionRow } from "./PinnedSessionRow";
 import { OVERVIEW_ID } from "../stats/sentinel";
 import { SETTINGS_ID } from "../settings/sentinel";
 import { SidebarPanelLabel } from "./SidebarPanelLabel";
@@ -73,6 +75,8 @@ export function LeftSidebar({
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [activeOnly, setActiveOnly] = useState(loadActiveOnly);
+  const searched = filterSessions(sessions, query);
+  const pinned = pinnedSessions(searched);
   const groups = groupSessionsByProject(
     filterSessions(activeOnly ? filterActive(sessions) : sessions, query),
     homeDir,
@@ -222,154 +226,187 @@ export function LeftSidebar({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-1 px-2.5 pb-1 pt-1.5">
-        <SidebarPanelLabel className="pl-2">
-          {t.shell.sidebar.sessionsLabel}
-        </SidebarPanelLabel>
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() =>
-              setCollapsed(
-                allCollapsed ? new Set() : new Set(groups.map((g) => g.key)),
-              )
-            }
-            title={
-              allCollapsed
-                ? t.shell.sidebar.expandAll
-                : t.shell.sidebar.collapseAll
-            }
-            className="grid size-5 cursor-pointer place-items-center rounded-sm border border-transparent text-(--ui-text-quaternary) transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
-          >
-            <Icon
-              name={allCollapsed ? "chevrons-up-down" : "chevrons-down-up"}
-              size={12}
-            />
-          </button>
-          <button
-            type="button"
-            onClick={toggleActiveOnly}
-            aria-pressed={activeOnly}
-            title={
-              activeOnly
-                ? t.shell.sidebar.showAllSessions
-                : t.shell.sidebar.showActiveOnly
-            }
-            className={cx(
-              "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
-              activeOnly
-                ? "border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-fg"
-                : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
-            )}
-          >
-            <Icon name="filter" size={12} />
-          </button>
-        </div>
-      </div>
-      <OverlayScroll className="min-h-0 flex-1" contentClassName="px-2.5 pb-2">
-        {groups.length === 0 ? (
-          <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
-            {activeOnly && sessions.length > 0
-              ? t.shell.sidebar.noActiveSessions
-              : t.shell.sidebar.noSessionsYet}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-px">
-            {groups.map((g) => {
-              const cwd = g.cwd;
-              return (
-                <div key={g.key}>
-                  <div className="group/project relative rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none">
-                    <button
-                      type="button"
-                      onClick={() => toggleGroup(g.key)}
-                      aria-expanded={!collapsed.has(g.key)}
-                      // When the CLI is down the "+" is pointer-events-none, so a hover over it lands
-                      // here instead — carry its reason so that affordance survives (spec §4).
-                      title={
-                        cwd && !canSpawn
-                          ? t.settings.cli.unavailableReason
-                          : cwd
-                      }
-                      className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
-                    >
-                      <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
-                        <Icon
-                          name={collapsed.has(g.key) ? "folder" : "folder-open"}
-                          size={14}
-                        />
-                      </span>
-                      <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
-                        {g.label}
-                      </span>
-                      {g.hint && (
-                        <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-                          {g.hint}
-                        </span>
-                      )}
-                      <span className="ml-auto grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
-                        <Icon
-                          name="chevron-right"
-                          size={13}
-                          className={cx(
-                            "transition-transform",
-                            !collapsed.has(g.key) && "rotate-90",
-                          )}
-                        />
-                      </span>
-                    </button>
-                    {cwd && (
-                      <button
-                        type="button"
-                        onClick={() => void quickAdd(g.key, cwd)}
-                        disabled={!canSpawn || quickAdding.has(g.key)}
-                        aria-label={t.shell.sidebar.newSessionIn(cwd)}
-                        title={
-                          canSpawn
-                            ? t.shell.sidebar.newSessionIn(cwd)
-                            : t.settings.cli.unavailableReason
-                        }
-                        className={cx(
-                          "absolute right-5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",
-                          canSpawn && !quickAdding.has(g.key)
-                            ? "cursor-pointer text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
-                            : !canSpawn
-                              ? // CLI unusable: pass the click through to the collapse toggle beneath
-                                // (which carries the reason in its title) so the disabled "+" doesn't
-                                // dead-zone its ~20px strip.
-                                "pointer-events-none text-(--ui-text-quaternary)/50"
-                              : // Quick-add in flight (transient): keep the click inert so it can't
-                                // re-collapse the group we just expanded for the incoming draft row.
-                                "cursor-not-allowed text-(--ui-text-quaternary)/50",
-                        )}
-                      >
-                        <Icon name="plus" size={13} />
-                      </button>
-                    )}
-                  </div>
-                  {!collapsed.has(g.key) && (
-                    <div className="flex flex-col gap-px pb-1">
-                      {g.sessions.map((s) => (
-                        <SessionRow
-                          key={s.id}
-                          session={s}
-                          selected={s.id === selectedId}
-                          onSelect={() => onSelect(s.id)}
-                          canSpawn={canSpawn}
-                          onAdopt={onAdopt}
-                          onFork={onFork}
-                          onEnd={onEnd}
-                          onRename={onRename}
-                          onTogglePin={onTogglePin}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+      <OverlayScroll className="min-h-0 flex-1" contentClassName="pb-2">
+        {pinned.length > 0 && (
+          <div>
+            <div className="sticky top-0 z-10 flex items-center bg-(--ui-sidebar-surface-background) px-2.5 pb-1 pt-1.5">
+              <SidebarPanelLabel className="pl-2">
+                {t.shell.sidebar.pinnedLabel}
+              </SidebarPanelLabel>
+            </div>
+            <div className="flex flex-col gap-px px-2.5">
+              {pinned.map((s) => (
+                <PinnedSessionRow
+                  key={s.id}
+                  session={s}
+                  selected={s.id === selectedId}
+                  onSelect={() => onSelect(s.id)}
+                  canSpawn={canSpawn}
+                  onAdopt={onAdopt}
+                  onFork={onFork}
+                  onEnd={onEnd}
+                  onRename={onRename}
+                  onTogglePin={onTogglePin}
+                />
+              ))}
+            </div>
           </div>
         )}
+        <div>
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-1 bg-(--ui-sidebar-surface-background) px-2.5 pb-1 pt-1.5">
+            <SidebarPanelLabel className="pl-2">
+              {t.shell.sidebar.sessionsLabel}
+            </SidebarPanelLabel>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setCollapsed(
+                    allCollapsed
+                      ? new Set()
+                      : new Set(groups.map((g) => g.key)),
+                  )
+                }
+                title={
+                  allCollapsed
+                    ? t.shell.sidebar.expandAll
+                    : t.shell.sidebar.collapseAll
+                }
+                className="grid size-5 cursor-pointer place-items-center rounded-sm border border-transparent text-(--ui-text-quaternary) transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg hover:transition-none"
+              >
+                <Icon
+                  name={allCollapsed ? "chevrons-up-down" : "chevrons-down-up"}
+                  size={12}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={toggleActiveOnly}
+                aria-pressed={activeOnly}
+                title={
+                  activeOnly
+                    ? t.shell.sidebar.showAllSessions
+                    : t.shell.sidebar.showActiveOnly
+                }
+                className={cx(
+                  "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
+                  activeOnly
+                    ? "border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-fg"
+                    : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
+                )}
+              >
+                <Icon name="filter" size={12} />
+              </button>
+            </div>
+          </div>
+          <div className="px-2.5">
+            {groups.length === 0 ? (
+              <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
+                {activeOnly && sessions.length > 0
+                  ? t.shell.sidebar.noActiveSessions
+                  : t.shell.sidebar.noSessionsYet}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-px">
+                {groups.map((g) => {
+                  const cwd = g.cwd;
+                  return (
+                    <div key={g.key}>
+                      <div className="group/project relative rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none">
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(g.key)}
+                          aria-expanded={!collapsed.has(g.key)}
+                          // When the CLI is down the "+" is pointer-events-none, so a hover over it lands
+                          // here instead — carry its reason so that affordance survives (spec §4).
+                          title={
+                            cwd && !canSpawn
+                              ? t.settings.cli.unavailableReason
+                              : cwd
+                          }
+                          className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
+                        >
+                          <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
+                            <Icon
+                              name={
+                                collapsed.has(g.key) ? "folder" : "folder-open"
+                              }
+                              size={14}
+                            />
+                          </span>
+                          <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
+                            {g.label}
+                          </span>
+                          {g.hint && (
+                            <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
+                              {g.hint}
+                            </span>
+                          )}
+                          <span className="ml-auto grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
+                            <Icon
+                              name="chevron-right"
+                              size={13}
+                              className={cx(
+                                "transition-transform",
+                                !collapsed.has(g.key) && "rotate-90",
+                              )}
+                            />
+                          </span>
+                        </button>
+                        {cwd && (
+                          <button
+                            type="button"
+                            onClick={() => void quickAdd(g.key, cwd)}
+                            disabled={!canSpawn || quickAdding.has(g.key)}
+                            aria-label={t.shell.sidebar.newSessionIn(cwd)}
+                            title={
+                              canSpawn
+                                ? t.shell.sidebar.newSessionIn(cwd)
+                                : t.settings.cli.unavailableReason
+                            }
+                            className={cx(
+                              "absolute right-5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",
+                              canSpawn && !quickAdding.has(g.key)
+                                ? "cursor-pointer text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
+                                : !canSpawn
+                                  ? // CLI unusable: pass the click through to the collapse toggle beneath
+                                    // (which carries the reason in its title) so the disabled "+" doesn't
+                                    // dead-zone its ~20px strip.
+                                    "pointer-events-none text-(--ui-text-quaternary)/50"
+                                  : // Quick-add in flight (transient): keep the click inert so it can't
+                                    // re-collapse the group we just expanded for the incoming draft row.
+                                    "cursor-not-allowed text-(--ui-text-quaternary)/50",
+                            )}
+                          >
+                            <Icon name="plus" size={13} />
+                          </button>
+                        )}
+                      </div>
+                      {!collapsed.has(g.key) && (
+                        <div className="flex flex-col gap-px pb-1">
+                          {g.sessions.map((s) => (
+                            <SessionRow
+                              key={s.id}
+                              session={s}
+                              selected={s.id === selectedId}
+                              onSelect={() => onSelect(s.id)}
+                              canSpawn={canSpawn}
+                              onAdopt={onAdopt}
+                              onFork={onFork}
+                              onEnd={onEnd}
+                              onRename={onRename}
+                              onTogglePin={onTogglePin}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </OverlayScroll>
     </div>
   );
