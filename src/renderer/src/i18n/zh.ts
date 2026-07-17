@@ -312,7 +312,6 @@ export const zh: Translations = {
       couldNotFork: "无法复刻此会话。",
     },
     openIn: {
-      target: (name) => `在${name}中打开`,
       finder: "访达",
       fileExplorer: "文件资源管理器",
       fileManager: "文件管理器",

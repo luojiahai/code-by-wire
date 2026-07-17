@@ -357,7 +357,6 @@ export const en = {
       couldNotFork: "Could not fork this session.",
     },
     openIn: {
-      target: (name: string) => `Open in ${name}`,
       finder: "Finder",
       fileExplorer: "File Explorer",
       fileManager: "File Manager",

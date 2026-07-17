@@ -19,10 +19,11 @@ function fileBrowserName(platform: string, t: Translations): string {
 }
 
 /** The targets behind the header's "Open in" dropdown, in menu order. The file-browser target is labelled
- *  for the host OS, so Windows reads "Open in File Explorer" rather than "Finder". `key` is the
- *  `OpenInTarget` the renderer hands to `window.api.openIn`; `icon` is constrained to the curated IconName
- *  set (imported from the JSX-free icon-names.ts so this module stays safe to typecheck under the node
- *  program), so a glyph that isn't registered in ui/icons.tsx fails the typecheck. `t` defaults to the
+ *  for the host OS, so Windows reads "File Explorer" rather than "Finder" — the surrounding "OPEN IN"
+ *  section header already supplies the "open in" framing, so this label is just the bare OS name. `key` is
+ *  the `OpenInTarget` the renderer hands to `window.api.openIn`; `icon` is constrained to the curated
+ *  IconName set (imported from the JSX-free icon-names.ts so this module stays safe to typecheck under the
+ *  node program), so a glyph that isn't registered in ui/icons.tsx fails the typecheck. `t` defaults to the
  *  live locale via `tNow()` — resolved fresh per call, never captured at module scope. "VSCode" is a
  *  brand name and stays untranslated, same rule as the product name. */
 export function openInItems(
@@ -33,7 +34,7 @@ export function openInItems(
     { key: "vscode", label: "VSCode", icon: "square-code" },
     {
       key: "finder",
-      label: t.workspace.openIn.target(fileBrowserName(platform, t)),
+      label: fileBrowserName(platform, t),
       icon: "folder-open",
     },
   ];
