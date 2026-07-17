@@ -31,13 +31,14 @@ describe("GLYPH — terminal-character session states (2026-07-17 spec §4)", ()
 });
 
 describe("spinner constants", () => {
-  it("cycles the classic shell frames", () => {
-    expect(SPINNER_FRAMES).toEqual(["-", "\\", "|", "/"]);
+  it("cycles the classic shell frames, first frame sharing ended's en dash", () => {
+    expect(SPINNER_FRAMES).toEqual(["–", "\\", "|", "/"]);
+    expect(SPINNER_FRAMES[0]).toBe(GLYPH.ended.char);
     expect(nextSpinnerFrame(0)).toBe(1);
     expect(nextSpinnerFrame(3)).toBe(0);
   });
-  it("ticks at ~120ms", () => {
-    expect(SPINNER_INTERVAL_MS).toBe(120);
+  it("ticks at ~200ms", () => {
+    expect(SPINNER_INTERVAL_MS).toBe(200);
   });
   it("the reduced-motion frame is | — never confusable with ended's en dash", () => {
     expect(SPINNER_FRAMES[SPINNER_STATIC_FRAME]).toBe("|");

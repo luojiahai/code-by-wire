@@ -21,11 +21,13 @@ export const GLYPH: Record<
   ended: { char: "–", tone: "text-ink-700" },
 };
 
-/** The working spinner's frames, in draw order — the classic shell cadence. */
-export const SPINNER_FRAMES = ["-", "\\", "|", "/"] as const;
+/** The working spinner's frames, in draw order — the classic shell cadence. The first frame is
+ *  GLYPH.ended's own en dash (not a plain hyphen), so the two states share one dash glyph; only
+ *  the reduced-motion frozen frame (`|`, below) is kept distinct from it. */
+export const SPINNER_FRAMES = ["–", "\\", "|", "/"] as const;
 
-/** ~120ms per frame — quick enough to read as motion, slow enough not to strobe. */
-export const SPINNER_INTERVAL_MS = 120;
+/** ~200ms per frame — quick enough to read as motion, slow enough not to strobe. */
+export const SPINNER_INTERVAL_MS = 200;
 
 /** The frame shown under prefers-reduced-motion: `|`, chosen over `-` because a static hyphen and
  *  ended's en dash would differ only by dash length. GLYPH.working.char must stay in sync. */
