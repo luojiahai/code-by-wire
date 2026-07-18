@@ -8,7 +8,7 @@ import { MENU_WIDTH, type SessionMenuController } from "./use-session-menu";
 
 /** The portaled dropdown body shared by every session-menu trigger: seven always-rendered action rows
  *  (only `disabled`/`title` vary — the design's "never hide an action, dim the unavailable ones with a
- *  reason" rule) plus the confirm dialogs Adopt/Fork/End can raise. Pure rendering — all state lives in
+ *  reason" rule) plus the confirm dialogs Resume/Fork/End can raise. Pure rendering — all state lives in
  *  `useSessionMenu`. */
 export function SessionMenuDropdown({
   session,
@@ -30,12 +30,12 @@ export function SessionMenuDropdown({
     openInBusy,
     openInError,
     handleOpenIn,
-    adopt,
+    resume,
     fork,
     end,
     live,
-    adoptDisabled,
-    adoptTitle,
+    resumeDisabled,
+    resumeTitle,
     forkDisabled,
     forkTitle,
     endTitle,
@@ -80,21 +80,21 @@ export function SessionMenuDropdown({
                 onClick={openEdit}
               />
 
-              {adopt.error && (
+              {resume.error && (
                 <p role="alert" className="px-2 py-1 text-xs text-danger">
-                  {adopt.error}
+                  {resume.error}
                 </p>
               )}
               <MenuItem
                 icon="git-pull-request-arrow"
                 label={
-                  adopt.busy
+                  resume.busy
                     ? t.shell.sessionMenu.adopting
                     : t.shell.sessionMenu.adopt
                 }
-                onClick={adopt.request}
-                disabled={adoptDisabled || adopt.busy}
-                title={adoptTitle}
+                onClick={resume.request}
+                disabled={resumeDisabled || resume.busy}
+                title={resumeTitle}
               />
 
               {fork.error && (
@@ -151,13 +151,13 @@ export function SessionMenuDropdown({
           )
         : null}
 
-      {adopt.confirmOpen && (
+      {resume.confirmOpen && (
         <ConfirmDialog
           title={t.shell.sessionMenu.resumeConfirmTitle}
           body={t.shell.sessionMenu.resumeConfirmBody}
           confirmLabel={t.shell.sessionMenu.resumeConfirmLabel}
-          onCancel={adopt.confirmNo}
-          onConfirm={adopt.confirmYes}
+          onCancel={resume.confirmNo}
+          onConfirm={resume.confirmYes}
         />
       )}
       {fork.confirmOpen && (

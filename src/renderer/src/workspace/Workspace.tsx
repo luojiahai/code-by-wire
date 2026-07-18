@@ -34,7 +34,7 @@ import { SessionMenu } from "../shell/SessionMenu";
 export function Workspace({
   session: s,
   canSpawn,
-  onAdopt,
+  onResume,
   onFork,
   onEnd,
   onRename,
@@ -43,9 +43,9 @@ export function Workspace({
   rightEdgeExposed,
 }: {
   session: Session;
-  /** Whether the Claude Code CLI is usable; gates Adopt and Fork (both spawn the CLI). */
+  /** Whether the Claude Code CLI is usable; gates Resume and Fork (both spawn the CLI). */
   canSpawn: boolean;
-  onAdopt: (id: string) => Promise<void>;
+  onResume: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
   /** End the running Managed session (header-only; never offered in the observed-terminal panel). */
   onEnd: (id: string) => void;
@@ -71,7 +71,7 @@ export function Workspace({
   // it needs to live above the toggle it composes with, not just above the CenterView that renders it.
   const [drill, setDrill] = useState<DrillCrumb[]>([]);
 
-  // Follow the live terminal when it stands up in place. Adopt resumes this same id, so Workspace never
+  // Follow the live terminal when it stands up in place. Resume resumes this same id, so Workspace never
   // remounts and `transcriptOn` keeps its seeded value, but `hasLiveTerminal` flips to true once the pty
   // is live. Switch only toward the terminal: a session ending shouldn't yank the user off the transcript
   // they were reading, and a manual toggle on a live session stays put.
@@ -94,7 +94,7 @@ export function Workspace({
           <SessionMenu
             session={s}
             canSpawn={canSpawn}
-            onAdopt={onAdopt}
+            onResume={onResume}
             onFork={onFork}
             onEnd={onEnd}
             onRename={onRename}
@@ -108,7 +108,7 @@ export function Workspace({
           session={s}
           now={now}
           canSpawn={canSpawn}
-          onAdopt={onAdopt}
+          onResume={onResume}
           onFork={onFork}
           transcriptOn={transcriptOn}
           setTranscriptOn={setTranscriptOn}
@@ -129,7 +129,7 @@ function WorkspaceBody({
   session: s,
   now,
   canSpawn,
-  onAdopt,
+  onResume,
   onFork,
   transcriptOn,
   setTranscriptOn,
@@ -139,7 +139,7 @@ function WorkspaceBody({
   session: Session;
   now: number;
   canSpawn: boolean;
-  onAdopt: (id: string) => Promise<void>;
+  onResume: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
   transcriptOn: boolean;
   setTranscriptOn: (transcriptOn: boolean) => void;
@@ -214,7 +214,7 @@ function WorkspaceBody({
           onNavigate={(depth) => setDrill((d) => d.slice(0, depth))}
           dispatchDrill={dispatchDrill}
           canSpawn={canSpawn}
-          onAdopt={onAdopt}
+          onResume={onResume}
           onFork={onFork}
           transcriptOn={transcriptOn}
           setTranscriptOn={setTranscriptOn}
@@ -270,7 +270,7 @@ function WorkspaceBody({
 
 /** The center column's live view. Every session gets the Claude Code ⇄ Transcript switcher in `MiddleHeader`;
  *  `transcriptOn` (lifted to `Workspace`, threaded down here) drives which side shows: off is the Terminal
- *  — the live xterm for a running Managed session, else the ObservedTerminal panel (Fork always, Adopt once
+ *  — the live xterm for a running Managed session, else the ObservedTerminal panel (Fork always, Resume once
  *  Ended) — on is the Transcript, or the drilled Subagent surface when the drill-stack is non-empty.
  *  Drilling a lane auto-selects the Transcript side. A background shell opens in a modal instead (see
  *  WorkspaceBody), so it never touches this toggle. */
@@ -282,7 +282,7 @@ function CenterView({
   onNavigate,
   dispatchDrill,
   canSpawn,
-  onAdopt,
+  onResume,
   onFork,
   transcriptOn,
   setTranscriptOn,
@@ -294,7 +294,7 @@ function CenterView({
   onNavigate: (depth: number) => void;
   dispatchDrill: DispatchDrill;
   canSpawn: boolean;
-  onAdopt: (id: string) => Promise<void>;
+  onResume: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
   transcriptOn: boolean;
   setTranscriptOn: (transcriptOn: boolean) => void;
@@ -326,7 +326,7 @@ function CenterView({
   // The Terminal side is the live in-app xterm only for a Managed session that's still running;
   // otherwise — an Observed session running in another terminal, or any Ended session (including a
   // just-exited Managed one that re-derives Observed) — it's the ObservedTerminal panel: Fork is always
-  // offered, Adopt only once the session has Ended.
+  // offered, Resume only once the session has Ended.
   const hasLiveTerminal = s.management === "managed" && s.state !== "ended";
   const terminalSlot = hasLiveTerminal ? (
     <TerminalView sessionId={s.id} />
@@ -334,7 +334,7 @@ function CenterView({
     <ObservedTerminal
       session={s}
       canSpawn={canSpawn}
-      onAdopt={onAdopt}
+      onResume={onResume}
       onFork={onFork}
     />
   );

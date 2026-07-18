@@ -26,7 +26,7 @@ describe("resumeActionDisabled", () => {
     );
   });
 
-  it("disables when available is explicitly false — Adopt's pending-reindex window", () => {
+  it("disables when available is explicitly false — Resume's pending-reindex window", () => {
     expect(
       resumeActionDisabled({
         canSpawn: true,

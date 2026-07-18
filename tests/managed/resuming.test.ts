@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { Session } from "../../src/shared/types";
 import {
-  applyAdopting,
-  pruneAdopting,
-  dropAdopting,
+  applyResuming,
+  pruneResuming,
+  dropResuming,
 } from "../../src/shared/managed";
 
 const s = (id: string, over: Partial<Session> = {}): Session => ({
@@ -29,84 +29,84 @@ const s = (id: string, over: Partial<Session> = {}): Session => ({
   ...over,
 });
 
-describe("applyAdopting", () => {
-  it("forces an adopting id to Managed and flips Ended to Working", () => {
-    const [row] = applyAdopting([s("a")], new Set(["a"]));
+describe("applyResuming", () => {
+  it("forces a resuming id to Managed and flips Ended to Working", () => {
+    const [row] = applyResuming([s("a")], new Set(["a"]));
     expect(row.management).toBe("managed");
     expect(row.state).toBe("working");
   });
 
-  it("leaves non-adopting rows untouched", () => {
-    const [row] = applyAdopting([s("b")], new Set(["a"]));
+  it("leaves non-resuming rows untouched", () => {
+    const [row] = applyResuming([s("b")], new Set(["a"]));
     expect(row.management).toBe("observed");
     expect(row.state).toBe("ended");
   });
 
   it("forces Managed but preserves a non-ended state", () => {
-    const [row] = applyAdopting([s("c", { state: "idle" })], new Set(["c"]));
+    const [row] = applyResuming([s("c", { state: "idle" })], new Set(["c"]));
     expect(row.management).toBe("managed");
     expect(row.state).toBe("idle");
   });
 
-  it("returns the same array reference when nothing is adopting", () => {
+  it("returns the same array reference when nothing is resuming", () => {
     const rows = [s("d")];
-    expect(applyAdopting(rows, new Set())).toBe(rows);
+    expect(applyResuming(rows, new Set())).toBe(rows);
   });
 });
 
-describe("pruneAdopting", () => {
-  it("keeps the override while a just-adopted id still reads Managed + Ended", () => {
+describe("pruneResuming", () => {
+  it("keeps the override while a just-resumed id still reads Managed + Ended", () => {
     // The boot window: the managed registry flipped management to Managed, but `claude --resume`'s live
     // pid hasn't landed on disk yet, so discovery still derives Ended. Dropping the override here is the
     // flicker — the row bounces back to the Ended section before the live pid arrives.
-    const next = pruneAdopting(new Set(["a"]), [
+    const next = pruneResuming(new Set(["a"]), [
       s("a", { management: "managed", state: "ended" }),
     ]);
     expect(next.has("a")).toBe(true);
   });
 
   it("drops the override once the id reads Managed and live", () => {
-    const next = pruneAdopting(new Set(["a"]), [
+    const next = pruneResuming(new Set(["a"]), [
       s("a", { management: "managed", state: "idle" }),
     ]);
     expect(next.has("a")).toBe(false);
   });
 
   it("keeps an override discovery still labels Observed", () => {
-    const next = pruneAdopting(new Set(["a"]), [
+    const next = pruneResuming(new Set(["a"]), [
       s("a", { management: "observed", state: "ended" }),
     ]);
     expect(next.has("a")).toBe(true);
   });
 
   it("returns the same Set reference when nothing settled", () => {
-    const adopting = new Set(["a"]);
+    const resuming = new Set(["a"]);
     expect(
-      pruneAdopting(adopting, [
+      pruneResuming(resuming, [
         s("a", { management: "managed", state: "ended" }),
       ]),
-    ).toBe(adopting);
+    ).toBe(resuming);
   });
 
-  it("returns the same Set reference when nothing is adopting", () => {
-    const adopting = new Set<string>();
+  it("returns the same Set reference when nothing is resuming", () => {
+    const resuming = new Set<string>();
     expect(
-      pruneAdopting(adopting, [
+      pruneResuming(resuming, [
         s("a", { management: "managed", state: "idle" }),
       ]),
-    ).toBe(adopting);
+    ).toBe(resuming);
   });
 });
 
-describe("dropAdopting", () => {
+describe("dropResuming", () => {
   it("drops the override for the given id, leaving the rest", () => {
-    const next = dropAdopting(new Set(["a", "b"]), "a");
+    const next = dropResuming(new Set(["a", "b"]), "a");
     expect(next.has("a")).toBe(false);
     expect(next.has("b")).toBe(true);
   });
 
-  it("returns the same Set reference when the id wasn't adopting", () => {
-    const adopting = new Set(["a"]);
-    expect(dropAdopting(adopting, "b")).toBe(adopting);
+  it("returns the same Set reference when the id wasn't resuming", () => {
+    const resuming = new Set(["a"]);
+    expect(dropResuming(resuming, "b")).toBe(resuming);
   });
 });

@@ -100,7 +100,7 @@ export interface TerminalStore {
   /** Get-or-create the handle for `id`. Idempotent: the same xterm instance (and its scrollback)
    *  survives every tab switch until `dispose`. Pass `replayOnCreate` when standing a terminal up to
    *  REATTACH a still-live pty after a window refresh — the handle gates live output until `reattach`
-   *  replays the screen snapshot. Omit it for a fresh spawn/adopt/fork (output streams from the start). */
+   *  replays the screen snapshot. Omit it for a fresh spawn/resume/fork (output streams from the start). */
   create(id: string, opts?: { replayOnCreate?: boolean }): TerminalHandle;
   get(id: string): TerminalHandle | undefined;
   /** Re-key a live terminal from `from` to `to` (a `/clear` rotation), so pushed output and the user's

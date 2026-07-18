@@ -41,7 +41,7 @@ export function LeftSidebar({
   onNew,
   onQuickAdd,
   canSpawn,
-  onAdopt,
+  onResume,
   onFork,
   onEnd,
   onRename,
@@ -60,7 +60,7 @@ export function LeftSidebar({
    *  App surfaces failures in the New session view — so this only gates the busy mark. */
   onQuickAdd: (cwd: string) => Promise<void>;
   canSpawn: boolean;
-  onAdopt: (id: string) => Promise<void>;
+  onResume: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
@@ -263,7 +263,7 @@ export function LeftSidebar({
                   selected={s.id === selectedId}
                   onSelect={() => onSelect(s.id)}
                   canSpawn={canSpawn}
-                  onAdopt={onAdopt}
+                  onResume={onResume}
                   onFork={onFork}
                   onEnd={onEnd}
                   onRename={onRename}
@@ -421,7 +421,7 @@ export function LeftSidebar({
                                 selected={s.id === selectedId}
                                 onSelect={() => onSelect(s.id)}
                                 canSpawn={canSpawn}
-                                onAdopt={onAdopt}
+                                onResume={onResume}
                                 onFork={onFork}
                                 onEnd={onEnd}
                                 onRename={onRename}

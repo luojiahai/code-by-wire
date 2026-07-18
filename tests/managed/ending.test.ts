@@ -34,7 +34,7 @@ describe("applyEnding", () => {
     expect(row.state).toBe("ended");
   });
 
-  it("leaves management as-is so Adopt stays disabled until re-derived Observed", () => {
+  it("leaves management as-is so Resume stays disabled until re-derived Observed", () => {
     const [row] = applyEnding(
       [s("a", { management: "managed", state: "working" })],
       new Set(["a"]),
@@ -88,10 +88,10 @@ describe("pruneEnding", () => {
 });
 
 describe("dropEnding", () => {
-  it("drops the id a racing Adopt revived (so pruneEnding can't strand a now-live row)", () => {
-    // The strand: End is clicked during an in-flight Adopt, its kill no-ops on a pty that doesn't exist
-    // yet, the Adopt then revives the row to a stable live-Managed state, and pruneEnding never sees it
-    // Ended. dropEnding (called on adopt-success) is the escape hatch. Mirror pruneEnding's lag test: the
+  it("drops the id a racing Resume revived (so pruneEnding can't strand a now-live row)", () => {
+    // The strand: End is clicked during an in-flight Resume, its kill no-ops on a pty that doesn't exist
+    // yet, the Resume then revives the row to a stable live-Managed state, and pruneEnding never sees it
+    // Ended. dropEnding (called on resume-success) is the escape hatch. Mirror pruneEnding's lag test: the
     // revived row reads managed/working, which pruneEnding deliberately HOLDS — only dropEnding clears it.
     const next = dropEnding(new Set(["a", "b"]), "a");
     expect(next.has("a")).toBe(false);

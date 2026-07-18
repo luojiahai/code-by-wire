@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Session } from "../../src/shared/types";
-import { renameManaged, renameAdopting } from "../../src/shared/managed";
+import { renameManaged, renameResuming } from "../../src/shared/managed";
 
 const s = (id: string, over: Partial<Session> = {}): Session => ({
   id,
@@ -58,22 +58,22 @@ describe("renameManaged", () => {
   });
 });
 
-describe("renameAdopting", () => {
+describe("renameResuming", () => {
   it("moves the override to the new id, so the abandoned id stops being forced Managed", () => {
-    // Adopt A (override active), then /clear rotates A->B. The override must follow B, not strand on A —
+    // Resume A (override active), then /clear rotates A->B. The override must follow B, not strand on A —
     // otherwise A's Ended ghost gets forced to a phantom Managed/Working row for the rest of the run.
-    const out = renameAdopting(new Set(["A"]), "A", "B");
+    const out = renameResuming(new Set(["A"]), "A", "B");
     expect(out.has("A")).toBe(false);
     expect(out.has("B")).toBe(true);
   });
 
-  it("leaves other adopting ids in place", () => {
-    const out = renameAdopting(new Set(["A", "C"]), "A", "B");
+  it("leaves other resuming ids in place", () => {
+    const out = renameResuming(new Set(["A", "C"]), "A", "B");
     expect([...out].sort()).toEqual(["B", "C"]);
   });
 
-  it("returns the same set reference when the rotated id was not adopting", () => {
+  it("returns the same set reference when the rotated id was not resuming", () => {
     const set = new Set(["C"]);
-    expect(renameAdopting(set, "A", "B")).toBe(set);
+    expect(renameResuming(set, "A", "B")).toBe(set);
   });
 });

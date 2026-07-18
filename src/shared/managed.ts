@@ -38,74 +38,74 @@ export function renameManaged(
 }
 
 /**
- * Migrate an Adopt override across a `/clear` rotation (the live pty moved from `from` to `to`). If the
- * rotated id was adopting — its optimistic Managed/Working overlay still pending the next sync — move the
+ * Migrate a Resume override across a `/clear` rotation (the live pty moved from `from` to `to`). If the
+ * rotated id was resuming — its optimistic Managed/Working overlay still pending the next sync — move the
  * override onto the new id: the live pty under `to` keeps the overlay until discovery confirms it Managed,
  * while `from` (about to derive as an Ended ghost) drops it. Without this, the abandoned id keeps being
- * forced Managed/Working and lingers as a phantom session, no longer adoptable, for the rest of the run.
- * No-op (same reference) when `from` wasn't adopting.
+ * forced Managed/Working and lingers as a phantom session, no longer resumable, for the rest of the run.
+ * No-op (same reference) when `from` wasn't resuming.
  */
-export function renameAdopting(
-  adopting: Set<string>,
+export function renameResuming(
+  resuming: Set<string>,
   from: string,
   to: string,
 ): Set<string> {
-  if (!adopting.has(from)) return adopting;
-  const next = new Set(adopting);
+  if (!resuming.has(from)) return resuming;
+  const next = new Set(resuming);
   next.delete(from);
   next.add(to);
   return next;
 }
 
 /**
- * Which adopt overrides discovery has caught up on, so App can drop them. An override is done only once
+ * Which resume overrides discovery has caught up on, so App can drop them. An override is done only once
  * the real row reads BOTH Managed AND no longer Ended. Management flips to Managed the instant the app's
  * pty spawns (the in-memory managed registry), but the session's on-disk live pid lags until
- * `claude --resume` boots and writes its registry file — so a just-adopted row briefly reads Managed +
+ * `claude --resume` boots and writes its registry file — so a just-resumed row briefly reads Managed +
  * Ended. Dropping the override then bounces the row back to the Ended section until the live pid lands
  * (the visible ended → working → ended → idle flicker). Holding it until state leaves Ended keeps the row
  * Working across that gap. A resume that dies never reaches a non-Ended Managed row; the pty-exit path
  * clears its override instead. Returns the same Set reference when nothing settled, so React can skip the
  * state update.
  */
-export function pruneAdopting(
-  adopting: Set<string>,
+export function pruneResuming(
+  resuming: Set<string>,
   sessions: Session[],
 ): Set<string> {
-  if (adopting.size === 0) return adopting;
-  const next = new Set(adopting);
+  if (resuming.size === 0) return resuming;
+  const next = new Set(resuming);
   for (const s of sessions)
     if (s.management === "managed" && s.state !== "ended") next.delete(s.id);
-  return next.size === adopting.size ? adopting : next;
+  return next.size === resuming.size ? resuming : next;
 }
 
 /**
- * Drop a single adopt override by id — a resume that died (its pty exited) or was refused reverts to its
- * real (Ended/Observed) row instead of lying Managed. The same immutable-edit idiom as pruneAdopting and
- * renameAdopting, single-sourced here so the same-reference-when-unchanged contract (lets React skip the
+ * Drop a single resume override by id — a resume that died (its pty exited) or was refused reverts to its
+ * real (Ended/Observed) row instead of lying Managed. The same immutable-edit idiom as pruneResuming and
+ * renameResuming, single-sourced here so the same-reference-when-unchanged contract (lets React skip the
  * update) can't drift across the call sites that clear an override. Returns the same Set reference when
- * `id` wasn't adopting.
+ * `id` wasn't resuming.
  */
-export function dropAdopting(adopting: Set<string>, id: string): Set<string> {
-  if (!adopting.has(id)) return adopting;
-  const next = new Set(adopting);
+export function dropResuming(resuming: Set<string>, id: string): Set<string> {
+  if (!resuming.has(id)) return resuming;
+  const next = new Set(resuming);
   next.delete(id);
   return next;
 }
 
 /**
- * Apply the optimistic Adopt override. An id the user adopted this run, before the next sync relabels it,
+ * Apply the optimistic Resume override. An id the user resumed this run, before the next sync relabels it,
  * is forced to Managed (and Ended → Working) so the workspace flips from the read-only Transcript to the
  * live terminal in the same beat. Unlike a draft, the row already exists, so this overrides in place. App
  * clears the id once discovery reports it Managed, or when its pty exits.
  */
-export function applyAdopting(
+export function applyResuming(
   sessions: Session[],
-  adopting: Set<string>,
+  resuming: Set<string>,
 ): Session[] {
-  if (adopting.size === 0) return sessions;
+  if (resuming.size === 0) return sessions;
   return sessions.map((s) =>
-    adopting.has(s.id)
+    resuming.has(s.id)
       ? {
           ...s,
           management: "managed",
@@ -117,11 +117,11 @@ export function applyAdopting(
 
 /**
  * Apply the optimistic End override. An id the user ended this run, before the next sync relabels it, is
- * forced to Ended so the header swaps the End button out for Adopt and the workspace flips to the read-only
+ * forced to Ended so the header swaps the End button out for Resume and the workspace flips to the read-only
  * Transcript in the same beat. Management is left as-is: the row reads Managed + Ended briefly (exactly like
- * a just-exited Adopt), which keeps Adopt disabled until the next sync re-derives it Observed. App clears the
- * id once discovery reports it Ended (pruneEnding), or when a racing Adopt revives it (dropEnding). Returns
- * the same array reference when nothing is ending.
+ * a just-exited Resume), which keeps Resume disabled until the next sync re-derives it Observed. App clears
+ * the id once discovery reports it Ended (pruneEnding), or when a racing Resume revives it (dropEnding).
+ * Returns the same array reference when nothing is ending.
  */
 export function applyEnding(
   sessions: Session[],
@@ -148,11 +148,11 @@ export function pruneEnding(
 }
 
 /**
- * Drop a single End override by id — used when an Adopt revives an id that a racing End click left in the
- * set. The End button reads `live` off the optimistic adopting overlay, so it can be clicked during an
- * in-flight Adopt, before the pty this run owns exists; that kill no-ops, and pruneEnding would never clear
- * the override (the revived row reads alive, never Ended). Dropping it on adopt-success unpins the now-live
- * row. The same immutable-edit idiom as dropAdopting, single-sourced so the same-reference-when-unchanged
+ * Drop a single End override by id — used when a Resume revives an id that a racing End click left in the
+ * set. The End button reads `live` off the optimistic resuming overlay, so it can be clicked during an
+ * in-flight Resume, before the pty this run owns exists; that kill no-ops, and pruneEnding would never clear
+ * the override (the revived row reads alive, never Ended). Dropping it on resume-success unpins the now-live
+ * row. The same immutable-edit idiom as dropResuming, single-sourced so the same-reference-when-unchanged
  * contract (lets React skip the update) can't drift. Returns the same Set reference when `id` wasn't ending.
  */
 export function dropEnding(ending: Set<string>, id: string): Set<string> {
