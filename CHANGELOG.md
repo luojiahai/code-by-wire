@@ -6,6 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.38] - 2026-07-18
+
+### Added
+
+- Right-click a session row (or a pinned row) to open its action menu
+  anchored at the cursor, as a second way to open it alongside the trigger
+  button.
+- The managed Claude Code terminal sends Option as Meta on macOS, so Claude
+  Code's built-in ⌥-bindings (⌥P model picker, ⌥O fast mode, ⌥M permission
+  modes, ⌥T thinking, ⌥Enter newline) work without running the unsupported
+  `/terminal-setup`. As a tradeoff, Option-typed characters (e.g. `π`,
+  dead-key accents) no longer type in this terminal.
+- The Activity dock's Tasks/Subagents/Shells/Monitors tabs scroll once to
+  the first live row when opened, instead of the top of a long list of
+  ended sessions.
+
+### Changed
+
+- The session action menu's labels are shortened in English and Chinese
+  (Pin/Unpin/Copy ID/End), the Finder/File Explorer/File Manager row drops
+  its redundant "Open in " prefix, and the menu narrows from 256px to
+  176px.
+- The Transcript view's column widens to `max-w-5xl`, giving long messages
+  and code more room while inner content caps stay unchanged.
+- The "Adopt" action is renamed to "Resume" throughout the app — UI copy in
+  English and Chinese, internal identifiers, the terminal IPC channel,
+  tests, README, and website — while the underlying always-available
+  "resume" machinery keeps its existing names.
+
+### Fixed
+
+- The session menu's End/Adopt/Fork actions now close the dropdown once
+  they actually complete, matching Pin/Copy ID/Rename/Open-in's existing
+  behavior.
+- Fork was incorrectly disabled in the session menu for ended/observed
+  sessions that showed Fork enabled elsewhere (the "Claude Code" tab's
+  Ended hero); both surfaces now share one gate.
+
 ## [0.1.37] - 2026-07-17
 
 ### Added
@@ -874,7 +912,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.37...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.38...HEAD
+[0.1.38]: https://github.com/luojiahai/code-by-wire/compare/v0.1.37...v0.1.38
 [0.1.37]: https://github.com/luojiahai/code-by-wire/compare/v0.1.36...v0.1.37
 [0.1.36]: https://github.com/luojiahai/code-by-wire/compare/v0.1.35...v0.1.36
 [0.1.35]: https://github.com/luojiahai/code-by-wire/compare/v0.1.34...v0.1.35
