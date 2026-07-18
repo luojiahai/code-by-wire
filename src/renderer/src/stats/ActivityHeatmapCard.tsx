@@ -31,10 +31,12 @@ export function ActivityHeatmapCard({ hourly }: { hourly: HourDowCell[] }) {
           <span className="font-mono tabular-nums text-fg-muted">{peak}</span>{" "}
           turns in one hour slot
         </div>
+        {/* fluid: width drives square cells so the grid always spans the full row. "fill" +
+            aspectRatio let the HEIGHT bind cell size, leaving dead space on the right while the
+            hour-label row spanned the full width — every label drifted hours off its column. */}
         <HeatmapChart
           data={foldHourly(hourly)}
-          layout="fill"
-          aspectRatio="4.6 / 1"
+          layout="fluid"
           gap={2}
           margin={MARGIN}
           levelColors={CALENDAR_RAMP}
@@ -51,15 +53,21 @@ export function ActivityHeatmapCard({ hourly }: { hourly: HourDowCell[] }) {
             }
           />
         </HeatmapChart>
+        {/* Hour labels at their true column centers ((h + 0.5) / 24 of the plot width) — an even
+            flex spread drifts against the grid. The margins offset to the plot area's edges. */}
         <div
-          className="flex justify-between font-mono text-micro text-fg-faint"
-          style={{ paddingLeft: MARGIN.left, paddingRight: MARGIN.right }}
+          className="relative h-4 font-mono text-micro text-fg-faint"
+          style={{ marginLeft: MARGIN.left, marginRight: MARGIN.right }}
         >
-          <span>00</span>
-          <span>06</span>
-          <span>12</span>
-          <span>18</span>
-          <span>23</span>
+          {[0, 6, 12, 18, 23].map((h) => (
+            <span
+              key={h}
+              className="absolute -translate-x-1/2"
+              style={{ left: `${((h + 0.5) / 24) * 100}%` }}
+            >
+              {String(h).padStart(2, "0")}
+            </span>
+          ))}
         </div>
       </CardRegion>
     </StatsCard>

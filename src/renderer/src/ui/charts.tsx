@@ -316,6 +316,7 @@ export function CalendarHeatmap({
   renderTooltip,
   ariaLabelOf,
   monthLabels,
+  activeWindow,
 }: {
   weeks: CalendarCell[][];
   levelOf: (day: string) => number;
@@ -325,6 +326,10 @@ export function CalendarHeatmap({
   renderTooltip: (day: string) => ReactNode;
   ariaLabelOf: (day: string) => string;
   monthLabels: { col: number; label: string }[];
+  /** The page range's day window ('YYYY-MM-DD', inclusive): cells outside it dim, so the
+   *  year-at-a-glance calendar still shows which slice the stats above are scoped to. Null (the
+   *  All range) leaves every cell at full strength. */
+  activeWindow?: { start: string; end: string } | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // `x`/`y` are the hovered cell's position in the OUTER wrapper's coordinates (gutter + gap offset, minus the
@@ -414,7 +419,14 @@ export function CalendarHeatmap({
                     fill={colors[levelOf(cell.day)] ?? colors[0]}
                     stroke="var(--color-fg)"
                     strokeWidth={cell.day === selectedDay ? 1.5 : 0}
-                    className="cursor-pointer"
+                    opacity={
+                      activeWindow &&
+                      (cell.day < activeWindow.start ||
+                        cell.day > activeWindow.end)
+                        ? 0.3
+                        : 1
+                    }
+                    className="cursor-pointer transition-opacity"
                     // A focusable, labeled button so the click-to-filter is reachable by keyboard and announced
                     // to screen readers; Enter/Space drill in, focus mirrors hover to surface the tooltip.
                     tabIndex={0}

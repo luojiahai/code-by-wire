@@ -2,8 +2,12 @@ import { useCallback, useMemo, type ReactNode } from "react";
 import {
   type CalendarDay,
   type StatsByModel,
+  type StatsRange,
   type StatsRecords,
   type StatsTotals,
+  isDayRange,
+  rangeWindow,
+  localDayKey,
 } from "@shared/stats";
 import {
   formatTokensShort,
@@ -44,6 +48,7 @@ export function OverviewCard({
   onCalendarYear,
   selectedDay,
   onSelectDay,
+  range,
 }: {
   totals: StatsTotals;
   records: StatsRecords;
@@ -56,8 +61,22 @@ export function OverviewCard({
   onCalendarYear: (y: number | null) => void;
   selectedDay: string | null;
   onSelectDay: (day: string) => void;
+  /** The page range, for the calendar's window dimming (see CalendarHeatmap.activeWindow). */
+  range: StatsRange;
 }) {
   const empty = totals.turns === 0;
+
+  // The page range as an inclusive day window: cells outside it dim, so the year-at-a-glance
+  // calendar reflects which slice the tiles/charts above are scoped to. All → null (no dimming);
+  // a clicked day dims everything but itself, matching its selection ring.
+  const activeWindow = useMemo((): { start: string; end: string } | null => {
+    if (isDayRange(range)) return { start: range.day, end: range.day };
+    if (range === "all") return null;
+    const now = Date.now();
+    const { sinceMs } = rangeWindow(range, now);
+    const end = localDayKey(now);
+    return { start: sinceMs != null ? localDayKey(sinceMs) : end, end };
+  }, [range]);
 
   // Favorite model: the top byModel row by total tokens, so the tile always agrees with the By-model
   // list's order. Ties break by raw id, like the old panel.
@@ -143,6 +162,7 @@ export function OverviewCard({
             onYear={onCalendarYear}
             selectedDay={selectedDay}
             onSelectDay={onSelectDay}
+            activeWindow={activeWindow}
           />
         </>
       )}
@@ -164,6 +184,7 @@ function Contributions({
   onYear,
   selectedDay,
   onSelectDay,
+  activeWindow,
 }: {
   days: CalendarDay[];
   startDay: string;
@@ -173,6 +194,7 @@ function Contributions({
   onYear: (y: number | null) => void;
   selectedDay: string | null;
   onSelectDay: (day: string) => void;
+  activeWindow: { start: string; end: string } | null;
 }) {
   const byDay = useMemo(() => new Map(days.map((d) => [d.day, d])), [days]);
   const valueOf = useCallback(
@@ -233,6 +255,7 @@ function Contributions({
         renderTooltip={renderTooltip}
         ariaLabelOf={describeDay}
         monthLabels={monthLabels}
+        activeWindow={activeWindow}
       />
       <div className="mt-3 flex items-center gap-1.5 text-label text-fg-faint">
         <span>Less</span>

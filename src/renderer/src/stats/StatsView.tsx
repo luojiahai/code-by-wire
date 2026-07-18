@@ -164,6 +164,7 @@ export function StatsView({
                   onCalendarYear={setCalendarYear}
                   selectedDay={isDayRange(range) ? range.day : null}
                   onSelectDay={(day) => setRange({ day })}
+                  range={range}
                 />
                 <RateLimitCard account={account} />
                 <ModelsCard
