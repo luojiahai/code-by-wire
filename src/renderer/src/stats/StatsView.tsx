@@ -53,7 +53,7 @@ export function StatsView() {
   const hasStats = agent === "claude";
 
   useEffect(() => {
-    if (agent !== "claude") return; // no codex stats source yet — nothing to poll
+    if (!hasStats) return; // no codex stats source yet — nothing to poll
 
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -161,7 +161,9 @@ export function StatsView() {
         {!hasStats ? (
           <div className="flex flex-col items-center justify-center gap-2 py-24 text-fg-faint">
             <AgentIcon agent={agent} size={26} className="opacity-60" />
-            <p className="text-body">{t.stats.comingSoonFor(AGENTS[agent].label)}</p>
+            <p className="text-body">
+              {t.stats.comingSoonFor(AGENTS[agent].label)}
+            </p>
           </div>
         ) : (
           <>
