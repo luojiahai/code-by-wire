@@ -1,4 +1,5 @@
 import type { ModelSelection } from "@shared/models";
+import { AGENTS, type AgentId } from "@shared/agents";
 import { resolvePosixLoginCommand, type PosixShellDeps } from "./shell-command";
 import { quoteShellArg } from "./shell-quote";
 
@@ -29,6 +30,23 @@ export function buildClaudeCommand(opts: {
       ...(opts.model === "default" ? [] : ["--model", opts.model]),
     ],
   };
+}
+
+/**
+ * Argv to spawn a fresh Managed session for ANY agent — the one place the per-agent spawn shape
+ * lives. Claude pins the session id and takes the model alias (buildClaudeCommand); codex is the
+ * bare binary with no args — it has no id-pin flag (correlation happens via rollout claiming, see
+ * provider/codex/claim.ts) and models are chosen inside its own TUI. The binary name comes from
+ * the AGENTS descriptor, so a future agent adds a branch here without inventing a second registry.
+ */
+export function buildSpawnCommand(opts: {
+  agent: AgentId;
+  id: string;
+  model: ModelSelection;
+}): ClaudeCommand {
+  if (opts.agent === "claude")
+    return buildClaudeCommand({ id: opts.id, model: opts.model });
+  return { file: AGENTS[opts.agent].binary, args: [] };
 }
 
 /** Rewrite a Windows shim invocation into a launch form node-pty's ConPTY backend can run. A real `.exe`
