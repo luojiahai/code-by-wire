@@ -140,3 +140,159 @@ describe("parseRolloutEvents — messages and filtering", () => {
     });
   });
 });
+
+describe("parseRolloutEvents — tool calls", () => {
+  const CALL_ID = "call_Dvkk6kLG4eHO3puiocssk4xN";
+  const execCall = line("response_item", {
+    type: "custom_tool_call",
+    id: "ctc_1",
+    status: "completed",
+    call_id: CALL_ID,
+    name: "exec",
+    input:
+      'const r = await tools.exec_command({"cmd":"pwd && wc -l -- *.txt","workdir":"/tmp/probe","yield_time_ms":10000});\ntext(r.output);\n',
+  });
+  const execOut = line("response_item", {
+    type: "custom_tool_call_output",
+    call_id: CALL_ID,
+    output: [
+      {
+        type: "input_text",
+        text: "Script completed\nWall time 1.4 seconds\nOutput:\n",
+      },
+      { type: "input_text", text: "/tmp/probe\n5 total\n" },
+    ],
+  });
+
+  it("renders a custom exec call with the extracted command and back-patched output", () => {
+    const doc = parseRolloutEvents(jsonl(execCall, execOut));
+    expect(doc.events).toEqual([
+      {
+        kind: "tool",
+        name: "exec",
+        input: "pwd && wc -l -- *.txt",
+        toolUseId: CALL_ID,
+        status: "ok",
+        outputLines: 6,
+      },
+    ]);
+  });
+
+  it("falls back to the raw script when no exec_command args parse", () => {
+    const doc = parseRolloutEvents(
+      jsonl(
+        line("response_item", {
+          type: "custom_tool_call",
+          call_id: "call_x",
+          name: "exec",
+          input: "console.log('no harness call here')",
+        }),
+      ),
+    );
+    expect(doc.events[0]).toMatchObject({
+      kind: "tool",
+      name: "exec",
+      input: "console.log('no harness call here')",
+      status: "pending",
+      outputLines: 0,
+    });
+  });
+
+  it("renders a classic function_call shell command; exit_code wrapper sets ok/error", () => {
+    const call = (id: string) =>
+      line("response_item", {
+        type: "function_call",
+        name: "shell",
+        arguments: '{"command":["bash","-lc","ls"]}',
+        call_id: id,
+      });
+    const out = (id: string, exit: number) =>
+      line("response_item", {
+        type: "function_call_output",
+        call_id: id,
+        output: JSON.stringify({
+          output: "a.txt\nb.txt\n",
+          metadata: { exit_code: exit, duration_seconds: 0.1 },
+        }),
+      });
+    const doc = parseRolloutEvents(
+      jsonl(
+        call("call_ok"),
+        out("call_ok", 0),
+        call("call_bad"),
+        out("call_bad", 1),
+      ),
+    );
+    expect(doc.events[0]).toMatchObject({
+      name: "shell",
+      input: "bash -lc ls",
+      status: "ok",
+      outputLines: 2,
+    });
+    expect(doc.events[1]).toMatchObject({ status: "error", outputLines: 2 });
+  });
+
+  it("accepts a plain-string output and ignores orphan outputs", () => {
+    const doc = parseRolloutEvents(
+      jsonl(
+        line("response_item", {
+          type: "function_call",
+          name: "shell",
+          arguments: '{"command":["pwd"]}',
+          call_id: "call_1",
+        }),
+        line("response_item", {
+          type: "function_call_output",
+          call_id: "call_1",
+          output: "/tmp/probe\n",
+        }),
+        line("response_item", {
+          type: "function_call_output",
+          call_id: "call_orphan",
+          output: "lost",
+        }),
+      ),
+    );
+    expect(doc.events).toEqual([
+      {
+        kind: "tool",
+        name: "shell",
+        input: "pwd",
+        toolUseId: "call_1",
+        status: "ok",
+        outputLines: 1,
+      },
+    ]);
+  });
+
+  it("renders local_shell_call and web_search_call rows", () => {
+    const doc = parseRolloutEvents(
+      jsonl(
+        line("response_item", {
+          type: "local_shell_call",
+          call_id: "call_ls",
+          status: "completed",
+          action: { type: "exec", command: ["cat", "notes.md"] },
+        }),
+        line("response_item", {
+          type: "web_search_call",
+          id: "ws_1",
+          status: "completed",
+          action: { type: "search", query: "electron vitest" },
+        }),
+      ),
+    );
+    expect(doc.events[0]).toMatchObject({
+      kind: "tool",
+      name: "shell",
+      input: "cat notes.md",
+      toolUseId: "call_ls",
+    });
+    expect(doc.events[1]).toMatchObject({
+      kind: "tool",
+      name: "web_search",
+      input: '{"type":"search","query":"electron vitest"}',
+      toolUseId: "",
+    });
+  });
+});
