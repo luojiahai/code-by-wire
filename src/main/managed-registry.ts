@@ -6,19 +6,19 @@ import type { ManagedPty } from "./provider/claude/rotation";
  * discovered session is Managed. The provider consults `has` when labelling; the terminal manager
  * calls `add` on spawn and `remove` when the pty dies (natural exit or window close). In-memory by
  * design: a Managed session lives only as long as its pty, so once that pty is gone the id is dropped
- * and discovery re-derives the session as Observed (Adopt, issue #14, is the path to resume it).
+ * and discovery re-derives the session as Observed (Resume, issue #14, is the path back).
  *
  * Each id is anchored to its pty's `pid`, not just its name: `/clear` rotates the Claude session id
  * under the same process, so `entries`/`rename` let the sync follow a living pty to its new id instead
  * of losing it to Observed.
  */
 export interface ManagedRegistry {
-  /** Record a spawned id with its pty pid and, for a fresh spawn, the alias we picked for it. Adopt has
+  /** Record a spawned id with its pty pid and, for a fresh spawn, the alias we picked for it. Resume has
    *  no picked alias (the CLI restores the session's model), so `model` is omitted there. */
   add(id: string, pid: number, model?: Family): void;
   remove(id: string): void;
   has(id: string): boolean;
-  /** The alias this run spawned `id` on, or undefined for an unmanaged or model-less (adopted) id. Lets
+  /** The alias this run spawned `id` on, or undefined for an unmanaged or model-less (resumed) id. Lets
    *  the provider front the picked model before the first assistant turn records a real one. */
   modelOf(id: string): Family | undefined;
   /** Every managed id paired with its pty pid — the input to rotation detection. */

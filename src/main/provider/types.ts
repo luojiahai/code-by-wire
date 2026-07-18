@@ -75,11 +75,11 @@ export interface Provider {
   /** Read one session's lazy metrics (token speed, git, voice, remote). Mirrors readTranscript's path
    *  resolution + change token; skips the recompute when `sinceMtimeMs` still matches. */
   readMetrics(id: string, sinceMtimeMs?: number): MetricsRead;
-  /** Resolve whether a session is still owned by a live process (the liveness re-check behind Adopt's
+  /** Resolve whether a session is still owned by a live process (the liveness re-check behind Resume's
    *  Ended-only state gate) and the working directory to resume it in. Null when nothing resolves a cwd. */
-  resolveAdoptTarget(id: string): { alive: boolean; cwd: string } | null;
+  resolveResumeTarget(id: string): { alive: boolean; cwd: string } | null;
   /** Resolve just a session's working directory, for actions that only need the folder (Open in).
-   *  Cheaper than resolveAdoptTarget: no liveness probe, and a targeted transcript lookup rather than a
+   *  Cheaper than resolveResumeTarget: no liveness probe, and a targeted transcript lookup rather than a
    *  full index. Null when no cwd resolves. */
   resolveSessionCwd(id: string): string | null;
 }

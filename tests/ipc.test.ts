@@ -68,7 +68,7 @@ const provider = (listCandidates: Provider["listCandidates"]): Provider => ({
   readMonitors: () => ({ status: "absent" }),
   readMonitorOutput: () => ({ status: "absent" }),
   readMetrics: () => ({ status: "absent" }),
-  resolveAdoptTarget: () => null,
+  resolveResumeTarget: () => null,
   resolveSessionCwd: () => null,
   getToolResult: () => ({ found: false }),
 });

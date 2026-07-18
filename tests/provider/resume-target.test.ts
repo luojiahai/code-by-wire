@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  resolveAdoptTarget,
+  resolveResumeTarget,
   resolveSessionCwd,
-} from "../../src/main/provider/claude/adopt-target";
+} from "../../src/main/provider/claude/resume-target";
 import { tempHomes } from "../helpers/temp-home";
 
-const makeHome = tempHomes("cbw-adopt-");
+const makeHome = tempHomes("cbw-resume-");
 
 function writeSessionFile(home: string, raw: Record<string, unknown>): void {
   mkdirSync(join(home, "sessions"), { recursive: true });
@@ -27,7 +27,7 @@ function writeTranscript(
   writeFileSync(join(dir, `${id}.jsonl`), body);
 }
 
-describe("resolveAdoptTarget", () => {
+describe("resolveResumeTarget", () => {
   it("recovers cwd from the transcript for an Ended session whose registry file was reaped", () => {
     const home = makeHome();
     writeTranscript(
@@ -38,7 +38,7 @@ describe("resolveAdoptTarget", () => {
     );
     // isPidAlive returns true, but with no registry entry there is no process to be alive.
     expect(
-      resolveAdoptTarget({
+      resolveResumeTarget({
         claudeDir: home,
         isPidAlive: () => true,
         id: "ended-1",
@@ -59,7 +59,7 @@ describe("resolveAdoptTarget", () => {
       updatedAt: 5,
     });
     expect(
-      resolveAdoptTarget({
+      resolveResumeTarget({
         claudeDir: home,
         isPidAlive: (pid) => pid === 100,
         id: "live-1",
@@ -80,7 +80,7 @@ describe("resolveAdoptTarget", () => {
       updatedAt: 5,
     });
     expect(
-      resolveAdoptTarget({
+      resolveResumeTarget({
         claudeDir: home,
         isPidAlive: () => false,
         id: "dead-1",
@@ -94,7 +94,7 @@ describe("resolveAdoptTarget", () => {
   it("returns null when neither a registry entry nor a transcript resolves a cwd", () => {
     const home = makeHome();
     expect(
-      resolveAdoptTarget({
+      resolveResumeTarget({
         claudeDir: home,
         isPidAlive: () => false,
         id: "ghost",

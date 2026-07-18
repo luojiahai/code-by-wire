@@ -177,10 +177,10 @@ describe("ClaudeProvider managed model", () => {
   });
 });
 
-describe("ClaudeProvider.resolveAdoptTarget", () => {
-  const makeHome = tempHomes("cbw-prov-adopt-");
+describe("ClaudeProvider.resolveResumeTarget", () => {
+  const makeHome = tempHomes("cbw-prov-resume-");
 
-  it("delegates to the adopt-target resolver: a live registry entry resolves alive + cwd", () => {
+  it("delegates to the resume-target resolver: a live registry entry resolves alive + cwd", () => {
     const home = makeHome();
     mkdirSync(join(home, "sessions"), { recursive: true });
     writeFileSync(
@@ -197,10 +197,10 @@ describe("ClaudeProvider.resolveAdoptTarget", () => {
       claudeDir: home,
       isPidAlive: (pid) => pid === 100,
     });
-    expect(provider.resolveAdoptTarget("sx")).toEqual({
+    expect(provider.resolveResumeTarget("sx")).toEqual({
       alive: true,
       cwd: "/w/sx",
     });
-    expect(provider.resolveAdoptTarget("nope")).toBeNull();
+    expect(provider.resolveResumeTarget("nope")).toBeNull();
   });
 });
