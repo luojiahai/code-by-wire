@@ -296,3 +296,119 @@ describe("parseRolloutEvents — tool calls", () => {
     });
   });
 });
+
+describe("parseRolloutEvents — turns and context", () => {
+  const started = (t: string, type = "task_started") =>
+    line("event_msg", { type, turn_id: "t1", model_context_window: 258400 }, t);
+  const complete = (t: string, durationMs?: number, type = "task_complete") =>
+    line(
+      "event_msg",
+      {
+        type,
+        turn_id: "t1",
+        last_agent_message: "done",
+        duration_ms: durationMs,
+      },
+      t,
+    );
+  const tokenCount = (input: number, cached: number) =>
+    line("event_msg", {
+      type: "token_count",
+      info: {
+        total_token_usage: {
+          input_tokens: input,
+          cached_input_tokens: cached,
+          output_tokens: 14,
+          reasoning_output_tokens: 0,
+          total_tokens: input + 14,
+        },
+        last_token_usage: {
+          input_tokens: input,
+          cached_input_tokens: cached,
+          output_tokens: 14,
+          reasoning_output_tokens: 0,
+          total_tokens: input + 14,
+        },
+        model_context_window: 258400,
+      },
+      rate_limits: { limit_id: "codex" },
+    });
+  const toolCall = line("response_item", {
+    type: "function_call",
+    name: "shell",
+    arguments: '{"command":["pwd"]}',
+    call_id: "call_t",
+  });
+
+  it("builds a turn from task_started/task_complete with prompt, duration_ms and toolCount", () => {
+    const doc = parseRolloutEvents(
+      jsonl(
+        started("2026-07-19T08:37:20.000Z"),
+        user("count the txt files\nplease"),
+        toolCall,
+        assistant("5 files."),
+        complete("2026-07-19T08:37:22.000Z", 1539),
+      ),
+    );
+    expect(doc.turns).toEqual([
+      {
+        index: 1,
+        prompt: "count the txt files",
+        startMs: Date.parse("2026-07-19T08:37:20.000Z"),
+        endMs: Date.parse("2026-07-19T08:37:22.000Z"),
+        durationMs: 1539,
+        toolCount: 1,
+      },
+    ]);
+  });
+
+  it("accepts the turn_started/turn_complete aliases and falls back to end−start", () => {
+    const doc = parseRolloutEvents(
+      jsonl(
+        started("2026-07-19T08:37:20.000Z", "turn_started"),
+        user("hi"),
+        complete("2026-07-19T08:37:21.000Z", undefined, "turn_complete"),
+      ),
+    );
+    expect(doc.turns[0]).toMatchObject({
+      index: 1,
+      prompt: "hi",
+      durationMs: 1000,
+    });
+  });
+
+  it("finalizes an in-flight tail turn with endMs = startMs and durationMs 0", () => {
+    const doc = parseRolloutEvents(
+      jsonl(
+        started("2026-07-19T08:37:20.000Z"),
+        user("still going"),
+        assistant("working..."),
+      ),
+    );
+    expect(doc.turns).toEqual([
+      {
+        index: 1,
+        prompt: "still going",
+        startMs: Date.parse("2026-07-19T08:37:20.000Z"),
+        endMs: Date.parse("2026-07-19T08:37:20.000Z"),
+        durationMs: 0,
+        toolCount: 0,
+      },
+    ]);
+  });
+
+  it("takes context from the LAST token_count: input minus cached, cached as cacheRead", () => {
+    const doc = parseRolloutEvents(
+      jsonl(tokenCount(1000, 800), tokenCount(13535, 10496)),
+    );
+    expect(doc.context).toEqual({
+      input: 3039,
+      cacheRead: 10496,
+      cacheCreation: 0,
+    });
+  });
+
+  it("context stays null without token_count", () => {
+    expect(parseRolloutEvents(jsonl(user("hi"))).context).toBeNull();
+  });
+});

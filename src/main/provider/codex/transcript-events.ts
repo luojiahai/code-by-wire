@@ -1,7 +1,9 @@
 import type {
+  ContextBreakdown,
   ToolEvent,
   TranscriptDoc,
   TranscriptEvent,
+  TurnSummary,
 } from "@shared/transcript";
 import { asRecord } from "./rollout";
 
@@ -144,15 +146,25 @@ function contentText(content: unknown): string {
   return parts.join("\n");
 }
 
+/** Single-line turn label: the prompt's first non-empty line, capped like the sidebar title. */
+function promptLine(text: string): string {
+  for (const line of text.split("\n")) {
+    const t = line.trim();
+    if (t) return t.slice(0, 120);
+  }
+  return "";
+}
+
 /**
  * Project a rollout's JSONL into render-ready events — the codex analog of claude's
  * parseTranscriptEvents, targeting the same shared doc so the renderer needs no codex wiring.
  *
  * Renders from response_item lines only: in legacy history mode every user prompt and assistant
  * message ALSO lands as an event_msg (user_message / agent_message), so rendering both streams
- * would double the conversation. session_meta, turn_context, world_state, compacted,
- * inter_agent_* and unknown line types are skipped. Tolerant by design, like the head parser in
- * rollout.ts: no line shape may throw, and a half-written trailing line during an append is fine.
+ * would double the conversation. event_msg lines feed only the turn timeline (task_started / task_complete,
+ * plus their turn_* aliases) and the context split (the last token_count). session_meta, turn_context,
+ * world_state, compacted, inter_agent_* and unknown line types are skipped. Tolerant by design, like the
+ * head parser in rollout.ts: no line shape may throw, and a half-written trailing line during an append is fine.
  */
 export function parseRolloutEvents(
   jsonl: string,
@@ -160,6 +172,19 @@ export function parseRolloutEvents(
   const events: TranscriptEvent[] = [];
   // Tool events keyed by call_id so the matching *_output line can back-patch status + output size.
   const byCallId = new Map<string, ToolEvent>();
+  // Timeline: task_started opens a turn, task_complete closes it. A started-but-uncompleted tail
+  // turn (still running, or aborted) finalizes as-is — endMs stays startMs, durationMs 0, the
+  // shared type's in-flight rule. Older files without these events simply yield no turns.
+  const turns: TurnSummary[] = [];
+  let open: TurnSummary | null = null;
+  let context: ContextBreakdown | null = null;
+
+  const finalizeOpen = (): void => {
+    if (open) {
+      turns.push(open);
+      open = null;
+    }
+  };
 
   for (const line of jsonl.split("\n")) {
     if (!line.trim()) continue;
@@ -172,6 +197,47 @@ export function parseRolloutEvents(
     if (!row) continue;
     const payload = asRecord(row.payload);
     if (!payload) continue;
+    const ts =
+      typeof row.timestamp === "string" ? Date.parse(row.timestamp) : NaN;
+    const tsMs = Number.isFinite(ts) ? ts : 0;
+
+    if (row.type === "event_msg") {
+      const kind = payload.type;
+      if (kind === "task_started" || kind === "turn_started") {
+        finalizeOpen();
+        open = {
+          index: turns.length + 1,
+          prompt: "",
+          startMs: tsMs,
+          endMs: tsMs,
+          durationMs: 0,
+          toolCount: 0,
+        };
+      } else if (kind === "task_complete" || kind === "turn_complete") {
+        if (open) {
+          open.endMs = Math.max(open.endMs, tsMs);
+          const reported = num(payload.duration_ms);
+          open.durationMs =
+            reported > 0 ? reported : Math.max(0, open.endMs - open.startMs);
+          finalizeOpen();
+        }
+      } else if (kind === "token_count") {
+        const info = asRecord(payload.info);
+        const last = asRecord(info?.last_token_usage);
+        if (last) {
+          const cached = num(last.cached_input_tokens);
+          context = {
+            input: Math.max(0, num(last.input_tokens) - cached),
+            cacheRead: cached,
+            cacheCreation: 0,
+          };
+        }
+      }
+      // user_message / agent_message / everything else: response_item duplicates, or
+      // non-conversational telemetry — never rendered.
+      continue;
+    }
+
     if (row.type !== "response_item") continue;
 
     const kind = payload.type;
@@ -180,6 +246,7 @@ export function parseRolloutEvents(
         const text = contentText(payload.content).trim();
         if (!text || CONTEXT_PREFIXES.some((p) => text.startsWith(p))) continue;
         events.push({ kind: "user", text });
+        if (open && !open.prompt) open.prompt = promptLine(text);
       } else if (payload.role === "assistant") {
         const text = contentText(payload.content);
         if (text.trim()) events.push({ kind: "assistant", text });
@@ -196,6 +263,7 @@ export function parseRolloutEvents(
       continue;
     }
     if (typeof kind === "string" && TOOL_CALL_NAMES.has(kind)) {
+      if (open) open.toolCount++;
       const callId = typeof payload.call_id === "string" ? payload.call_id : "";
       const name =
         TOOL_CALL_NAMES.get(kind) ??
@@ -226,6 +294,7 @@ export function parseRolloutEvents(
     }
     // compaction / context_compaction / agent_message / unknown payloads: skipped in V1
   }
+  finalizeOpen();
 
-  return { events, waitingReason: null, turns: [], context: null };
+  return { events, waitingReason: null, turns, context };
 }
