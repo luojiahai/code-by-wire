@@ -73,7 +73,7 @@ export interface SpawnRequest {
 }
 
 /**
- * Resume an Ended session: resume it under its own id in a Managed pty. The working directory is resolved
+ * Resume an Ended session: relaunch it under its own id in a Managed pty. The working directory is resolved
  * in main from the session's registry/Transcript, so the renderer sends only the id and its initial
  * terminal size (the view's first fit corrects the size).
  */
@@ -123,7 +123,7 @@ export type ForkResult =
  */
 export interface TerminalApi {
   spawn(req: SpawnRequest): Promise<Session>;
-  /** Resume an Ended session by resuming it under its own id. Refused if it is actually alive. */
+  /** Resume an Ended session by relaunching it under its own id. Refused if it is actually alive. */
   resume(req: ResumeRequest): Promise<ResumeResult>;
   /** Fork a session by resuming it into a new id. Refused only if the source's cwd can't be resolved. */
   fork(req: ForkRequest): Promise<ForkResult>;
