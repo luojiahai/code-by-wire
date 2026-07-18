@@ -207,6 +207,7 @@ export const zh: Translations = {
       forkTitleNoConversation: "无内容可复刻 — 该会话没有已保存的对话记录。",
       endTitleLive: "结束此会话",
       endTitleUnavailable: "仅当会话处于本应用管理的活跃状态时才能结束。",
+      comingSoonForAgent: (label: string) => `${label} 会话即将支持。`,
     },
     newSession: {
       ledeBefore: "在所选目录中启动",

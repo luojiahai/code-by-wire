@@ -240,6 +240,8 @@ export const en = {
       endTitleLive: "End this session",
       endTitleUnavailable:
         "End is only available for a live session you manage.",
+      comingSoonForAgent: (label: string) =>
+        `Coming soon for ${label} sessions.`,
     },
     newSession: {
       ledeBefore: "Spawns",
