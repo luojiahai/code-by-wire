@@ -6,6 +6,7 @@ import {
   type IpcMainEvent,
 } from "electron";
 import type { Session } from "@shared/types";
+import type { AgentId } from "@shared/agents";
 import {
   normalizeModelId,
   type Family,
@@ -32,7 +33,12 @@ import { createRecorder } from "./recorder";
  * discovery has indexed the real process. Hydrated from zero usage so the derived display fields
  * (context %) are well-formed; the real row supersedes it on the next sync.
  */
-function draftSession(id: string, cwd: string, model: ModelSelection): Session {
+function draftSession(
+  id: string,
+  cwd: string,
+  model: ModelSelection,
+  agent: AgentId,
+): Session {
   const project = projectFromCwd(cwd);
   const family: Family =
     model === "default" ? normalizeModelId(undefined) : model;
@@ -44,7 +50,7 @@ function draftSession(id: string, cwd: string, model: ModelSelection): Session {
     branch: undefined,
     state: "working",
     management: "managed",
-    agent: "claude",
+    agent,
     model: family,
     lastActivityMs: Date.now(),
     createdMs: Date.now(),
@@ -97,7 +103,8 @@ export function registerTerminalIpc({
       if (!window.isDestroyed())
         window.webContents.send(TERMINAL.exit, id, code);
     },
-    onSpawned: (id, pid, model) => managed.add(id, pid, model),
+    onSpawned: (id, pid, info) =>
+      managed.add(id, pid, { ...info, spawnedAtMs: Date.now() }),
     onClosed: (id) => managed.remove(id),
     // The composition root: this is the one place node-pty is injected, so the manager (and its tests)
     // stay free of the native addon.
@@ -115,10 +122,11 @@ export function registerTerminalIpc({
       id: req.id,
       cwd: req.cwd,
       model: req.model,
+      agent: req.agent,
       cols: req.cols,
       rows: req.rows,
     });
-    return draftSession(req.id, req.cwd, req.model);
+    return draftSession(req.id, req.cwd, req.model, req.agent);
   });
   // Resume an Ended session: relaunch it under its own id. The liveness re-check here is the guarantee
   // behind the Ended-only state gate — a session that came back to life since the last sync is refused,
@@ -155,7 +163,7 @@ export function registerTerminalIpc({
     // model rides in from the renderer only for this draft; --fork-session restores the real one.
     return {
       ok: true,
-      session: draftSession(req.newId, target.cwd, req.model),
+      session: draftSession(req.newId, target.cwd, req.model, "claude"),
     };
   });
   const onWrite = (_e: IpcMainEvent, id: string, data: string) =>

@@ -1,5 +1,22 @@
 import type { Family } from "@shared/models";
+import type { AgentId } from "@shared/agents";
 import type { ManagedPty } from "./provider/claude/rotation";
+
+/** Everything the app knows about a pty it spawned: the picked model alias (claude only), the
+ *  agent, the spawn cwd, and the spawn wall-clock — the last two are the codex claim's inputs. */
+export interface ManagedEntryInfo {
+  model?: Family;
+  agent: AgentId;
+  cwd: string;
+  spawnedAtMs: number;
+}
+
+export interface ManagedCodexPty {
+  id: string;
+  cwd: string;
+  spawnedAtMs: number;
+  claimedRollout?: string;
+}
 
 /**
  * The set of session ids THIS app run spawned and controls — the single authority for whether a
@@ -13,33 +30,78 @@ import type { ManagedPty } from "./provider/claude/rotation";
  * of losing it to Observed.
  */
 export interface ManagedRegistry {
-  /** Record a spawned id with its pty pid and, for a fresh spawn, the alias we picked for it. Resume has
-   *  no picked alias (the CLI restores the session's model), so `model` is omitted there. */
-  add(id: string, pid: number, model?: Family): void;
+  /** Record a spawned id with its pty pid and the info the sync/claim logic needs: the agent, spawn
+   *  cwd, spawn wall-clock, and (claude only) the picked model alias. Resume has no picked alias (the
+   *  CLI restores the session's model), so `model` is omitted there. */
+  add(id: string, pid: number, info: ManagedEntryInfo): void;
   remove(id: string): void;
   has(id: string): boolean;
   /** The alias this run spawned `id` on, or undefined for an unmanaged or model-less (resumed) id. Lets
    *  the provider front the picked model before the first assistant turn records a real one. */
   modelOf(id: string): Family | undefined;
-  /** Every managed id paired with its pty pid — the input to rotation detection. */
+  /** Which agent spawned `id`, or undefined if `id` isn't managed. */
+  agentOf(id: string): AgentId | undefined;
+  /** The cwd `id` was spawned in, or undefined if `id` isn't managed. */
+  cwdOf(id: string): string | undefined;
+  /** The rollout path claimed for `id`, or undefined if none has been bound yet. */
+  claimedRolloutOf(id: string): string | undefined;
+  /** Every managed id paired with its pty pid, all agents. */
   entries(): ManagedPty[];
+  /** Same, one agent — /clear rotation detection consumes entriesFor("claude") ONLY: a stale
+   *  Claude registry file whose pid got reused by a codex pty must never read as a rotation. */
+  entriesFor(agent: AgentId): ManagedPty[];
+  /** The codex claim's inputs: live codex ptys with their spawn cwd/time and claim state. */
+  codexEntries(): ManagedCodexPty[];
+  /** Bind a discovered rollout file to a live codex pty (post-rename, under the rollout's id). */
+  claim(id: string, rolloutPath: string): void;
+  /** Rollout paths already bound to a live pty — the discovery-side duplicate suppressor. */
+  claimedRollouts(): Set<string>;
   /** Re-key a still-living managed pty from its old session id to the new one (a `/clear` rotation),
-   *  keeping the same pid and picked model. A no-op if `from` isn't managed or `to` is already a live
-   *  managed id (so a rotation never clobbers another pty's entry) — matching the same guard the
-   *  manager/store renames use. */
+   *  keeping the same pid and the whole info record (agent, cwd, spawnedAtMs, model, claimed rollout). A
+   *  no-op if `from` isn't managed or `to` is already a live managed id (so a rotation never clobbers
+   *  another pty's entry) — matching the same guard the manager/store renames use. */
   rename(from: string, to: string): void;
 }
 
 export function createManagedRegistry(): ManagedRegistry {
-  // One entry per managed id: pid + the picked alias travel together, so add/remove/rename touch a
-  // single map and can't drift the two apart.
-  const byId = new Map<string, { pid: number; model?: Family }>();
+  // One entry per managed id: pid + its info travel together, so add/remove/rename touch a single map
+  // and can't drift the pieces apart.
+  const byId = new Map<
+    string,
+    { pid: number; info: ManagedEntryInfo; claimedRollout?: string }
+  >();
   return {
-    add: (id, pid, model) => byId.set(id, { pid, model }),
+    add: (id, pid, info) => byId.set(id, { pid, info }),
     remove: (id) => byId.delete(id),
     has: (id) => byId.has(id),
-    modelOf: (id) => byId.get(id)?.model,
+    modelOf: (id) => byId.get(id)?.info.model,
+    agentOf: (id) => byId.get(id)?.info.agent,
+    cwdOf: (id) => byId.get(id)?.info.cwd,
+    claimedRolloutOf: (id) => byId.get(id)?.claimedRollout,
     entries: () => [...byId].map(([id, { pid }]) => ({ id, pid })),
+    entriesFor: (agent) =>
+      [...byId]
+        .filter(([, e]) => e.info.agent === agent)
+        .map(([id, { pid }]) => ({ id, pid })),
+    codexEntries: () =>
+      [...byId]
+        .filter(([, e]) => e.info.agent === "codex")
+        .map(([id, e]) => ({
+          id,
+          cwd: e.info.cwd,
+          spawnedAtMs: e.info.spawnedAtMs,
+          claimedRollout: e.claimedRollout,
+        })),
+    claim: (id, rolloutPath) => {
+      const e = byId.get(id);
+      if (e) e.claimedRollout = rolloutPath;
+    },
+    claimedRollouts: () =>
+      new Set(
+        [...byId.values()]
+          .map((e) => e.claimedRollout)
+          .filter((p): p is string => p !== undefined),
+      ),
     rename: (from, to) => {
       const entry = byId.get(from);
       if (!entry || byId.has(to)) return; // `from` isn't managed, or `to` is already a live pty

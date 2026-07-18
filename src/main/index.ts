@@ -327,7 +327,10 @@ app
     // re-derived as a read-only Observed one.
     const reconcile = (): void => {
       applyRotations(
-        managed,
+        {
+          entries: () => managed.entriesFor("claude"),
+          rename: (from, to) => managed.rename(from, to),
+        },
         () => readSessionFiles(claudeDir),
         renameInWindow,
       );
