@@ -378,7 +378,6 @@ export function registerIpc({
     }
     return overviewNow();
   });
-  ipcMain.handle(IPC.capabilities, () => provider.capabilities);
   ipcMain.handle(IPC.modelDefaults, () => readDefaults());
   ipcMain.handle(IPC.recheckCli, () => cli.recheck());
   ipcMain.handle(IPC.readTranscript, (_e, id: string, sinceMtimeMs?: number) =>

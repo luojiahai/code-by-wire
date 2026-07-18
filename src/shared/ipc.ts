@@ -1,6 +1,5 @@
 import type {
   Session,
-  ProviderCapabilities,
   Account,
   Task,
   BackgroundShell,
@@ -25,7 +24,6 @@ export { type UpdateState };
 export const IPC = {
   overview: "overview:get",
   refresh: "sessions:refresh",
-  capabilities: "provider:capabilities",
   readTranscript: "transcript:read",
   readSubagentTranscript: "subagentTranscript:read",
   readTasks: "tasks:read",
@@ -156,7 +154,6 @@ export interface IpcApi {
   overview(): Promise<OverviewData>;
   /** Sync the index against ~/.claude, then return the fresh sessions from one read. */
   refresh(): Promise<OverviewData>;
-  capabilities(): Promise<ProviderCapabilities>;
   readTranscript(id: string, sinceMtimeMs?: number): Promise<TranscriptRead>;
   /** Read one subagent's own transcript (its sidechain file) into render-ready events — the read behind
    *  drilling into a Subagent lane. `sinceMtimeMs` is the change token from the last read; an unchanged

@@ -34,6 +34,7 @@ const seed: PersistedSession = {
   branch: undefined,
   state: "idle",
   management: "observed",
+  agent: "claude",
   model: "opus",
   lastActivityMs: 1,
   createdMs: 0,
@@ -52,11 +53,6 @@ const seed: PersistedSession = {
 
 const provider = (listCandidates: Provider["listCandidates"]): Provider => ({
   id: "fake",
-  capabilities: {
-    canControl: false,
-    hasRateLimits: false,
-    hasSubagents: false,
-  },
   listCandidates,
   summarize: (c) => ({ ...seed, id: c.id }),
   restate: (_c, prev) => prev,

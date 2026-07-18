@@ -26,11 +26,6 @@ const makeHome = tempHomes("cbw-stats-pump-");
 
 const provider = {
   id: "fake",
-  capabilities: {
-    canControl: false,
-    hasRateLimits: false,
-    hasSubagents: false,
-  },
   listCandidates: () => [],
   summarize: () => {
     throw new Error("unused");

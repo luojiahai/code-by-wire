@@ -13,6 +13,7 @@ function s(
     project: "code-by-wire",
     state,
     management: "managed",
+    agent: "claude",
     resumable: true,
     model: "sonnet",
     contextPct: 10,

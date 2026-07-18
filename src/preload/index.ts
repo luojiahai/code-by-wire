@@ -12,7 +12,6 @@ import { SHELL_TERMINAL } from "@shared/shell-terminal";
 const api: AppApi = {
   overview: () => ipcRenderer.invoke(IPC.overview),
   refresh: () => ipcRenderer.invoke(IPC.refresh),
-  capabilities: () => ipcRenderer.invoke(IPC.capabilities),
   modelDefaults: () => ipcRenderer.invoke(IPC.modelDefaults),
   readStats: (range, calendarYear, since) =>
     ipcRenderer.invoke(IPC.readStats, range, calendarYear, since),

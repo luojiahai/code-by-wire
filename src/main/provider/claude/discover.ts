@@ -188,6 +188,7 @@ export function listCandidates({
       alive: raw ? isPidAlive(raw.pid) : false,
       status: raw?.status,
       cwd: raw?.cwd ?? "",
+      agent: "claude",
       transcriptPath: t?.path,
       // The reparse trigger spans the main transcript AND its subagent transcripts: a subagent appends to
       // its own file without touching the parent, so without folding its newest mtime here a subagent-only
@@ -244,6 +245,7 @@ export function summarize(c: SessionCandidate): PersistedSession {
       awaitingUser,
     }),
     management: "observed", // default; overridden to 'managed' in createClaudeProvider for app-spawned ids
+    agent: "claude",
     model,
     modelRaw: t?.modelRaw,
     lastActivityMs: t?.lastActivityMs || c.updatedAt || 0,

@@ -9,6 +9,7 @@ import {
   hydrate,
   pruneSessions,
   readSessionTitles,
+  getSessionAgent,
 } from "../../src/main/db/store";
 import { openTestDb } from "../helpers/sqlite";
 
@@ -20,6 +21,7 @@ const snap = (over: Partial<PersistedSession> = {}): PersistedSession => ({
   branch: "main",
   state: "idle",
   management: "observed",
+  agent: "claude",
   model: "opus",
   lastActivityMs: 1000,
   createdMs: 2000,
@@ -48,7 +50,7 @@ describe("store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(11);
+    ).toBe(12);
   });
 
   it("round-trips a snapshot, coercing missing branch and the awaitingUser flag", () => {
@@ -261,5 +263,33 @@ describe("store", () => {
     );
     expect(s.usageByModel).toHaveLength(1);
     expect(s.usageByModel![0].modelRaw).toBe("opus");
+  });
+});
+
+describe("agent column", () => {
+  it("round-trips agent through upsert → getPersisted → hydrate", () => {
+    const db = openTestDb();
+    migrate(db);
+    const row = { ...snap(), id: "cx-1", agent: "codex" as const };
+    upsertSessions(db, [row]);
+    const stored = getPersisted(db).find((s) => s.id === "cx-1");
+    expect(stored?.agent).toBe("codex");
+    expect(hydrate(stored!).agent).toBe("codex");
+  });
+
+  it("defaults an unknown stored agent to claude (defensive rowToPersisted)", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [{ ...snap(), id: "x-1" }]);
+    db.prepare("UPDATE sessions SET agent = 'martian' WHERE id = 'x-1'").run();
+    expect(getPersisted(db).find((s) => s.id === "x-1")?.agent).toBe("claude");
+  });
+
+  it("getSessionAgent reads the column, null for an unknown id", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [{ ...snap(), id: "cx-2", agent: "codex" }]);
+    expect(getSessionAgent(db, "cx-2")).toBe("codex");
+    expect(getSessionAgent(db, "nope")).toBeNull();
   });
 });

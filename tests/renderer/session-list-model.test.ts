@@ -15,6 +15,7 @@ const mk = (o: Partial<Session>): Session => ({
   project: "proj",
   state: "idle",
   management: "managed",
+  agent: "claude",
   resumable: true,
   model: "sonnet",
   contextPct: 0,

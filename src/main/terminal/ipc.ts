@@ -44,6 +44,7 @@ function draftSession(id: string, cwd: string, model: ModelSelection): Session {
     branch: undefined,
     state: "working",
     management: "managed",
+    agent: "claude",
     model: family,
     lastActivityMs: Date.now(),
     createdMs: Date.now(),

@@ -8,6 +8,7 @@ const mk = (id: string): Session => ({
   project: "p",
   state: "idle",
   management: "managed",
+  agent: "claude",
   resumable: true,
   model: "sonnet",
   contextPct: 0,

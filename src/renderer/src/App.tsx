@@ -253,6 +253,7 @@ export function App() {
         id,
         cwd,
         model,
+        agent: "claude", // placeholder until agent selection lands (Task 4)
         cols: 80,
         rows: 24,
       });
