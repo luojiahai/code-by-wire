@@ -8,6 +8,7 @@ import {
   DOCK_GLYPH_PULSE,
   taskDockStatus,
 } from "./dock-status-glyph";
+import { DOCK_LIVE_ROW } from "./dock-live-reveal";
 
 /** Status rendering reads the dock's canonical table (dock-status-glyph.ts) via taskDockStatus;
  *  SUBJECT_TONE below styles the subject text only. */
@@ -34,6 +35,7 @@ export function DockTasks({ tasks }: { tasks: Task[] }) {
         return (
           <DockRow
             key={task.id}
+            {...(glyph.animate ? DOCK_LIVE_ROW : undefined)}
             leading={
               <span
                 className={cx(

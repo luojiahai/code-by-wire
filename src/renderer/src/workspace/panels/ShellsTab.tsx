@@ -5,6 +5,7 @@ import { EmptyState } from "./chrome";
 import { shellGlyph } from "./shell-view";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
 import { DOCK_GLYPH_PULSE } from "./dock-status-glyph";
+import { DOCK_LIVE_ROW } from "./dock-live-reveal";
 
 /** One background shell as a compact, clickable row: status glyph, command, duration, and a relative
  *  start. The exit code lives on the drill-in; the glyph carries pass/fail here. Clicking drills into the
@@ -31,6 +32,7 @@ function ShellRow({
       active={active}
       onClick={() => onDrill(shell)}
       aria-label={t.dock.shells.openLogAria(shell.command)}
+      {...(shell.status === "running" ? DOCK_LIVE_ROW : undefined)}
       leading={
         <span
           className={cx(

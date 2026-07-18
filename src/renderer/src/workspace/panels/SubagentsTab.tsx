@@ -11,6 +11,7 @@ import {
   DOCK_GLYPH_PULSE,
   subagentDockStatus,
 } from "./dock-status-glyph";
+import { DOCK_LIVE_ROW } from "./dock-live-reveal";
 
 /** One Subagent as a plain list row: a status glyph, the label (description, falling back to the type,
  *  with a small type tag when the description owns the label), and a right-aligned metric rack (model,
@@ -40,6 +41,7 @@ function SubagentRow({
       active={active}
       onClick={() => onDrill(agent)}
       aria-label={t.dock.subagents.drillAria(agent.type)}
+      {...(glyph.animate ? DOCK_LIVE_ROW : undefined)}
       leading={
         <span
           className={cx(

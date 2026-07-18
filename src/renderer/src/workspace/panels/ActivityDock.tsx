@@ -13,6 +13,7 @@ import { DockTasks } from "./DockTasks";
 import { SubagentsTab } from "./SubagentsTab";
 import { ShellsTab } from "./ShellsTab";
 import { MonitorsTab } from "./MonitorsTab";
+import { DockLiveReveal } from "./dock-live-reveal";
 import { OverlayScroll } from "../../ui/OverlayScroll";
 import {
   type DockTab,
@@ -172,30 +173,35 @@ export function ActivityDock({
         onCollapse={() => setCollapseOverride({ collapsed: true, active })}
       />
       <OverlayScroll className="min-h-0 flex-1">
-        {tab === "tasks" ? (
-          <DockTasks tasks={tasks} />
-        ) : tab === "subagents" ? (
-          <SubagentsTab
-            subagents={subagents}
-            now={now}
-            activeAgentId={activeAgentId}
-            onDrill={onDrill}
-          />
-        ) : tab === "monitors" ? (
-          <MonitorsTab
-            monitors={monitors}
-            now={now}
-            activeMonitorId={activeMonitorId}
-            onDrill={onDrillMonitor}
-          />
-        ) : (
-          <ShellsTab
-            shells={shells}
-            now={now}
-            activeShellId={activeShellId}
-            onDrill={onDrillShell}
-          />
-        )}
+        {/* Keyed by tab: a switch remounts the reveal, and expanding the dock mounts it fresh (the
+            collapsed dock renders DockTally instead) — so the one-shot scroll-to-live runs exactly
+            when a list comes on screen, and never again while it stays open. */}
+        <DockLiveReveal key={tab}>
+          {tab === "tasks" ? (
+            <DockTasks tasks={tasks} />
+          ) : tab === "subagents" ? (
+            <SubagentsTab
+              subagents={subagents}
+              now={now}
+              activeAgentId={activeAgentId}
+              onDrill={onDrill}
+            />
+          ) : tab === "monitors" ? (
+            <MonitorsTab
+              monitors={monitors}
+              now={now}
+              activeMonitorId={activeMonitorId}
+              onDrill={onDrillMonitor}
+            />
+          ) : (
+            <ShellsTab
+              shells={shells}
+              now={now}
+              activeShellId={activeShellId}
+              onDrill={onDrillShell}
+            />
+          )}
+        </DockLiveReveal>
       </OverlayScroll>
     </div>
   );
