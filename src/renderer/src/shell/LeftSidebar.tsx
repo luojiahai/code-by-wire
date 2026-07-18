@@ -530,7 +530,7 @@ export function LeftSidebar({
                         AGENTS[a].label,
                         agentMenu.cwd,
                       )
-                    : t.settings.cli.unavailableReason
+                    : t.settings.cli.unavailableReasonFor(AGENTS[a].label)
                 }
                 onClick={() => {
                   const m = agentMenu;

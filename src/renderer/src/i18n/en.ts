@@ -85,6 +85,11 @@ export const en = {
       copyAction: "copy",
       unavailableReason:
         "Claude Code CLI isn't usable — see Sys status in the title bar.",
+      // Per-agent form: the title-bar Sys lamp only ever reflects Claude's status (see
+      // SettingsView's cliDot), so a disabled Codex control points at Settings → System instead,
+      // where its own health card actually lives.
+      unavailableReasonFor: (label: string) =>
+        `${label} CLI isn't usable — check Settings → System.`,
       unavailableShort: "CLI unavailable",
     },
     codexCli: {

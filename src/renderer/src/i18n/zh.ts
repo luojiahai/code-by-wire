@@ -67,6 +67,8 @@ export const zh: Translations = {
       copyAction: "复制",
       unavailableReason:
         "Claude Code CLI 当前不可用 — 请查看标题栏中的系统状态。",
+      unavailableReasonFor: (label: string) =>
+        `${label} CLI 当前不可用 — 请查看"设置 → 系统"。`,
       unavailableShort: "CLI 不可用",
     },
     codexCli: {

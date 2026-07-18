@@ -40,4 +40,15 @@ describe("spawnGateFor", () => {
   it("allows spawning when the whole record is null", () => {
     expect(spawnGateFor(null, "claude").canSpawn).toBe(true);
   });
+  it("names the failing agent in the reason, not always Claude", () => {
+    const bothDown: CliStatusByAgent = {
+      claude: mk("notFound"),
+      codex: mk("unknown"),
+    };
+    const claudeReason = spawnGateFor(bothDown, "claude").reason;
+    const codexReason = spawnGateFor(bothDown, "codex").reason;
+    expect(claudeReason).toContain("Claude Code");
+    expect(codexReason).toContain("Codex");
+    expect(codexReason).not.toContain("Claude");
+  });
 });
