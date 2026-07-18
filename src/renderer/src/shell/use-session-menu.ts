@@ -247,9 +247,9 @@ export function useSessionMenu(
   const resumeTitle = !canSpawn
     ? t.settings.cli.unavailableReason
     : !session.resumable
-      ? t.shell.sessionMenu.adoptTitleNoConversation
+      ? t.shell.sessionMenu.resumeTitleNoConversation
       : !canResume
-        ? t.shell.sessionMenu.adoptTitlePending
+        ? t.shell.sessionMenu.resumeTitlePending
         : undefined;
 
   // Single-sourced with ResumeButton/ObservedTerminal's Fork gate via `resumeActionDisabled` — Fork

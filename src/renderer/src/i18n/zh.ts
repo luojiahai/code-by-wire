@@ -182,8 +182,8 @@ export const zh: Translations = {
       unpin: "取消置顶",
       copySessionId: "复制 ID",
       rename: "重命名",
-      adopt: "领养",
-      adopting: "领养中…",
+      resume: "恢复",
+      resuming: "恢复中…",
       fork: "复刻",
       forking: "复刻中…",
       endSession: "结束",
@@ -198,9 +198,9 @@ export const zh: Translations = {
       forkConfirmLabel: "仍然复刻",
       endConfirmTitle: "结束此会话？",
       endConfirmBody:
-        "当前有一轮对话正在进行，将被中断。对话内容已保存，之后可通过领养恢复。",
-      adoptTitleNoConversation: "无内容可领养 — 该会话没有已保存的对话记录。",
-      adoptTitlePending: "该会话刚刚退出，稍后即可领养。",
+        "当前有一轮对话正在进行，将被中断。对话内容已保存，之后可恢复。",
+      resumeTitleNoConversation: "无内容可恢复 — 该会话没有已保存的对话记录。",
+      resumeTitlePending: "该会话刚刚退出，稍后即可恢复。",
       forkTitleNoConversation: "无内容可复刻 — 该会话没有已保存的对话记录。",
       endTitleLive: "结束此会话",
       endTitleUnavailable: "仅当会话处于本应用管理的活跃状态时才能结束。",
@@ -292,7 +292,7 @@ export const zh: Translations = {
       observed: {
         label: "观察中",
         blurb:
-          "正在另一个终端或设备中运行。Code-by-wire 仅只读镜像其记录，你无法在此输入。领养它即可接管。",
+          "正在另一个终端或设备中运行。Code-by-wire 仅只读镜像其记录，你无法在此输入。恢复它即可接管。",
       },
     },
     observedTerminal: {
@@ -300,7 +300,7 @@ export const zh: Translations = {
       observedBadge: "观察中",
       endedBody: "该会话已结束，可将其重新唤醒。",
       observedBody: "该会话正在另一个终端中运行 — 此处为只读。",
-      endedFooter: "领养 = 接管操作 · 复刻 = 探索新分支",
+      endedFooter: "恢复 = 接管操作 · 复刻 = 探索新分支",
       observedFooter: "复刻它以分出你自己的会话。",
     },
     resume: {

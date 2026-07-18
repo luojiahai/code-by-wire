@@ -29,11 +29,11 @@ function kindSpec(kind: ResumeKind, t: Translations): KindSpec {
   const sm = t.shell.sessionMenu;
   if (kind === "resume") {
     return {
-      label: sm.adopt,
-      busyLabel: sm.adopting,
+      label: sm.resume,
+      busyLabel: sm.resuming,
       icon: "git-pull-request-arrow",
-      noConversationTitle: sm.adoptTitleNoConversation,
-      unavailableTitle: sm.adoptTitlePending,
+      noConversationTitle: sm.resumeTitleNoConversation,
+      unavailableTitle: sm.resumeTitlePending,
       confirmTitle: sm.resumeConfirmTitle,
       confirmBody: sm.resumeConfirmBody,
       confirmLabel: sm.resumeConfirmLabel,

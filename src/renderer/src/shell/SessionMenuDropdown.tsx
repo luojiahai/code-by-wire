@@ -89,8 +89,8 @@ export function SessionMenuDropdown({
                 icon="git-pull-request-arrow"
                 label={
                   resume.busy
-                    ? t.shell.sessionMenu.adopting
-                    : t.shell.sessionMenu.adopt
+                    ? t.shell.sessionMenu.resuming
+                    : t.shell.sessionMenu.resume
                 }
                 onClick={resume.request}
                 disabled={resumeDisabled || resume.busy}

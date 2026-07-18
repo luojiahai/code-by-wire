@@ -210,8 +210,8 @@ export const en = {
       unpin: "Unpin",
       copySessionId: "Copy ID",
       rename: "Rename",
-      adopt: "Adopt",
-      adopting: "Adopting…",
+      resume: "Resume",
+      resuming: "Resuming…",
       fork: "Fork",
       forking: "Forking…",
       endSession: "End",
@@ -226,11 +226,11 @@ export const en = {
       forkConfirmLabel: "Fork anyway",
       endConfirmTitle: "End this session?",
       endConfirmBody:
-        "A turn is in progress and will be interrupted. The conversation is saved and can be resumed later with Adopt.",
-      adoptTitleNoConversation:
-        "Nothing to adopt — this session has no saved conversation.",
-      adoptTitlePending:
-        "This session just exited. Adopt is available in a moment.",
+        "A turn is in progress and will be interrupted. The conversation is saved and can be resumed later.",
+      resumeTitleNoConversation:
+        "Nothing to resume — this session has no saved conversation.",
+      resumeTitlePending:
+        "This session just exited. Resume is available in a moment.",
       forkTitleNoConversation:
         "Nothing to fork — this session has no saved conversation.",
       endTitleLive: "End this session",
@@ -330,7 +330,7 @@ export const en = {
       observed: {
         label: "Observed",
         blurb:
-          "Running in another terminal or machine. Code-by-wire mirrors its transcript read-only. You can't type in. Adopt it to take the wheel.",
+          "Running in another terminal or machine. Code-by-wire mirrors its transcript read-only. You can't type in. Resume it to take the wheel.",
       },
     },
     observedTerminal: {
@@ -339,13 +339,13 @@ export const en = {
       endedBody: "This session has ended. Bring it back to life.",
       observedBody:
         "This session is running in another terminal — read-only here.",
-      endedFooter: "Adopt = take the wheel · Fork = explore a new branch",
+      endedFooter: "Resume = take the wheel · Fork = explore a new branch",
       observedFooter: "Fork it to branch off into your own session.",
     },
     resume: {
       // useResumeAction's generic fallback when the thrown error carries no message of its own.
       failed: "Failed to resume",
-      // App.tsx's adoptSession/forkSession throw Error(...) with these exact messages, surfaced
+      // App.tsx's resumeSession/forkSession throw Error(...) with these exact messages, surfaced
       // verbatim as e.message by useResumeAction's catch — must stay translated, not just the
       // generic `failed` fallback above (which only fires for a non-Error throw).
       aliveAgain: "This session is alive again.",
