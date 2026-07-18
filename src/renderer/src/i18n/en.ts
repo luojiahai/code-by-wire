@@ -189,6 +189,8 @@ export const en = {
       noActiveSessions: "No active sessions.",
       noSessionsYet: "No sessions yet.",
       newSessionIn: (cwd: string) => `New session in ${cwd}`,
+      newSessionWith: (label: string, cwd: string) =>
+        `New ${label} session in ${cwd}`,
     },
     sessionRow: {
       openSession: (title: string) => `Open ${title}`,

@@ -554,11 +554,9 @@ export function App() {
               setQuickAddPrefill(null); // manual open starts blank, not on a stale failure
               setSelectedId(NEW_SESSION_ID);
             }}
-            // Folder quick-add has no agent picker of its own yet (Claude-only stop-gap, same
-            // shape as the pre-Task-11 spawn call) — the New session form is the only surface
-            // that lets the user choose Codex.
-            onQuickAdd={(cwd) => quickAddSession(cwd, "claude")}
+            onQuickAdd={quickAddSession}
             canSpawn={spawnGateFor(cliStatus, "claude").canSpawn}
+            canSpawnFor={(a) => spawnGateFor(cliStatus, a).canSpawn}
             onResume={resumeSession}
             onFork={forkSession}
             onEnd={endSession}

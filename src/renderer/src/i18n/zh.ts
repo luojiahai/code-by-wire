@@ -164,6 +164,7 @@ export const zh: Translations = {
       noActiveSessions: "没有活跃会话。",
       noSessionsYet: "暂无会话。",
       newSessionIn: (cwd) => `在 ${cwd} 中新建会话`,
+      newSessionWith: (label, cwd) => `在 ${cwd} 新建 ${label} 会话`,
     },
     sessionRow: {
       openSession: (title) => `打开 ${title}`,
