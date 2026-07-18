@@ -1,9 +1,11 @@
-import type { CliStatus, CliStatusByAgent } from "@shared/cli-status";
-import type { AgentId } from "@shared/agents";
+import { useState } from "react";
+import type { CliStatusByAgent } from "@shared/cli-status";
+import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
 import { isUpdatePending } from "@shared/update";
 import { SoftwareUpdateCard, type UpdateControls } from "./SoftwareUpdateCard";
 import { AppearanceCard } from "./AppearanceCard";
 import { CliCard } from "./CliCard";
+import { CodexCliCard } from "./CodexCliCard";
 import { StatuslineCard } from "./StatuslineCard";
 import { StatsDbCard } from "./StatsDbCard";
 import { OverlayScroll } from "../ui/OverlayScroll";
@@ -44,8 +46,8 @@ export function SettingsView({
   update?: UpdateControls;
 }) {
   const { t } = useI18n();
-  // Claude-scoped for now — this section only shows Claude Code's CLI card; a per-agent nav (dropdown +
-  // Codex card) is Task 16's job.
+  // The nav dot always reads Claude's status specifically (not whichever agent's pane is selected
+  // inside System) — it's the sidebar's summary lamp, and Claude is the agent every session can spawn.
   const cliDot = footerView(cliStatus.claude ?? null).dot;
   const cliTrips = cliDot === "warn" || cliDot === "error";
   const updatePending = update ? isUpdatePending(update.state.phase) : false;
@@ -101,10 +103,10 @@ export function SettingsView({
             // Remount System when kind changes, so a recheck can't leave the remedy's install-tab
             // default stale. A no-op recheck keeps the same kind, so the instance survives.
             <SystemSection
-              key={cliStatus.claude ? cliStatus.claude.kind : "pending"}
-              cliStatus={cliStatus.claude ?? null}
-              checking={checking === "claude"}
-              onRecheck={() => onRecheck("claude")}
+              key={cliStatus.claude?.kind ?? "pending"}
+              cliStatus={cliStatus}
+              checking={checking}
+              onRecheck={onRecheck}
             />
           )}
           {section === "appearance" && (
@@ -128,23 +130,53 @@ function SystemSection({
   checking,
   onRecheck,
 }: {
-  cliStatus: CliStatus | null;
-  checking: boolean;
-  onRecheck: () => void;
+  cliStatus: CliStatusByAgent;
+  checking: AgentId | null;
+  onRecheck: (agent: AgentId) => void;
 }) {
   const { t } = useI18n();
+  const [agent, setAgent] = useState<AgentId>("claude");
   return (
     <>
       <PageHeader
         title={t.settings.system.title}
         lede={t.settings.system.lede}
       />
-      <CliCard
-        cliStatus={cliStatus}
-        checking={checking}
-        onRecheck={onRecheck}
-      />
-      <StatuslineCard />
+      <div className="relative w-fit">
+        <select
+          aria-label={t.settings.system.agent}
+          value={agent}
+          onChange={(e) => setAgent(e.target.value as AgentId)}
+          className="appearance-none rounded-md border border-ink-700 bg-well py-1.5 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary"
+        >
+          {AGENT_IDS.map((id) => (
+            <option key={id} value={id}>
+              {AGENTS[id].label}
+            </option>
+          ))}
+        </select>
+        <Icon
+          name="chevron-down"
+          size={14}
+          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
+        />
+      </div>
+      {agent === "claude" ? (
+        <>
+          <CliCard
+            cliStatus={cliStatus.claude ?? null}
+            checking={checking === "claude"}
+            onRecheck={() => onRecheck("claude")}
+          />
+          <StatuslineCard />
+        </>
+      ) : (
+        <CodexCliCard
+          status={cliStatus.codex ?? null}
+          checking={checking === "codex"}
+          onRecheck={() => onRecheck("codex")}
+        />
+      )}
       <StatsDbCard />
     </>
   );

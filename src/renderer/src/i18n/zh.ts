@@ -34,6 +34,7 @@ export const zh: Translations = {
     system: {
       title: "系统",
       lede: "驱动本应用的底层机件，保持绿灯。",
+      agent: "代理",
     },
     about: {
       title: "关于",
@@ -67,6 +68,13 @@ export const zh: Translations = {
       unavailableReason:
         "Claude Code CLI 当前不可用 — 请查看标题栏中的系统状态。",
       unavailableShort: "CLI 不可用",
+    },
+    codexCli: {
+      title: "Codex CLI",
+      notInstalledHeadline: "未检测到",
+      installHint: "安装命令",
+      loginHint: "然后登录",
+      docs: "Codex 文档",
     },
     statusline: {
       title: "Statusline",

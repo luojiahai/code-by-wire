@@ -50,6 +50,7 @@ export const en = {
     system: {
       title: "System",
       lede: "The machinery feeding this app. Keep it green.",
+      agent: "Agent",
     },
     about: {
       title: "About",
@@ -85,6 +86,13 @@ export const en = {
       unavailableReason:
         "Claude Code CLI isn't usable — see Sys status in the title bar.",
       unavailableShort: "CLI unavailable",
+    },
+    codexCli: {
+      title: "Codex CLI",
+      notInstalledHeadline: "NOT DETECTED",
+      installHint: "Install with",
+      loginHint: "then sign in with",
+      docs: "Codex docs",
     },
     statusline: {
       title: "Statusline",
