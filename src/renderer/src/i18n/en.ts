@@ -25,6 +25,7 @@ export const en = {
     copy: "Copy",
     copied: "Copied",
     continue: "Continue",
+    comingSoon: "Coming soon…",
   },
   settings: {
     nav: {
@@ -257,7 +258,6 @@ export const en = {
     },
     middleHeader: {
       viewGroupLabel: "View",
-      claudeCode: "Claude Code",
       transcript: "Transcript",
     },
     footer: {
@@ -323,6 +323,7 @@ export const en = {
     emptyStates: {
       noSessions: "No Claude Code sessions found.",
       selectSession: "Select a session to open it.",
+      sessionEndedTranscriptSoon: "Session ended — transcript coming soon.",
     },
     // The Managed/Observed legend (currently unwired to any live popover — see mode-info.ts's
     // docstring — but kept translated since the table itself still ships).

@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import type { Session } from "@shared/types";
 import { isMacPlatform } from "@shared/platform";
+import { AGENTS } from "@shared/agents";
 import { cx, ScrollHintShadow } from "../ui/atoms";
-import { Icon, type IconName } from "../ui/icons";
+import { Icon } from "../ui/icons";
+import { AgentIcon } from "../ui/agent-icons";
 import { useFullscreen } from "../ui/use-fullscreen";
 import { useI18n } from "../i18n";
 import { headerRightPaddingPx, titlebarContentInsetPx } from "./titlebar";
@@ -94,8 +96,8 @@ export function MiddleHeader({
               className="flex shrink-0 items-center rounded-sm border border-(--ui-stroke-tertiary) bg-[color-mix(in_srgb,var(--color-fg)_5%,transparent)] p-[2px]"
             >
               <ViewSegment
-                icon="terminal"
-                label={t.shell.middleHeader.claudeCode}
+                icon={<AgentIcon agent={session.agent} size={13} />}
+                label={AGENTS[session.agent].label}
                 active={!transcriptOn}
                 onSelect={() => {
                   if (transcriptOn) {
@@ -105,9 +107,15 @@ export function MiddleHeader({
                 }}
               />
               <ViewSegment
-                icon="scroll-text"
+                icon={<Icon name="scroll-text" size={13} />}
                 label={t.shell.middleHeader.transcript}
                 active={transcriptOn}
+                disabled={!AGENTS[session.agent].capabilities.hasTranscript}
+                title={
+                  AGENTS[session.agent].capabilities.hasTranscript
+                    ? undefined
+                    : t.common.comingSoon
+                }
                 onSelect={() => {
                   if (!transcriptOn) onToggleTranscript();
                 }}
@@ -129,31 +137,40 @@ export function MiddleHeader({
 
 /** One segment of the header's view switcher: icon + label, `aria-pressed` for the active side.
  *  Active gets the control-active fill; inactive is quiet text that brightens on hover. Clicking
- *  the active segment is a no-op (the caller's `onSelect` guard). */
+ *  the active segment is a no-op (the caller's `onSelect` guard). `disabled` (with a `title`
+ *  tooltip) is for a Transcript segment on an agent with no transcript capability. */
 function ViewSegment({
   icon,
   label,
   active,
   onSelect,
+  disabled,
+  title,
 }: {
-  icon: IconName;
+  icon: ReactNode;
   label: string;
   active: boolean;
   onSelect: () => void;
+  disabled?: boolean;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       aria-pressed={active}
       onClick={onSelect}
+      disabled={disabled}
+      title={title}
       className={cx(
         "flex h-4 items-center gap-1.5 rounded-xs px-2 text-[0.7rem] font-medium leading-none transition-colors duration-100",
         active
           ? "bg-(--ui-control-active-background) text-fg"
           : "text-(--ui-text-tertiary) hover:text-fg",
+        disabled &&
+          "cursor-not-allowed opacity-40 hover:text-(--ui-text-tertiary)",
       )}
     >
-      <Icon name={icon} size={13} />
+      {icon}
       {label}
     </button>
   );

@@ -10,6 +10,7 @@ export const zh: Translations = {
     copy: "复制",
     copied: "已复制",
     continue: "继续",
+    comingSoon: "即将推出…",
   },
   settings: {
     nav: {
@@ -223,7 +224,6 @@ export const zh: Translations = {
     },
     middleHeader: {
       viewGroupLabel: "视图",
-      claudeCode: "Claude Code",
       transcript: "记录",
     },
     footer: {
@@ -285,6 +285,7 @@ export const zh: Translations = {
     emptyStates: {
       noSessions: "未找到 Claude Code 会话。",
       selectSession: "选择一个会话以打开。",
+      sessionEndedTranscriptSoon: "会话已结束——转录功能即将推出。",
     },
     mode: {
       managed: {
