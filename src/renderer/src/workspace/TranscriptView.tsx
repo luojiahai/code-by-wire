@@ -33,7 +33,7 @@ export function TranscriptFeed({
   return (
     <div
       data-selectable-text="true"
-      className="mx-auto max-w-3xl space-y-4 p-5"
+      className="mx-auto max-w-5xl space-y-4 p-5"
     >
       {events.map((e, i) => (
         <EventItem
