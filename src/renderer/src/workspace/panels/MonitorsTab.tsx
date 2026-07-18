@@ -5,6 +5,7 @@ import { EmptyState } from "./chrome";
 import { monitorGlyph } from "./monitor-view";
 import { DOCK_GUTTER, DockRow, MetricCell, MetricRack } from "./dock-row";
 import { DOCK_GLYPH_PULSE } from "./dock-status-glyph";
+import { DOCK_LIVE_ROW } from "./dock-live-reveal";
 
 /** One monitor as a compact, clickable row: status glyph, description + command, duration, and a relative
  *  start. Clicking drills into the full "Monitor details" modal. */
@@ -30,6 +31,7 @@ function MonitorRow({
       active={active}
       onClick={() => onDrill(monitor)}
       aria-label={t.dock.monitors.openDetailsAria(monitor.command)}
+      {...(monitor.status === "running" ? DOCK_LIVE_ROW : undefined)}
       leading={
         <span
           className={cx(
