@@ -17,6 +17,15 @@ const OPTIONS = {
     '"JetBrains Mono Variable", "JetBrains Mono", "Cascadia Code", "SF Mono", ui-monospace, Menlo, Consolas, monospace',
   fontSize: 12,
   cursorBlink: true,
+  // Option-as-Meta: Claude Code's ⌥-bindings (⌥P model picker, ⌥M permission modes,
+  // ⌥↵ newline, …) need Option delivered as ESC+key — the embedded-terminal
+  // equivalent of the "Use Option as Meta Key" switch /terminal-setup flips on in
+  // Apple Terminal (the command itself is unsupported in this terminal). The cost,
+  // same stance as the shell rail: Option no longer types composed characters (π,
+  // intl-layout punctuation, dead-key accents); IME composition is unaffected.
+  // ⌥-click still forces text selection while the TUI has mouse reporting on.
+  macOptionClickForcesSelection: true,
+  macOptionIsMeta: true,
   customGlyphs: true,
   rescaleOverlappingGlyphs: true,
   minimumContrastRatio: 4.5,
