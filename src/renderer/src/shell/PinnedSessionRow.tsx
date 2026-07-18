@@ -132,7 +132,11 @@ export function PinnedSessionRow({
             {t.time.ago(session.lastActivityMs, Date.now())}
           </span>
           <span
-            className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)"
+            className={cx(
+              "grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)",
+              "group-hover:mr-5 group-has-[:focus-visible]:mr-5",
+              menu.open && "mr-5",
+            )}
             title={AGENTS[session.agent].label}
           >
             <AgentIcon agent={session.agent} size={13} />
