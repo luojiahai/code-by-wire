@@ -19,7 +19,10 @@ describe("AGENTS registry", () => {
     expect(Object.values(AGENTS.codex.capabilities).some(Boolean)).toBe(false);
   });
   it("labels and binaries are the branded/spawnable names", () => {
-    expect(AGENTS.claude).toMatchObject({ label: "Claude Code", binary: "claude" });
+    expect(AGENTS.claude).toMatchObject({
+      label: "Claude Code",
+      binary: "claude",
+    });
     expect(AGENTS.codex).toMatchObject({ label: "Codex", binary: "codex" });
   });
 });
