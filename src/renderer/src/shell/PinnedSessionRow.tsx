@@ -2,6 +2,8 @@ import { MAX_SESSION_TITLE_LEN } from "@shared/title-override";
 import type { Session } from "@shared/types";
 import { cx, Lamp } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { AgentIcon } from "../ui/agent-icons";
+import { AGENTS } from "@shared/agents";
 import { useI18n } from "../i18n";
 import { ungroupedLabel } from "./session-list-model";
 import { useSessionMenu } from "./use-session-menu";
@@ -128,6 +130,12 @@ export function PinnedSessionRow({
             )}
           >
             {t.time.ago(session.lastActivityMs, Date.now())}
+          </span>
+          <span
+            className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)"
+            title={AGENTS[session.agent].label}
+          >
+            <AgentIcon agent={session.agent} size={13} />
           </span>
         </span>
         <span className="flex w-full min-w-0 items-center gap-1 pl-5 text-[0.72rem] leading-none text-(--ui-text-quaternary)">
