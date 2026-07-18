@@ -367,6 +367,8 @@ export const en = {
     },
   },
   stats: {
+    agentLabel: "Agent",
+    comingSoonFor: (label: string) => `${label} stats — coming soon…`,
     clearDayFilter: "Clear the day filter",
     buildingHistory: "Building history…",
     noUsage: "No usage yet.",

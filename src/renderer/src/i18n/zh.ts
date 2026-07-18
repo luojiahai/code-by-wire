@@ -321,6 +321,8 @@ export const zh: Translations = {
     },
   },
   stats: {
+    agentLabel: "代理",
+    comingSoonFor: (label: string) => `${label} 统计——即将推出…`,
     clearDayFilter: "清除日期筛选",
     buildingHistory: "正在构建历史记录…",
     noUsage: "暂无使用记录。",
