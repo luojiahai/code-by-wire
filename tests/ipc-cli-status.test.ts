@@ -17,12 +17,18 @@ const ready: CliStatus = {
 };
 
 describe("attachCliStatus", () => {
-  it("adds the controller's cached status to an overview object", () => {
+  it("builds a per-agent record from the controller's cached status", () => {
     const base = { sessions: [], account: null };
-    expect(attachCliStatus(base, () => ready).cliStatus).toBe(ready);
+    const out = attachCliStatus(base, (agent) =>
+      agent === "claude" ? ready : null,
+    );
+    expect(out.cliStatus.claude).toBe(ready);
+    expect(out.cliStatus.codex).toBeNull();
   });
-  it("passes null through before the first check", () => {
+  it("passes null through for every agent before the first check", () => {
     const base = { sessions: [], account: null };
-    expect(attachCliStatus(base, () => null).cliStatus).toBeNull();
+    const out = attachCliStatus(base, () => null);
+    expect(out.cliStatus.claude).toBeNull();
+    expect(out.cliStatus.codex).toBeNull();
   });
 });

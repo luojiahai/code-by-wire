@@ -14,7 +14,8 @@ import type { Provider } from "./provider/types";
 import type { SqliteDb } from "./db/driver";
 import type { StatusLineReader } from "@shared/statusline";
 import type { ModelDefaults } from "@shared/models";
-import type { CliStatus } from "@shared/cli-status";
+import type { CliStatus, CliStatusByAgent } from "@shared/cli-status";
+import { AGENT_IDS, agentOrDefault, type AgentId } from "@shared/agents";
 import type { CliStatusController } from "./cli-check";
 import type { Updater } from "./updater";
 import type { AppSettingsStore } from "./app-settings";
@@ -130,9 +131,12 @@ export interface IpcDeps {
 
 export function attachCliStatus<T extends object>(
   base: T,
-  get: () => CliStatus | null,
-): T & { cliStatus: CliStatus | null } {
-  return { ...base, cliStatus: get() };
+  get: (agent: AgentId) => CliStatus | null,
+): T & { cliStatus: CliStatusByAgent } {
+  return {
+    ...base,
+    cliStatus: Object.fromEntries(AGENT_IDS.map((a) => [a, get(a)])),
+  };
 }
 
 export function registerIpc({
@@ -159,7 +163,7 @@ export function registerIpc({
   const readEmail = accountEmail ?? ((): string | null => null);
   const readDefaults =
     modelDefaults ?? ((): ModelDefaults => ({ overrides: {} }));
-  const cli = cliStatus ?? {
+  const cli: CliStatusController = cliStatus ?? {
     get: () => null,
     recheck: () => {
       throw new Error("CLI status not wired");
@@ -256,7 +260,7 @@ export function registerIpc({
     });
     return attachCliStatus(
       { sessions: withWorktrees, account, homeDir: homedir() },
-      () => cli.get(),
+      (agent) => cli.get(agent),
     );
   };
 
@@ -384,7 +388,9 @@ export function registerIpc({
     return overviewNow();
   });
   ipcMain.handle(IPC.modelDefaults, () => readDefaults());
-  ipcMain.handle(IPC.recheckCli, () => cli.recheck());
+  ipcMain.handle(IPC.recheckCli, (_e, agent?: string) =>
+    cli.recheck(agentOrDefault(agent)),
+  );
   ipcMain.handle(IPC.readTranscript, (_e, id: string, sinceMtimeMs?: number) =>
     provider.readTranscript(id, sinceMtimeMs),
   );

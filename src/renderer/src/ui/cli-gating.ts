@@ -1,4 +1,5 @@
-import type { CliStatus } from "@shared/cli-status";
+import type { CliStatus, CliStatusByAgent } from "@shared/cli-status";
+import type { AgentId } from "@shared/agents";
 import { tNow } from "../i18n";
 
 export interface SpawnGate {
@@ -19,4 +20,13 @@ export function spawnGate(status: CliStatus | null): SpawnGate {
     };
   }
   return { canSpawn: true, reason: null };
+}
+
+/** Per-agent gate over the by-agent status record — a missing entry (check pending) may spawn, same as
+ *  spawnGate's null. */
+export function spawnGateFor(
+  byAgent: CliStatusByAgent | null,
+  agent: AgentId,
+): SpawnGate {
+  return spawnGate(byAgent?.[agent] ?? null);
 }

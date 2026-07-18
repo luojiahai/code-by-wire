@@ -16,7 +16,8 @@ import type { ShellTerminalApi } from "./shell-terminal";
 import type { MetricsRead } from "./metrics";
 import type { ModelDefaults } from "./models";
 import type { StatsSnapshot, StatsRange, ScanProgress } from "./stats";
-import type { CliStatus } from "./cli-status";
+import type { CliStatus, CliStatusByAgent } from "./cli-status";
+import type { AgentId } from "./agents";
 import type { UpdateState } from "./update";
 import type { StatuslineStatus } from "./statusline-status";
 import type { Locale } from "./locale";
@@ -80,8 +81,9 @@ export interface OverviewData extends IndexOverview {
   /** App-wide account: billing mode + rate limits from the live statusLine. null when there is no
    *  statusLine data (no captures, or all stale) — the UI reads null as "no rate-limit bars". */
   account: Account | null;
-  /** The cached Claude Code CLI verdict, or null before the first check completes. */
-  cliStatus: CliStatus | null;
+  /** The cached CLI verdict per agent, keyed like AGENT_IDS. Missing/null means no completed check
+   *  yet for that agent. */
+  cliStatus: CliStatusByAgent;
   /** The user's home directory (os.homedir()), for ~-abbreviating paths in the renderer (the
    *  sidebar's group hints). Rides the overview so no separate IPC round trip is needed. */
   homeDir: string;
@@ -211,8 +213,8 @@ export interface IpcApi {
    *  Polled at the warm cadence while the card is mounted. Resolves null when no store is wired or
    *  the read fails; never rejects. */
   statsDbInfo(): Promise<StatsDbInfo | null>;
-  /** Force a fresh CLI status check (the footer's Re-check button). */
-  recheckCli(): Promise<CliStatus>;
+  /** Force a fresh CLI status check for one agent (the footer's Re-check button). */
+  recheckCli(agent: AgentId): Promise<CliStatus>;
   /** Drop the durable analytics store (turns + scan high-water marks) so the next stats poll rebuilds it
    *  from the transcripts on disk. Resolves `{ ok: false }` when no analytics store is wired or the clear
    *  fails; never rejects. */

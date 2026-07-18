@@ -1,4 +1,5 @@
 import type { CliStatus } from "@shared/cli-status";
+import { AGENTS, type AgentId } from "@shared/agents";
 import { compareSemver, parseSemver } from "./cli-version";
 
 /** The minimum Claude Code version the app supports. A one-line maintainer lever — bump it when the app
@@ -13,11 +14,39 @@ export interface CliProbeInput {
     | { status: "spawnError" } // the binary isn't actually there (ENOENT, or a shell's exit 127)
     | { status: "failed" }; // ran but non-zero / timeout / garbage
   auth: { status: "ok" } | { status: "loggedOut" } | { status: "unknown" };
-  floor: string;
-  /** Where THIS APP reads Claude Code's own data from — display only, carried straight through. */
+  /** null → no minimum-version gate (codex in V1 has no known floor to enforce). */
+  floor: string | null;
+  /** null → no --version product-tag check (only Claude's `claude` binary needs the collision guard
+   *  below; codex has no known-collision risk to defend against yet). */
+  productPattern: RegExp | null;
+  /** Where THIS APP reads the agent's own data from — display only, carried straight through. */
   configDir: { active: string };
   now: number;
 }
+
+/** How to probe one agent's CLI. floor null → no minimum-version gate; productPattern null → no
+ *  --version tag check; checkAuth false → no auth stage (codex has no `auth status` in V1). */
+export interface AgentProbeSpec {
+  binary: string;
+  floor: string | null;
+  productPattern: RegExp | null;
+  checkAuth: boolean;
+}
+
+export const AGENT_PROBES: Record<AgentId, AgentProbeSpec> = {
+  claude: {
+    binary: AGENTS.claude.binary,
+    floor: MIN_CLAUDE_VERSION,
+    productPattern: /claude/i,
+    checkAuth: true,
+  },
+  codex: {
+    binary: AGENTS.codex.binary,
+    floor: null,
+    productPattern: null,
+    checkAuth: false,
+  },
+};
 
 export function evaluateCliStatus(p: CliProbeInput): CliStatus {
   const common = {
@@ -56,9 +85,10 @@ export function evaluateCliStatus(p: CliProbeInput): CliStatus {
   // bare "x.y.z" with no tag is NOT rejected — parseSemver documents that bare output is a valid format, and
   // blocking a working CLI over a missing suffix (→ unknown → spawning disabled) is worse than tolerating a
   // vanishingly-rare untagged impostor, which fails at auth/usage anyway. Loose match on the tag so a
-  // "(… Claude …)" wording variant still passes.
+  // "(… Claude …)" wording variant still passes. Skipped entirely when the agent's probe spec carries no
+  // productPattern (codex: no known-collision risk to defend against yet).
   const tag = /\(([^)]*)\)/.exec(p.version.raw);
-  if (tag && !/claude/i.test(tag[1])) {
+  if (p.productPattern && tag && !p.productPattern.test(tag[1])) {
     return {
       ...common,
       kind: "unknown",
@@ -67,7 +97,7 @@ export function evaluateCliStatus(p: CliProbeInput): CliStatus {
     };
   }
   const version = `${parsed.major}.${parsed.minor}.${parsed.patch}`;
-  if (compareSemver(version, p.floor) < 0) {
+  if (p.floor !== null && compareSemver(version, p.floor) < 0) {
     return {
       ...common,
       kind: "outdated",

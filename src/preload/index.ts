@@ -17,7 +17,7 @@ const api: AppApi = {
     ipcRenderer.invoke(IPC.readStats, range, calendarYear, since),
   pumpStats: () => ipcRenderer.invoke(IPC.pumpStats),
   statsDbInfo: () => ipcRenderer.invoke(IPC.statsDbInfo),
-  recheckCli: () => ipcRenderer.invoke(IPC.recheckCli),
+  recheckCli: (agent) => ipcRenderer.invoke(IPC.recheckCli, agent),
   resetAnalytics: () => ipcRenderer.invoke(IPC.resetAnalytics),
   openExternal: (url) => ipcRenderer.invoke(IPC.openExternal, url),
   openIn: (id, target) => ipcRenderer.invoke(IPC.openIn, id, target),

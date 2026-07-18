@@ -1,4 +1,5 @@
-import type { CliStatus } from "@shared/cli-status";
+import type { CliStatus, CliStatusByAgent } from "@shared/cli-status";
+import type { AgentId } from "@shared/agents";
 import { isUpdatePending } from "@shared/update";
 import { SoftwareUpdateCard, type UpdateControls } from "./SoftwareUpdateCard";
 import { AppearanceCard } from "./AppearanceCard";
@@ -35,15 +36,17 @@ export function SettingsView({
   onSectionChange,
   update,
 }: {
-  cliStatus: CliStatus | null;
-  checking: boolean;
-  onRecheck: () => void;
+  cliStatus: CliStatusByAgent;
+  checking: AgentId | null;
+  onRecheck: (agent: AgentId) => void;
   section: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   update?: UpdateControls;
 }) {
   const { t } = useI18n();
-  const cliDot = footerView(cliStatus).dot;
+  // Claude-scoped for now — this section only shows Claude Code's CLI card; a per-agent nav (dropdown +
+  // Codex card) is Task 16's job.
+  const cliDot = footerView(cliStatus.claude ?? null).dot;
   const cliTrips = cliDot === "warn" || cliDot === "error";
   const updatePending = update ? isUpdatePending(update.state.phase) : false;
 
@@ -98,10 +101,10 @@ export function SettingsView({
             // Remount System when kind changes, so a recheck can't leave the remedy's install-tab
             // default stale. A no-op recheck keeps the same kind, so the instance survives.
             <SystemSection
-              key={cliStatus ? cliStatus.kind : "pending"}
-              cliStatus={cliStatus}
-              checking={checking}
-              onRecheck={onRecheck}
+              key={cliStatus.claude ? cliStatus.claude.kind : "pending"}
+              cliStatus={cliStatus.claude ?? null}
+              checking={checking === "claude"}
+              onRecheck={() => onRecheck("claude")}
             />
           )}
           {section === "appearance" && (

@@ -19,7 +19,7 @@ import { listRollouts, readRolloutHead } from "./provider/codex/rollout";
 import { applyClaims } from "./provider/codex/claim";
 import { createCompositeProvider } from "./provider/composite";
 import type { Provider } from "./provider/types";
-import type { AgentId } from "@shared/agents";
+import { AGENT_IDS, type AgentId } from "@shared/agents";
 import { createManagedRegistry } from "./managed-registry";
 import type { ManagedRegistry } from "./managed-registry";
 import { applyRotations } from "./provider/claude/rotation";
@@ -319,14 +319,16 @@ app
       dir: app.getPath("userData"),
     });
     const cliStatus = createCliStatusController({
-      activeConfigDir: claudeDir,
+      configDirs: { claude: claudeDir, codex: codexDir },
     });
     services.cliStatus = cliStatus;
-    // Warm the verdict in the background; the check is async and the window is already up.
+    // Warm every agent's verdict in the background; each check is async and the window is already up.
     setTimeout(() => {
-      void cliStatus.recheck().catch((err: unknown) => {
-        console.error("initial CLI status check failed", err);
-      });
+      for (const agent of AGENT_IDS) {
+        void cliStatus.recheck(agent).catch((err: unknown) => {
+          console.error(`initial CLI status check failed for ${agent}`, err);
+        });
+      }
     }, 0);
     let emailCache: string | null | undefined;
     const accountEmail = (): string | null => {
