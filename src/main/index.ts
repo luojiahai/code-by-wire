@@ -65,7 +65,7 @@ const WINDOW_BACKGROUND: Record<"dark" | "light", string> = {
 
 function createWindow(
   managed: ManagedRegistry,
-  resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null,
+  resolveResumeTarget: (id: string) => { alive: boolean; cwd: string } | null,
   registerRename: (rename: (from: string, to: string) => void) => void,
   shellEnv: () => NodeJS.ProcessEnv,
   appTheme: "dark" | "light",
@@ -111,12 +111,12 @@ function createWindow(
   const { rename } = registerTerminalIpc({
     window: win,
     managed,
-    resolveAdoptTarget,
+    resolveResumeTarget,
     posixShell: { isExecutable: isExecutableFile, findOnPath },
   });
   registerRename(rename);
 
-  // The footer shell terminal: a second manager on its own channels. No registry, no adopt/fork —
+  // The footer shell terminal: a second manager on its own channels. No registry, no resume/fork —
   // plain interactive shells that die with the window.
   registerShellTerminalIpc({ window: win, env: shellEnv });
 
@@ -189,7 +189,7 @@ app
         appVersion: app.getVersion(),
       });
     // provider + cliStatus are wired below, AFTER the window. The window's closures only read them on a
-    // later spawn/adopt (never during createWindow), so a holder populated a few lines down is enough —
+    // later spawn/resume (never during createWindow), so a holder populated a few lines down is enough —
     // and it lets the window open before claudeDir, which needs the synchronous login-shell probe.
     const services: {
       provider?: ReturnType<typeof createClaudeProvider>;
@@ -203,7 +203,7 @@ app
     const openWindow = (): void =>
       createWindow(
         managed,
-        (id) => services.provider?.resolveAdoptTarget(id) ?? null,
+        (id) => services.provider?.resolveResumeTarget(id) ?? null,
         registerRename,
         shellTermEnv,
         appSettings.read().appTheme ?? "dark",
@@ -226,7 +226,7 @@ app
     // Finder-launched .app doesn't inherit. Packaged-only (dev inherits the shell env); tight timeout. Runs
     // AFTER createWindow (above) so it never blocks first paint, but BEFORE the settings/statusline/provider
     // readers so they ALL read the recovered dir — not ~/.claude — when CLAUDE_CONFIG_DIR is relocated,
-    // keeping discovery and transcript/adopt reads in sync.
+    // keeping discovery and transcript/resume reads in sync.
     const shellEnv = app.isPackaged
       ? probeShellEnv(process.env.SHELL || "/bin/zsh")
       : null;

@@ -171,7 +171,7 @@ const REQ = {
   cols: 80,
   rows: 30,
 };
-const ADOPT_REQ = { id: "sess-1", cwd: "/work/app", cols: 80, rows: 30 };
+const RESUME_REQ = { id: "sess-1", cwd: "/work/app", cols: 80, rows: 30 };
 const FORK_REQ = {
   id: "fork-1",
   sourceId: "sess-1",
@@ -208,7 +208,7 @@ describe("createTerminalManager", () => {
       "'claude' '--session-id' 'sess-1'",
     ]);
     // A default spawn has no known family yet — the registry fronts nothing until the
-    // first transcript turn lands (same as Adopt).
+    // first transcript turn lands (same as Resume).
     expect(h.spawnedModels).toEqual([undefined]);
   });
 
@@ -344,9 +344,9 @@ describe("createTerminalManager", () => {
     expect(h.sent).toEqual([["sess-1", "x"]]); // unchanged
   });
 
-  it("adopt: resumes under the same id with no --model, wrapped in the login shell, and registers it Managed", () => {
+  it("resume: resumes under the same id with no --model, wrapped in the login shell, and registers it Managed", () => {
     const h = harness();
-    h.manager.adopt(ADOPT_REQ);
+    h.manager.resume(RESUME_REQ);
     expect(h.spawned).toEqual(["sess-1"]);
     expect(h.ptys).toHaveLength(1);
     expect(h.ptys[0].state.spawnedWith!.file).toBe("/bin/fake-shell");
@@ -361,10 +361,10 @@ describe("createTerminalManager", () => {
     });
   });
 
-  it("adopt is idempotent: a second adopt of the same id does nothing", () => {
+  it("resume is idempotent: a second resume of the same id does nothing", () => {
     const h = harness();
-    h.manager.adopt(ADOPT_REQ);
-    h.manager.adopt(ADOPT_REQ);
+    h.manager.resume(RESUME_REQ);
+    h.manager.resume(RESUME_REQ);
     expect(h.ptys).toHaveLength(1);
     expect(h.spawned).toEqual(["sess-1"]);
   });

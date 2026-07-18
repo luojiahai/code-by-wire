@@ -33,7 +33,7 @@ import {
   toMonitor,
 } from "./monitors";
 import { tailOutput } from "./task-notifications";
-import { resolveAdoptTarget, resolveSessionCwd } from "./adopt-target";
+import { resolveResumeTarget, resolveSessionCwd } from "./resume-target";
 import { computeTokenSpeed, SPEED_WINDOW_MS } from "./transcript-speed";
 import { firstTranscriptCwd } from "./transcript";
 import { readGit } from "../../git/read-git";
@@ -283,8 +283,8 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
       ...restate(c, prev),
       management: management(c.id),
     }),
-    resolveAdoptTarget: (id) =>
-      resolveAdoptTarget({ claudeDir, isPidAlive, id }),
+    resolveResumeTarget: (id) =>
+      resolveResumeTarget({ claudeDir, isPidAlive, id }),
     resolveSessionCwd: (id) => resolveSessionCwd({ claudeDir, id }),
     readTranscript: (id, sinceMtimeMs) => {
       try {

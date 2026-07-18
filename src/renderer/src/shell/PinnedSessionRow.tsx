@@ -25,7 +25,7 @@ export function PinnedSessionRow({
   selected,
   onSelect,
   canSpawn,
-  onAdopt,
+  onResume,
   onFork,
   onEnd,
   onRename,
@@ -35,7 +35,7 @@ export function PinnedSessionRow({
   selected: boolean;
   onSelect: () => void;
   canSpawn: boolean;
-  onAdopt: (id: string) => Promise<void>;
+  onResume: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
@@ -43,7 +43,7 @@ export function PinnedSessionRow({
 }) {
   const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
-    onAdopt,
+    onResume,
     onFork,
     onEnd,
     onRename,

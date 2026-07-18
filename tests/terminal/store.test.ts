@@ -61,7 +61,7 @@ function harness(os: OsKind = "mac") {
   let exitRouter: (id: string, c: number) => void = () => {};
   const api = {
     spawn: vi.fn(),
-    adopt: vi.fn(),
+    resume: vi.fn(),
     fork: vi.fn(),
     write: vi.fn(),
     resize: vi.fn(),

@@ -20,7 +20,7 @@ export function TerminalView({ sessionId }: { sessionId: string }) {
     const container = containerRef.current;
     if (!container) return;
     // replayOnCreate only takes effect when create actually makes a NEW handle. App.tsx pre-creates the
-    // handle for spawn/adopt/fork, so for those this returns the existing one with replayPending=false and
+    // handle for spawn/resume/fork, so for those this returns the existing one with replayPending=false and
     // the flag is inert; a brand-new handle here means we're reattaching to a still-live pty after a window
     // refresh, and its replayPending gate (cleared by reattach) is what arms the snapshot replay below.
     const handle = terminalStore.create(sessionId, { replayOnCreate: true });

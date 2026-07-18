@@ -48,27 +48,27 @@ export interface SessionMenuController {
   openInBusy: boolean;
   openInError: string | null;
   handleOpenIn: (target: OpenInTarget) => Promise<void>;
-  adopt: SessionActions["adopt"];
+  resume: SessionActions["resume"];
   fork: SessionActions["fork"];
   end: SessionActions["end"];
   live: boolean;
-  adoptDisabled: boolean;
-  adoptTitle: string | undefined;
+  resumeDisabled: boolean;
+  resumeTitle: string | undefined;
   forkDisabled: boolean;
   forkTitle: string | undefined;
   endTitle: string;
 }
 
-/** The Adopt/Fork/End/Rename/Open-in state machine shared by every trigger that opens a session's
+/** The Resume/Fork/End/Rename/Open-in state machine shared by every trigger that opens a session's
  *  action menu — the header title (`SessionMenu`) and the sidebar row's 3-dot button (`SessionRow`).
  *  Extracted from the original single-trigger `SessionMenu` so a future gate/copy change can't drift
  *  between the two surfaces. Owns dropdown open/position state, the inline-rename draft, and the
- *  Adopt/Fork/End/Open-in wiring; callers own their own trigger markup and where `editing` output lands. */
+ *  Resume/Fork/End/Open-in wiring; callers own their own trigger markup and where `editing` output lands. */
 export function useSessionMenu(
   session: Session,
   canSpawn: boolean,
   callbacks: {
-    onAdopt: (id: string) => Promise<void>;
+    onResume: (id: string) => Promise<void>;
     onFork: (session: Session) => Promise<void>;
     onEnd: (id: string) => void;
     onRename: (id: string, title: string | null) => void;
@@ -102,12 +102,12 @@ export function useSessionMenu(
   // Wraps each action's callback to also close the dropdown — but only once the action actually
   // completes (or, for the fire-and-forget End, once it actually fires), matching `handleOpenIn`'s
   // own "close on success" rule below rather than closing the instant the row is clicked. A
-  // resume that throws leaves the menu open so `adopt.error`/`fork.error` stays visible instead of
+  // resume that throws leaves the menu open so `resume.error`/`fork.error` stays visible instead of
   // vanishing with the dropdown; End has no busy/error state, so closing when it fires is the
   // direct equivalent of "on success" for a fire-and-forget action.
-  const { live, canAdopt, adopt, fork, end } = useSessionActions(session, {
-    onAdopt: async (id) => {
-      await callbacks.onAdopt(id);
+  const { live, canResume, resume, fork, end } = useSessionActions(session, {
+    onResume: async (id) => {
+      await callbacks.onResume(id);
       setOpen(false);
     },
     onFork: async (target) => {
@@ -239,17 +239,17 @@ export function useSessionMenu(
     }
   }
 
-  const adoptDisabled = resumeActionDisabled({
+  const resumeDisabled = resumeActionDisabled({
     canSpawn,
     resumable: session.resumable,
-    available: canAdopt,
+    available: canResume,
   });
-  const adoptTitle = !canSpawn
+  const resumeTitle = !canSpawn
     ? t.settings.cli.unavailableReason
     : !session.resumable
-      ? t.shell.sessionMenu.adoptTitleNoConversation
-      : !canAdopt
-        ? t.shell.sessionMenu.adoptTitlePending
+      ? t.shell.sessionMenu.resumeTitleNoConversation
+      : !canResume
+        ? t.shell.sessionMenu.resumeTitlePending
         : undefined;
 
   // Single-sourced with ResumeButton/ObservedTerminal's Fork gate via `resumeActionDisabled` — Fork
@@ -303,12 +303,12 @@ export function useSessionMenu(
     openInBusy,
     openInError,
     handleOpenIn,
-    adopt,
+    resume,
     fork,
     end,
     live,
-    adoptDisabled,
-    adoptTitle,
+    resumeDisabled,
+    resumeTitle,
     forkDisabled,
     forkTitle,
     endTitle,

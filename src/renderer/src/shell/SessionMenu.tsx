@@ -14,16 +14,16 @@ import { SessionMenuDropdown } from "./SessionMenuDropdown";
 export function SessionMenu({
   session,
   canSpawn,
-  onAdopt,
+  onResume,
   onFork,
   onEnd,
   onRename,
   onTogglePin,
 }: {
   session: Session;
-  /** Whether the Claude Code CLI is usable; Adopt and Fork both resume by spawning it. */
+  /** Whether the Claude Code CLI is usable; Resume and Fork both resume by spawning it. */
   canSpawn: boolean;
-  onAdopt: (id: string) => Promise<void>;
+  onResume: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
   /** End the running Managed session (kills the pty we own). */
   onEnd: (id: string) => void;
@@ -34,7 +34,7 @@ export function SessionMenu({
 }) {
   const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
-    onAdopt,
+    onResume,
     onFork,
     onEnd,
     onRename,

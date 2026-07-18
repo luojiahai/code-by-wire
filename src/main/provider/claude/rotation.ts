@@ -54,7 +54,7 @@ export interface RenamableRegistry {
 /**
  * Reconcile this run's Managed ptys against the on-disk session registry and follow every `/clear`
  * rotation: relabel the registry (so the provider's next sync calls the pty Managed under its new id and
- * leaves the abandoned id to derive as an Ended, adoptable ghost), then fire `rename` to re-key the live
+ * leaves the abandoned id to derive as an Ended, resumable ghost), then fire `rename` to re-key the live
  * pty and hand the rotation to the renderer. Runs before each sync, so the relabel lands the same tick.
  *
  * `readRegistry` is lazy: with no Managed pty this run, nothing can have rotated, so we skip the on-disk

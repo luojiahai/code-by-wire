@@ -79,7 +79,7 @@ describe("createManagedRegistry", () => {
     expect(reg.modelOf("unknown")).toBeUndefined();
   });
 
-  it("has no picked model for an Adopt (added without one — the CLI restores the model)", () => {
+  it("has no picked model for a Resume (added without one — the CLI restores the model)", () => {
     const reg = createManagedRegistry();
     reg.add("x", 100);
     expect(reg.modelOf("x")).toBeUndefined();

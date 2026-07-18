@@ -20,8 +20,8 @@ export interface EndAction {
  * `armed` clears a stale open confirm when the gate is no longer valid — the session ended (the button is
  * gone) or its turn finished (the "a turn is in progress" warning no longer holds). Without it confirmOpen
  * outlives the condition that opened it: a background sync flipping the row to idle leaves the dialog lying,
- * and worse, a sync ending the row then a same-id Adopt (Workspace is keyed by id, so it doesn't remount)
- * would re-show a confirm the user never asked for, whose accept kills the freshly-adopted session. Same
+ * and worse, a sync ending the row then a same-id Resume (Workspace is keyed by id, so it doesn't remount)
+ * would re-show a confirm the user never asked for, whose accept kills the freshly-resumed session. Same
  * shape as useResumeAction's `armed` reset.
  */
 export function useEndAction(opts: {

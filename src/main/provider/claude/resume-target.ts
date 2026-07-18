@@ -3,25 +3,25 @@ import { join } from "node:path";
 import { indexTranscripts, readRoot, registryById } from "./discover";
 import { firstTranscriptCwd } from "./transcript";
 
-export interface AdoptTargetDeps {
+export interface ResumeTargetDeps {
   claudeDir: string;
   isPidAlive: (pid: number) => boolean;
   id: string;
 }
 
 /**
- * Resolve what Adopt needs to safely resume a session: whether any live process still owns it (the
+ * Resolve what Resume needs to safely resume a session: whether any live process still owns it (the
  * liveness re-check that backs the Ended-only state gate) and the working directory to relaunch it in.
  * The registry entry is the freshest one for the id — the same one `listCandidates` derives the UI's
  * `alive` from, so the gate and the displayed state agree. cwd comes from that entry, else from the
  * Transcript, which records `cwd` on every row — so a reaped registry file (the common Ended case) still
- * yields it. Null when neither source gives a cwd: there is nothing to adopt.
+ * yields it. Null when neither source gives a cwd: there is nothing to resume.
  */
-export function resolveAdoptTarget({
+export function resolveResumeTarget({
   claudeDir,
   isPidAlive,
   id,
-}: AdoptTargetDeps): { alive: boolean; cwd: string } | null {
+}: ResumeTargetDeps): { alive: boolean; cwd: string } | null {
   const reg = registryById(claudeDir).get(id);
   const alive = reg ? isPidAlive(reg.pid) : false;
 
@@ -41,7 +41,7 @@ export function resolveAdoptTarget({
 
 /**
  * Resolve just the working directory for a session, for actions that only need the folder (Open in).
- * Cheaper than resolveAdoptTarget: it skips the liveness probe, and its transcript fallback finds the
+ * Cheaper than resolveResumeTarget: it skips the liveness probe, and its transcript fallback finds the
  * file by id with a direct per-project-dir probe instead of indexing every transcript in the home.
  * Prefers the registry's cwd (the freshest source), then the transcript's first recorded cwd (so a
  * reaped Ended session still resolves). Null when neither yields one.

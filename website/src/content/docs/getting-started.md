@@ -27,7 +27,7 @@ grouped by project. Nothing to configure.
 - **Transcript**: every message, tool call, and result, reconstructed from disk
   and rendered cleanly.
 - **Terminal**: an embedded terminal to drive a session, fork a live one, or
-  adopt one you started elsewhere.
+  resume one you started elsewhere.
 - **Telemetry**: context pressure, spend, token throughput, duty cycle, git,
   tasks, subagents, and background shells, live per session.
 - **Stats**: a cross-session view with a year-long contributions calendar and

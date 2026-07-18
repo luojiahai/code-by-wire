@@ -55,7 +55,7 @@ export function deriveTitle(
 
 /**
  * The session's cwd without a full parse. Claude records `cwd` on every transcript row, so the first
- * parseable row that carries one wins — Adopt only needs where to relaunch, and a full parseTranscript
+ * parseable row that carries one wins — Resume only needs where to relaunch, and a full parseTranscript
  * (token counting, tool_use tracking, prompt extraction over every line) on a possibly-large file is
  * waste when one field on row 1 answers it. '' when no row resolves a cwd.
  */

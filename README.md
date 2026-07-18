@@ -22,7 +22,7 @@ running on your machine is there.
   machine from one rail: grouped by project, searchable, each flagging its
   live state.
 - **Drive, fork, or just watch.** Spawn a session in an embedded terminal,
-  fork a live one, adopt one you started elsewhere, or observe it read-only.
+  fork a live one, resume one you started elsewhere, or observe it read-only.
 - **The full transcript.** Every message, tool call, and result,
   reconstructed from disk and rendered cleanly.
 - **The telemetry the CLI hides.** Context pressure, spend, token throughput,

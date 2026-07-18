@@ -85,7 +85,7 @@ export function wrapInLoginShell(
 /**
  * The single place that decides how a logical claude invocation actually gets spawned on this
  * platform: the existing Windows PATHEXT shim on win32, or a login-shell wrap everywhere else. Used by
- * both Managed session spawn/adopt/fork (manager.ts) and the CLI status probes (cli-check.ts), so both
+ * both Managed session spawn/resume/fork (manager.ts) and the CLI status probes (cli-check.ts), so both
  * resolve `claude` identically. `posixShell` is required on non-win32 platforms — a missing dep there
  * is a composition-root wiring bug, not a runtime condition to degrade gracefully from.
  */
@@ -104,9 +104,9 @@ export function toSpawnForm(
 }
 
 /**
- * Argv to Adopt an Ended session: `claude --resume <id>` under the session's OWN id, so the CLI keeps
+ * Argv to Resume an Ended session: `claude --resume <id>` under the session's OWN id, so the CLI keeps
  * writing the same Transcript at `projects/<cwd-slug>/<id>.jsonl`. No `--model`: `--resume` restores the
- * session's model ("model settings still apply"), which is the "inherit" in one-click Adopt.
+ * session's model ("model settings still apply"), which is the "inherit" in one-click Resume.
  */
 export function buildResumeCommand(opts: { id: string }): ClaudeCommand {
   return {
@@ -121,7 +121,7 @@ export function buildResumeCommand(opts: { id: string }): ClaudeCommand {
  * `projects/<cwd-slug>/<sourceId>.jsonl` is left untouched and the fork records its own
  * `projects/<cwd-slug>/<newId>.jsonl`. The pre-assigned `--session-id` is honored alongside
  * `--fork-session` (verified), so the app pins the fork's id up front exactly like a fresh spawn. No
- * `--model`: the fork restores the source's model — the same "inherit" as Adopt.
+ * `--model`: the fork restores the source's model — the same "inherit" as Resume.
  */
 export function buildForkCommand(opts: {
   sourceId: string;

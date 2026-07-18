@@ -5,14 +5,14 @@ import type { CliStatus } from "@shared/cli-status";
 import type { OverviewData } from "@shared/ipc";
 import {
   mergeManaged,
-  applyAdopting,
+  applyResuming,
   applyEnding,
-  pruneAdopting,
+  pruneResuming,
   pruneEnding,
-  dropAdopting,
+  dropResuming,
   dropEnding,
   renameManaged,
-  renameAdopting,
+  renameResuming,
 } from "@shared/managed";
 import { newSessionId } from "@shared/terminal";
 import { orderedSessions } from "@shared/overview";
@@ -74,9 +74,9 @@ export function App() {
   // Optimistic Managed sessions spawned this run that discovery hasn't indexed yet. Merged into the
   // list so a new session shows + opens immediately; pruned once its real row lands.
   const [drafts, setDrafts] = useState<Session[]>([]);
-  // Ids adopted this run that discovery has not yet relabeled Managed. Overlaid by applyAdopting so the
-  // adopted row reads Managed/Working immediately, until the next sync confirms it (or its pty exits).
-  const [adopting, setAdopting] = useState<Set<string>>(new Set());
+  // Ids resumed this run that discovery has not yet relabeled Managed. Overlaid by applyResuming so the
+  // resumed row reads Managed/Working immediately, until the next sync confirms it (or its pty exits).
+  const [resuming, setResuming] = useState<Set<string>>(new Set());
   // A failed quick-add's directory + error, carried into the New session view so the failure
   // has a form to land on. The nonce keys the view so a repeat failure re-seeds it even if
   // it's already open (the props are read once on mount).
@@ -86,8 +86,8 @@ export function App() {
     nonce: number;
   } | null>(null);
   // Ids ended this run that discovery has not yet relabeled. Overlaid by applyEnding so the row reads
-  // Ended immediately — the header swaps End for Adopt and the workspace flips to the Transcript — until the
-  // next sync confirms it.
+  // Ended immediately — the header swaps End for Resume and the workspace flips to the Transcript — until
+  // the next sync confirms it.
   const [ending, setEnding] = useState<Set<string>>(new Set());
   // Display-name overrides for sessions renamed this run, keyed by id. Overlaid onto the not-yet-indexed
   // drafts the main process can't title (a draft has no SQLite row, so applyTitleOverrides in overviewNow
@@ -193,11 +193,11 @@ export function App() {
     setDrafts((ds) => ds.filter((d) => !sessions.some((s) => s.id === d.id)));
   }, [sessions]);
 
-  // Drop an adopting override once discovery has caught up — the real row reads Managed AND no longer
+  // Drop a resuming override once discovery has caught up — the real row reads Managed AND no longer
   // Ended, so the optimistic overlay is done. Holding it until state leaves Ended bridges the boot window
-  // where `claude --resume`'s pid hasn't landed yet (managed but still derives Ended); see pruneAdopting.
+  // where `claude --resume`'s pid hasn't landed yet (managed but still derives Ended); see pruneResuming.
   useEffect(() => {
-    setAdopting((prev) => pruneAdopting(prev, sessions));
+    setResuming((prev) => pruneResuming(prev, sessions));
   }, [sessions]);
 
   // Drop an ending override once discovery reports the row Ended (the killed pty's exit dropped its
@@ -211,29 +211,29 @@ export function App() {
   // `to`. Migrate the terminal handle and re-point the open workspace onto `to`. Rename the row wherever it
   // lives — the discovered list once a sync has indexed it, OR the optimistic drafts when /clear lands
   // before any prompt (no sync has run, so the draft still carries `from`; left alone it would linger as a
-  // phantom Working session with a dead terminal). An adopt override on `from` follows too, so a /clear
-  // right after an Adopt doesn't strand the override and force `from`'s Ended ghost into a phantom. The next
+  // phantom Working session with a dead terminal). A resume override on `from` follows too, so a /clear
+  // right after a Resume doesn't strand the override and force `from`'s Ended ghost into a phantom. The next
   // sync then supersedes this overlay with the authoritative rows: the new id Managed, the old an Ended,
-  // adoptable ghost.
+  // resumable ghost.
   useEffect(() => {
     return window.api.terminal.onRename((from, to) => {
       terminalStore.rename(from, to);
       setSessions((ss) => renameManaged(ss, from, to));
       setDrafts((ds) => renameManaged(ds, from, to));
-      setAdopting((prev) => renameAdopting(prev, from, to));
+      setResuming((prev) => renameResuming(prev, from, to));
       setSelectedId((cur) => (cur === from ? to : cur));
     });
   }, []);
 
   // A draft discovery never indexes (the process died before writing a transcript) would otherwise sit at
-  // 'working' forever; flip it to 'ended' on pty exit. Also drop any adopting override for that id, so a
+  // 'working' forever; flip it to 'ended' on pty exit. Also drop any resuming override for that id, so a
   // resume that died reverts to the real (Ended/Observed) row instead of lying Managed.
   useEffect(() => {
     return window.api.terminal.onExit((id) => {
       setDrafts((ds) =>
         ds.map((d) => (d.id === id ? { ...d, state: "ended" } : d)),
       );
-      setAdopting((prev) => dropAdopting(prev, id));
+      setResuming((prev) => dropResuming(prev, id));
     });
   }, []);
 
@@ -281,26 +281,26 @@ export function App() {
     }
   }
 
-  // Adopt an Ended session: resume it in-app under its own id. Stand the terminal up first (so the first
-  // resume bytes land on a live handle), then optimistically mark it adopting — management flips to
+  // Resume an Ended session: resume it in-app under its own id. Stand the terminal up first (so the first
+  // resume bytes land on a live handle), then optimistically mark it resuming — management flips to
   // Managed and the workspace swaps to the live terminal — until the next sync confirms it.
-  async function adoptSession(id: string): Promise<void> {
+  async function resumeSession(id: string): Promise<void> {
     const gate = spawnGate(cliStatus);
     if (!gate.canSpawn)
       throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
-    // Dispose any stale handle from a prior adopt of this id that has since ended (its buffer still holds
-    // the old "[process exited]" scrollback), so a re-adopt starts on a fresh terminal.
+    // Dispose any stale handle from a prior resume of this id that has since ended (its buffer still holds
+    // the old "[process exited]" scrollback), so a re-resume starts on a fresh terminal.
     terminalStore.dispose(id);
     terminalStore.create(id);
-    // Mark adopting BEFORE the await, not after. A resume that fails synchronously in main — a bad cwd
+    // Mark resuming BEFORE the await, not after. A resume that fails synchronously in main — a bad cwd
     // makes the manager fire the pty exit before this IPC even resolves — sends its exit while we're still
-    // awaiting. Adding the override after the await would race that exit: its cleanup (onExit → dropAdopting)
+    // awaiting. Adding the override after the await would race that exit: its cleanup (onExit → dropResuming)
     // runs while the id isn't in the set yet (a no-op), then we'd add an override nothing ever clears,
     // wedging the row at a phantom Managed/Working. Adding it first means a racing exit finds it and clears
-    // it; the catch below clears it for a refused/errored adopt that never spawned a pty.
-    setAdopting((prev) => new Set(prev).add(id));
+    // it; the catch below clears it for a refused/errored resume that never spawned a pty.
+    setResuming((prev) => new Set(prev).add(id));
     try {
-      const result = await window.api.terminal.adopt({
+      const result = await window.api.terminal.resume({
         id,
         cols: 80,
         rows: 24,
@@ -312,15 +312,15 @@ export function App() {
             : t.workspace.resume.couldNotResume,
         );
       }
-      // A racing End click during this in-flight adopt may have added id to `ending`. The End button reads
-      // `live` off the adopting overlay, so it shows before the pty exists — that kill no-oped, and the
+      // A racing End click during this in-flight resume may have added id to `ending`. The End button reads
+      // `live` off the resuming overlay, so it shows before the pty exists — that kill no-oped, and the
       // revived row now reads alive, which pruneEnding never clears (it only drops on Ended). Drop the stale
       // override here, or it would pin this now-live session to a phantom Ended for the rest of the run.
       setEnding((prev) => dropEnding(prev, id));
       setSelectedId(id);
     } catch (e) {
-      terminalStore.dispose(id); // adopt refused or failed → nothing will feed this handle; don't leak it
-      setAdopting((prev) => dropAdopting(prev, id)); // and drop the optimistic override we set above
+      terminalStore.dispose(id); // resume refused or failed → nothing will feed this handle; don't leak it
+      setResuming((prev) => dropResuming(prev, id)); // and drop the optimistic override we set above
       throw e;
     }
   }
@@ -328,10 +328,10 @@ export function App() {
   // End a running Managed session: mark it ending (the optimistic overlay flips it to Ended at once) and
   // fire the existing fire-and-forget kill. No await and no result to handle — kill is best-effort on the
   // pty we own; the overlay plus the next sync reconcile the row to its real Ended/Observed state. Unlike
-  // adopting, onExit does NOT clear the override: a killed row reads Ended anyway, so a stale id is inert,
+  // resuming, onExit does NOT clear the override: a killed row reads Ended anyway, so a stale id is inert,
   // and pruneEnding drops it once discovery indexes the row Ended. The one override that isn't inert is one
-  // left on an id a racing Adopt then revives (its kill no-oped on a pty that didn't exist yet); adoptSession
-  // clears that via dropEnding.
+  // left on an id a racing Resume then revives (its kill no-oped on a pty that didn't exist yet);
+  // resumeSession clears that via dropEnding.
   function endSession(id: string): void {
     setEnding((prev) => new Set(prev).add(id));
     window.api.terminal.kill(id);
@@ -362,7 +362,7 @@ export function App() {
     applyOverview(await window.api.setSessionPinned(id, pinned));
   }
 
-  // Fork a session: resume its conversation into a fresh id under `--fork-session`. Unlike Adopt (which
+  // Fork a session: resume its conversation into a fresh id under `--fork-session`. Unlike Resume (which
   // resumes the SAME id, so its row already exists in the list), a fork's id is brand new, so it follows
   // the spawn path: stand the terminal up first, then show the optimistic Managed draft main echoes back.
   // That draft is hydrated from zero usage with fresh timestamps (the same builder spawn uses), so the
@@ -398,16 +398,16 @@ export function App() {
   const all = useMemo(
     () =>
       applyEnding(
-        applyAdopting(
+        applyResuming(
           // Title the drafts here, not the merged list: a real indexed row already carries its override
           // from main, and re-overlaying it would re-expose a stale title on clear (main's row updates a
           // sync later than this map). Drafts are the only rows main can't reach.
           mergeManaged(sessions, applyTitleOverrides(drafts, titleOverrides)),
-          adopting,
+          resuming,
         ),
         ending,
       ),
-    [sessions, drafts, adopting, ending, titleOverrides],
+    [sessions, drafts, resuming, ending, titleOverrides],
   );
   const isOverview = selectedId === OVERVIEW_ID;
   const isSettings = selectedId === SETTINGS_ID;
@@ -511,7 +511,7 @@ export function App() {
       key={selected.id}
       session={selected}
       canSpawn={spawnGate(cliStatus).canSpawn}
-      onAdopt={adoptSession}
+      onResume={resumeSession}
       onFork={forkSession}
       onEnd={endSession}
       onRename={(id, title) => void renameSession(id, title)}
@@ -550,7 +550,7 @@ export function App() {
             }}
             onQuickAdd={quickAddSession}
             canSpawn={spawnGate(cliStatus).canSpawn}
-            onAdopt={adoptSession}
+            onResume={resumeSession}
             onFork={forkSession}
             onEnd={endSession}
             onRename={(id, title) => void renameSession(id, title)}

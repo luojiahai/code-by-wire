@@ -3,13 +3,13 @@ import type { Session } from "@shared/types";
 import { tNow } from "../i18n";
 
 /**
- * Whether Adopt (resume under this session's own id) is available *right now*. Both resume surfaces show
- * the Adopt button on every Ended session but gate its *enabled* state on this: you can't take the wheel of
- * a process that's still running, and a just-exited Managed session reads Managed until the next sync
- * re-derives it Observed — so Adopt sits disabled across that brief window rather than vanishing. Single-
+ * Whether Resume (resume under this session's own id) is available *right now*. Both resume surfaces show
+ * the Resume button on every Ended session but gate its *enabled* state on this: you can't take the wheel
+ * of a process that's still running, and a just-exited Managed session reads Managed until the next sync
+ * re-derives it Observed — so Resume sits disabled across that brief window rather than vanishing. Single-
  * sourced here so the two surfaces can't drift (two hand-rolled copies did once already).
  */
-export function canAdoptSession(s: Session): boolean {
+export function canResumeSession(s: Session): boolean {
   return s.management === "observed" && s.state === "ended";
 }
 
@@ -23,12 +23,12 @@ export function isModelUnknown(s: Session): boolean {
 }
 
 /**
- * The core Adopt/Fork gate, single-sourced so the menu (`use-session-menu.ts`) and the Ended/Observed
+ * The core Resume/Fork gate, single-sourced so the menu (`use-session-menu.ts`) and the Ended/Observed
  * terminal hero (`ResumeButton`) can't drift the way they did once already (2026-07-17 fork-gate-parity
  * fix: the menu grew an extra ended/observed check `ResumeButton` never had). Deliberately excludes
  * `busy` — that lives on the action object, not the session, so each caller ORs its own `action.busy` in.
  * `available` defaults to `true` (Fork's case, which never gates on anything beyond canSpawn/resumable);
- * Adopt passes `canAdoptSession(session)` here.
+ * Resume passes `canResumeSession(session)` here.
  */
 export function resumeActionDisabled(opts: {
   canSpawn: boolean;
@@ -52,10 +52,10 @@ export interface ResumeAction {
 }
 
 /**
- * The state machine shared by the Adopt and Fork buttons (header + the Ended terminal hero): a busy flag,
+ * The state machine shared by the Resume and Fork buttons (header + the Ended terminal hero): a busy flag,
  * an inline error, and a "no recorded model" confirm gate. `run` performs the action; `modelUnknown`
  * routes the first click through a warning modal (a modelless session can 400 on resume/fork); `armed`
- * clears the transient state when the button goes away (Adopt re-arms when an Observed session ends
+ * clears the transient state when the button goes away (Resume re-arms when an Observed session ends
  * again — without this a stale error or wedged busy flag would flash on the re-shown button).
  */
 export function useResumeAction(opts: {

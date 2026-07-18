@@ -9,7 +9,7 @@ import { SessionMenuDropdown } from "./SessionMenuDropdown";
 /**
  * The hermes single-line sidebar row: a 26px-tall strip with a state `Lamp` and the title. A
  * hover-revealed 3-dot button opens the same menu as the session header's title menu (Copy ID,
- * Rename, Adopt, Fork, End, Open in), sharing its state machine via `useSessionMenu` — see
+ * Rename, Resume, Fork, End, Open in), sharing its state machine via `useSessionMenu` — see
  * `SessionMenu.tsx` for the header's own trigger over the same hook. Renaming swaps this row's
  * select-button for a plain (non-button) container so the inline `<input>` never nests inside a
  * `<button>`, which HTML disallows. The relative-time stamp and context-% chip live in the right
@@ -24,7 +24,7 @@ export function SessionRow({
   selected,
   onSelect,
   canSpawn,
-  onAdopt,
+  onResume,
   onFork,
   onEnd,
   onRename,
@@ -34,7 +34,7 @@ export function SessionRow({
   selected: boolean;
   onSelect: () => void;
   canSpawn: boolean;
-  onAdopt: (id: string) => Promise<void>;
+  onResume: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
@@ -42,7 +42,7 @@ export function SessionRow({
 }) {
   const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
-    onAdopt,
+    onResume,
     onFork,
     onEnd,
     onRename,
