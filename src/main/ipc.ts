@@ -287,10 +287,15 @@ export function registerIpc({
         (settingsManager ? null : "Statusline is not wired in this build."),
       refreshInterval: wrapper.refreshInterval,
       captures,
-      sessions: getOverview(db).sessions.map((s) => ({
-        id: s.id,
-        state: s.state,
-      })),
+      // Claude-only: the statusline is a Claude subsystem (its wrapper only ever wraps a Claude
+      // session's own statusLine command), so a live codex session must never count toward "how
+      // many sessions should be reporting" — it never can.
+      sessions: getOverview(db)
+        .sessions.filter((s) => s.agent === "claude")
+        .map((s) => ({
+          id: s.id,
+          state: s.state,
+        })),
       now: Date.now(),
     });
   };

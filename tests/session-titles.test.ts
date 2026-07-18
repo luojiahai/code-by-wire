@@ -78,4 +78,21 @@ describe("createSessionTitleStore", () => {
       "y".repeat(MAX_SESSION_TITLE_LEN),
     );
   });
+  it("rename migrates an entry to the new id and is a no-op without one", () => {
+    const dir = tmp();
+    const store = createSessionTitleStore({ dir });
+    store.set("a", "My title");
+    store.rename("a", "b");
+    expect(store.read()).toEqual({ b: "My title" });
+    store.rename("missing", "c"); // no throw, no change
+    expect(store.read()).toEqual({ b: "My title" });
+  });
+  it("rename is a no-op when the target id already has an entry", () => {
+    const dir = tmp();
+    const store = createSessionTitleStore({ dir });
+    store.set("a", "Alpha title");
+    store.set("b", "Beta title");
+    store.rename("a", "b");
+    expect(store.read()).toEqual({ a: "Alpha title", b: "Beta title" });
+  });
 });

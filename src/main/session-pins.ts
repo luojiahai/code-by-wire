@@ -14,6 +14,9 @@ export interface SessionPinStore {
   read(): Record<string, number>;
   /** Pin stamps the clock; unpin drops the key. */
   set(id: string, pinned: boolean): void;
+  /** Migrate an entry across a session-id re-key (the codex claim; potentially /clear later).
+   *  No-op when `from` has no entry or `to` already has one. */
+  rename(from: string, to: string): void;
 }
 
 export interface SessionPinDeps {
@@ -54,6 +57,13 @@ export function createSessionPinStore(deps: SessionPinDeps): SessionPinStore {
       const next = read();
       if (pinned) next[id] = now();
       else delete next[id];
+      write(next);
+    },
+    rename(from, to) {
+      const next = read();
+      if (next[from] === undefined || next[to] !== undefined) return;
+      next[to] = next[from];
+      delete next[from];
       write(next);
     },
   };

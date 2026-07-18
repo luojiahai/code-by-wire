@@ -360,6 +360,11 @@ describe("registerIpc renameSession", () => {
       if (trimmed) titles[id] = trimmed;
       else delete titles[id];
     },
+    rename: (from: string, to: string) => {
+      if (titles[from] === undefined || titles[to] !== undefined) return;
+      titles[to] = titles[from];
+      delete titles[from];
+    },
   });
 
   it("persists the override via the store and applies it to the overview", () => {
@@ -430,6 +435,11 @@ describe("registerIpc setSessionPinned", () => {
     set: (id: string, pinned: boolean) => {
       if (pinned) pins[id] = 999;
       else delete pins[id];
+    },
+    rename: (from: string, to: string) => {
+      if (pins[from] === undefined || pins[to] !== undefined) return;
+      pins[to] = pins[from];
+      delete pins[from];
     },
   });
 
@@ -615,5 +625,21 @@ describe("registerIpc locale", () => {
     expect(handlers.get(IPC.appearanceGetLocale)!()).toBe("en");
 
     rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("registerIpc statuslineGetStatus watch population", () => {
+  it("counts only claude sessions — a live codex session must never inflate the watch", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [
+      { ...seed, id: "claude-1", agent: "claude", state: "working" },
+      { ...seed, id: "codex-1", agent: "codex", state: "working" },
+    ]);
+    registerIpc({ db, provider: provider(() => []) });
+    const status = handlers.get(IPC.statuslineGetStatus)!() as {
+      watchedSessions: number;
+    };
+    expect(status.watchedSessions).toBe(1);
   });
 });
