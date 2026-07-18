@@ -5,6 +5,7 @@ import {
   type BrowserWindow,
   type IpcMainEvent,
 } from "electron";
+import { realpathSync } from "node:fs";
 import type { Session } from "@shared/types";
 import type { AgentId } from "@shared/agents";
 import {
@@ -27,6 +28,21 @@ import type { ManagedRegistry } from "../managed-registry";
 import { createTerminalManager } from "./manager";
 import { createPtyProcess } from "./pty-process";
 import { createRecorder } from "./recorder";
+
+/** Resolve symlinks in the spawn cwd before recording it in the managed registry. The codex
+ *  rollout-claim correlation (provider/codex/claim.ts) matches on this value against the cwd
+ *  codex itself recorded — which is the physical path (codex resolves it via getcwd(3)) — so an
+ *  unresolved cwd here (e.g. macOS's stock `/tmp` -> `/private/tmp`, a symlinked project root)
+ *  would make a live spawn's rollout never match, silently duplicating the row. Falls back to the
+ *  raw cwd on any fs error: the pty already spawned successfully in this directory, so a realpath
+ *  failure here is unexpected, not a reason to lose the recorded cwd entirely. */
+export function normalizeManagedCwd(cwd: string): string {
+  try {
+    return realpathSync(cwd);
+  } catch {
+    return cwd;
+  }
+}
 
 /**
  * Build the optimistic Managed draft the renderer shows the instant a session is spawned, before
@@ -104,7 +120,11 @@ export function registerTerminalIpc({
         window.webContents.send(TERMINAL.exit, id, code);
     },
     onSpawned: (id, pid, info) =>
-      managed.add(id, pid, { ...info, spawnedAtMs: Date.now() }),
+      managed.add(id, pid, {
+        ...info,
+        cwd: normalizeManagedCwd(info.cwd),
+        spawnedAtMs: Date.now(),
+      }),
     onClosed: (id) => managed.remove(id),
     // The composition root: this is the one place node-pty is injected, so the manager (and its tests)
     // stay free of the native addon.
