@@ -46,6 +46,12 @@ export function SettingsView({
   update?: UpdateControls;
 }) {
   const { t } = useI18n();
+  // Lives here, not inside SystemSection: a recheck can change cliStatus.claude?.kind, which used to
+  // key a remount of the whole System subtree (to reset CliCard's stale install-tab default) — but
+  // that remount would ALSO reset a locally-owned `agent` pane selection, silently snapping the user
+  // back to the Claude pane mid-session (e.g. during the boot warm-check window). Owning it up here
+  // means the remount below can stay scoped to just CliCard's own subtree.
+  const [systemAgent, setSystemAgent] = useState<AgentId>("claude");
   // The nav dot always reads Claude's status specifically (not whichever agent's pane is selected
   // inside System) — it's the sidebar's summary lamp, and Claude is the agent every session can spawn.
   const cliDot = footerView(cliStatus.claude ?? null).dot;
@@ -100,13 +106,12 @@ export function SettingsView({
       <OverlayScroll className="min-w-0 flex-1">
         <div className="mx-auto flex max-w-[640px] flex-col gap-5 px-8 py-7">
           {section === "system" && (
-            // Remount System when kind changes, so a recheck can't leave the remedy's install-tab
-            // default stale. A no-op recheck keeps the same kind, so the instance survives.
             <SystemSection
-              key={cliStatus.claude?.kind ?? "pending"}
               cliStatus={cliStatus}
               checking={checking}
               onRecheck={onRecheck}
+              agent={systemAgent}
+              onAgentChange={setSystemAgent}
             />
           )}
           {section === "appearance" && (
@@ -129,13 +134,16 @@ function SystemSection({
   cliStatus,
   checking,
   onRecheck,
+  agent,
+  onAgentChange,
 }: {
   cliStatus: CliStatusByAgent;
   checking: AgentId | null;
   onRecheck: (agent: AgentId) => void;
+  agent: AgentId;
+  onAgentChange: (agent: AgentId) => void;
 }) {
   const { t } = useI18n();
-  const [agent, setAgent] = useState<AgentId>("claude");
   return (
     <>
       <PageHeader
@@ -146,7 +154,7 @@ function SystemSection({
         <select
           aria-label={t.settings.system.agent}
           value={agent}
-          onChange={(e) => setAgent(e.target.value as AgentId)}
+          onChange={(e) => onAgentChange(e.target.value as AgentId)}
           className="appearance-none rounded-md border border-ink-700 bg-well py-1.5 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary"
         >
           {AGENT_IDS.map((id) => (
@@ -163,7 +171,11 @@ function SystemSection({
       </div>
       {agent === "claude" ? (
         <>
+          {/* Remount just this card (not the pane selection above) when Claude's kind changes, so a
+           *  recheck can't leave the remedy's install-tab default stale. A no-op recheck keeps the
+           *  same kind, so the instance survives. */}
           <CliCard
+            key={cliStatus.claude?.kind ?? "pending"}
             cliStatus={cliStatus.claude ?? null}
             checking={checking === "claude"}
             onRecheck={() => onRecheck("claude")}
