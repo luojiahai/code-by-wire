@@ -14,8 +14,8 @@ import {
 import {
   TERMINAL,
   type SpawnRequest,
-  type AdoptRequest,
-  type AdoptResult,
+  type ResumeRequest,
+  type ResumeResult,
   type ForkRequest,
   type ForkResult,
   type ReattachSnapshot,
@@ -69,13 +69,13 @@ function draftSession(id: string, cwd: string, model: ModelSelection): Session {
 export function registerTerminalIpc({
   window,
   managed,
-  resolveAdoptTarget,
+  resolveResumeTarget,
   env,
   posixShell,
 }: {
   window: BrowserWindow;
   managed: ManagedRegistry;
-  resolveAdoptTarget: (id: string) => { alive: boolean; cwd: string } | null;
+  resolveResumeTarget: (id: string) => { alive: boolean; cwd: string } | null;
   /** Returns the env for spawned/resumed `claude` sessions. Omitted in production (Managed sessions no
    *  longer need a custom env — they spawn through the login shell, which resolves everything itself);
    *  omitted in most tests too, where the manager falls back to `process.env`. */
@@ -119,14 +119,14 @@ export function registerTerminalIpc({
     });
     return draftSession(req.id, req.cwd, req.model);
   });
-  // Adopt an Ended session: resume it under its own id. The liveness re-check here is the guarantee
+  // Resume an Ended session: relaunch it under its own id. The liveness re-check here is the guarantee
   // behind the Ended-only state gate — a session that came back to life since the last sync is refused,
   // so two processes never share one Transcript. cwd is resolved in main, not trusted from the renderer.
-  ipcMain.handle(TERMINAL.adopt, (_e, req: AdoptRequest): AdoptResult => {
-    const target = resolveAdoptTarget(req.id);
+  ipcMain.handle(TERMINAL.resume, (_e, req: ResumeRequest): ResumeResult => {
+    const target = resolveResumeTarget(req.id);
     if (!target) return { ok: false, reason: "unresolvable" };
     if (target.alive) return { ok: false, reason: "alive" };
-    manager.adopt({
+    manager.resume({
       id: req.id,
       cwd: target.cwd,
       cols: req.cols,
@@ -135,11 +135,11 @@ export function registerTerminalIpc({
     return { ok: true };
   });
   // Fork a session: resume its conversation into a NEW id with --fork-session, so the source Transcript
-  // is left untouched. No liveness gate — unlike adopt, a fork writes its own Transcript, so it's safe
+  // is left untouched. No liveness gate — unlike resume, a fork writes its own Transcript, so it's safe
   // even while the source is still running. cwd is resolved in main from the source id, not trusted from
   // the renderer; the only refusal is an unresolvable source (no registry entry and no Transcript cwd).
   ipcMain.handle(TERMINAL.fork, (_e, req: ForkRequest): ForkResult => {
-    const target = resolveAdoptTarget(req.sourceId);
+    const target = resolveResumeTarget(req.sourceId);
     if (!target) return { ok: false, reason: "unresolvable" };
     manager.fork({
       id: req.newId,
@@ -205,7 +205,7 @@ export function registerTerminalIpc({
     manager.disposeAll();
     app.removeListener("before-quit", onBeforeQuit);
     ipcMain.removeHandler(TERMINAL.spawn);
-    ipcMain.removeHandler(TERMINAL.adopt);
+    ipcMain.removeHandler(TERMINAL.resume);
     ipcMain.removeHandler(TERMINAL.fork);
     ipcMain.removeHandler(TERMINAL.pickDirectory);
     ipcMain.removeHandler(TERMINAL.reattach);

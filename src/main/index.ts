@@ -111,7 +111,7 @@ function createWindow(
   const { rename } = registerTerminalIpc({
     window: win,
     managed,
-    resolveAdoptTarget: resolveResumeTarget,
+    resolveResumeTarget,
     posixShell: { isExecutable: isExecutableFile, findOnPath },
   });
   registerRename(rename);

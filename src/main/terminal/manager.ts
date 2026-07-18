@@ -39,7 +39,7 @@ export interface SpawnRequest {
   rows: number;
 }
 
-export interface AdoptSpawn {
+export interface ResumeSpawn {
   id: string;
   cwd: string;
   cols: number;
@@ -82,7 +82,7 @@ export interface TerminalManagerDeps {
   notifyExit: (id: string, exitCode: number) => void;
   /** Record `id` as Managed (the registry's `add`), anchored to its pty's `pid`, so discovery labels it
    *  and can follow it across a `/clear` that rotates the session id under the same pid. `model` is the
-   *  picked alias for a fresh spawn (undefined on Adopt, which restores the model via the CLI), so the
+   *  picked alias for a fresh spawn (undefined on Resume, which restores the model via the CLI), so the
    *  provider can front it before the first assistant turn records a real model. */
   onSpawned: (id: string, pid: number, model?: Family) => void;
   /** Drop `id`'s Managed label (the registry's `remove`) once its pty is gone — natural exit or a
@@ -102,10 +102,10 @@ export interface TerminalManagerDeps {
   env?: () => NodeJS.ProcessEnv;
   /** Host platform; injected so the Windows launch shim is unit-testable. Defaults to process.platform. */
   platform?: NodeJS.Platform;
-  /** Real fs checks for resolving the POSIX login shell that Managed spawn/adopt/fork wrap `claude` in
+  /** Real fs checks for resolving the POSIX login shell that Managed spawn/resume/fork wrap `claude` in
    *  (unused on win32, which stays on the direct-spawn + launchForm PATHEXT shim). REQUIRED whenever
    *  `platform` resolves to something other than "win32" — the footer terminal's manager instance never
-   *  calls spawn/adopt/fork, so it can omit this. See command.ts's wrapInLoginShell/toSpawnForm. */
+   *  calls spawn/resume/fork, so it can omit this. See command.ts's wrapInLoginShell/toSpawnForm. */
   posixShell?: {
     isExecutable: (p: string) => boolean;
     findOnPath: (name: string, env: NodeJS.ProcessEnv) => string | null;
@@ -118,9 +118,9 @@ export interface TerminalManagerDeps {
 export interface TerminalManager {
   spawn(req: SpawnRequest): void;
   /** Resume an Ended session under its own id with `claude --resume <id>` — same pty machinery as spawn. */
-  adopt(req: AdoptSpawn): void;
+  resume(req: ResumeSpawn): void;
   /** Fork a session: resume `sourceId`'s conversation into a fresh `id` with `--fork-session`, so the
-   *  source Transcript is left intact and the fork writes its own. Same pty machinery as spawn/adopt. */
+   *  source Transcript is left intact and the fork writes its own. Same pty machinery as spawn/resume. */
   fork(req: ForkSpawn): void;
   /** Re-key a live pty from its old session id to a new one (a `/clear` rotation), so its output, writes,
    *  and exit all flow under the new id. No-op if `from` isn't live or `to` is already taken. */
@@ -157,7 +157,7 @@ export function createTerminalManager(
   const posixShellDeps = (): PosixShellDeps => {
     if (!deps.posixShell) {
       throw new Error(
-        "createTerminalManager: posixShell deps are required to spawn/adopt/fork on a non-win32 platform",
+        "createTerminalManager: posixShell deps are required to spawn/resume/fork on a non-win32 platform",
       );
     }
     const env = deps.env?.() ?? process.env;
@@ -169,8 +169,8 @@ export function createTerminalManager(
   };
   const terms = new Map<string, Term>();
 
-  // Stand up one pty for `id` running `command` in `cwd`. The body is identical for a fresh spawn and an
-  // Adopt; only the argv differs, so both funnel here.
+  // Stand up one pty for `id` running `command` in `cwd`. The body is identical for a fresh spawn and a
+  // Resume; only the argv differs, so both funnel here.
   function start(
     id: string,
     command: ClaudeCommand,
@@ -183,9 +183,9 @@ export function createTerminalManager(
     if (!statDir(cwd)) {
       // A bad cwd makes node-pty throw asynchronously and surface as a bare "[process exited]". Validate
       // up front and surface the reason through the existing channels instead. No pty is created, so
-      // onSpawned never fires and the session is never labelled Managed. Both spawn and adopt funnel
-      // through start(), so this guard covers adopt too; its IPC handler has already returned { ok: true },
-      // so the message and exit supersede the optimistic "adopting" state.
+      // onSpawned never fires and the session is never labelled Managed. Both spawn and resume funnel
+      // through start(), so this guard covers resume too; its IPC handler has already returned { ok: true },
+      // so the message and exit supersede the optimistic "resuming" state.
       // No pty/recorder for a failed spawn, so there's no reattach to dedupe against — the offset just
       // counts this lone message from zero.
       const msg = `\r\n\x1b[31mStarting directory does not exist: ${cwd}\x1b[0m\r\n`;
@@ -270,9 +270,9 @@ export function createTerminalManager(
     );
   }
 
-  // Adopt: resume an Ended session under its OWN id. The resume argv carries no --model (the CLI restores
+  // Resume: resume an Ended session under its OWN id. The resume argv carries no --model (the CLI restores
   // the session's model), so there is no `model` in the request.
-  function adopt(req: AdoptSpawn): void {
+  function resume(req: ResumeSpawn): void {
     start(
       req.id,
       toSpawnForm(
@@ -286,8 +286,8 @@ export function createTerminalManager(
     );
   }
 
-  // Fork: resume the source conversation under a NEW id. Like adopt, the argv carries no --model (the
-  // fork restores the source's model); unlike adopt, the id differs from the source, so the fork writes
+  // Fork: resume the source conversation under a NEW id. Like resume, the argv carries no --model (the
+  // fork restores the source's model); unlike resume, the id differs from the source, so the fork writes
   // its own Transcript and the original is left intact. We still pass the source model as the picked
   // alias (spawn's 6th arg) so the provider fronts it until the fork's first turn lands a real model —
   // otherwise a fork of, say, a Sonnet session would flash the default fallback before settling.
@@ -343,7 +343,7 @@ export function createTerminalManager(
 
   return {
     spawn,
-    adopt,
+    resume,
     fork,
     launch,
     rename,

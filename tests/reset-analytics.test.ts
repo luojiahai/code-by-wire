@@ -42,7 +42,7 @@ const provider = {
   readShells: () => ({ status: "absent" }),
   readShellOutput: () => ({ status: "absent" }),
   readMetrics: () => ({ status: "absent" }),
-  resolveAdoptTarget: () => null,
+  resolveResumeTarget: () => null,
 } as unknown as Provider;
 
 const turn = (over: Partial<AnalyticsTurn> = {}): AnalyticsTurn => ({

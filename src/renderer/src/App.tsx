@@ -300,7 +300,7 @@ export function App() {
     // it; the catch below clears it for a refused/errored adopt that never spawned a pty.
     setAdopting((prev) => new Set(prev).add(id));
     try {
-      const result = await window.api.terminal.adopt({
+      const result = await window.api.terminal.resume({
         id,
         cols: 80,
         rows: 24,

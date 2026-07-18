@@ -142,7 +142,7 @@ export interface Session {
   branch?: string;
   state: SessionState;
   management: Management;
-  /** Whether this session can be resumed — Adopt (`claude --resume`) and Fork (`--fork-session`) both
+  /** Whether this session can be resumed — Resume (`claude --resume`) and Fork (`--fork-session`) both
    *  read its transcript. An optimistic draft (a just-spawned or just-forked session, before its first
    *  turn) has none yet, so those actions are offered only when this is true — else the CLI dies on
    *  "No conversation found with session id". Derived in `hydrate` from the persisted transcript mtime. */

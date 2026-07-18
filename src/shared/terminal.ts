@@ -9,7 +9,7 @@ export const TERMINAL = {
   resize: "terminal:resize",
   ack: "terminal:ack",
   kill: "terminal:kill",
-  adopt: "terminal:adopt",
+  resume: "terminal:resume",
   fork: "terminal:fork",
   pickDirectory: "terminal:pick-directory",
   data: "terminal:data",
@@ -73,21 +73,21 @@ export interface SpawnRequest {
 }
 
 /**
- * Adopt an Ended session: resume it under its own id in a Managed pty. The working directory is resolved
+ * Resume an Ended session: resume it under its own id in a Managed pty. The working directory is resolved
  * in main from the session's registry/Transcript, so the renderer sends only the id and its initial
  * terminal size (the view's first fit corrects the size).
  */
-export interface AdoptRequest {
+export interface ResumeRequest {
   id: string;
   cols: number;
   rows: number;
 }
 
 /**
- * Result of an Adopt attempt. Refused when the session is actually alive (the liveness re-check that
+ * Result of a Resume attempt. Refused when the session is actually alive (the liveness re-check that
  * guards the one-process-per-Transcript invariant) or when no working directory can be resolved.
  */
-export type AdoptResult =
+export type ResumeResult =
   | { ok: true }
   | { ok: false; reason: "alive" | "unresolvable" };
 
@@ -110,7 +110,7 @@ export interface ForkRequest {
  * Result of a Fork attempt. On success it carries the optimistic Managed draft, built in main from the
  * resolved cwd and the source's model exactly like spawn's, so the renderer shows it until discovery
  * indexes the fork's own Transcript. Refused only when no working directory can be resolved for the
- * source. Unlike Adopt there is no `"alive"` refusal, since a fork writes its own Transcript and stays
+ * source. Unlike Resume there is no `"alive"` refusal, since a fork writes its own Transcript and stays
  * safe even while the source is still running.
  */
 export type ForkResult =
@@ -123,8 +123,8 @@ export type ForkResult =
  */
 export interface TerminalApi {
   spawn(req: SpawnRequest): Promise<Session>;
-  /** Adopt an Ended session by resuming it under its own id. Refused if it is actually alive. */
-  adopt(req: AdoptRequest): Promise<AdoptResult>;
+  /** Resume an Ended session by resuming it under its own id. Refused if it is actually alive. */
+  resume(req: ResumeRequest): Promise<ResumeResult>;
   /** Fork a session by resuming it into a new id. Refused only if the source's cwd can't be resolved. */
   fork(req: ForkRequest): Promise<ForkResult>;
   write(id: string, data: string): void;
