@@ -243,8 +243,9 @@ export function App() {
   async function createSession(
     cwd: string,
     model: ModelSelection,
+    agent: AgentId,
   ): Promise<void> {
-    const gate = spawnGateFor(cliStatus, "claude");
+    const gate = spawnGateFor(cliStatus, agent);
     if (!gate.canSpawn)
       throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     // Mint the id here and stand the terminal up BEFORE spawning, so the very first pty bytes land on a
@@ -256,7 +257,7 @@ export function App() {
         id,
         cwd,
         model,
-        agent: "claude", // placeholder until agent selection lands (Task 4)
+        agent,
         cols: 80,
         rows: 24,
       });
@@ -271,9 +272,9 @@ export function App() {
   // Sidebar folder quick-add: spawn in the group's directory with the CLI's default model, no
   // form. Never rejects — a failure routes to the New session view with the directory kept and
   // the error shown (the app's only creation-error surface).
-  async function quickAddSession(cwd: string): Promise<void> {
+  async function quickAddSession(cwd: string, agent: AgentId): Promise<void> {
     try {
-      await createSession(cwd, "default");
+      await createSession(cwd, "default", agent);
     } catch (e) {
       setQuickAddPrefill((p) => ({
         cwd,
@@ -485,6 +486,7 @@ export function App() {
         key={quickAddPrefill?.nonce ?? 0}
         onCreate={createSession}
         onCancel={() => setSelectedId(OVERVIEW_ID)}
+        canSpawnFor={(a) => spawnGateFor(cliStatus, a).canSpawn}
         initialCwd={quickAddPrefill?.cwd}
         initialError={quickAddPrefill?.error}
       />
@@ -552,7 +554,10 @@ export function App() {
               setQuickAddPrefill(null); // manual open starts blank, not on a stale failure
               setSelectedId(NEW_SESSION_ID);
             }}
-            onQuickAdd={quickAddSession}
+            // Folder quick-add has no agent picker of its own yet (Claude-only stop-gap, same
+            // shape as the pre-Task-11 spawn call) — the New session form is the only surface
+            // that lets the user choose Codex.
+            onQuickAdd={(cwd) => quickAddSession(cwd, "claude")}
             canSpawn={spawnGateFor(cliStatus, "claude").canSpawn}
             onResume={resumeSession}
             onFork={forkSession}

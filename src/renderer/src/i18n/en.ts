@@ -83,6 +83,7 @@ export const en = {
       copyAction: "copy",
       unavailableReason:
         "Claude Code CLI isn't usable — see Sys status in the title bar.",
+      unavailableShort: "CLI unavailable",
     },
     statusline: {
       title: "Statusline",
@@ -239,8 +240,10 @@ export const en = {
     },
     newSession: {
       ledeBefore: "Spawns",
-      ledeAfter: "in the chosen directory and drives it from a live terminal.",
+      ledeGeneric:
+        "in the chosen directory and drives it from a live terminal.",
       sessionSetup: "Session setup",
+      agent: "Agent",
       directory: "Directory",
       choose: "Choose…",
       noDirectoryChosen: "No directory chosen",

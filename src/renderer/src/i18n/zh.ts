@@ -65,6 +65,7 @@ export const zh: Translations = {
       copyAction: "复制",
       unavailableReason:
         "Claude Code CLI 当前不可用 — 请查看标题栏中的系统状态。",
+      unavailableShort: "CLI 不可用",
     },
     statusline: {
       title: "Statusline",
@@ -207,8 +208,9 @@ export const zh: Translations = {
     },
     newSession: {
       ledeBefore: "在所选目录中启动",
-      ledeAfter: "，并通过实时终端进行操作。",
+      ledeGeneric: "，并通过实时终端驱动。",
       sessionSetup: "会话设置",
+      agent: "代理",
       directory: "目录",
       choose: "选择…",
       noDirectoryChosen: "未选择目录",
