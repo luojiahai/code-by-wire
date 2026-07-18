@@ -25,6 +25,7 @@ export const en = {
     copy: "Copy",
     copied: "Copied",
     continue: "Continue",
+    comingSoon: "Coming soon…",
   },
   settings: {
     nav: {
@@ -49,6 +50,7 @@ export const en = {
     system: {
       title: "System",
       lede: "The machinery feeding this app. Keep it green.",
+      agent: "Agent",
     },
     about: {
       title: "About",
@@ -83,6 +85,19 @@ export const en = {
       copyAction: "copy",
       unavailableReason:
         "Claude Code CLI isn't usable — see Sys status in the title bar.",
+      // Per-agent form: the title-bar Sys lamp only ever reflects Claude's status (see
+      // SettingsView's cliDot), so a disabled Codex control points at Settings → System instead,
+      // where its own health card actually lives.
+      unavailableReasonFor: (label: string) =>
+        `${label} CLI isn't usable — check Settings → System.`,
+      unavailableShort: "CLI unavailable",
+    },
+    codexCli: {
+      title: "Codex CLI",
+      notInstalledHeadline: "NOT DETECTED",
+      installHint: "Install with",
+      loginHint: "then sign in with",
+      docs: "Codex docs",
     },
     statusline: {
       title: "Statusline",
@@ -188,6 +203,8 @@ export const en = {
       noActiveSessions: "No active sessions.",
       noSessionsYet: "No sessions yet.",
       newSessionIn: (cwd: string) => `New session in ${cwd}`,
+      newSessionWith: (label: string, cwd: string) =>
+        `New ${label} session in ${cwd}`,
     },
     sessionRow: {
       openSession: (title: string) => `Open ${title}`,
@@ -236,11 +253,15 @@ export const en = {
       endTitleLive: "End this session",
       endTitleUnavailable:
         "End is only available for a live session you manage.",
+      comingSoonForAgent: (label: string) =>
+        `Coming soon for ${label} sessions.`,
     },
     newSession: {
       ledeBefore: "Spawns",
-      ledeAfter: "in the chosen directory and drives it from a live terminal.",
+      ledeGeneric:
+        "in the chosen directory and drives it from a live terminal.",
       sessionSetup: "Session setup",
+      agent: "Agent",
       directory: "Directory",
       choose: "Choose…",
       noDirectoryChosen: "No directory chosen",
@@ -252,7 +273,6 @@ export const en = {
     },
     middleHeader: {
       viewGroupLabel: "View",
-      claudeCode: "Claude Code",
       transcript: "Transcript",
     },
     footer: {
@@ -318,6 +338,7 @@ export const en = {
     emptyStates: {
       noSessions: "No Claude Code sessions found.",
       selectSession: "Select a session to open it.",
+      sessionEndedTranscriptSoon: "Session ended — transcript coming soon.",
     },
     // The Managed/Observed legend (currently unwired to any live popover — see mode-info.ts's
     // docstring — but kept translated since the table itself still ships).
@@ -359,6 +380,8 @@ export const en = {
     },
   },
   stats: {
+    agentLabel: "Agent",
+    comingSoonFor: (label: string) => `${label} stats — coming soon…`,
     clearDayFilter: "Clear the day filter",
     buildingHistory: "Building history…",
     noUsage: "No usage yet.",

@@ -1,8 +1,4 @@
-import type {
-  ProviderCapabilities,
-  PersistedSession,
-  SessionCandidate,
-} from "@shared/types";
+import type { PersistedSession, SessionCandidate } from "@shared/types";
 import type { TranscriptRead, ToolResultDetail } from "@shared/transcript";
 import type {
   TaskRead,
@@ -15,7 +11,6 @@ import type { MetricsRead } from "@shared/metrics";
 
 export interface Provider {
   readonly id: string;
-  readonly capabilities: ProviderCapabilities;
   /** Cheap enumeration of the sessions worth indexing this pass — no transcript parsed. */
   listCandidates(): SessionCandidate[];
   /** Parse a candidate's transcript into a full snapshot (the expensive step). */

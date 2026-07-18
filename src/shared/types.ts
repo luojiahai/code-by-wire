@@ -1,5 +1,6 @@
 import type { Family, ModelSelection } from "./models";
 import type { ContextBreakdown } from "./transcript";
+import type { AgentId } from "./agents";
 
 export type { Family, ModelSelection };
 
@@ -142,6 +143,9 @@ export interface Session {
   branch?: string;
   state: SessionState;
   management: Management;
+  /** Which coding agent owns this session. Drives labels/icons directly and every behavior gate
+   *  indirectly (via AGENTS[agent].capabilities — surfaces never branch on the id itself). */
+  agent: AgentId;
   /** Whether this session can be resumed — Resume (`claude --resume`) and Fork (`--fork-session`) both
    *  read its transcript. An optimistic draft (a just-spawned or just-forked session, before its first
    *  turn) has none yet, so those actions are offered only when this is true — else the CLI dies on
@@ -226,6 +230,9 @@ export interface PersistedSession {
   branch?: string;
   state: SessionState;
   management: Management;
+  /** Which coding agent owns this session. Drives labels/icons directly and every behavior gate
+   *  indirectly (via AGENTS[agent].capabilities — surfaces never branch on the id itself). */
+  agent: AgentId;
   model: Family;
   /** The raw transcript model string for this session (see Session.modelRaw). */
   modelRaw?: string;
@@ -269,6 +276,9 @@ export interface SessionCandidate {
   status?: string;
   /** Working directory from the registry, if any. The transcript itself is the richer source once parsed. */
   cwd: string;
+  /** Which coding agent owns this session. Drives labels/icons directly and every behavior gate
+   *  indirectly (via AGENTS[agent].capabilities — surfaces never branch on the id itself). */
+  agent: AgentId;
   /** Absolute path to the transcript file, if one exists. */
   transcriptPath?: string;
   /** Current transcript mtime (ms); 0 when there is no transcript. */
@@ -329,11 +339,4 @@ export interface Account {
   version?: string;
   /** Logged-in account email, read from ~/.claude.json by the ipc layer (not derived from samples). */
   email?: string;
-}
-
-/** What a Provider can do. Drives graceful degradation in the UI. */
-export interface ProviderCapabilities {
-  canControl: boolean;
-  hasRateLimits: boolean;
-  hasSubagents: boolean;
 }

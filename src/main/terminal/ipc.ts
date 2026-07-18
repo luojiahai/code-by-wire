@@ -5,7 +5,9 @@ import {
   type BrowserWindow,
   type IpcMainEvent,
 } from "electron";
+import { realpathSync } from "node:fs";
 import type { Session } from "@shared/types";
+import type { AgentId } from "@shared/agents";
 import {
   normalizeModelId,
   type Family,
@@ -27,12 +29,32 @@ import { createTerminalManager } from "./manager";
 import { createPtyProcess } from "./pty-process";
 import { createRecorder } from "./recorder";
 
+/** Resolve symlinks in the spawn cwd before recording it in the managed registry. The codex
+ *  rollout-claim correlation (provider/codex/claim.ts) matches on this value against the cwd
+ *  codex itself recorded — which is the physical path (codex resolves it via getcwd(3)) — so an
+ *  unresolved cwd here (e.g. macOS's stock `/tmp` -> `/private/tmp`, a symlinked project root)
+ *  would make a live spawn's rollout never match, silently duplicating the row. Falls back to the
+ *  raw cwd on any fs error: the pty already spawned successfully in this directory, so a realpath
+ *  failure here is unexpected, not a reason to lose the recorded cwd entirely. */
+export function normalizeManagedCwd(cwd: string): string {
+  try {
+    return realpathSync(cwd);
+  } catch {
+    return cwd;
+  }
+}
+
 /**
  * Build the optimistic Managed draft the renderer shows the instant a session is spawned, before
  * discovery has indexed the real process. Hydrated from zero usage so the derived display fields
  * (context %) are well-formed; the real row supersedes it on the next sync.
  */
-function draftSession(id: string, cwd: string, model: ModelSelection): Session {
+function draftSession(
+  id: string,
+  cwd: string,
+  model: ModelSelection,
+  agent: AgentId,
+): Session {
   const project = projectFromCwd(cwd);
   const family: Family =
     model === "default" ? normalizeModelId(undefined) : model;
@@ -44,6 +66,7 @@ function draftSession(id: string, cwd: string, model: ModelSelection): Session {
     branch: undefined,
     state: "working",
     management: "managed",
+    agent,
     model: family,
     lastActivityMs: Date.now(),
     createdMs: Date.now(),
@@ -96,7 +119,12 @@ export function registerTerminalIpc({
       if (!window.isDestroyed())
         window.webContents.send(TERMINAL.exit, id, code);
     },
-    onSpawned: (id, pid, model) => managed.add(id, pid, model),
+    onSpawned: (id, pid, info) =>
+      managed.add(id, pid, {
+        ...info,
+        cwd: normalizeManagedCwd(info.cwd),
+        spawnedAtMs: Date.now(),
+      }),
     onClosed: (id) => managed.remove(id),
     // The composition root: this is the one place node-pty is injected, so the manager (and its tests)
     // stay free of the native addon.
@@ -114,10 +142,11 @@ export function registerTerminalIpc({
       id: req.id,
       cwd: req.cwd,
       model: req.model,
+      agent: req.agent,
       cols: req.cols,
       rows: req.rows,
     });
-    return draftSession(req.id, req.cwd, req.model);
+    return draftSession(req.id, req.cwd, req.model, req.agent);
   });
   // Resume an Ended session: relaunch it under its own id. The liveness re-check here is the guarantee
   // behind the Ended-only state gate — a session that came back to life since the last sync is refused,
@@ -154,7 +183,7 @@ export function registerTerminalIpc({
     // model rides in from the renderer only for this draft; --fork-session restores the real one.
     return {
       ok: true,
-      session: draftSession(req.newId, target.cwd, req.model),
+      session: draftSession(req.newId, target.cwd, req.model, "claude"),
     };
   });
   const onWrite = (_e: IpcMainEvent, id: string, data: string) =>

@@ -8,8 +8,10 @@ import {
   emptySnapshot,
   isDayRange,
 } from "@shared/stats";
+import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
 import { useI18n } from "../i18n";
 import { Icon } from "../ui/icons";
+import { AgentIcon } from "../ui/agent-icons";
 import { RangeFilter } from "./shared";
 import { OverviewCard } from "./OverviewCard";
 import { ModelsCard } from "./ModelsCard";
@@ -33,6 +35,7 @@ export function StatsView() {
   const { t } = useI18n();
   const [snap, setSnap] = useState<StatsSnapshot | null>(null);
   const [range, setRange] = useState<StatsRange>(DEFAULT_RANGE);
+  const [agent, setAgent] = useState<AgentId>("claude");
   // The calendar's window selector: null = trailing twelve months, a number = that local year. Independent
   // of `range` — it drives only the calendar query, not the page totals.
   const [calendarYear, setCalendarYear] = useState<number | null>(null);
@@ -45,7 +48,13 @@ export function StatsView() {
   // on a calendar-year change, which re-queries just the heatmap and would otherwise flash the whole view.
   const prevRangeRef = useRef(range);
 
+  // Stats capability isn't in AgentCapabilities V1 (only claude has an analytics pipeline);
+  // model it locally as "the agent with a stats source" until a hasStats flag earns its keep.
+  const hasStats = agent === "claude";
+
   useEffect(() => {
+    if (!hasStats) return; // no codex stats source yet — nothing to poll
+
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let inFlight = false;
@@ -107,63 +116,95 @@ export function StatsView() {
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [range, calendarYear]);
+  }, [agent, range, calendarYear]);
 
   return (
     <OverlayScroll className="h-full min-w-0 flex-1 bg-ink-950 text-fg">
       <div className="mx-auto flex max-w-[1100px] flex-col gap-4 px-6 py-6">
-        <div className="flex items-center justify-end gap-2">
-          {isDayRange(range) && (
-            <button
-              type="button"
-              onClick={() => setRange(DEFAULT_RANGE)}
-              title={t.stats.clearDayFilter}
-              className="flex items-center gap-1 rounded-md border border-ink-700 bg-ink-700 px-2 py-0.5 text-meta text-fg transition-colors hover:bg-ink-600"
+        <div className="flex items-center justify-between gap-2">
+          <div className="relative">
+            <select
+              aria-label={t.stats.agentLabel}
+              value={agent}
+              onChange={(e) => setAgent(e.target.value as AgentId)}
+              className="appearance-none rounded-md border border-ink-700 bg-well py-1 pl-2.5 pr-7 text-meta text-fg outline-none focus:border-primary"
             >
-              {t.time.dayShort(range.day)}
-              <span aria-hidden className="text-fg-muted">
-                ×
-              </span>
-            </button>
-          )}
-          <RangeFilter value={range} onChange={setRange} />
-        </div>
-        {/* null = first poll in flight: blank below the header (matches EmptyDetail's loading). */}
-        {snap && (
-          <>
-            {!snap.progress.done && (
-              <BuildingHistory progress={snap.progress} />
+              {AGENT_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {AGENTS[id].label}
+                </option>
+              ))}
+            </select>
+            <Icon
+              name="chevron-down"
+              size={13}
+              className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-fg-muted"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            {hasStats && isDayRange(range) && (
+              <button
+                type="button"
+                onClick={() => setRange(DEFAULT_RANGE)}
+                title={t.stats.clearDayFilter}
+                className="flex items-center gap-1 rounded-md border border-ink-700 bg-ink-700 px-2 py-0.5 text-meta text-fg transition-colors hover:bg-ink-600"
+              >
+                {t.time.dayShort(range.day)}
+                <span aria-hidden className="text-fg-muted">
+                  ×
+                </span>
+              </button>
             )}
-            {/* "No usage yet" only when the store is empty AND the scoped totals are too. The second
-                clause is the safety: hasAnyTurns rides a separate query (safeHasAnyTurns → false on a read
-                error), so a non-zero scoped count must still win, never EmptyStats over real cards. In the
-                normal case totals.turns is 0 whenever hasAnyTurns is false, so this is a no-op. */}
-            {!snap.hasAnyTurns &&
-            snap.totals.turns === 0 &&
-            snap.progress.done ? (
-              <EmptyStats />
-            ) : (
+            {hasStats && <RangeFilter value={range} onChange={setRange} />}
+          </div>
+        </div>
+        {!hasStats ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-24 text-fg-faint">
+            <AgentIcon agent={agent} size={26} className="opacity-60" />
+            <p className="text-body">
+              {t.stats.comingSoonFor(AGENTS[agent].label)}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* null = first poll in flight: blank below the header (matches EmptyDetail's loading). */}
+            {snap && (
               <>
-                <OverviewCard
-                  totals={snap.totals}
-                  records={snap.records}
-                  byModel={snap.byModel}
-                  calendar={snap.calendar}
-                  calendarStart={snap.calendarStart}
-                  calendarEnd={snap.calendarEnd}
-                  calendarYears={snap.calendarYears}
-                  calendarYear={calendarYear}
-                  onCalendarYear={setCalendarYear}
-                  selectedDay={isDayRange(range) ? range.day : null}
-                  onSelectDay={(day) => setRange({ day })}
-                />
-                <ModelsCard
-                  daily={snap.daily}
-                  byModel={snap.byModel}
-                  range={range}
-                />
-                <ProjectsCard rows={snap.byProject} />
-                <SessionsCard rows={snap.bySession} />
+                {!snap.progress.done && (
+                  <BuildingHistory progress={snap.progress} />
+                )}
+                {/* "No usage yet" only when the store is empty AND the scoped totals are too. The second
+                    clause is the safety: hasAnyTurns rides a separate query (safeHasAnyTurns → false on a read
+                    error), so a non-zero scoped count must still win, never EmptyStats over real cards. In the
+                    normal case totals.turns is 0 whenever hasAnyTurns is false, so this is a no-op. */}
+                {!snap.hasAnyTurns &&
+                snap.totals.turns === 0 &&
+                snap.progress.done ? (
+                  <EmptyStats />
+                ) : (
+                  <>
+                    <OverviewCard
+                      totals={snap.totals}
+                      records={snap.records}
+                      byModel={snap.byModel}
+                      calendar={snap.calendar}
+                      calendarStart={snap.calendarStart}
+                      calendarEnd={snap.calendarEnd}
+                      calendarYears={snap.calendarYears}
+                      calendarYear={calendarYear}
+                      onCalendarYear={setCalendarYear}
+                      selectedDay={isDayRange(range) ? range.day : null}
+                      onSelectDay={(day) => setRange({ day })}
+                    />
+                    <ModelsCard
+                      daily={snap.daily}
+                      byModel={snap.byModel}
+                      range={range}
+                    />
+                    <ProjectsCard rows={snap.byProject} />
+                    <SessionsCard rows={snap.bySession} />
+                  </>
+                )}
               </>
             )}
           </>

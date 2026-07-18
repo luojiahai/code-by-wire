@@ -10,9 +10,16 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { openDb } from "./db/sqlite";
 import type { SqliteDb } from "./db/driver";
-import { migrate } from "./db/store";
+import { migrate, getSessionAgent } from "./db/store";
 import { migrateAnalytics } from "./db/analytics";
 import { createClaudeProvider } from "./provider/claude";
+import { createCodexProvider } from "./provider/codex";
+import { resolveCodexDir } from "./provider/codex/config";
+import { listRollouts, readRolloutHead } from "./provider/codex/rollout";
+import { applyClaims } from "./provider/codex/claim";
+import { createCompositeProvider } from "./provider/composite";
+import type { Provider } from "./provider/types";
+import { AGENT_IDS, type AgentId } from "@shared/agents";
 import { createManagedRegistry } from "./managed-registry";
 import type { ManagedRegistry } from "./managed-registry";
 import { applyRotations } from "./provider/claude/rotation";
@@ -192,7 +199,7 @@ app
     // later spawn/resume (never during createWindow), so a holder populated a few lines down is enough —
     // and it lets the window open before claudeDir, which needs the synchronous login-shell probe.
     const services: {
-      provider?: ReturnType<typeof createClaudeProvider>;
+      provider?: Provider;
       cliStatus?: ReturnType<typeof createCliStatusController>;
     } = {};
     // Stand the window up FIRST, before the synchronous login-shell probe + claudeDir-dependent wiring
@@ -279,11 +286,31 @@ app
       }
     }
     const statusLine = createStatusLineReader({ claudeDir });
-    const provider = createClaudeProvider({
+    // Codex has no login-shell recovery yet: resolveCodexDir reads CODEX_HOME/well-known-dir
+    // directly, unlike claudeDir's recovered-config-dir path above.
+    const codexDir = resolveCodexDir();
+    const recentWindowMs = readSessionWindowMs(claudeDir);
+    const claudeProvider = createClaudeProvider({
       managed,
       claudeDir,
-      recentWindowMs: readSessionWindowMs(claudeDir),
+      recentWindowMs,
     });
+    const codexProvider = createCodexProvider({
+      codexDir,
+      recentWindowMs,
+      managed: {
+        has: (id) => managed.agentOf(id) === "codex",
+        cwdOf: (id) => managed.cwdOf(id),
+      },
+    });
+    // id → agent: live drafts answer from the registry; indexed rows from the sessions table;
+    // anything unknown is claude (the legacy default — never a projects/ sweep for a codex id).
+    const agentOf = (id: string): AgentId =>
+      managed.agentOf(id) ?? getSessionAgent(db, id) ?? "claude";
+    const provider = createCompositeProvider(
+      { claude: claudeProvider, codex: codexProvider },
+      agentOf,
+    );
     services.provider = provider;
     const sessionTitles = createSessionTitleStore({
       dir: app.getPath("userData"),
@@ -292,14 +319,16 @@ app
       dir: app.getPath("userData"),
     });
     const cliStatus = createCliStatusController({
-      activeConfigDir: claudeDir,
+      configDirs: { claude: claudeDir, codex: codexDir },
     });
     services.cliStatus = cliStatus;
-    // Warm the verdict in the background; the check is async and the window is already up.
+    // Warm every agent's verdict in the background; each check is async and the window is already up.
     setTimeout(() => {
-      void cliStatus.recheck().catch((err: unknown) => {
-        console.error("initial CLI status check failed", err);
-      });
+      for (const agent of AGENT_IDS) {
+        void cliStatus.recheck(agent).catch((err: unknown) => {
+          console.error(`initial CLI status check failed for ${agent}`, err);
+        });
+      }
     }, 0);
     let emailCache: string | null | undefined;
     const accountEmail = (): string | null => {
@@ -327,10 +356,30 @@ app
     // re-derived as a read-only Observed one.
     const reconcile = (): void => {
       applyRotations(
-        managed,
+        {
+          entries: () => managed.entriesFor("claude"),
+          rename: (from, to) => managed.rename(from, to),
+        },
         () => readSessionFiles(claudeDir),
         renameInWindow,
       );
+      // Codex claims land in the same beforeSync slot, so the re-key + rollout binding hit the
+      // very pass that first discovers the rollout — no duplicate-row window between polls. Order
+      // vs. the rotation pass above doesn't matter: the two tracks touch disjoint managed entries
+      // (claude-agent vs codex-agent ids), so neither can observe the other's rename.
+      applyClaims({
+        ptys: managed.codexEntries(),
+        claimedRollouts: managed.claimedRollouts(),
+        listRollouts: () => listRollouts(codexDir),
+        readHead: (path) => readRolloutHead(path),
+        apply: ({ from, to, rolloutPath }) => {
+          managed.rename(from, to);
+          managed.claim(to, rolloutPath);
+          sessionTitles.rename(from, to);
+          sessionPins.rename(from, to);
+          renameInWindow(from, to);
+        },
+      });
     };
     const caffeinate = createCaffeinate({ blocker: powerSaveBlocker });
     const { sync } = registerIpc({

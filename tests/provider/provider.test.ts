@@ -5,7 +5,7 @@ import { createClaudeProvider } from "../../src/main/provider/claude";
 import { tempHomes } from "../helpers/temp-home";
 
 describe("ClaudeProvider", () => {
-  it("exposes capability flags and the incremental sync primitives", () => {
+  it("exposes its id and the incremental sync primitives", () => {
     const provider = createClaudeProvider({
       claudeDir: resolve("tests/fixtures/claude-home"),
       isPidAlive: (pid) => pid === 1001, // only this one is alive
@@ -14,11 +14,6 @@ describe("ClaudeProvider", () => {
     });
 
     expect(provider.id).toBe("claude");
-    expect(provider.capabilities).toEqual({
-      canControl: true,
-      hasRateLimits: true,
-      hasSubagents: true,
-    });
 
     const candidates = provider.listCandidates();
     expect(candidates).toHaveLength(5); // every fixture session surfaces (all registry-backed)

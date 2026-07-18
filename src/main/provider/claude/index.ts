@@ -267,8 +267,6 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
 
   return {
     id: "claude",
-    // What Claude Code can do; the surfaces land in later issues, but the capability contract is stable.
-    capabilities: { canControl: true, hasRateLimits: true, hasSubagents: true },
     listCandidates: () =>
       listCandidates({ claudeDir, isPidAlive, now: now(), recentWindowMs }),
     summarize: (c) => {

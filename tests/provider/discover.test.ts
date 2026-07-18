@@ -47,6 +47,7 @@ function fixtureCandidate(
     alive: true,
     status: "busy",
     cwd: "",
+    agent: "claude",
     transcriptPath: resolve(CLAUDE_DIR, "projects", proj, `${id}.jsonl`),
     transcriptMtimeMs: 1,
     ...over,
@@ -110,6 +111,7 @@ describe("summarize", () => {
       alive: true,
       status: "idle",
       cwd: "/work/old-thing",
+      agent: "claude",
       transcriptPath: undefined,
       transcriptMtimeMs: 0,
       updatedAt: 1780950000000,
@@ -133,6 +135,7 @@ describe("summarize", () => {
       alive: true,
       status: "idle",
       cwd: "/work/widget",
+      agent: "claude",
       transcriptPath: join(home, "projects", "-work-widget", "sess-1.jsonl"),
       transcriptMtimeMs: 7,
       updatedAt: 123,
@@ -147,6 +150,7 @@ describe("summarize", () => {
       alive: true,
       status: undefined,
       cwd: "/",
+      agent: "claude",
       transcriptPath: undefined,
       transcriptMtimeMs: 0,
       updatedAt: 1,
@@ -160,6 +164,7 @@ describe("summarize", () => {
       id: "x",
       alive: false,
       cwd: "/w/app",
+      agent: "claude",
       transcriptMtimeMs: 0,
       updatedAt: 1780950000000,
     });
@@ -485,6 +490,20 @@ describe("listCandidates", () => {
     expect(dup).toHaveLength(1);
     expect(dup[0].status).toBe("busy"); // the fresher file won
     expect(dup[0].cwd).toBe("/w/fresh");
+  });
+});
+
+describe("agent tagging", () => {
+  it("tags every candidate and summary as agent claude", () => {
+    const cands = listCandidates({
+      claudeDir: CLAUDE_DIR,
+      isPidAlive: (pid) => pid === 1001,
+      now: Date.parse("2026-06-09T00:00:00.000Z"),
+      recentWindowMs: 7 * 24 * 60 * 60 * 1000,
+    });
+    expect(cands.length).toBeGreaterThan(0);
+    for (const c of cands) expect(c.agent).toBe("claude");
+    expect(summarize(cands[0]).agent).toBe("claude");
   });
 });
 

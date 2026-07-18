@@ -2,6 +2,8 @@ import { MAX_SESSION_TITLE_LEN } from "@shared/title-override";
 import type { Session } from "@shared/types";
 import { cx, Lamp } from "../ui/atoms";
 import { Icon } from "../ui/icons";
+import { AgentIcon } from "../ui/agent-icons";
+import { AGENTS } from "@shared/agents";
 import { useI18n } from "../i18n";
 import { useSessionMenu } from "./use-session-menu";
 import { SessionMenuDropdown } from "./SessionMenuDropdown";
@@ -120,6 +122,12 @@ export function SessionRow({
             <span className="truncate">{session.worktree.name}</span>
           </span>
         )}
+        <span
+          className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)"
+          title={AGENTS[session.agent].label}
+        >
+          <AgentIcon agent={session.agent} size={13} />
+        </span>
       </button>
       <div
         ref={menu.rootRef}

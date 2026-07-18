@@ -1,8 +1,10 @@
 import { spawn } from "node:child_process";
 import type { CliStatus } from "@shared/cli-status";
+import type { AgentId } from "@shared/agents";
 import {
   evaluateCliStatus,
-  MIN_CLAUDE_VERSION,
+  AGENT_PROBES,
+  type AgentProbeSpec,
   type CliProbeInput,
 } from "./cli-status";
 import { toSpawnForm, type ClaudeCommand } from "./terminal/command";
@@ -149,9 +151,10 @@ export function classifyAuthError(code: unknown): CliProbeInput["auth"] {
   return code === 1 ? { status: "loggedOut" } : { status: "unknown" };
 }
 
-/** Probe `claude --version` through the same spawn form a Managed session would use. Exported with an
- *  injectable exec/platform/posixShell so the invocation is unit-tested without spawning. */
+/** Probe `<spec.binary> --version` through the same spawn form a Managed session would use. Exported
+ *  with an injectable exec/platform/posixShell so the invocation is unit-tested without spawning. */
 export async function runVersion(
+  spec: AgentProbeSpec,
   exec: ProbeExec = realExec,
   platform: NodeJS.Platform = process.platform,
   posixShell: {
@@ -160,7 +163,7 @@ export async function runVersion(
   } = realPosixShell,
 ): Promise<CliProbeInput["version"]> {
   const { file, args } = probeSpawnForm(
-    { file: "claude", args: ["--version"] },
+    { file: spec.binary, args: ["--version"] },
     platform,
     posixShell,
   );
@@ -179,8 +182,10 @@ export async function runVersion(
   }
 }
 
-/** Probe `claude auth status`, invoking the binary the same way runVersion does. */
+/** Probe `<spec.binary> auth status`, invoking the binary the same way runVersion does. Only ever called
+ *  for a spec with checkAuth true (see checkCliStatus below). */
 export async function runAuth(
+  spec: AgentProbeSpec,
   exec: ProbeExec = realExec,
   platform: NodeJS.Platform = process.platform,
   posixShell: {
@@ -189,7 +194,7 @@ export async function runAuth(
   } = realPosixShell,
 ): Promise<CliProbeInput["auth"]> {
   const { file, args } = probeSpawnForm(
-    { file: "claude", args: ["auth", "status"] },
+    { file: spec.binary, args: ["auth", "status"] },
     platform,
     posixShell,
   );
@@ -201,59 +206,107 @@ export async function runAuth(
   }
 }
 
-/** Run the real probes and classify. `activeConfigDir` is purely for display — where THIS APP reads
- *  Claude Code's own data from (see claude-config.ts's resolveClaudeDir), independent of the probe. */
-export async function checkCliStatus(args: {
+/** The shared orchestration behind checkCliStatus/checkCliStatusWith: probe version (and, when the
+ *  agent's spec calls for it, auth) and classify. `activeConfigDir` is purely for display — where THIS
+ *  APP reads the agent's own data from (see claude-config.ts's resolveClaudeDir / codex/config.ts's
+ *  resolveCodexDir), independent of the probe. */
+async function runCheckCliStatus(args: {
+  agent: AgentId;
   activeConfigDir: string;
   now: number;
+  exec: ProbeExec;
+  platform: NodeJS.Platform;
+  posixShell: {
+    isExecutable: (p: string) => boolean;
+    findOnPath: (name: string, env: NodeJS.ProcessEnv) => string | null;
+  };
 }): Promise<CliStatus> {
-  const version = await runVersion();
+  const spec = AGENT_PROBES[args.agent];
+  const version = await runVersion(
+    spec,
+    args.exec,
+    args.platform,
+    args.posixShell,
+  );
   const base: Omit<CliProbeInput, "auth"> = {
     version,
-    floor: MIN_CLAUDE_VERSION,
+    floor: spec.floor,
+    productPattern: spec.productPattern,
     configDir: { active: args.activeConfigDir },
     now: args.now,
   };
-  // Probe auth only once the version check already lands on "ready" (a current Claude Code): evaluate
-  // with auth unknown first, and run `claude auth status` only then. For every other verdict auth can't
-  // change the outcome — so this skips the extra child spawn and never invokes an arbitrary command
-  // before we know it's Claude.
+  // Probe auth only once the version check already lands on "ready" (a current, genuine install) AND the
+  // agent's spec calls for an auth stage at all (codex has no `auth status` in V1 — see AGENT_PROBES).
+  // For every other verdict auth can't change the outcome — so this skips the extra child spawn and
+  // never invokes an arbitrary command before we know the binary is what we expect.
   const provisional = evaluateCliStatus({
     ...base,
     auth: { status: "unknown" },
   });
   const auth =
-    provisional.kind === "ready"
-      ? await runAuth()
+    spec.checkAuth && provisional.kind === "ready"
+      ? await runAuth(spec, args.exec, args.platform, args.posixShell)
       : { status: "unknown" as const };
   return evaluateCliStatus({ ...base, auth });
 }
 
-export interface CliStatusController {
-  get(): CliStatus | null;
-  recheck(): Promise<CliStatus>;
+/** Run the real probes for one agent and classify. */
+export function checkCliStatus(args: {
+  agent: AgentId;
+  activeConfigDir: string;
+  now: number;
+}): Promise<CliStatus> {
+  return runCheckCliStatus({
+    ...args,
+    exec: realExec,
+    platform: process.platform,
+    posixShell: realPosixShell,
+  });
 }
 
-export interface ControllerDeps {
-  activeConfigDir: string;
+/** Test-only entry point: checkCliStatus with the exec seam injected, mirroring runVersion/runAuth's own
+ *  injectable params. Defaults platform to win32 (unlike checkCliStatus's real process.platform default)
+ *  so the injected exec sees the bare binary/args rather than a posix login shell's quoted form — the
+ *  same no-shell-quoting determinism runVersion's own win32 test cases lean on. */
+export function checkCliStatusWith(
+  exec: ProbeExec,
+  args: { agent: AgentId; activeConfigDir: string; now: number },
+  platform: NodeJS.Platform = "win32",
+  posixShell: {
+    isExecutable: (p: string) => boolean;
+    findOnPath: (name: string, env: NodeJS.ProcessEnv) => string | null;
+  } = realPosixShell,
+): Promise<CliStatus> {
+  return runCheckCliStatus({ ...args, exec, platform, posixShell });
+}
+
+export interface CliStatusController {
+  get(agent: AgentId): CliStatus | null;
+  recheck(agent: AgentId): Promise<CliStatus>;
+}
+
+export interface CliStatusControllerDeps {
+  configDirs: Record<AgentId, string>;
   now?: () => number;
 }
 
-/** Caches the verdict; recheck refreshes it. The launch check is the first recheck(). */
+/** Caches one verdict per agent; recheck(agent) refreshes just that agent's entry. The launch check is
+ *  the first recheck(agent) for each agent (see main/index.ts's warm-check loop). */
 export function createCliStatusController(
-  deps: ControllerDeps,
+  deps: CliStatusControllerDeps,
 ): CliStatusController {
   const now = deps.now ?? ((): number => Date.now());
-  let current: CliStatus | null = null;
-  async function run(): Promise<CliStatus> {
-    current = await checkCliStatus({
-      activeConfigDir: deps.activeConfigDir,
-      now: now(),
-    });
-    return current;
-  }
+  const current: Partial<Record<AgentId, CliStatus | null>> = {};
   return {
-    get: () => current,
-    recheck: run,
+    get: (agent) => current[agent] ?? null,
+    recheck: async (agent) => {
+      const s = await checkCliStatus({
+        agent,
+        activeConfigDir: deps.configDirs[agent],
+        now: now(),
+      });
+      current[agent] = s;
+      return s;
+    },
   };
 }

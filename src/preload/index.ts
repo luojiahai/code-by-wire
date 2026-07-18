@@ -12,13 +12,12 @@ import { SHELL_TERMINAL } from "@shared/shell-terminal";
 const api: AppApi = {
   overview: () => ipcRenderer.invoke(IPC.overview),
   refresh: () => ipcRenderer.invoke(IPC.refresh),
-  capabilities: () => ipcRenderer.invoke(IPC.capabilities),
   modelDefaults: () => ipcRenderer.invoke(IPC.modelDefaults),
   readStats: (range, calendarYear, since) =>
     ipcRenderer.invoke(IPC.readStats, range, calendarYear, since),
   pumpStats: () => ipcRenderer.invoke(IPC.pumpStats),
   statsDbInfo: () => ipcRenderer.invoke(IPC.statsDbInfo),
-  recheckCli: () => ipcRenderer.invoke(IPC.recheckCli),
+  recheckCli: (agent) => ipcRenderer.invoke(IPC.recheckCli, agent),
   resetAnalytics: () => ipcRenderer.invoke(IPC.resetAnalytics),
   openExternal: (url) => ipcRenderer.invoke(IPC.openExternal, url),
   openIn: (id, target) => ipcRenderer.invoke(IPC.openIn, id, target),

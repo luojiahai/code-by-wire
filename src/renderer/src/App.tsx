@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useStore } from "@nanostores/react";
 import type { Session, ModelSelection, Account } from "@shared/types";
-import type { CliStatus } from "@shared/cli-status";
+import type { CliStatusByAgent } from "@shared/cli-status";
+import type { AgentId } from "@shared/agents";
 import type { OverviewData } from "@shared/ipc";
 import {
   mergeManaged,
@@ -22,7 +23,7 @@ import { useI18n } from "./i18n";
 import { Workspace } from "./workspace/Workspace";
 import { useMetrics } from "./workspace/use-metrics";
 import { terminalStore } from "./terminal/terminal-store-instance";
-import { spawnGate } from "./ui/cli-gating";
+import { spawnGateFor } from "./ui/cli-gating";
 import { Icon } from "./ui/icons";
 import { StatsView } from "./stats/StatsView";
 import { OVERVIEW_ID } from "./stats/sentinel";
@@ -105,13 +106,14 @@ export function App() {
   const forkingRef = useRef<Set<string>>(new Set());
   const [account, setAccount] = useState<Account | null>(null);
   const [homeDir, setHomeDir] = useState("");
-  const [cliStatus, setCliStatus] = useState<CliStatus | null>(null);
+  const [cliStatus, setCliStatus] = useState<CliStatusByAgent>({});
   // The Settings sub-section to show. The Sys lamp jumps it to "system" (the CLI status home); the gear
   // reopens wherever the user last was.
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>("system");
-  // True while a CLI status check (Re-check, or saving a binary-path override) is in flight — drives the spinner.
-  const [checking, setChecking] = useState(false);
+  // The agent whose CLI status check (Re-check, or saving a binary-path override) is in flight, or null
+  // when none is — drives the spinner for that one agent's card.
+  const [checking, setChecking] = useState<AgentId | null>(null);
   const [loading, setLoading] = useState(true);
   // Land on Overview: the app opens to the all-time stats, not a session. The auto-select effect below
   // guards on `!isOverview`, so it never yanks this to a session on first load; the user clicks into a
@@ -129,12 +131,13 @@ export function App() {
     setHomeDir(o.homeDir);
   }
 
-  async function recheckCli(): Promise<void> {
-    setChecking(true);
+  async function recheckCli(agent: AgentId): Promise<void> {
+    setChecking(agent);
     try {
-      setCliStatus(await window.api.recheckCli());
+      const s = await window.api.recheckCli(agent);
+      setCliStatus((prev) => ({ ...prev, [agent]: s }));
     } finally {
-      setChecking(false);
+      setChecking(null);
     }
   }
 
@@ -240,8 +243,9 @@ export function App() {
   async function createSession(
     cwd: string,
     model: ModelSelection,
+    agent: AgentId,
   ): Promise<void> {
-    const gate = spawnGate(cliStatus);
+    const gate = spawnGateFor(cliStatus, agent);
     if (!gate.canSpawn)
       throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     // Mint the id here and stand the terminal up BEFORE spawning, so the very first pty bytes land on a
@@ -253,6 +257,7 @@ export function App() {
         id,
         cwd,
         model,
+        agent,
         cols: 80,
         rows: 24,
       });
@@ -267,9 +272,9 @@ export function App() {
   // Sidebar folder quick-add: spawn in the group's directory with the CLI's default model, no
   // form. Never rejects — a failure routes to the New session view with the directory kept and
   // the error shown (the app's only creation-error surface).
-  async function quickAddSession(cwd: string): Promise<void> {
+  async function quickAddSession(cwd: string, agent: AgentId): Promise<void> {
     try {
-      await createSession(cwd, "default");
+      await createSession(cwd, "default", agent);
     } catch (e) {
       setQuickAddPrefill((p) => ({
         cwd,
@@ -285,7 +290,7 @@ export function App() {
   // resume bytes land on a live handle), then optimistically mark it resuming — management flips to
   // Managed and the workspace swaps to the live terminal — until the next sync confirms it.
   async function resumeSession(id: string): Promise<void> {
-    const gate = spawnGate(cliStatus);
+    const gate = spawnGateFor(cliStatus, "claude");
     if (!gate.canSpawn)
       throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     // Dispose any stale handle from a prior resume of this id that has since ended (its buffer still holds
@@ -369,7 +374,7 @@ export function App() {
   // fork never wears the source's accumulated cost/context/age; discovery then supersedes it with the
   // fork's own Transcript. The source's model rides in so the draft labels the right model up front.
   async function forkSession(source: Session): Promise<void> {
-    const gate = spawnGate(cliStatus);
+    const gate = spawnGateFor(cliStatus, "claude");
     if (!gate.canSpawn)
       throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     if (forkingRef.current.has(source.id)) return; // a fork of this source is already in flight
@@ -481,6 +486,7 @@ export function App() {
         key={quickAddPrefill?.nonce ?? 0}
         onCreate={createSession}
         onCancel={() => setSelectedId(OVERVIEW_ID)}
+        canSpawnFor={(a) => spawnGateFor(cliStatus, a).canSpawn}
         initialCwd={quickAddPrefill?.cwd}
         initialError={quickAddPrefill?.error}
       />
@@ -500,7 +506,7 @@ export function App() {
       <SettingsView
         cliStatus={cliStatus}
         checking={checking}
-        onRecheck={() => void recheckCli()}
+        onRecheck={(agent) => void recheckCli(agent)}
         section={settingsSection}
         onSectionChange={setSettingsSection}
         update={update}
@@ -510,7 +516,7 @@ export function App() {
     <Workspace
       key={selected.id}
       session={selected}
-      canSpawn={spawnGate(cliStatus).canSpawn}
+      canSpawn={spawnGateFor(cliStatus, "claude").canSpawn}
       onResume={resumeSession}
       onFork={forkSession}
       onEnd={endSession}
@@ -549,7 +555,8 @@ export function App() {
               setSelectedId(NEW_SESSION_ID);
             }}
             onQuickAdd={quickAddSession}
-            canSpawn={spawnGate(cliStatus).canSpawn}
+            canSpawn={spawnGateFor(cliStatus, "claude").canSpawn}
+            canSpawnFor={(a) => spawnGateFor(cliStatus, a).canSpawn}
             onResume={resumeSession}
             onFork={forkSession}
             onEnd={endSession}

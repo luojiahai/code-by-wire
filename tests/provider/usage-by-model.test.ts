@@ -208,6 +208,7 @@ describe("summarize includes the per-model breakdown", () => {
       id: "sess-9",
       alive: false,
       cwd: "/work/proj",
+      agent: "claude",
       transcriptPath: path,
       transcriptMtimeMs: 1,
     };
@@ -224,6 +225,7 @@ describe("summarize includes the per-model breakdown", () => {
       id: "x",
       alive: false,
       cwd: "/work/proj",
+      agent: "claude",
       transcriptMtimeMs: 0,
     });
     expect(snap.usageByModel).toEqual([]);

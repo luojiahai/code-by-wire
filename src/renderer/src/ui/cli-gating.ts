@@ -1,4 +1,5 @@
-import type { CliStatus } from "@shared/cli-status";
+import type { CliStatus, CliStatusByAgent } from "@shared/cli-status";
+import { AGENTS, type AgentId } from "@shared/agents";
 import { tNow } from "../i18n";
 
 export interface SpawnGate {
@@ -19,4 +20,19 @@ export function spawnGate(status: CliStatus | null): SpawnGate {
     };
   }
   return { canSpawn: true, reason: null };
+}
+
+/** Per-agent gate over the by-agent status record — a missing entry (check pending) may spawn, same as
+ *  spawnGate's null. Names the failing agent in `reason` rather than spawnGate's fixed Claude wording,
+ *  so a Codex-specific failure doesn't surface as a Claude error. */
+export function spawnGateFor(
+  byAgent: CliStatusByAgent | null,
+  agent: AgentId,
+): SpawnGate {
+  const gate = spawnGate(byAgent?.[agent] ?? null);
+  if (gate.canSpawn) return gate;
+  return {
+    canSpawn: false,
+    reason: tNow().settings.cli.unavailableReasonFor(AGENTS[agent].label),
+  };
 }

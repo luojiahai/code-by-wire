@@ -11,6 +11,7 @@ const s = (
   project: "p",
   state: "working",
   management,
+  agent: "claude",
   resumable: true,
   model: "sonnet",
   contextPct: 0,

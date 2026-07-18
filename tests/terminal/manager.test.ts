@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { FLOW } from "../../src/shared/terminal";
-import { createTerminalManager } from "../../src/main/terminal/manager";
+import {
+  createTerminalManager,
+  type TerminalManagerDeps,
+} from "../../src/main/terminal/manager";
 import type {
   PtyProcess,
   SpawnOptions,
@@ -101,6 +104,7 @@ function harness(
       flush: () => void;
       dispose: () => void;
     };
+    onSpawned?: TerminalManagerDeps["onSpawned"];
   } = {},
 ) {
   const ptys: ReturnType<typeof fakePty>[] = [];
@@ -119,11 +123,13 @@ function harness(
       sentOffsets.push([id, offset]);
     },
     notifyExit: (id, code) => exited.push([id, code]),
-    onSpawned: (id, pid, model) => {
-      spawned.push(id);
-      spawnedPids.push(pid);
-      spawnedModels.push(model);
-    },
+    onSpawned:
+      over.onSpawned ??
+      ((id, pid, info) => {
+        spawned.push(id);
+        spawnedPids.push(pid);
+        spawnedModels.push(info.model);
+      }),
     onClosed: (id) => closed.push(id),
     createPty: (o) => {
       const f = fakePty(nextPid++);
@@ -168,6 +174,7 @@ const REQ = {
   id: "sess-1",
   cwd: "/work/app",
   model: "sonnet" as const,
+  agent: "claude" as const,
   cols: 80,
   rows: 30,
 };
@@ -501,6 +508,23 @@ describe("createTerminalManager", () => {
     const h = harness();
     await expect(h.manager.snapshot("nope")).resolves.toBeNull();
   });
+
+  it("passes the agent through to onSpawned and spawns the codex binary bare", () => {
+    const spawned: unknown[] = [];
+    const h = harness({ onSpawned: (id, pid, info) => spawned.push(info) });
+    h.manager.spawn({
+      id: "c1",
+      cwd: "/w",
+      model: "default",
+      agent: "codex",
+      cols: 80,
+      rows: 24,
+    });
+    expect(spawned[0]).toMatchObject({ agent: "codex", cwd: "/w" });
+    // The harness's recorded createPty call: codex has no id-pin/model flags, so the bare binary
+    // name is the only thing to assert on in the wrapped-login-shell argv.
+    expect(h.ptys[0].state.spawnedWith!.args.join(" ")).toContain("codex");
+  });
 });
 
 describe("launch (shell terminals)", () => {
@@ -550,7 +574,14 @@ describe("launch (shell terminals)", () => {
 
   it("still shims a bare claude spawn on win32 (launchForm moved, not dropped)", () => {
     const h = shellHarness("win32");
-    h.manager.spawn({ id: "c1", cwd: "/p", model: "opus", cols: 80, rows: 24 });
+    h.manager.spawn({
+      id: "c1",
+      cwd: "/p",
+      model: "opus",
+      agent: "claude",
+      cols: 80,
+      rows: 24,
+    });
     expect(h.ptys[0].state.spawnedWith?.file).toBe("cmd.exe");
     expect(h.ptys[0].state.spawnedWith?.args?.[0]).toBe("/c");
   });

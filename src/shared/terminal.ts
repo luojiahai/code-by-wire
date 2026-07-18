@@ -1,5 +1,6 @@
 import type { Family, ModelSelection } from "./models";
 import type { Session } from "./types";
+import type { AgentId } from "./agents";
 
 /** Terminal IPC channels. `data` and `exit` are PUSH channels (main → renderer via webContents.send);
  *  the rest are renderer-initiated (invoke for a reply, send for fire-and-forget). */
@@ -67,6 +68,8 @@ export interface SpawnRequest {
   /** Absolute project directory the session runs in. */
   cwd: string;
   model: ModelSelection;
+  /** Which agent to spawn. `model` is Claude-only and documented-ignored for any other agent. */
+  agent: AgentId;
   /** Initial terminal size; the renderer's first fit corrects it. */
   cols: number;
   rows: number;

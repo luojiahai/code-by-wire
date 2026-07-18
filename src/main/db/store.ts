@@ -6,14 +6,15 @@ import {
 } from "@shared/models";
 import type { IndexOverview } from "@shared/ipc";
 import { isResumable } from "@shared/resumable";
+import { agentOrDefault, type AgentId } from "@shared/agents";
 import { transaction, type SqliteDb } from "./driver";
 
 /** Bump when the schema changes OR when summarize's math changes and cached rows must rebuild —
  *  v9 forces the one-time re-summarize for the last-entry-wins usage dedup (usage_by_model rows
  *  cached under first-entry-wins undercounted subagent output). `migrate` rebuilds the index (a
  *  disposable cache) to match — v10 adds effort_level (A6 transcript scan) — v11 adds the A9
- *  compaction columns. */
-const SCHEMA_VERSION = 11;
+ *  compaction columns — v12 adds the agent column (codex support). */
+const SCHEMA_VERSION = 12;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -37,6 +38,7 @@ export function migrate(db: SqliteDb): void {
         branch TEXT,
         state TEXT NOT NULL,
         management TEXT NOT NULL,
+        agent TEXT NOT NULL DEFAULT 'claude',
         model TEXT NOT NULL,
         model_raw TEXT,
         last_activity_ms INTEGER NOT NULL,
@@ -68,6 +70,7 @@ interface Row {
   branch: string | null;
   state: string;
   management: string;
+  agent: string;
   model: string;
   model_raw: string | null;
   last_activity_ms: number;
@@ -110,6 +113,7 @@ function rowToPersisted(r: Row): PersistedSession {
     branch: r.branch ?? undefined,
     state: r.state as PersistedSession["state"],
     management: r.management as PersistedSession["management"],
+    agent: agentOrDefault(r.agent),
     model: normalizeModelId(r.model),
     modelRaw: r.model_raw ?? undefined,
     lastActivityMs: r.last_activity_ms,
@@ -174,6 +178,7 @@ export function hydrate(p: PersistedSession): Session {
     branch: p.branch,
     state: p.state,
     management: p.management,
+    agent: p.agent,
     resumable: isResumable(p.transcriptMtimeMs),
     model: p.model,
     modelRaw: p.modelRaw,
@@ -192,11 +197,11 @@ export function hydrate(p: PersistedSession): Session {
 
 const UPSERT = `
   INSERT INTO sessions
-    (id, title, project, cwd, branch, state, management, model, model_raw, last_activity_ms, created_ms, awaiting_user, transcript_mtime_ms,
+    (id, title, project, cwd, branch, state, management, agent, model, model_raw, last_activity_ms, created_ms, awaiting_user, transcript_mtime_ms,
      input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, usage_by_model, context_tokens, effort_level,
      compaction_count, compaction_reclaimed_tokens)
   VALUES
-    (@id, @title, @project, @cwd, @branch, @state, @management, @model, @model_raw, @last_activity_ms, @created_ms, @awaiting_user, @transcript_mtime_ms,
+    (@id, @title, @project, @cwd, @branch, @state, @management, @agent, @model, @model_raw, @last_activity_ms, @created_ms, @awaiting_user, @transcript_mtime_ms,
      @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @usage_by_model, @context_tokens, @effort_level,
      @compaction_count, @compaction_reclaimed_tokens)
   ON CONFLICT(id) DO UPDATE SET
@@ -206,6 +211,7 @@ const UPSERT = `
     branch = excluded.branch,
     state = excluded.state,
     management = excluded.management,
+    agent = excluded.agent,
     model = excluded.model,
     model_raw = excluded.model_raw,
     last_activity_ms = excluded.last_activity_ms,
@@ -249,6 +255,7 @@ export function upsertSessions(
         branch: s.branch ?? null,
         state: s.state,
         management: s.management,
+        agent: s.agent,
         model: s.model,
         model_raw: s.modelRaw ?? null,
         last_activity_ms: s.lastActivityMs,
@@ -307,6 +314,15 @@ export function readSessionTitles(db: SqliteDb): Record<string, string> {
   const out: Record<string, string> = {};
   for (const r of rows) out[r.id] = r.title;
   return out;
+}
+
+/** The agent recorded for an indexed session id, or null when the id isn't indexed (drafts live
+ *  only in the managed registry — the composite provider's resolver checks there first). */
+export function getSessionAgent(db: SqliteDb, id: string): AgentId | null {
+  const r = db.prepare("SELECT agent FROM sessions WHERE id = ?").get(id) as
+    | { agent: string }
+    | undefined;
+  return r ? agentOrDefault(r.agent) : null;
 }
 
 /** Drop every row whose id isn't in `keepIds` — sessions that aged out of the window and aren't live.

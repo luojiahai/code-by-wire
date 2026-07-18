@@ -10,6 +10,7 @@ export const zh: Translations = {
     copy: "复制",
     copied: "已复制",
     continue: "继续",
+    comingSoon: "即将推出…",
   },
   settings: {
     nav: {
@@ -33,6 +34,7 @@ export const zh: Translations = {
     system: {
       title: "系统",
       lede: "驱动本应用的底层机件，保持绿灯。",
+      agent: "代理",
     },
     about: {
       title: "关于",
@@ -65,6 +67,16 @@ export const zh: Translations = {
       copyAction: "复制",
       unavailableReason:
         "Claude Code CLI 当前不可用 — 请查看标题栏中的系统状态。",
+      unavailableReasonFor: (label: string) =>
+        `${label} CLI 当前不可用 — 请查看设置 → 系统。`,
+      unavailableShort: "CLI 不可用",
+    },
+    codexCli: {
+      title: "Codex CLI",
+      notInstalledHeadline: "未检测到",
+      installHint: "安装命令",
+      loginHint: "然后登录",
+      docs: "Codex 文档",
     },
     statusline: {
       title: "Statusline",
@@ -163,6 +175,7 @@ export const zh: Translations = {
       noActiveSessions: "没有活跃会话。",
       noSessionsYet: "暂无会话。",
       newSessionIn: (cwd) => `在 ${cwd} 中新建会话`,
+      newSessionWith: (label, cwd) => `在 ${cwd} 新建 ${label} 会话`,
     },
     sessionRow: {
       openSession: (title) => `打开 ${title}`,
@@ -204,11 +217,13 @@ export const zh: Translations = {
       forkTitleNoConversation: "无内容可复刻 — 该会话没有已保存的对话记录。",
       endTitleLive: "结束此会话",
       endTitleUnavailable: "仅当会话处于本应用管理的活跃状态时才能结束。",
+      comingSoonForAgent: (label: string) => `${label} 会话即将支持。`,
     },
     newSession: {
       ledeBefore: "在所选目录中启动",
-      ledeAfter: "，并通过实时终端进行操作。",
+      ledeGeneric: "，并通过实时终端驱动。",
       sessionSetup: "会话设置",
+      agent: "代理",
       directory: "目录",
       choose: "选择…",
       noDirectoryChosen: "未选择目录",
@@ -220,7 +235,6 @@ export const zh: Translations = {
     },
     middleHeader: {
       viewGroupLabel: "视图",
-      claudeCode: "Claude Code",
       transcript: "记录",
     },
     footer: {
@@ -282,6 +296,7 @@ export const zh: Translations = {
     emptyStates: {
       noSessions: "未找到 Claude Code 会话。",
       selectSession: "选择一个会话以打开。",
+      sessionEndedTranscriptSoon: "会话已结束——转录功能即将推出。",
     },
     mode: {
       managed: {
@@ -316,6 +331,8 @@ export const zh: Translations = {
     },
   },
   stats: {
+    agentLabel: "代理",
+    comingSoonFor: (label: string) => `${label} 统计——即将推出…`,
     clearDayFilter: "清除日期筛选",
     buildingHistory: "正在构建历史记录…",
     noUsage: "暂无使用记录。",

@@ -38,6 +38,7 @@ const session = (over: Partial<Session> = {}): Session => ({
   project: "p",
   state: "working",
   management: "observed",
+  agent: "claude",
   resumable: true,
   model: "opus",
   contextPct: 12,

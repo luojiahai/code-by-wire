@@ -11,6 +11,9 @@ import type {
   BackgroundShell,
   Monitor,
 } from "@shared/types";
+import { AGENTS } from "@shared/agents";
+import { useI18n } from "../i18n";
+import { AgentIcon } from "../ui/agent-icons";
 import { TranscriptView } from "./TranscriptView";
 import { useTranscriptModals } from "./use-transcript-modals";
 import { TerminalView } from "../terminal/TerminalView";
@@ -66,7 +69,15 @@ export function Workspace({
   // the ObservedTerminal panel instead. A live Managed session opens on Terminal (transcriptOn = false);
   // everything else opens on Transcript (transcriptOn = true), since its read-only conversation leads.
   const hasLiveTerminal = s.management === "managed" && s.state !== "ended";
-  const [transcriptOn, setTranscriptOn] = useState(!hasLiveTerminal);
+  const caps = AGENTS[s.agent].capabilities;
+  // No transcript capability → the switcher rests on the agent segment always; a dead session
+  // shows the placeholder there instead of landing on the disabled Transcript side.
+  const [transcriptOn, setTranscriptOn] = useState(
+    !hasLiveTerminal && caps.hasTranscript,
+  );
+  useEffect(() => {
+    if (!caps.hasTranscript) setTranscriptOn(false);
+  }, [caps.hasTranscript]);
   // Lifted from WorkspaceBody so the header's "Claude Code" tab can clear a subagent drill on select —
   // it needs to live above the toggle it composes with, not just above the CenterView that renders it.
   const [drill, setDrill] = useState<DrillCrumb[]>([]);
@@ -220,34 +231,36 @@ function WorkspaceBody({
           setTranscriptOn={setTranscriptOn}
         />
       </div>
-      <ActivityDock
-        tasks={tasks ?? []}
-        doc={doc}
-        shells={shells ?? []}
-        monitors={monitors ?? []}
-        now={now}
-        activeAgentId={activeAgentId}
-        activeShellId={activeShellId}
-        activeMonitorId={activeMonitorId}
-        onDrill={(agent: Subagent) =>
-          setDrill([
-            {
-              kind: "subagent",
-              agentId: agent.id,
-              type: agent.type,
-              description: agent.description,
-            },
-          ])
-        }
-        onDrillShell={(shell: BackgroundShell) => {
-          setModalMonitor(null);
-          setModalShell(shell);
-        }}
-        onDrillMonitor={(monitor: Monitor) => {
-          setModalShell(null);
-          setModalMonitor(monitor);
-        }}
-      />
+      {AGENTS[s.agent].capabilities.hasActivity && (
+        <ActivityDock
+          tasks={tasks ?? []}
+          doc={doc}
+          shells={shells ?? []}
+          monitors={monitors ?? []}
+          now={now}
+          activeAgentId={activeAgentId}
+          activeShellId={activeShellId}
+          activeMonitorId={activeMonitorId}
+          onDrill={(agent: Subagent) =>
+            setDrill([
+              {
+                kind: "subagent",
+                agentId: agent.id,
+                type: agent.type,
+                description: agent.description,
+              },
+            ])
+          }
+          onDrillShell={(shell: BackgroundShell) => {
+            setModalMonitor(null);
+            setModalShell(shell);
+          }}
+          onDrillMonitor={(monitor: Monitor) => {
+            setModalShell(null);
+            setModalMonitor(monitor);
+          }}
+        />
+      )}
       {activeShell && (
         <ShellDetailModal
           shell={activeShell}
@@ -299,6 +312,7 @@ function CenterView({
   transcriptOn: boolean;
   setTranscriptOn: (transcriptOn: boolean) => void;
 }) {
+  const { t } = useI18n();
   const top = drill[drill.length - 1];
   // The full subagent path, so the breadcrumb shows Session › A › B … instead of just the top.
   const subagentCrumbs = drill.map((c) => ({
@@ -328,15 +342,23 @@ function CenterView({
   // just-exited Managed one that re-derives Observed) — it's the ObservedTerminal panel: Fork is always
   // offered, Resume only once the session has Ended.
   const hasLiveTerminal = s.management === "managed" && s.state !== "ended";
+  const caps = AGENTS[s.agent].capabilities;
   const terminalSlot = hasLiveTerminal ? (
     <TerminalView sessionId={s.id} />
-  ) : (
+  ) : caps.hasTranscript ? (
     <ObservedTerminal
       session={s}
       canSpawn={canSpawn}
       onResume={onResume}
       onFork={onFork}
     />
+  ) : (
+    <div className="flex h-full flex-col items-center justify-center gap-2 bg-ink-950 text-fg-faint">
+      <AgentIcon agent={s.agent} size={26} className="opacity-60" />
+      <p className="text-body">
+        {t.workspace.emptyStates.sessionEndedTranscriptSoon}
+      </p>
+    </div>
   );
 
   return (

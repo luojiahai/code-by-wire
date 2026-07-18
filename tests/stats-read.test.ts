@@ -29,11 +29,6 @@ const makeHome = tempHomes("cbw-stats-ipc-");
 
 const provider: Provider = {
   id: "fake",
-  capabilities: {
-    canControl: false,
-    hasRateLimits: false,
-    hasSubagents: false,
-  },
   listCandidates: () => [],
   summarize: (c) => ({
     id: c.id,
@@ -42,6 +37,7 @@ const provider: Provider = {
     cwd: "/w/p",
     state: "idle",
     management: "observed",
+    agent: "claude",
     model: "opus",
     lastActivityMs: 0,
     createdMs: 0,
@@ -771,6 +767,7 @@ describe("registerIpc stats:read", () => {
     branch: "main",
     state: "idle",
     management: "observed",
+    agent: "claude",
     model: "opus",
     lastActivityMs: 1000,
     createdMs: 2000,

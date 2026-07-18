@@ -65,4 +65,21 @@ describe("createSessionPinStore", () => {
     writeFileSync(join(dir, "session-pins.json"), JSON.stringify([1, 2]));
     expect(createSessionPinStore({ dir }).read()).toEqual({});
   });
+  it("rename migrates an entry to the new id and is a no-op without one", () => {
+    const dir = tmp();
+    const store = createSessionPinStore({ dir, now: () => 1234 });
+    store.set("a", true);
+    store.rename("a", "b");
+    expect(store.read()).toEqual({ b: 1234 });
+    store.rename("missing", "c"); // no throw, no change
+    expect(store.read()).toEqual({ b: 1234 });
+  });
+  it("rename is a no-op when the target id already has an entry", () => {
+    const dir = tmp();
+    const store = createSessionPinStore({ dir, now: () => 5 });
+    store.set("a", true);
+    store.set("b", true);
+    store.rename("a", "b");
+    expect(store.read()).toEqual({ a: 5, b: 5 });
+  });
 });

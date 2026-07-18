@@ -1,7 +1,8 @@
 import type { Family, ModelSelection } from "@shared/models";
+import type { AgentId } from "@shared/agents";
 import { FLOW, type ReattachSnapshot } from "@shared/terminal";
 import {
-  buildClaudeCommand,
+  buildSpawnCommand,
   buildResumeCommand,
   buildForkCommand,
   toSpawnForm,
@@ -35,6 +36,8 @@ export interface SpawnRequest {
   id: string;
   cwd: string;
   model: ModelSelection;
+  /** Which agent to spawn. `model` is Claude-only and documented-ignored for any other agent. */
+  agent: AgentId;
   cols: number;
   rows: number;
 }
@@ -81,10 +84,15 @@ export interface TerminalManagerDeps {
   /** Tell the renderer a session's process exited. */
   notifyExit: (id: string, exitCode: number) => void;
   /** Record `id` as Managed (the registry's `add`), anchored to its pty's `pid`, so discovery labels it
-   *  and can follow it across a `/clear` that rotates the session id under the same pid. `model` is the
-   *  picked alias for a fresh spawn (undefined on Resume, which restores the model via the CLI), so the
-   *  provider can front it before the first assistant turn records a real model. */
-  onSpawned: (id: string, pid: number, model?: Family) => void;
+   *  and can follow it across a `/clear` that rotates the session id under the same pid. `info.model` is
+   *  the picked alias for a fresh Claude spawn (undefined on Resume, which restores the model via the
+   *  CLI, and for non-Claude agents), so the provider can front it before the first assistant turn
+   *  records a real model. `info.agent`/`info.cwd` are the codex claim's inputs (see managed-registry.ts). */
+  onSpawned: (
+    id: string,
+    pid: number,
+    info: { model?: Family; agent: AgentId; cwd: string },
+  ) => void;
   /** Drop `id`'s Managed label (the registry's `remove`) once its pty is gone — natural exit or a
    *  disposeAll on window close — so Managed-ness stays anchored to the pty's actual lifetime and a
    *  reopened window doesn't resurrect a dead session as Managed. */
@@ -177,6 +185,7 @@ export function createTerminalManager(
     cwd: string,
     cols: number,
     rows: number,
+    agent: AgentId,
     model?: Family,
   ): void {
     if (terms.has(id)) return; // idempotent — a double start of one id is a no-op
@@ -252,26 +261,28 @@ export function createTerminalManager(
       deps.notifyExit(term.id, exitCode);
     });
 
-    deps.onSpawned(id, pty.pid, model);
+    deps.onSpawned(id, pty.pid, { model, agent, cwd });
   }
 
   function spawn(req: SpawnRequest): void {
     start(
       req.id,
       toSpawnForm(
-        buildClaudeCommand({ id: req.id, model: req.model }),
+        buildSpawnCommand({ agent: req.agent, id: req.id, model: req.model }),
         platform,
         platform === "win32" ? undefined : posixShellDeps(),
       ),
       req.cwd,
       req.cols,
       req.rows,
+      req.agent,
       req.model === "default" ? undefined : req.model,
     );
   }
 
   // Resume: resume an Ended session under its OWN id. The resume argv carries no --model (the CLI restores
-  // the session's model), so there is no `model` in the request.
+  // the session's model), so there is no `model` in the request. Resume is Claude-only (codex has no
+  // resume-by-id equivalent in this app yet), so the agent is always "claude" here.
   function resume(req: ResumeSpawn): void {
     start(
       req.id,
@@ -283,14 +294,16 @@ export function createTerminalManager(
       req.cwd,
       req.cols,
       req.rows,
+      "claude",
     );
   }
 
   // Fork: resume the source conversation under a NEW id. Like resume, the argv carries no --model (the
   // fork restores the source's model); unlike resume, the id differs from the source, so the fork writes
   // its own Transcript and the original is left intact. We still pass the source model as the picked
-  // alias (spawn's 6th arg) so the provider fronts it until the fork's first turn lands a real model —
-  // otherwise a fork of, say, a Sonnet session would flash the default fallback before settling.
+  // alias so the provider fronts it until the fork's first turn lands a real model — otherwise a fork
+  // of, say, a Sonnet session would flash the default fallback before settling. Fork is Claude-only, so
+  // the agent is always "claude" here.
   function fork(req: ForkSpawn): void {
     start(
       req.id,
@@ -302,13 +315,16 @@ export function createTerminalManager(
       req.cwd,
       req.cols,
       req.rows,
+      "claude",
       req.model,
     );
   }
 
   // Shell terminals (footer): spawn a LITERAL argv, reusing start()'s cwd guard, bufferer, flow control,
   // and exit wiring — but with no launchForm shim (the shell resolver already returns real executables;
-  // shimming pwsh.exe through `cmd.exe /c` would be wrong) and no model / Managed alias.
+  // shimming pwsh.exe through `cmd.exe /c` would be wrong) and no model / Managed alias. The agent here
+  // is an inert placeholder: this manager instance's onSpawned is always a no-op (shell-ipc.ts never
+  // touches the ManagedRegistry), so nothing ever reads it.
   function launch(req: LaunchRequest): void {
     start(
       req.id,
@@ -316,6 +332,7 @@ export function createTerminalManager(
       req.cwd,
       req.cols,
       req.rows,
+      "claude",
     );
   }
 

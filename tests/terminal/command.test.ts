@@ -5,6 +5,8 @@ import {
   buildForkCommand,
   wrapInLoginShell,
   toSpawnForm,
+  buildSpawnCommand,
+  launchForm,
 } from "../../src/main/terminal/command";
 import { newSessionId } from "../../src/shared/terminal";
 
@@ -109,5 +111,35 @@ describe("newSessionId", () => {
 
   it("returns a fresh id each call", () => {
     expect(newSessionId()).not.toBe(newSessionId());
+  });
+});
+
+describe("buildSpawnCommand", () => {
+  it("claude → the existing pinned-id command, model flag included", () => {
+    expect(
+      buildSpawnCommand({ agent: "claude", id: "sid-1", model: "sonnet" }),
+    ).toEqual({
+      file: "claude",
+      args: ["--session-id", "sid-1", "--model", "sonnet"],
+    });
+  });
+  it("codex → the bare binary, no args: no id pin exists, models are chosen in the TUI", () => {
+    expect(
+      buildSpawnCommand({ agent: "codex", id: "sid-2", model: "default" }),
+    ).toEqual({
+      file: "codex",
+      args: [],
+    });
+  });
+  it("codex ignores a non-default model selection (documented-ignored)", () => {
+    expect(
+      buildSpawnCommand({ agent: "codex", id: "s", model: "opus" }).args,
+    ).toEqual([]);
+  });
+  it("bare codex routes through the win32 PATHEXT shim like claude does", () => {
+    expect(launchForm({ file: "codex", args: [] }, "win32")).toEqual({
+      file: "cmd.exe",
+      args: ["/c", "codex"],
+    });
   });
 });

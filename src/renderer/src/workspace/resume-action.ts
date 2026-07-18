@@ -34,9 +34,12 @@ export function resumeActionDisabled(opts: {
   canSpawn: boolean;
   resumable: boolean;
   available?: boolean;
+  /** The agent's capability flag (canResume/canFork). Defaults true so claude-only surfaces
+   *  don't have to pass it; the menu passes AGENTS[agent].capabilities.* */
+  capable?: boolean;
 }): boolean {
-  const { canSpawn, resumable, available = true } = opts;
-  return !canSpawn || !resumable || !available;
+  const { canSpawn, resumable, available = true, capable = true } = opts;
+  return !capable || !canSpawn || !resumable || !available;
 }
 
 export interface ResumeAction {

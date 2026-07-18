@@ -35,4 +35,13 @@ describe("resumeActionDisabled", () => {
       }),
     ).toBe(true);
   });
+
+  it("capable:false disables regardless of everything else (codex V1 Resume/Fork)", () => {
+    expect(
+      resumeActionDisabled({ canSpawn: true, resumable: true, capable: false }),
+    ).toBe(true);
+    expect(resumeActionDisabled({ canSpawn: true, resumable: true })).toBe(
+      false,
+    ); // default true — existing call sites unaffected
+  });
 });

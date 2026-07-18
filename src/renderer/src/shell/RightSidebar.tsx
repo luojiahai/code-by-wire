@@ -1,4 +1,6 @@
 import type { Account, Session } from "@shared/types";
+import { AGENTS } from "@shared/agents";
+import { useI18n } from "../i18n";
 import { useTranscript } from "../workspace/use-transcript";
 import type { MetricsState } from "../workspace/use-metrics";
 import { PressurePanel } from "../workspace/panels/PressurePanel";
@@ -27,7 +29,9 @@ export function RightSidebar({
   metrics: MetricsState;
   account: Account | null;
 }) {
+  const { t } = useI18n();
   const doc = useTranscript(session.id);
+  const hasTelemetry = AGENTS[session.agent].capabilities.hasTelemetry;
   return (
     <div className="flex h-full flex-col border-l border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) text-(--ui-text-tertiary) shadow-[inset_0.0625rem_0_0_color-mix(in_srgb,white_12%,transparent)]">
       <div
@@ -35,36 +39,46 @@ export function RightSidebar({
         style={{ height: "var(--titlebar-height)" }}
       />
 
-      {/* px-1.5 on top of PanelSection's own px-2.5 ≈ the left sidebar's ~16px content inset,
-          scoped here so the Activity dock's PanelSections keep their tighter fit. Explicit
-          dividers (not divide-y): their mx-2.5 matches PanelSection's px-2.5, so the hairlines
-          start and end exactly where the content does. */}
-      <OverlayScroll className="min-h-0 flex-1">
-        <div className="flex flex-col px-1.5 pb-2">
-          <PressurePanel
-            live={session.liveContext ?? null}
-            context={doc?.context ?? null}
-            contextPct={session.contextPct}
-            contextWindow={session.contextWindow}
-            account={account}
-            rateLimits={session.rateLimits ?? null}
-          />
-          <SectionDivider />
-          <SpendPanel
-            usageByModel={session.usageByModel ?? []}
-            costUsd={session.costUsd ?? null}
-          />
-          <SectionDivider />
-          <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
-          <SectionDivider />
-          <DutyPanel
-            apiDurationMs={session.apiDurationMs ?? null}
-            sessionClockMs={session.sessionClockMs ?? null}
-          />
-          <SectionDivider />
-          <SessionPanel session={session} git={metrics?.git} pr={metrics?.pr} />
+      {hasTelemetry ? (
+        /* px-1.5 on top of PanelSection's own px-2.5 ≈ the left sidebar's ~16px content inset,
+            scoped here so the Activity dock's PanelSections keep their tighter fit. Explicit
+            dividers (not divide-y): their mx-2.5 matches PanelSection's px-2.5, so the hairlines
+            start and end exactly where the content does. */
+        <OverlayScroll className="min-h-0 flex-1">
+          <div className="flex flex-col px-1.5 pb-2">
+            <PressurePanel
+              live={session.liveContext ?? null}
+              context={doc?.context ?? null}
+              contextPct={session.contextPct}
+              contextWindow={session.contextWindow}
+              account={account}
+              rateLimits={session.rateLimits ?? null}
+            />
+            <SectionDivider />
+            <SpendPanel
+              usageByModel={session.usageByModel ?? []}
+              costUsd={session.costUsd ?? null}
+            />
+            <SectionDivider />
+            <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
+            <SectionDivider />
+            <DutyPanel
+              apiDurationMs={session.apiDurationMs ?? null}
+              sessionClockMs={session.sessionClockMs ?? null}
+            />
+            <SectionDivider />
+            <SessionPanel
+              session={session}
+              git={metrics?.git}
+              pr={metrics?.pr}
+            />
+          </div>
+        </OverlayScroll>
+      ) : (
+        <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center">
+          <p className="text-body text-fg-faint">{t.common.comingSoon}</p>
         </div>
-      </OverlayScroll>
+      )}
     </div>
   );
 }

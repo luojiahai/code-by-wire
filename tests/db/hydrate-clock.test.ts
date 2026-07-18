@@ -10,6 +10,7 @@ function persisted(over: Partial<PersistedSession>): PersistedSession {
     cwd: "",
     state: "ended",
     management: "observed",
+    agent: "claude",
     model: "opus",
     lastActivityMs: 0,
     createdMs: 0,

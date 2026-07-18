@@ -13,6 +13,7 @@ const cand = (
   alive: true,
   status: "idle",
   cwd: `/w/${id}`,
+  agent: "claude",
   transcriptPath: `/w/${id}/${id}.jsonl`,
   transcriptMtimeMs: 100,
   ...over,
@@ -26,6 +27,7 @@ const snapOf = (c: SessionCandidate): PersistedSession => ({
   branch: undefined,
   state: c.alive ? "idle" : "ended",
   management: "observed",
+  agent: "claude",
   model: "opus",
   lastActivityMs: c.transcriptMtimeMs,
   createdMs: 0,
@@ -57,11 +59,6 @@ function fakeProvider(candidates: SessionCandidate[]): {
   return {
     provider: {
       id: "fake",
-      capabilities: {
-        canControl: false,
-        hasRateLimits: false,
-        hasSubagents: false,
-      },
       listCandidates: () => candidates,
       summarize,
       restate,

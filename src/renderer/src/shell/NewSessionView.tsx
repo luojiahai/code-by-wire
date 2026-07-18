@@ -4,6 +4,7 @@ import {
   type ModelSelection,
   type ModelDefaults,
 } from "@shared/models";
+import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
 import { FAMILY_LABEL } from "../ui/meta";
 import { Icon } from "../ui/icons";
 import { useI18n } from "../i18n";
@@ -20,12 +21,19 @@ import { PageHeader, Card } from "./page-primitives";
 export function NewSessionView({
   onCreate,
   onCancel,
+  canSpawnFor,
   busy: externalBusy,
   initialCwd,
   initialError,
 }: {
-  onCreate: (cwd: string, model: ModelSelection) => void | Promise<void>;
+  onCreate: (
+    cwd: string,
+    model: ModelSelection,
+    agent: AgentId,
+  ) => void | Promise<void>;
   onCancel: () => void;
+  /** Per-agent spawn gate: an agent whose CLI check failed renders as a disabled option. */
+  canSpawnFor: (agent: AgentId) => boolean;
   /** An external in-flight signal from the caller (e.g. a future `App.tsx`'s broader busy state),
    *  OR'd with this view's own internal busy state — lets a caller widen the disabled/"Starting…"
    *  window without this component needing to know why. */
@@ -38,6 +46,7 @@ export function NewSessionView({
 }) {
   const { t } = useI18n();
   const [cwd, setCwd] = useState<string | null>(initialCwd ?? null);
+  const [agent, setAgent] = useState<AgentId>("claude");
   const [model, setModel] = useState<ModelSelection>("default");
   const [defaults, setDefaults] = useState<ModelDefaults | null>(null);
   const [internalBusy, setInternalBusy] = useState(false);
@@ -74,7 +83,7 @@ export function NewSessionView({
     setInternalBusy(true);
     setError(null);
     try {
-      await onCreate(cwd, model);
+      await onCreate(cwd, model, agent);
     } catch (e) {
       setInternalBusy(false);
       setError(
@@ -91,14 +100,41 @@ export function NewSessionView({
           lede={
             <>
               {t.shell.newSession.ledeBefore}{" "}
-              <span className="font-mono">claude</span>{" "}
-              {t.shell.newSession.ledeAfter}
+              <span className="font-mono">{AGENTS[agent].binary}</span>{" "}
+              {t.shell.newSession.ledeGeneric}
             </>
           }
         />
         <div className="mt-4">
           <Card title={t.shell.newSession.sessionSetup}>
             <div className="flex flex-col gap-4 p-4">
+              <div>
+                <label className="block text-meta font-semibold uppercase tracking-wider text-fg-muted">
+                  {t.shell.newSession.agent}
+                </label>
+                <div className="relative mt-1.5">
+                  <select
+                    value={agent}
+                    onChange={(e) => setAgent(e.target.value as AgentId)}
+                    className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+                  >
+                    {AGENT_IDS.map((id) => (
+                      <option key={id} value={id} disabled={!canSpawnFor(id)}>
+                        {AGENTS[id].label}
+                        {canSpawnFor(id)
+                          ? ""
+                          : ` — ${t.settings.cli.unavailableShort}`}
+                      </option>
+                    ))}
+                  </select>
+                  <Icon
+                    name="chevron-down"
+                    size={14}
+                    className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-meta font-semibold uppercase tracking-wider text-fg-muted">
                   {t.shell.newSession.directory}
@@ -117,36 +153,40 @@ export function NewSessionView({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-meta font-semibold uppercase tracking-wider text-fg-muted">
-                  {t.shell.newSession.model}
-                </label>
-                <div className="relative mt-1.5">
-                  <select
-                    value={model}
-                    onChange={(e) => setModel(e.target.value as ModelSelection)}
-                    className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
-                  >
-                    <option value="default">
-                      {t.shell.newSession.modelDefault}
-                    </option>
-                    {(defaults?.allowed ?? FAMILIES).map((id) => {
-                      const override = defaults?.overrides[id];
-                      return (
-                        <option key={id} value={id}>
-                          {FAMILY_LABEL[id]}
-                          {override ? ` (${override})` : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <Icon
-                    name="chevron-down"
-                    size={14}
-                    className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
-                  />
+              {AGENTS[agent].capabilities.hasModelPicker && (
+                <div>
+                  <label className="block text-meta font-semibold uppercase tracking-wider text-fg-muted">
+                    {t.shell.newSession.model}
+                  </label>
+                  <div className="relative mt-1.5">
+                    <select
+                      value={model}
+                      onChange={(e) =>
+                        setModel(e.target.value as ModelSelection)
+                      }
+                      className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+                    >
+                      <option value="default">
+                        {t.shell.newSession.modelDefault}
+                      </option>
+                      {(defaults?.allowed ?? FAMILIES).map((id) => {
+                        const override = defaults?.overrides[id];
+                        return (
+                          <option key={id} value={id}>
+                            {FAMILY_LABEL[id]}
+                            {override ? ` (${override})` : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <Icon
+                      name="chevron-down"
+                      size={14}
+                      className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               {error && <p className="text-aux text-danger">{error}</p>}
               <div className="flex justify-end gap-2">

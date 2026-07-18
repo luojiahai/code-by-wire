@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { Session } from "@shared/types";
 import { OPEN_IN_FAILED_MESSAGE, type OpenInTarget } from "@shared/ipc";
+import { AGENTS } from "@shared/agents";
 import { useI18n } from "../i18n";
 import {
   useSessionActions,
@@ -239,18 +240,22 @@ export function useSessionMenu(
     }
   }
 
+  const caps = AGENTS[session.agent].capabilities;
   const resumeDisabled = resumeActionDisabled({
     canSpawn,
     resumable: session.resumable,
     available: canResume,
+    capable: caps.canResume,
   });
-  const resumeTitle = !canSpawn
-    ? t.settings.cli.unavailableReason
-    : !session.resumable
-      ? t.shell.sessionMenu.resumeTitleNoConversation
-      : !canResume
-        ? t.shell.sessionMenu.resumeTitlePending
-        : undefined;
+  const resumeTitle = !caps.canResume
+    ? t.shell.sessionMenu.comingSoonForAgent(AGENTS[session.agent].label)
+    : !canSpawn
+      ? t.settings.cli.unavailableReason
+      : !session.resumable
+        ? t.shell.sessionMenu.resumeTitleNoConversation
+        : !canResume
+          ? t.shell.sessionMenu.resumeTitlePending
+          : undefined;
 
   // Single-sourced with ResumeButton/ObservedTerminal's Fork gate via `resumeActionDisabled` — Fork
   // is available on ended/observed sessions there, so the menu must agree rather than additionally
@@ -259,12 +264,15 @@ export function useSessionMenu(
   const forkDisabled = resumeActionDisabled({
     canSpawn,
     resumable: session.resumable,
+    capable: caps.canFork,
   });
-  const forkTitle = !canSpawn
-    ? t.settings.cli.unavailableReason
-    : !session.resumable
-      ? t.shell.sessionMenu.forkTitleNoConversation
-      : undefined;
+  const forkTitle = !caps.canFork
+    ? t.shell.sessionMenu.comingSoonForAgent(AGENTS[session.agent].label)
+    : !canSpawn
+      ? t.settings.cli.unavailableReason
+      : !session.resumable
+        ? t.shell.sessionMenu.forkTitleNoConversation
+        : undefined;
 
   const endTitle = live
     ? t.shell.sessionMenu.endTitleLive

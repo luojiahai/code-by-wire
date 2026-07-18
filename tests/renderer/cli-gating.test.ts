@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { spawnGate } from "../../src/renderer/src/ui/cli-gating";
-import type { CliStatus } from "../../src/shared/cli-status";
+import { spawnGate, spawnGateFor } from "../../src/renderer/src/ui/cli-gating";
+import type { CliStatus, CliStatusByAgent } from "../../src/shared/cli-status";
 
 const mk = (kind: CliStatus["kind"]): CliStatus => ({
   kind,
@@ -22,5 +22,33 @@ describe("spawnGate", () => {
   });
   it("allows spawning while the first check is pending (null) — don't block on unknowns", () => {
     expect(spawnGate(null).canSpawn).toBe(true);
+  });
+});
+
+describe("spawnGateFor", () => {
+  const byAgent: CliStatusByAgent = {
+    claude: mk("notFound"),
+    codex: mk("ready"),
+  };
+  it("gates on the named agent's own entry", () => {
+    expect(spawnGateFor(byAgent, "claude").canSpawn).toBe(false);
+    expect(spawnGateFor(byAgent, "codex").canSpawn).toBe(true);
+  });
+  it("allows spawning for a missing entry (check pending), same as spawnGate's null", () => {
+    expect(spawnGateFor({}, "claude").canSpawn).toBe(true);
+  });
+  it("allows spawning when the whole record is null", () => {
+    expect(spawnGateFor(null, "claude").canSpawn).toBe(true);
+  });
+  it("names the failing agent in the reason, not always Claude", () => {
+    const bothDown: CliStatusByAgent = {
+      claude: mk("notFound"),
+      codex: mk("unknown"),
+    };
+    const claudeReason = spawnGateFor(bothDown, "claude").reason;
+    const codexReason = spawnGateFor(bothDown, "codex").reason;
+    expect(claudeReason).toContain("Claude Code");
+    expect(codexReason).toContain("Codex");
+    expect(codexReason).not.toContain("Claude");
   });
 });

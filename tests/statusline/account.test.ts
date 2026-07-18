@@ -133,6 +133,7 @@ describe("overlaySessions rateLimits", () => {
     project: "p",
     state: "working",
     management: "managed",
+    agent: "claude",
     resumable: true,
     model: "opus",
     contextPct: 0,

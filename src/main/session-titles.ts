@@ -14,6 +14,9 @@ export interface SessionTitleStore {
   read(): Record<string, string>;
   /** Persist a trimmed override, or drop the key when title is null or trims to empty. */
   set(id: string, title: string | null): void;
+  /** Migrate an entry across a session-id re-key (the codex claim; potentially /clear later).
+   *  No-op when `from` has no entry or `to` already has one. */
+  rename(from: string, to: string): void;
 }
 
 export interface SessionTitleDeps {
@@ -55,6 +58,13 @@ export function createSessionTitleStore(
       const trimmed = title?.trim().slice(0, MAX_SESSION_TITLE_LEN);
       if (trimmed) next[id] = trimmed;
       else delete next[id];
+      write(next);
+    },
+    rename(from, to) {
+      const next = read();
+      if (next[from] === undefined || next[to] !== undefined) return;
+      next[to] = next[from];
+      delete next[from];
       write(next);
     },
   };
