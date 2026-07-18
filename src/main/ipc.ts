@@ -237,6 +237,7 @@ export function registerIpc({
       now,
       CAPTURE_STALE_MS,
       usage?.read() ?? null,
+      usage?.fetchedAtMs(),
     );
     if (account?.billingMode === "subscription") {
       // Subscription identity: the oauthAccount email. Attached only here, only for a

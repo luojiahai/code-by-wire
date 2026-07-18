@@ -70,6 +70,7 @@ function parseSample(
     rateLimits = {
       fiveHour: parseWindow(r.five_hour),
       sevenDay: parseWindow(r.seven_day),
+      sevenDayFable: parseWindow(r.seven_day_fable),
       sevenDaySonnet: parseWindow(r.seven_day_sonnet),
       sevenDayOpus: parseWindow(r.seven_day_opus),
     };

@@ -119,6 +119,9 @@ export function deriveAccount(
   now: number,
   staleMs: number,
   apiUsage?: AccountUsage | null,
+  /** When the usage API response was fetched (epoch ms) — the account's asOfMs when the API is
+   *  the window source. Omitted/0 falls back to the freshest capture's mtime. */
+  apiUsageAsOfMs?: number,
 ): Account | null {
   let freshest: StatusLineSample | null = null;
   let sawRateLimits = false;
@@ -132,11 +135,16 @@ export function deriveAccount(
       billingMode: "subscription",
       fiveHour: liveWindow(apiUsage?.fiveHour, now),
       sevenDay: liveWindow(apiUsage?.sevenDay, now),
+      sevenDayFable: liveWindow(apiUsage?.sevenDayFable, now),
       sevenDaySonnet: liveWindow(apiUsage?.sevenDaySonnet, now),
       sevenDayOpus: liveWindow(apiUsage?.sevenDayOpus, now),
     };
     if (apiUsage?.extraUsage) acc.extraUsage = apiUsage.extraUsage;
     if (freshest?.version) acc.version = freshest.version;
+    // Sample freshness for the UI's "as of Xm ago": the API fetch time when the API supplied the
+    // windows, else the freshest capture's mtime (the rate_limits evidence path).
+    const asOf = apiUsage ? apiUsageAsOfMs : freshest?.capturedMtimeMs;
+    if (asOf) acc.asOfMs = asOf;
     return acc;
   }
   if (freshest) {

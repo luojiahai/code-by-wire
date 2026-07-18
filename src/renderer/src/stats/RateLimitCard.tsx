@@ -1,5 +1,5 @@
 import type { Account, RateLimit } from "@shared/types";
-import { formatResetCountdown } from "@shared/format";
+import { formatResetCountdown, formatAgoShort } from "@shared/format";
 import { StatsCard, CardRegion } from "./shared";
 import { Gauge } from "../ui/bklit/charts/gauge";
 
@@ -51,25 +51,31 @@ function WindowGauge({
 export function RateLimitCard({ account }: { account: Account | null }) {
   if (!account || (!account.fiveHour && !account.sevenDay)) return null;
   const now = Date.now();
+  // Every window the source carried, aggregates first, then the per-model weekly buckets — the
+  // same set (and order) the CLI's /usage screen lists.
+  const windows: { label: string; w: RateLimit | undefined }[] = [
+    { label: "5-hour window", w: account.fiveHour },
+    { label: "7-day window", w: account.sevenDay },
+    { label: "7-day · Fable", w: account.sevenDayFable },
+    { label: "7-day · Sonnet", w: account.sevenDaySonnet },
+    { label: "7-day · Opus", w: account.sevenDayOpus },
+  ];
   return (
     <StatsCard>
       <CardRegion title="Rate limits">
         <div className="flex flex-wrap items-start justify-around gap-4">
-          {account.fiveHour && (
-            <WindowGauge
-              label="5-hour window"
-              window={account.fiveHour}
-              now={now}
-            />
-          )}
-          {account.sevenDay && (
-            <WindowGauge
-              label="7-day window"
-              window={account.sevenDay}
-              now={now}
-            />
+          {windows.map(
+            ({ label, w }) =>
+              w && (
+                <WindowGauge key={label} label={label} window={w} now={now} />
+              ),
           )}
         </div>
+        {account.asOfMs != null && account.asOfMs > 0 && (
+          <div className="mt-2 text-right text-micro text-fg-faint">
+            as of {formatAgoShort(account.asOfMs, now)}
+          </div>
+        )}
       </CardRegion>
     </StatsCard>
   );

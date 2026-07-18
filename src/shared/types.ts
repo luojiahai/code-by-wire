@@ -291,11 +291,12 @@ export interface RateLimit {
   resetsAt: number;
 }
 
-/** The four rate-limit windows a capture's `rate_limits` block or the usage API can carry. Shared by
+/** The rate-limit windows a capture's `rate_limits` block or the usage API can carry. Shared by
  *  both sides of the per-session merge (see statusline.ts pickWindow). */
 export interface RateLimitWindows {
   fiveHour?: RateLimit;
   sevenDay?: RateLimit;
+  sevenDayFable?: RateLimit;
   sevenDaySonnet?: RateLimit;
   sevenDayOpus?: RateLimit;
 }
@@ -327,7 +328,8 @@ export interface Account {
   /** Present only for a subscription; otherwise no account rate limits. */
   fiveHour?: RateLimit;
   sevenDay?: RateLimit;
-  /** Weekly per-model sub-buckets, present only when the capture's rate_limits carried them. */
+  /** Weekly per-model sub-buckets, present only when the source carried them. */
+  sevenDayFable?: RateLimit;
   sevenDaySonnet?: RateLimit;
   sevenDayOpus?: RateLimit;
   /** Paid extra-usage credits, from the usage API only (captures never carry it). */
@@ -336,6 +338,9 @@ export interface Account {
   version?: string;
   /** Logged-in account email, read from ~/.claude.json by the ipc layer (not derived from samples). */
   email?: string;
+  /** When the windows above were sampled (epoch ms): the usage API's fetch time, else the freshest
+   *  capture's mtime. The UI shows it as "as of Xm ago" so a lagging % never reads as wrong. */
+  asOfMs?: number;
 }
 
 /** What a Provider can do. Drives graceful degradation in the UI. */

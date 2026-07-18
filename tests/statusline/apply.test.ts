@@ -106,7 +106,26 @@ describe("deriveAccount", () => {
       fiveHour: undefined,
       sevenDay: undefined,
       version: "2.0.14",
+      asOfMs: NOW, // capture-sourced windows: freshness = the sample's mtime
     });
+  });
+
+  it("stamps asOfMs from the API fetch time when the API supplies the windows", () => {
+    const acc = deriveAccount(
+      [],
+      NOW,
+      STALE_MS,
+      { fiveHour: { usedPct: 10, resetsAt: NOW + 1000 } },
+      NOW - 120_000,
+    );
+    expect(acc?.asOfMs).toBe(NOW - 120_000);
+  });
+
+  it("passes the Fable weekly bucket through from the API", () => {
+    const acc = deriveAccount([], NOW, STALE_MS, {
+      sevenDayFable: { usedPct: 67, resetsAt: NOW + 1000 },
+    });
+    expect(acc?.sevenDayFable?.usedPct).toBe(67);
   });
 });
 

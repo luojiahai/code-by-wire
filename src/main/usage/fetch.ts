@@ -13,6 +13,9 @@ export interface UsageService {
   /** Last known usage, kicking off a background refresh when stale. Sync — never blocks the
    *  overview; the next 3 s poll picks a finished refresh up. Null before the first success. */
   read(): AccountUsage | null;
+  /** When the last successful response was fetched (epoch ms; 0 before the first success) — the
+   *  freshness the account's "as of Xm ago" readout reports. */
+  fetchedAtMs(): number;
 }
 
 export interface UsageServiceDeps {
@@ -160,6 +163,9 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         });
       }
       return data;
+    },
+    fetchedAtMs(): number {
+      return fetchedAt;
     },
   };
 }

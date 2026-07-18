@@ -100,6 +100,11 @@ export function PressurePanel({
   // window fills what's missing. Another session's numbers are unreachable by construction.
   const fiveHour = pickWindow(rateLimits?.fiveHour, account?.fiveHour, now);
   const sevenDay = pickWindow(rateLimits?.sevenDay, account?.sevenDay, now);
+  const sevenDayFable = pickWindow(
+    rateLimits?.sevenDayFable,
+    account?.sevenDayFable,
+    now,
+  );
   const sevenDaySonnet = pickWindow(
     rateLimits?.sevenDaySonnet,
     account?.sevenDaySonnet,
@@ -152,6 +157,9 @@ export function PressurePanel({
       <div className="mt-1 space-y-1.5">
         <RateRow label="5h" window={fiveHour} now={now} />
         <RateRow label="7d" window={sevenDay} now={now} />
+        {sevenDayFable && (
+          <RateRow label="7d F" window={sevenDayFable} now={now} />
+        )}
         {sevenDaySonnet && (
           <RateRow label="7d S" window={sevenDaySonnet} now={now} />
         )}

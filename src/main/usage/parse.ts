@@ -45,10 +45,12 @@ export function parseUsageResponse(body: unknown): AccountUsage | null {
   const usage: AccountUsage = {};
   const fiveHour = parseBucket(b.five_hour);
   const sevenDay = parseBucket(b.seven_day);
+  const sevenDayFable = parseBucket(b.seven_day_fable);
   const sevenDaySonnet = parseBucket(b.seven_day_sonnet);
   const sevenDayOpus = parseBucket(b.seven_day_opus);
   if (fiveHour) usage.fiveHour = fiveHour;
   if (sevenDay) usage.sevenDay = sevenDay;
+  if (sevenDayFable) usage.sevenDayFable = sevenDayFable;
   if (sevenDaySonnet) usage.sevenDaySonnet = sevenDaySonnet;
   if (sevenDayOpus) usage.sevenDayOpus = sevenDayOpus;
   const extraUsage = parseExtraUsage(b.extra_usage);

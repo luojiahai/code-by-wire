@@ -28,6 +28,19 @@ export function formatResetCountdown(resetsAt: number, now: number): string {
   return "<1m";
 }
 
+/** How long ago a sample was taken: "just now" under a minute, then the two largest units in
+ *  formatResetCountdown's style ("3m ago", "1h 4m ago"). A future or non-finite `thenMs` reads as
+ *  "just now" — freshness display, never an error surface. */
+export function formatAgoShort(thenMs: number, now: number): string {
+  const ms = now - thenMs;
+  if (!Number.isFinite(ms) || ms < 60_000) return "just now";
+  const totalMin = Math.floor(ms / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return m > 0 ? `${h}h ${m}m ago` : `${h}h ago`;
+  return `${m}m ago`;
+}
+
 /** A token count with thousands separators: 80710 → "80,710". The context and cost panels show exact
  *  figures (a rail row has room), so no k/M abbreviation. Negative or non-finite coerce to "0". */
 export function formatTokens(n: number): string {

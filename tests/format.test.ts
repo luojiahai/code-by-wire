@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   formatRelativeTime,
   formatResetCountdown,
+  formatAgoShort,
   formatTokens,
   formatDuration,
   formatTokensShort,
@@ -26,6 +27,20 @@ describe("formatRelativeTime", () => {
 
   it("never goes negative for a future timestamp", () => {
     expect(formatRelativeTime(now + 5_000, now)).toBe("now");
+  });
+});
+
+describe("formatAgoShort", () => {
+  const NOW = 1_784_000_000_000;
+  it("reads under a minute (and any non-past input) as just now", () => {
+    expect(formatAgoShort(NOW - 30_000, NOW)).toBe("just now");
+    expect(formatAgoShort(NOW + 5_000, NOW)).toBe("just now");
+    expect(formatAgoShort(Number.NaN, NOW)).toBe("just now");
+  });
+  it("uses minutes then the two largest units", () => {
+    expect(formatAgoShort(NOW - 3 * 60_000, NOW)).toBe("3m ago");
+    expect(formatAgoShort(NOW - 60 * 60_000, NOW)).toBe("1h ago");
+    expect(formatAgoShort(NOW - 64 * 60_000, NOW)).toBe("1h 4m ago");
   });
 });
 
