@@ -63,7 +63,7 @@ describe("extractToolResult", () => {
     expect(extractToolResult([CALL, OUT].join("\n"), "call_nope")).toEqual({
       found: false,
     });
-    expect(extractToolResult("{ not json", "call_1")).toEqual({
+    expect(extractToolResult([CALL, OUT].join("\n"), "")).toEqual({
       found: false,
     });
     // A non-empty, non-matching id drives the malformed line through the
