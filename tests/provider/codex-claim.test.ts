@@ -27,7 +27,9 @@ describe("detectClaims", () => {
       [roll({ id: "late", path: "/x/late", timestampMs: 20_000 }), roll()],
       new Set(),
     );
-    expect(claims).toEqual([{ from: "draft-1", to: "r1", rolloutPath: "/x/r1.jsonl" }]);
+    expect(claims).toEqual([
+      { from: "draft-1", to: "r1", rolloutPath: "/x/r1.jsonl" },
+    ]);
   });
   it("tolerates small clock skew (CLAIM_SLACK_MS) but not an older rollout", () => {
     expect(
@@ -38,12 +40,17 @@ describe("detectClaims", () => {
     ).toHaveLength(0);
   });
   it("never claims a different cwd, an already-claimed path, or double-claims one rollout", () => {
-    expect(detectClaims([pty()], [roll({ cwd: "/other" })], new Set())).toHaveLength(0);
+    expect(
+      detectClaims([pty()], [roll({ cwd: "/other" })], new Set()),
+    ).toHaveLength(0);
     expect(
       detectClaims([pty()], [roll()], new Set(["/x/r1.jsonl"])),
     ).toHaveLength(0);
     const two = detectClaims(
-      [pty({ id: "a", spawnedAtMs: 10_000 }), pty({ id: "b", spawnedAtMs: 10_500 })],
+      [
+        pty({ id: "a", spawnedAtMs: 10_000 }),
+        pty({ id: "b", spawnedAtMs: 10_500 }),
+      ],
       [roll()],
       new Set(),
     );
@@ -53,9 +60,9 @@ describe("detectClaims", () => {
     expect(
       detectClaims([pty({ claimedRollout: "/x/r0" })], [roll()], new Set()),
     ).toHaveLength(0);
-    expect(
-      detectClaims([pty({ id: "r1" })], [roll()], new Set()),
-    ).toHaveLength(0);
+    expect(detectClaims([pty({ id: "r1" })], [roll()], new Set())).toHaveLength(
+      0,
+    );
   });
 });
 
