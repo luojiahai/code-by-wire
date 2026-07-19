@@ -132,6 +132,11 @@ export function LeftSidebar({
   const [pinnedProjects, setPinnedProjects] =
     useState<ReadonlySet<string>>(loadPinnedProjects);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [projectPathTip, setProjectPathTip] = useState<{
+    cwd: string;
+    left: number;
+    top: number;
+  } | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const searched = filterSessions(sessions, query).filter(
     (s) => agentFilter === "all" || s.agent === agentFilter,
@@ -583,14 +588,31 @@ export function LeftSidebar({
                                 />
                               </span>
                               <span
-                                title={g.hint ? cwd : undefined}
-                                className={cx(
-                                  "min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg",
-                                  g.hint &&
-                                    "border-b border-dotted border-(--ui-text-quaternary)",
-                                )}
+                                className="min-w-0"
+                                onMouseEnter={(event) => {
+                                  if (!g.hint || !cwd) return;
+                                  const rect =
+                                    event.currentTarget.getBoundingClientRect();
+                                  setProjectPathTip({
+                                    cwd,
+                                    left: Math.min(
+                                      rect.left,
+                                      window.innerWidth - 256 - 8,
+                                    ),
+                                    top: rect.bottom + 6,
+                                  });
+                                }}
+                                onMouseLeave={() => setProjectPathTip(null)}
                               >
-                                {g.label}
+                                <span
+                                  className={cx(
+                                    "block truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg",
+                                    g.hint &&
+                                      "border-b border-dotted border-(--ui-text-quaternary)",
+                                  )}
+                                >
+                                  {g.label}
+                                </span>
                               </span>
                               <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
                                 <Icon
@@ -749,6 +771,22 @@ export function LeftSidebar({
                 {AGENTS[a].label}
               </button>
             ))}
+          </div>,
+          document.body,
+        )}
+      {projectPathTip &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{
+              position: "fixed",
+              left: projectPathTip.left,
+              top: projectPathTip.top,
+              maxWidth: 256,
+            }}
+            className="pointer-events-none z-50 break-all rounded-md border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] px-2 py-1.5 text-[0.7rem] leading-snug text-fg shadow-(--shadow-md) backdrop-blur-xl"
+          >
+            {projectPathTip.cwd}
           </div>,
           document.body,
         )}
