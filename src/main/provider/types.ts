@@ -71,8 +71,12 @@ export interface Provider {
    *  resolution + change token; skips the recompute when `sinceMtimeMs` still matches. */
   readMetrics(id: string, sinceMtimeMs?: number): MetricsRead;
   /** Resolve whether a session is still owned by a live process (the liveness re-check behind Resume's
-   *  Ended-only state gate) and the working directory to resume it in. Null when nothing resolves a cwd. */
-  resolveResumeTarget(id: string): { alive: boolean; cwd: string } | null;
+   *  Ended-only state gate) and the working directory to resume it in. `rolloutPath` rides along for
+   *  agents whose resume pty must register claim-bound to its file (codex); claude omits it. Null when
+   *  nothing resolves a cwd. */
+  resolveResumeTarget(
+    id: string,
+  ): { alive: boolean; cwd: string; rolloutPath?: string } | null;
   /** Resolve just a session's working directory, for actions that only need the folder (Open in).
    *  Cheaper than resolveResumeTarget: no liveness probe, and a targeted transcript lookup rather than a
    *  full index. Null when no cwd resolves. */

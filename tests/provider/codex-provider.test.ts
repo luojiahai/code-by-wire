@@ -91,7 +91,7 @@ describe("createCodexProvider", () => {
     expect(withPty.listCandidates()).toHaveLength(1);
   });
 
-  it("unimplemented readers settle absent; resolveResumeTarget null; resolveSessionCwd works", () => {
+  it("unimplemented readers settle absent; resolveSessionCwd works", () => {
     const { home } = homeWithOneRollout();
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
     expect(p.readTasks(ID)).toEqual({ status: "absent" });
@@ -112,7 +112,6 @@ describe("createCodexProvider", () => {
     expect(p.readSubagentTranscript(ID, "a")).toEqual({ status: "absent" });
     expect(p.readShellOutput(ID, "s")).toEqual({ status: "absent" });
     expect(p.readMonitorOutput(ID, "m")).toEqual({ status: "absent" });
-    expect(p.resolveResumeTarget(ID)).toBeNull();
     expect(p.resolveSessionCwd(ID)).toBe("/Users/me/proj");
     expect(p.resolveSessionCwd("unknown")).toBeNull();
   });
@@ -187,6 +186,48 @@ describe("createCodexProvider", () => {
     });
     expect(p.getToolResult(ID, "nope")).toEqual({ found: false });
     expect(p.getToolResult("unknown-id", "call_1")).toEqual({ found: false });
+  });
+
+  describe("resolveResumeTarget", () => {
+    it("stale observed rollout → resumable: not alive, head cwd, rollout path", () => {
+      const { home, path } = homeWithOneRollout();
+      const now = Date.now();
+      const stale = (now - CODEX_WORKING_WINDOW_MS - 60_000) / 1000;
+      utimesSync(path, stale, stale);
+      const p = createCodexProvider({ codexDir: home, now: () => now });
+      expect(p.resolveResumeTarget(ID)).toEqual({
+        alive: false,
+        cwd: "/Users/me/proj",
+        rolloutPath: path,
+      });
+    });
+
+    it("fresh mtime → alive (an external writer may still own it)", () => {
+      const { home } = homeWithOneRollout();
+      const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
+      expect(p.resolveResumeTarget(ID)?.alive).toBe(true);
+    });
+
+    it("managed id → alive even when the rollout is stale (the app's own pty owns it)", () => {
+      const { home, path } = homeWithOneRollout();
+      const now = Date.now();
+      const stale = (now - CODEX_WORKING_WINDOW_MS - 60_000) / 1000;
+      utimesSync(path, stale, stale);
+      const p = createCodexProvider({
+        codexDir: home,
+        now: () => now,
+        managed: { has: (id) => id === ID },
+      });
+      expect(p.resolveResumeTarget(ID)?.alive).toBe(true);
+    });
+
+    it("unknown id → null (nothing to resume)", () => {
+      const { home } = homeWithOneRollout();
+      const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
+      expect(
+        p.resolveResumeTarget("99999999-0000-0000-0000-000000000000"),
+      ).toBeNull();
+    });
   });
 });
 

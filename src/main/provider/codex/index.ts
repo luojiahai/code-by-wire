@@ -266,7 +266,25 @@ export function createCodexProvider(
         return { status: "error" };
       }
     },
-    resolveResumeTarget: () => null,
+    resolveResumeTarget: (id) => {
+      const path = rolloutPathFor(id);
+      if (!path) return null;
+      let mtimeMs: number;
+      try {
+        mtimeMs = statSync(path).mtimeMs;
+      } catch {
+        return null; // vanished between resolve and stat
+      }
+      const cwd = headFor(path, mtimeMs)?.cwd;
+      if (!cwd) return null;
+      // Alive = a live app-owned pty already writes this rollout, OR the file is mtime-fresh — the
+      // same freshness signal signalsFor paints the row "working" with, so the refusal gate and the
+      // displayed state agree (claude's registry-pid analog). A live-but-IDLE external codex writes
+      // nothing and is indistinguishable from an exited one (no pid registry to probe); that
+      // residual two-writer risk is accepted and documented in the spec.
+      const fresh = now() - mtimeMs < CODEX_WORKING_WINDOW_MS;
+      return { alive: managed.has(id) || fresh, cwd, rolloutPath: path };
+    },
     resolveSessionCwd: (id) => {
       for (const r of listRollouts(codexDir)) {
         if (r.id !== id) continue;
