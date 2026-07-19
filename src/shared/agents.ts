@@ -8,8 +8,10 @@ export const AGENT_IDS = ["claude", "codex"] as const;
 export type AgentId = (typeof AGENT_IDS)[number];
 
 /** What an agent's integration can do TODAY. Renderer surfaces gate on these flags — never on the
- *  agent id — so enabling codex transcript/telemetry/dock in V2+ is a provider implementation plus
- *  a flag flip here, with zero new wiring in the surfaces. */
+ *  agent id — so enabling a surface for a new agent is a provider implementation plus a flag flip
+ *  here, with zero new wiring in the surfaces. Flags decide WHETHER a surface exists for an agent;
+ *  what's INSIDE a surface lives in per-agent compositions (e.g. the right sidebar's panel stacks
+ *  in renderer shell/sidebar/), one file per agent. */
 export interface AgentCapabilities {
   /** Main can steer the agent's session lifecycle beyond its own pty (Claude: registry files). */
   canControl: boolean;
@@ -27,9 +29,6 @@ export interface AgentCapabilities {
   hasActivity: boolean;
   /** The right-sidebar telemetry stack (pressure/spend/speed/git) has data for this agent. */
   hasTelemetry: boolean;
-  /** The Duty panel (api-time over wall-time) has data for this agent (Claude: statusLine cost).
-   *  Codex has no honest api-duration source, so its telemetry stack renders without Duty. */
-  hasDuty: boolean;
   /** The new-session form offers a model picker (spawn takes a --model flag). */
   hasModelPicker: boolean;
 }
@@ -52,7 +51,6 @@ const ALL = {
   canFork: true,
   hasActivity: true,
   hasTelemetry: true,
-  hasDuty: true,
   hasModelPicker: true,
 } as const satisfies AgentCapabilities;
 
@@ -65,7 +63,6 @@ const NONE = {
   canFork: false,
   hasActivity: false,
   hasTelemetry: false,
-  hasDuty: false,
   hasModelPicker: false,
 } as const satisfies AgentCapabilities;
 
