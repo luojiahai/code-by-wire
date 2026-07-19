@@ -34,6 +34,19 @@ export function usePolledRead<T>(
   const sinceRef = useRef<number | undefined>(undefined); // last seen change token (mtime)
   const inFlightRef = useRef(false);
 
+  // Reset DURING render when the id changes (React's "adjusting state when a prop changes" pattern),
+  // not only in the effect below: the effect is passive, so it runs after React commits — and the
+  // browser paints — the first render of the new session, which exposed one frame of the OLD
+  // session's value under the NEW session's identity (the cross-session Throughput flash on a
+  // session switch). Setting state during render makes React discard this render's output and
+  // re-render immediately, so a stale (new id, old value) pair is never committed. The effect keeps
+  // ownership of the refs and the polling lifecycle.
+  const [renderedId, setRenderedId] = useState(sessionId);
+  if (renderedId !== sessionId) {
+    setRenderedId(sessionId);
+    setValue(undefined);
+  }
+
   useEffect(() => {
     let alive = true;
     sinceRef.current = undefined;
