@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isModelUnknown, resumeActionDisabled } from "../../src/renderer/src/workspace/resume-action";
+import {
+  isModelUnknown,
+  resumeActionDisabled,
+} from "../../src/renderer/src/workspace/resume-action";
 import type { Session } from "@shared/types";
 
 describe("resumeActionDisabled", () => {
@@ -54,9 +57,9 @@ describe("isModelUnknown", () => {
     expect(isModelUnknown(s({ agent: "claude" }))).toBe(true);
   });
   it("claude with a recorded model → known", () => {
-    expect(isModelUnknown(s({ agent: "claude", modelRaw: "claude-sonnet-5" }))).toBe(
-      false,
-    );
+    expect(
+      isModelUnknown(s({ agent: "claude", modelRaw: "claude-sonnet-5" })),
+    ).toBe(false);
   });
   it("codex (no model picker) → never unknown: its CLI restores its own model, no flag is passed", () => {
     expect(isModelUnknown(s({ agent: "codex" }))).toBe(false);
