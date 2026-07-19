@@ -35,7 +35,6 @@ export const zh: Translations = {
     system: {
       title: "系统",
       lede: "驱动本应用的底层机件，保持绿灯。",
-      agent: "代理",
     },
     about: {
       title: "关于",

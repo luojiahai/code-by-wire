@@ -51,7 +51,6 @@ export const en = {
     system: {
       title: "System",
       lede: "The machinery feeding this app. Keep it green.",
-      agent: "Agent",
     },
     about: {
       title: "About",
