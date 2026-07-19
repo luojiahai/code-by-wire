@@ -65,7 +65,7 @@ export function FillGauge({
           left: `${caution}%`,
           right: `${100 - danger}%`,
           background:
-            "color-mix(in srgb, var(--color-accent) 12%, transparent)",
+            "color-mix(in srgb, var(--color-accent) 32%, transparent)",
         }}
       />
       <span
@@ -74,7 +74,7 @@ export function FillGauge({
           left: `${danger}%`,
           right: 0,
           background:
-            "color-mix(in srgb, var(--color-danger) 12%, transparent)",
+            "color-mix(in srgb, var(--color-danger) 32%, transparent)",
         }}
       />
       <span
