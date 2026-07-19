@@ -6,7 +6,6 @@ import type {
   RateLimitWindows,
   ExtraUsage,
 } from "@shared/types";
-import type { AgentId } from "@shared/agents";
 import { pickWindow, showRateRow } from "@shared/statusline";
 import { contextView } from "@shared/context";
 import { cx } from "../../ui/atoms";
@@ -63,9 +62,10 @@ function RateRow({
  * transcript fallback — contextView unchanged) toward the window, then one row per rate-limit
  * window, each merged per-session (spec §1.4): the selected session's own capture window wins,
  * the account API window fills what it's missing. 5h and 7d always render dimmed for Claude
- * (dashed off a capture-less or API-billed account); for codex, once a rate-limits fetch has
- * landed, a window confirmed absent from it (plan-tier dependent) hides its row instead (see
- * `showRateRow`). The weekly per-model buckets appear only when either side carries them.
+ * (dashed off a capture-less or API-billed account); with `windowRowsWhenFetchedOnly` (codex),
+ * once a rate-limits fetch has landed, a window confirmed absent from it (plan-tier dependent)
+ * hides its row instead (see `showRateRow`). The weekly per-model buckets appear only when either
+ * side carries them.
  */
 export function PressurePanel({
   live,
@@ -74,7 +74,7 @@ export function PressurePanel({
   contextWindow,
   account,
   rateLimits,
-  agent,
+  windowRowsWhenFetchedOnly,
 }: {
   live: ContextBreakdown | null;
   context: ContextBreakdown | null;
@@ -83,7 +83,10 @@ export function PressurePanel({
   account: Account | null;
   /** The selected session's own capture windows — the merge's winning side. */
   rateLimits?: RateLimitWindows | null;
-  agent: AgentId;
+  /** Rate rows hide once a fetch confirms a window absent, and show neutral "-" labels while the
+   *  first fetch is pending (codex: window durations are plan-tier-dependent). Default: static
+   *  always-rendered rows (Claude). */
+  windowRowsWhenFetchedOnly?: boolean;
 }) {
   const { t } = useI18n();
   const view = useMemo(
@@ -112,13 +115,14 @@ export function PressurePanel({
     account?.sevenDayOpus,
     now,
   );
-  const isCodex = agent === "codex";
+  const fetchedOnly = windowRowsWhenFetchedOnly ?? false;
   const windowsFetched = rateLimits != null;
-  // Codex window durations are plan-tier dependent (a free account has a single 30-day window, not
-  // 5h/7d), so before the first limits fetch lands the static "5h"/"7d" labels would assert a
-  // duration that may be wrong — show a neutral placeholder until the real windows (and their
-  // dynamic windowMinutes labels) arrive. Claude's static labels are untouched in every state.
-  const codexLoading = isCodex && !windowsFetched;
+  // Fetched-only window durations are plan-tier dependent (a free codex account has a single
+  // 30-day window, not 5h/7d), so before the first limits fetch lands the static "5h"/"7d"
+  // labels would assert a duration that may be wrong — show a neutral placeholder until the
+  // real windows (and their dynamic windowMinutes labels) arrive. Static rows keep their
+  // labels untouched in every state.
+  const windowsLoading = fetchedOnly && !windowsFetched;
 
   return (
     <PanelSection>
@@ -158,16 +162,16 @@ export function PressurePanel({
         </p>
       )}
       <div className="mt-1 space-y-1.5">
-        {showRateRow(isCodex, windowsFetched, rateLimits?.fiveHour) && (
+        {showRateRow(fetchedOnly, windowsFetched, rateLimits?.fiveHour) && (
           <RateRow
-            label={codexLoading ? "-" : t.dock.pressure.windowFiveHour}
+            label={windowsLoading ? "-" : t.dock.pressure.windowFiveHour}
             window={fiveHour}
             now={now}
           />
         )}
-        {showRateRow(isCodex, windowsFetched, rateLimits?.sevenDay) && (
+        {showRateRow(fetchedOnly, windowsFetched, rateLimits?.sevenDay) && (
           <RateRow
-            label={codexLoading ? "-" : t.dock.pressure.windowSevenDay}
+            label={windowsLoading ? "-" : t.dock.pressure.windowSevenDay}
             window={sevenDay}
             now={now}
           />

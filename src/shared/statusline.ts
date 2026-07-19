@@ -102,13 +102,13 @@ export function pickWindow(
   return liveWindow(session, now) ?? liveWindow(api, now);
 }
 
-/** Whether a rate-limit row should render at all. Claude's fiveHour/sevenDay rows always render
- *  (dimmed when absent — the row's absence is transient: not yet loaded, or an API-billed account
- *  with no windows). Codex's window SET is plan-tier-dependent — a free account genuinely reports
- *  only one window, forever — so once a real fetch has landed (`windowsFetched`), an absent codex
- *  window is CONFIRMED absent for this account and its row should disappear rather than sit
- *  permanently dimmed. Before the first successful fetch, codex rows render dimmed too, same as
- *  Claude, since we don't yet know what this account has.
+/** Whether a rate-limit row should render at all. With static rows (Claude), fiveHour/sevenDay
+ *  always render (dimmed when absent — the row's absence is transient: not yet loaded, or an
+ *  API-billed account with no windows). With `whenFetchedOnly` (codex), the window SET is
+ *  plan-tier-dependent — a free account genuinely reports only one window, forever — so once a
+ *  real fetch has landed (`windowsFetched`), an absent window is CONFIRMED absent for this account
+ *  and its row should disappear rather than sit permanently dimmed. Before the first successful
+ *  fetch, rows render dimmed either way, since we don't yet know what this account has.
  *
  *  Caller contract: pass the window's RAW, unfiltered presence straight from the fetched payload
  *  (e.g. `rateLimits?.fiveHour`), NOT a time-filtered/merged value like `pickWindow`'s result. A
@@ -117,11 +117,11 @@ export function pickWindow(
  *  refresh — passing that filtered value here would make a real window's row disappear for the
  *  length of that refresh gap instead of merely dimming. */
 export function showRateRow(
-  isCodex: boolean,
+  whenFetchedOnly: boolean,
   windowsFetched: boolean,
   window: RateLimit | undefined,
 ): boolean {
-  return !isCodex || !windowsFetched || window != null;
+  return !whenFetchedOnly || !windowsFetched || window != null;
 }
 
 /**
