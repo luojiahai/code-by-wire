@@ -568,7 +568,7 @@ export function LeftSidebar({
                               title={
                                 cwd && !anySpawnable
                                   ? t.settings.cli.unavailableReason
-                                  : cwd
+                                  : undefined
                               }
                               className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
                             >
@@ -582,7 +582,14 @@ export function LeftSidebar({
                                   size={14}
                                 />
                               </span>
-                              <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
+                              <span
+                                title={g.hint ? cwd : undefined}
+                                className={cx(
+                                  "min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg",
+                                  g.hint &&
+                                    "border-b border-dotted border-(--ui-text-quaternary)",
+                                )}
+                              >
                                 {g.label}
                               </span>
                               <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
@@ -595,11 +602,6 @@ export function LeftSidebar({
                                   )}
                                 />
                               </span>
-                              {g.hint && (
-                                <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-                                  {g.hint}
-                                </span>
-                              )}
                               <span className="ml-auto w-11 shrink-0" />
                             </button>
                             <button
