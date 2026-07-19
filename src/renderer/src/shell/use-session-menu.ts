@@ -18,6 +18,7 @@ import {
 } from "../workspace/session-actions";
 import { openInItems, type OpenInItem } from "../workspace/open-in-items";
 import { resumeActionDisabled } from "../workspace/resume-action";
+import { cliUnusableTitle } from "../ui/cli-gating";
 
 export const MENU_WIDTH = 176;
 
@@ -250,7 +251,7 @@ export function useSessionMenu(
   const resumeTitle = !caps.canResume
     ? t.shell.sessionMenu.comingSoonForAgent(AGENTS[session.agent].label)
     : !canSpawn
-      ? t.settings.cli.unavailableReason
+      ? cliUnusableTitle(t, session.agent)
       : !session.resumable
         ? t.shell.sessionMenu.resumeTitleNoConversation
         : !canResume
@@ -269,7 +270,7 @@ export function useSessionMenu(
   const forkTitle = !caps.canFork
     ? t.shell.sessionMenu.comingSoonForAgent(AGENTS[session.agent].label)
     : !canSpawn
-      ? t.settings.cli.unavailableReason
+      ? cliUnusableTitle(t, session.agent)
       : !session.resumable
         ? t.shell.sessionMenu.forkTitleNoConversation
         : undefined;

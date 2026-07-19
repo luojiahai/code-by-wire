@@ -46,7 +46,7 @@ export function Workspace({
   rightEdgeExposed,
 }: {
   session: Session;
-  /** Whether the Claude Code CLI is usable; gates Resume and Fork (both spawn the CLI). */
+  /** Whether the selected session's agent CLI is usable; gates Resume and Fork (both spawn it). */
   canSpawn: boolean;
   onResume: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;

@@ -2,6 +2,8 @@ import { Icon, type IconName } from "../ui/icons";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { useI18n, type Translations } from "../i18n";
 import { resumeActionDisabled, type ResumeAction } from "./resume-action";
+import { AGENTS, type AgentId } from "@shared/agents";
+import { cliUnusableTitle } from "../ui/cli-gating";
 
 export type ResumeKind = "resume" | "fork";
 
@@ -66,12 +68,14 @@ export function ResumeButton({
   canSpawn,
   resumable,
   available = true,
+  capable = true,
+  agent = "claude",
   className,
   iconSize,
 }: {
   kind: ResumeKind;
   action: ResumeAction;
-  /** Whether the Claude Code CLI is usable; both actions spawn it. */
+  /** Whether this session's agent CLI is usable; both actions spawn it. */
   canSpawn: boolean;
   /** Whether the session has a saved conversation to resume; an unsaved one would 400 the CLI. */
   resumable: boolean;
@@ -79,20 +83,28 @@ export function ResumeButton({
    *  just-exited Managed one still reads Managed (pre-sync) and isn't resumable yet, so it renders disabled
    *  until the next sync re-derives it Observed. Fork omits this (always available once resumable). */
   available?: boolean;
+  /** The agent's capability flag for this kind (canResume/canFork). Default true so claude-only
+   *  call sites stay untouched; an incapable agent renders disabled with the same coming-soon
+   *  tooltip the session menu shows — checked FIRST, matching the menu's title ordering. */
+  capable?: boolean;
+  /** The session's agent — names the right CLI in the coming-soon and CLI-unusable tooltips. */
+  agent?: AgentId;
   className: string;
   iconSize: number;
 }) {
   const { t } = useI18n();
   const spec = kindSpec(kind, t);
-  const title = !canSpawn
-    ? t.settings.cli.unavailableReason
-    : !resumable
-      ? // Temporally neutral so it reads right on both a live session that hasn't taken a turn yet
-        // (Fork shows there too) and an Ended one that never did.
-        spec.noConversationTitle
-      : !available
-        ? spec.unavailableTitle
-        : undefined;
+  const title = !capable
+    ? t.shell.sessionMenu.comingSoonForAgent(AGENTS[agent].label)
+    : !canSpawn
+      ? cliUnusableTitle(t, agent)
+      : !resumable
+        ? // Temporally neutral so it reads right on both a live session that hasn't taken a turn yet
+          // (Fork shows there too) and an Ended one that never did.
+          spec.noConversationTitle
+        : !available
+          ? spec.unavailableTitle
+          : undefined;
   return (
     <>
       <button
@@ -100,7 +112,7 @@ export function ResumeButton({
         onClick={action.request}
         disabled={
           action.busy ||
-          resumeActionDisabled({ canSpawn, resumable, available })
+          resumeActionDisabled({ canSpawn, resumable, available, capable })
         }
         title={title}
         className={className}

@@ -73,9 +73,9 @@ export const AGENTS: Record<AgentId, AgentDescriptor> = {
     binary: "claude",
     capabilities: ALL,
   },
-  // V3 codex: transcript + the right-sidebar telemetry stack (rollout scan + limits service; no
-  // Duty — no honest api-duration source). Activity/subagents/resume/fork still gated off; later
-  // versions flip more flags as provider readers land — the surfaces need no edits.
+  // V4 codex: Resume (the provider resolves rollout targets; the terminal spawns `codex resume
+  // <id>`, claim-bound at registration). Activity/subagents/fork still gated off; later versions
+  // flip more flags as provider readers land — the surfaces need no edits.
   codex: {
     id: "codex",
     label: "Codex",
@@ -85,6 +85,7 @@ export const AGENTS: Record<AgentId, AgentDescriptor> = {
       hasTranscript: true,
       hasTelemetry: true,
       hasRateLimits: true,
+      canResume: true,
     },
   },
 };
