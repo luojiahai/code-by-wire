@@ -108,7 +108,14 @@ export function pickWindow(
  *  only one window, forever — so once a real fetch has landed (`windowsFetched`), an absent codex
  *  window is CONFIRMED absent for this account and its row should disappear rather than sit
  *  permanently dimmed. Before the first successful fetch, codex rows render dimmed too, same as
- *  Claude, since we don't yet know what this account has. */
+ *  Claude, since we don't yet know what this account has.
+ *
+ *  Caller contract: pass the window's RAW, unfiltered presence straight from the fetched payload
+ *  (e.g. `rateLimits?.fiveHour`), NOT a time-filtered/merged value like `pickWindow`'s result. A
+ *  live-filtered window flips to `undefined` the instant its `resetsAt` passes, even though the key
+ *  is still genuinely present in the account's data and a fresh copy is just pending its next
+ *  refresh — passing that filtered value here would make a real window's row disappear for the
+ *  length of that refresh gap instead of merely dimming. */
 export function showRateRow(
   isCodex: boolean,
   windowsFetched: boolean,

@@ -153,14 +153,14 @@ export function PressurePanel({
         </p>
       )}
       <div className="mt-1 space-y-1.5">
-        {showRateRow(isCodex, windowsFetched, fiveHour) && (
+        {showRateRow(isCodex, windowsFetched, rateLimits?.fiveHour) && (
           <RateRow
             label={t.dock.pressure.windowFiveHour}
             window={fiveHour}
             now={now}
           />
         )}
-        {showRateRow(isCodex, windowsFetched, sevenDay) && (
+        {showRateRow(isCodex, windowsFetched, rateLimits?.sevenDay) && (
           <RateRow
             label={t.dock.pressure.windowSevenDay}
             window={sevenDay}
