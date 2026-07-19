@@ -236,7 +236,7 @@ async function runCheckCliStatus(args: {
     now: args.now,
   };
   // Probe auth only once the version check already lands on "ready" (a current, genuine install) AND the
-  // agent's spec calls for an auth stage at all (codex has no `auth status` in V1 — see AGENT_PROBES).
+  // agent's spec calls for an auth stage at all (codex has no `auth status` command — see AGENT_PROBES).
   // For every other verdict auth can't change the outcome — so this skips the extra child spawn and
   // never invokes an arbitrary command before we know the binary is what we expect.
   const provisional = evaluateCliStatus({

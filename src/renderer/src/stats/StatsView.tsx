@@ -48,7 +48,7 @@ export function StatsView() {
   // on a calendar-year change, which re-queries just the heatmap and would otherwise flash the whole view.
   const prevRangeRef = useRef(range);
 
-  // Stats capability isn't in AgentCapabilities V1 (only claude has an analytics pipeline);
+  // Stats capability isn't tracked in AgentCapabilities (only claude has an analytics pipeline);
   // model it locally as "the agent with a stats source" until a hasStats flag earns its keep.
   const hasStats = agent === "claude";
 

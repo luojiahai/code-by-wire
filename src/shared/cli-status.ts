@@ -19,7 +19,7 @@ export interface CliStatus {
   /** Parsed version string, or null when not found / unparsable. */
   version: string | null;
   /** The version floor in effect (the agent's AgentProbeSpec.floor), shown in the modal. null when the
-   *  agent's probe has no minimum-version gate (e.g. codex in V1). */
+   *  agent's probe has no minimum-version gate (e.g. codex). */
   floor: string | null;
   /** Where this app reads the agent's own transcripts/settings from — display only. */
   configDir: { active: string };

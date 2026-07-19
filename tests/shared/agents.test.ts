@@ -14,7 +14,7 @@ describe("AGENTS registry", () => {
       expect(AGENTS[id].binary.length).toBeGreaterThan(0);
     }
   });
-  it("claude has every capability; codex V4 has transcript + telemetry + rate limits + resume", () => {
+  it("claude has every capability; codex has transcript + telemetry + rate limits + resume", () => {
     expect(Object.values(AGENTS.claude.capabilities).every(Boolean)).toBe(true);
     const { hasTranscript, hasTelemetry, hasRateLimits, canResume, ...rest } =
       AGENTS.codex.capabilities;
