@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   codexUsageUrl,
+  createCodexLimitsService,
   fetchAppServerLimits,
   parseAppServerRateLimits,
   parseWhamUsage,
@@ -396,5 +397,133 @@ describe("fetchAppServerLimits", () => {
     await Promise.resolve();
     f.child.kill(); // triggers close
     expect(await p).toBeNull();
+  });
+});
+
+/** Same macrotask drain as the ttl-fetch tests — the limits refresh chain has several awaits. */
+const settled = (): Promise<void> => new Promise((r) => setImmediate(r));
+
+const okJson = (body: unknown): Response =>
+  ({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(body),
+  }) as unknown as Response;
+
+const WHAM_BODY = {
+  rate_limit: {
+    primary_window: {
+      used_percent: 42,
+      limit_window_seconds: 18_000,
+      reset_at: 1_800_000_000,
+    },
+  },
+};
+
+describe("createCodexLimitsService", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "codex-limits-svc-"));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("serves OAuth-fetched windows with bearer + account headers, cached inside the TTL", async () => {
+    writeFileSync(
+      join(dir, "auth.json"),
+      JSON.stringify({ tokens: { access_token: "at-1", account_id: "acc-1" } }),
+    );
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const svc = createCodexLimitsService({
+      codexDir: dir,
+      fetchFn: (url, init) => {
+        calls.push({ url, init });
+        return Promise.resolve(okJson(WHAM_BODY));
+      },
+      spawnFn: () => {
+        throw new Error("app-server must not spawn when OAuth succeeds");
+      },
+      now: () => 1_000_000,
+    });
+    expect(svc.read()).toBeNull(); // first read spawns the refresh
+    await settled();
+    expect(svc.read()?.fiveHour?.usedPct).toBe(42);
+    expect(calls.length).toBe(1);
+    expect(calls[0].url).toBe("https://chatgpt.com/backend-api/wham/usage");
+    const headers = calls[0].init?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer at-1");
+    expect(headers["ChatGPT-Account-Id"]).toBe("acc-1");
+    expect(svc.read()?.fiveHour?.usedPct).toBe(42); // cached — still one fetch
+    expect(calls.length).toBe(1);
+  });
+
+  it("falls back to the app-server when auth.json is absent", async () => {
+    let spawned = false;
+    const f = fakeChild();
+    const svc = createCodexLimitsService({
+      codexDir: dir, // no auth.json written
+      fetchFn: () => {
+        throw new Error("OAuth path must be skipped without auth");
+      },
+      spawnFn: () => {
+        spawned = true;
+        return f.child;
+      },
+      platform: "win32",
+      now: () => 1_000_000,
+    });
+    svc.read();
+    await settled();
+    expect(spawned).toBe(true);
+    const first = JSON.parse(f.written[0]) as { id: number };
+    f.emit(JSON.stringify({ id: first.id, result: {} }));
+    await settled();
+    const readReq = f.written
+      .map((w) => JSON.parse(w) as { id?: number; method?: string })
+      .find((w) => w.method === "account/rateLimits/read");
+    f.emit(
+      JSON.stringify({
+        id: readReq!.id,
+        result: {
+          rate_limits: {
+            primary: {
+              used_percent: 9,
+              window_minutes: 300,
+              resets_at: 1_800_000_000,
+            },
+          },
+        },
+      }),
+    );
+    await settled();
+    expect(svc.read()?.fiveHour?.usedPct).toBe(9);
+  });
+
+  it("falls back to the app-server on a non-ok OAuth response", async () => {
+    writeFileSync(
+      join(dir, "auth.json"),
+      JSON.stringify({ tokens: { access_token: "stale" } }),
+    );
+    let spawned = false;
+    const f = fakeChild();
+    const svc = createCodexLimitsService({
+      codexDir: dir,
+      fetchFn: () =>
+        Promise.resolve({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({}),
+        } as unknown as Response),
+      spawnFn: () => {
+        spawned = true;
+        return f.child;
+      },
+      platform: "win32",
+      now: () => 1_000_000,
+    });
+    svc.read();
+    await settled();
+    expect(spawned).toBe(true);
   });
 });

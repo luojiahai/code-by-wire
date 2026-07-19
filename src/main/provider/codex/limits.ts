@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { RateLimit, RateLimitWindows } from "@shared/types";
 import { toSpawnForm } from "../../terminal/command";
 import { isExecutableFile, findOnPath } from "../../terminal/shell-command";
+import { createTtlFetch, type TtlFetch } from "../../util/ttl-fetch";
 import { asRecord } from "./rollout";
 
 /** First present-and-non-null value among the given keys — the snake/camel tolerance helper. */
@@ -338,5 +339,69 @@ export function fetchAppServerLimits(deps: {
         },
       },
     });
+  });
+}
+
+export const CODEX_LIMITS_TTL_MS = 60_000;
+export const CODEX_LIMITS_FAILURE_TTL_MS = 300_000;
+export const CODEX_LIMITS_TIMEOUT_MS = 5_000;
+
+export type CodexLimitsService = TtlFetch<RateLimitWindows>;
+
+export interface CodexLimitsDeps {
+  codexDir: string;
+  /** Narrow fetch surface, same shape as usage/fetch.ts — net.fetch in prod, a stub in tests. */
+  fetchFn: (url: string, init?: RequestInit) => Promise<Response>;
+  spawnFn?: AppServerSpawn;
+  platform?: NodeJS.Platform;
+  now?: () => number;
+}
+
+/** The OAuth (primary) leg: bearer + account id from auth.json against the wham/usage endpoint.
+ *  Null on any failure — the chain then tries the app-server. */
+async function fetchOAuthLimits(
+  deps: CodexLimitsDeps,
+): Promise<RateLimitWindows | null> {
+  const nowMs = (deps.now ?? Date.now)();
+  const auth = readCodexAuth(deps.codexDir);
+  if (!auth) return null;
+  let res: Response;
+  try {
+    res = await deps.fetchFn(codexUsageUrl(deps.codexDir), {
+      headers: {
+        Authorization: `Bearer ${auth.accessToken}`,
+        Accept: "application/json",
+        ...(auth.accountId ? { "ChatGPT-Account-Id": auth.accountId } : {}),
+      },
+      signal: AbortSignal.timeout(CODEX_LIMITS_TIMEOUT_MS),
+    });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    return null;
+  }
+  return parseWhamUsage(body, nowMs);
+}
+
+/**
+ * Account-scoped codex rate limits behind the shared ttl-fetch: OAuth first (CodexBar's primary
+ * path), `codex app-server` fallback. read() is sync and lazy — refreshes ride renderer polls,
+ * success 60s / failure 5min so a broken path never hammers the network or respawns processes
+ * every tick (spec §limits.ts).
+ */
+export function createCodexLimitsService(
+  deps: CodexLimitsDeps,
+): CodexLimitsService {
+  return createTtlFetch<RateLimitWindows>({
+    fetch: async () =>
+      (await fetchOAuthLimits(deps)) ?? (await fetchAppServerLimits(deps)),
+    successTtlMs: CODEX_LIMITS_TTL_MS,
+    failureTtlMs: CODEX_LIMITS_FAILURE_TTL_MS,
+    now: deps.now,
   });
 }
