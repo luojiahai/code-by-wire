@@ -1,3 +1,4 @@
+import { formatWindowLabel } from "@shared/format";
 import type { Translations } from "./en";
 
 /** 简体中文 catalog. Full (not partial) — typed `: Translations` so tsc fails on any
@@ -590,6 +591,9 @@ export const zh: Translations = {
       const [, m] = day.split("-").map(Number);
       return `${m}月`;
     },
+    // Codex-only, delegated (not re-implemented): same fixed-width technical shorthand as
+    // windowFiveHour/windowSevenDay above, kept identical across locales.
+    windowLabel: (minutes) => formatWindowLabel(minutes),
   },
   numbers: {
     // Chinese groups large numbers by powers of 10^4 (万 = 10,000, 亿 = 100,000,000),

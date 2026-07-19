@@ -292,6 +292,12 @@ export interface RateLimit {
   usedPct: number;
   /** When the window resets, epoch ms. The statusLine reports epoch seconds; the reader normalizes to ms. */
   resetsAt: number;
+  /** The window's own duration in minutes, when known (codex's rate-limit windows vary by plan tier —
+   *  e.g. a free account reports a single 30-day window rather than Claude's fixed 5h/7d pair — so the
+   *  Pressure panel derives an honest label from this instead of assuming a fixed duration). Absent for
+   *  Claude's windows, whose duration is always implied by which named slot (fiveHour/sevenDay/...) they
+   *  occupy. */
+  windowMinutes?: number;
 }
 
 /** The four rate-limit windows a capture's `rate_limits` block or the usage API can carry. Shared by

@@ -30,7 +30,12 @@ const asNum = (v: unknown): number | null => {
 /** Epoch normalize: values below ~2001-09-09 in ms are epoch SECONDS (codex's resets_at). */
 const toEpochMs = (v: number): number => (v > 1_000_000_000_000 ? v : v * 1000);
 
-interface ClassifiedWindow extends RateLimit {
+// Not `extends RateLimit` — RateLimit's own windowMinutes is `number | undefined` (unknown for
+// Claude's windows), whereas this intermediate shape uses `null` for "not reported", so the two
+// don't unify as a supertype/subtype pair. `strip` below narrows null → undefined at the boundary.
+interface ClassifiedWindow {
+  usedPct: number;
+  resetsAt: number;
   windowMinutes: number | null;
 }
 
@@ -76,9 +81,14 @@ function classifyWindows(
 ): RateLimitWindows | null {
   if (!primary && !secondary) return null;
   const out: RateLimitWindows = {};
-  const strip = ({ usedPct, resetsAt }: ClassifiedWindow): RateLimit => ({
+  const strip = ({
     usedPct,
     resetsAt,
+    windowMinutes,
+  }: ClassifiedWindow): RateLimit => ({
+    usedPct,
+    resetsAt,
+    windowMinutes: windowMinutes ?? undefined,
   });
   // Length match first (order-independent — handles the API swapping primary/secondary). Whichever
   // window doesn't land here (unrecognized length, OR its slot was already taken by a same-length

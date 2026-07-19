@@ -28,6 +28,17 @@ export function formatResetCountdown(resetsAt: number, now: number): string {
   return "<1m";
 }
 
+/** A rate-limit window's own duration as fixed-width shorthand: under an hour → "Xm", under a day →
+ *  "Xh" (rounded to the nearest hour), else → "Xd" (rounded to the nearest day). Non-finite or ≤0 →
+ *  "-". Mirrors the existing static "5h"/"7d" labels' width budget so a non-Claude-shaped window
+ *  (e.g. codex's 30-day free-tier quota) still fits the Pressure panel's narrow label gutter. */
+export function formatWindowLabel(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "-";
+  if (minutes < 60) return `${Math.round(minutes)}m`;
+  if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
+  return `${Math.round(minutes / 1440)}d`;
+}
+
 /** A token count with thousands separators: 80710 → "80,710". The context and cost panels show exact
  *  figures (a rail row has room), so no k/M abbreviation. Negative or non-finite coerce to "0". */
 export function formatTokens(n: number): string {

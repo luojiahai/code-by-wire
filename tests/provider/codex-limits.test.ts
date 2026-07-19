@@ -36,8 +36,16 @@ describe("parseWhamUsage", () => {
       NOW,
     );
     expect(w).toEqual({
-      fiveHour: { usedPct: 42, resetsAt: 1_800_000_000_000 },
-      sevenDay: { usedPct: 7, resetsAt: 1_800_500_000_000 },
+      fiveHour: {
+        usedPct: 42,
+        resetsAt: 1_800_000_000_000,
+        windowMinutes: 300,
+      },
+      sevenDay: {
+        usedPct: 7,
+        resetsAt: 1_800_500_000_000,
+        windowMinutes: 10_080,
+      },
     });
   });
 
@@ -98,7 +106,11 @@ describe("parseWhamUsage", () => {
       },
       NOW,
     );
-    expect(w?.fiveHour).toEqual({ usedPct: 5, resetsAt: NOW + 3_600_000 });
+    expect(w?.fiveHour).toEqual({
+      usedPct: 5,
+      resetsAt: NOW + 3_600_000,
+      windowMinutes: 300,
+    });
   });
 
   it("discards a half-formed window but keeps its sibling; all-malformed → null", () => {
@@ -137,7 +149,28 @@ describe("parseWhamUsage", () => {
       NOW,
     );
     expect(w?.fiveHour).toBeUndefined();
-    expect(w?.sevenDay).toEqual({ usedPct: 22, resetsAt: 1_800_500_000_000 });
+    expect(w?.sevenDay).toEqual({
+      usedPct: 22,
+      resetsAt: 1_800_500_000_000,
+      windowMinutes: 2, // the window's real length (120s), NOT the sevenDay slot's implied 10,080
+    });
+  });
+
+  it("labels a non-standard window length (e.g. a free-tier 30-day quota) with its real duration, not a forced 5h/7d guess", () => {
+    const w = parseWhamUsage(
+      {
+        rate_limit: {
+          primary_window: {
+            used_percent: 10,
+            limit_window_seconds: 2_592_000,
+            reset_after_seconds: 2_518_192,
+          },
+        },
+      },
+      NOW,
+    );
+    expect(w?.fiveHour?.windowMinutes).toBe(43_200); // 2,592,000s / 60 = 43,200 minutes = 30 days
+    expect(w?.sevenDay).toBeUndefined();
   });
 
   it("keeps BOTH windows when primary and secondary share the same recognized length", () => {
@@ -158,8 +191,18 @@ describe("parseWhamUsage", () => {
       },
       NOW,
     );
-    expect(w?.fiveHour).toEqual({ usedPct: 1, resetsAt: 1_800_000_000_000 });
-    expect(w?.sevenDay).toEqual({ usedPct: 2, resetsAt: 1_800_500_000_000 });
+    expect(w?.fiveHour).toEqual({
+      usedPct: 1,
+      resetsAt: 1_800_000_000_000,
+      windowMinutes: 300,
+    });
+    // Landed in the sevenDay slot positionally, but its real length is still 300 (18,000s) —
+    // the whole point of this test (both windows share the same recognized length).
+    expect(w?.sevenDay).toEqual({
+      usedPct: 2,
+      resetsAt: 1_800_500_000_000,
+      windowMinutes: 300,
+    });
   });
 });
 
@@ -182,7 +225,11 @@ describe("parseAppServerRateLimits", () => {
       },
       NOW,
     );
-    expect(w?.fiveHour).toEqual({ usedPct: 33, resetsAt: 1_800_000_000_000 });
+    expect(w?.fiveHour).toEqual({
+      usedPct: 33,
+      resetsAt: 1_800_000_000_000,
+      windowMinutes: 300,
+    });
     expect(w?.sevenDay?.usedPct).toBe(9);
   });
 
@@ -199,7 +246,11 @@ describe("parseAppServerRateLimits", () => {
       },
       NOW,
     );
-    expect(w?.fiveHour).toEqual({ usedPct: 33, resetsAt: 1_800_000_000_000 });
+    expect(w?.fiveHour).toEqual({
+      usedPct: 33,
+      resetsAt: 1_800_000_000_000,
+      windowMinutes: 300,
+    });
   });
 
   it("falls back to the 'codex' entry of rate_limits_by_limit_id", () => {

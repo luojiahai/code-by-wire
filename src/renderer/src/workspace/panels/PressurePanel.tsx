@@ -8,6 +8,7 @@ import type {
 } from "@shared/types";
 import { pickWindow } from "@shared/statusline";
 import { contextView } from "@shared/context";
+import { formatWindowLabel } from "@shared/format";
 import { cx } from "../../ui/atoms";
 import { FillGauge } from "../../ui/charts";
 import { clampPct } from "../../ui/charts-geom";
@@ -36,7 +37,7 @@ function RateRow({
   return (
     <div className={cx("flex items-center gap-2", !w && "opacity-40")}>
       <span className="w-7 shrink-0 text-xs text-(--ui-text-tertiary)">
-        {label}
+        {w?.windowMinutes != null ? formatWindowLabel(w.windowMinutes) : label}
       </span>
       <div className="min-w-0 flex-1">
         <FillGauge
