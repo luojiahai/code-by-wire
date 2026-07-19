@@ -15,9 +15,14 @@ days.
 
 code-by-wire is a local desktop application. It:
 
-- reads files under `~/.claude` (session transcripts and configuration) to
-  display and reconstruct Claude Code sessions, and
-- spawns local terminal (PTY) processes to run and control sessions.
+- reads session transcripts and configuration under `~/.claude` and
+  `~/.codex` (or `$CODEX_HOME`) to display and reconstruct Claude Code and
+  Codex sessions,
+- spawns local terminal (PTY) processes to run and control sessions,
+- calls each account's own usage/rate-limit endpoint — Claude's
+  `api.anthropic.com/api/oauth/usage` and Codex's
+  `chatgpt.com/backend-api` — to show quota data, and
+- checks GitHub Releases for app updates.
 
-It makes no outbound network connections. It does not send your transcripts,
-prompts, or any local data anywhere. This is verifiable in `src/`.
+It does not send your transcripts, prompts, or any local data anywhere else.
+This is verifiable in `src/`.

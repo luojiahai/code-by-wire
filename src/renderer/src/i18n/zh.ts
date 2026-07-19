@@ -39,7 +39,7 @@ export const zh: Translations = {
     },
     about: {
       title: "关于",
-      tagline: "在同一座驾驶舱里，掌控每个 Claude Code 会话并监控其遥测。",
+      tagline: "在同一座驾驶舱里，驾驭编码 agent（Claude Code、Codex）并监控其遥测。",
     },
     cli: {
       title: "Claude Code CLI",

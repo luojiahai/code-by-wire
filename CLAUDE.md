@@ -23,7 +23,7 @@ lockfile from the root workspace. Run its commands from inside `website/`:
 
 Electron app, three processes:
 
-- **main** (`src/main/`) — Node. Reads Claude Code transcripts (`provider/claude/`), analytics in better-sqlite3 (`db/`), pty terminals (`terminal/`), git, settings. Request/response only — no background timers or `fs.watch`; the renderer polls.
+- **main** (`src/main/`) — Node. Reads Claude Code and Codex transcripts (`provider/claude/`, `provider/codex/`), analytics in better-sqlite3 (`db/`), pty terminals (`terminal/`), git, settings. Request/response only — no background timers or `fs.watch`; the renderer polls.
 - **preload** (`src/preload/`) — contextBridge exposing `window.api` to the renderer.
 - **renderer** (`src/renderer/src/`) — React 19 + Tailwind 4 + xterm.
 

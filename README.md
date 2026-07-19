@@ -8,15 +8,15 @@ English | [简体中文](README.zh-CN.md)
 
 [![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=luojiahai&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/luojiahai)
 
-**Pilot every Claude Code session and monitor its telemetry, from one
-cockpit.**
+Pilot coding agents (Claude Code, Codex) and monitor their telemetry from
+one cockpit.
 
 ![Code-by-wire: a live Claude Code session with the session rail, transcript, and telemetry panels](docs/assets/cbw-screenshot.png)
 
 ## Features
 
-Needs Claude Code installed locally. Open the app and every session already
-running on your machine is there.
+Needs Claude Code and/or Codex installed locally. Open the app and every
+session already running on your machine is there.
 
 - **Every session in one rail.** Manage every session running on your
   machine from one rail: grouped by project, searchable, each flagging its
@@ -42,8 +42,9 @@ running on your machine is there.
 | Windows · ARM64       | [`Code-by-wire-Setup-arm64.exe`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-Setup-arm64.exe) |
 
 One click starts the download. Always the latest release. You'll need
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
-locally, so there are sessions to observe and control.
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) and/or
+[Codex](https://developers.openai.com/codex/cli) installed locally, so there
+are sessions to observe and control.
 
 On macOS, open the `.dmg` and drag Code-by-wire to Applications. The app is
 signed and notarized by Apple, so it opens straight away. On Windows, run the

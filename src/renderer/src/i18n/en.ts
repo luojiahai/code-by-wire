@@ -56,7 +56,7 @@ export const en = {
     about: {
       title: "About",
       tagline:
-        "Pilot every Claude Code session and monitor its telemetry, from one cockpit.",
+        "Pilot coding agents (Claude Code, Codex) and monitor their telemetry from one cockpit.",
     },
     cli: {
       title: "Claude Code CLI",
