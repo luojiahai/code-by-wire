@@ -25,7 +25,7 @@ export interface AgentCapabilities {
   canFork: boolean;
   /** The bottom ACTIVITY dock (tasks/subagents/shells/monitors) has data for this agent. */
   hasActivity: boolean;
-  /** The right-sidebar telemetry stack (pressure/spend/speed/duty/git) has data for this agent. */
+  /** The right-sidebar telemetry stack (pressure/spend/speed/git) has data for this agent. */
   hasTelemetry: boolean;
   /** The Duty panel (api-time over wall-time) has data for this agent (Claude: statusLine cost).
    *  Codex has no honest api-duration source, so its telemetry stack renders without Duty. */

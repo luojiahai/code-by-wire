@@ -285,6 +285,21 @@ describe("readCodexAuth / codexUsageUrl", () => {
     );
     expect(codexUsageUrl(dir)).toBe("https://api.example.com/api/codex/usage");
   });
+
+  it("honors config.toml chatgpt_base_url written with single quotes", () => {
+    writeFileSync(
+      join(dir, "config.toml"),
+      "chatgpt_base_url = 'https://proxy.example.com/backend-api'\n",
+    );
+    expect(codexUsageUrl(dir)).toBe(
+      "https://proxy.example.com/backend-api/wham/usage",
+    );
+    writeFileSync(
+      join(dir, "config.toml"),
+      "chatgpt_base_url = 'https://api.example.com/'\n",
+    );
+    expect(codexUsageUrl(dir)).toBe("https://api.example.com/api/codex/usage");
+  });
 });
 
 /** A scripted app-server child: records stdin lines, lets the test emit stdout lines and lifecycle. */

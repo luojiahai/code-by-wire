@@ -13,7 +13,7 @@ import { OverlayScroll } from "../ui/OverlayScroll";
 /**
  * The right sidebar's content (design spec §6): an empty draggable top strip — the fixed right
  * toggle cluster floats over it — then the telemetry panel stack: Pressure, Spend, Throughput,
- * Duty, then a hairline, then Session. Renders as plain content — the caller slots it inside a
+ * then Duty when the agent has it, then a hairline, then Session. Renders as plain content — the caller slots it inside a
  * `Pane` (Task 11), so this owns no width/position of its own beyond filling its parent.
  *
  * Polls its own transcript: this pane is now a sibling of `Workspace` at the App level rather than a

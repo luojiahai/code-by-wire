@@ -197,7 +197,7 @@ export function codexUsageUrl(codexDir: string): string {
   let base = DEFAULT_USAGE_BASE;
   try {
     const toml = readFileSync(join(codexDir, "config.toml"), "utf8");
-    const m = /^\s*chatgpt_base_url\s*=\s*"([^"]+)"/m.exec(toml);
+    const m = /^\s*chatgpt_base_url\s*=\s*["']([^"']+)["']/m.exec(toml);
     if (m) base = m[1].replace(/\/+$/, "");
   } catch {
     // no config.toml → default base

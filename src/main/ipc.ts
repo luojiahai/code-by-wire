@@ -263,9 +263,9 @@ export function registerIpc({
     // it must never masquerade as another agent's effort.
     const withEffort = defaultEffort
       ? pinned.map((s) =>
-          s.effortLevel || s.agent !== "claude"
-            ? s
-            : { ...s, effortLevel: defaultEffort },
+          s.agent === "claude" && !s.effortLevel
+            ? { ...s, effortLevel: defaultEffort }
+            : s,
         )
       : pinned;
     // Worktree sessions merge into their main repo's sidebar folder; tag them here, after the
