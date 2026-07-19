@@ -158,6 +158,7 @@ export function registerTerminalIpc({
     manager.resume({
       id: req.id,
       cwd: target.cwd,
+      agent: "claude",
       cols: req.cols,
       rows: req.rows,
     });
