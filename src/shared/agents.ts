@@ -31,6 +31,8 @@ export interface AgentCapabilities {
   hasTelemetry: boolean;
   /** The new-session form offers a model picker (spawn takes a --model flag). */
   hasModelPicker: boolean;
+  /** The Settings → System page shows the Stats database card for this agent. */
+  hasStatsDb: boolean;
 }
 
 export interface AgentDescriptor {
@@ -52,6 +54,7 @@ const ALL = {
   hasActivity: true,
   hasTelemetry: true,
   hasModelPicker: true,
+  hasStatsDb: true,
 } as const satisfies AgentCapabilities;
 
 const NONE = {
@@ -64,6 +67,7 @@ const NONE = {
   hasActivity: false,
   hasTelemetry: false,
   hasModelPicker: false,
+  hasStatsDb: false,
 } as const satisfies AgentCapabilities;
 
 export const AGENTS: Record<AgentId, AgentDescriptor> = {
