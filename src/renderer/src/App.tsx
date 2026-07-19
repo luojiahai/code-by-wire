@@ -290,7 +290,8 @@ export function App() {
   // resume bytes land on a live handle), then optimistically mark it resuming — management flips to
   // Managed and the workspace swaps to the live terminal — until the next sync confirms it.
   async function resumeSession(id: string): Promise<void> {
-    const gate = spawnGateFor(cliStatus, "claude");
+    const agent = all.find((x) => x.id === id)?.agent ?? "claude";
+    const gate = spawnGateFor(cliStatus, agent);
     if (!gate.canSpawn)
       throw new Error(gate.reason ?? t.settings.cli.unavailableReason);
     // Dispose any stale handle from a prior resume of this id that has since ended (its buffer still holds
@@ -516,7 +517,7 @@ export function App() {
     <Workspace
       key={selected.id}
       session={selected}
-      canSpawn={spawnGateFor(cliStatus, "claude").canSpawn}
+      canSpawn={spawnGateFor(cliStatus, selected.agent).canSpawn}
       onResume={resumeSession}
       onFork={forkSession}
       onEnd={endSession}
@@ -555,7 +556,6 @@ export function App() {
               setSelectedId(NEW_SESSION_ID);
             }}
             onQuickAdd={quickAddSession}
-            canSpawn={spawnGateFor(cliStatus, "claude").canSpawn}
             canSpawnFor={(a) => spawnGateFor(cliStatus, a).canSpawn}
             onResume={resumeSession}
             onFork={forkSession}

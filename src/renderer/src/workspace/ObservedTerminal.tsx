@@ -1,4 +1,5 @@
 import type { Session } from "@shared/types";
+import { AGENTS } from "@shared/agents";
 import { useI18n } from "../i18n";
 import {
   useResumeAction,
@@ -10,11 +11,12 @@ import { ResumeButton } from "./ResumeButton";
 /**
  * The Terminal tab for a session cbw has no live in-app pty for — an Observed session (running in another
  * terminal) or any Ended one (including a just-exited Managed session that re-derives Observed). A dark
- * canvas offering the ways to take it in-app: Fork (branch the conversation into a new id) is always
- * available; Resume (resume this exact id) shows on every Ended session — matching the header's gate — but
- * renders disabled while a just-exited Managed one still reads Managed, then enabling once the next sync
- * re-derives it Observed. Transcript stays the default tab. Both buttons reuse the header's resume state
- * machine (busy / inline error / no-model confirm).
+ * canvas offering the ways to take it in-app: Fork (branch the conversation into a new id) shows whenever
+ * the agent's `canFork` capability is on (disabled with a coming-soon tooltip otherwise); Resume (resume
+ * this exact id) shows on every Ended session — matching the header's gate — but renders disabled while a
+ * just-exited Managed one still reads Managed, then enabling once the next sync re-derives it Observed.
+ * Transcript stays the default tab. Both buttons reuse the header's resume state machine (busy / inline
+ * error / no-model confirm).
  */
 export function ObservedTerminal({
   session: s,
@@ -31,6 +33,7 @@ export function ObservedTerminal({
   const ended = s.state === "ended";
   const canResume = canResumeSession(s);
   const modelUnknown = isModelUnknown(s);
+  const caps = AGENTS[s.agent].capabilities;
   // `armed` stays true for both: this panel is keyed by session id (Workspace remounts on a session
   // switch), so the hooks' transient state resets on remount and never needs the in-place re-arm cleanup
   // the header relies on (where Resume can disappear and reappear within one mounted HeaderActions).
@@ -67,6 +70,8 @@ export function ObservedTerminal({
               canSpawn={canSpawn}
               resumable={s.resumable}
               available={canResume}
+              capable={caps.canResume}
+              agent={s.agent}
               iconSize={15}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-body font-medium text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
             />
@@ -76,6 +81,8 @@ export function ObservedTerminal({
             action={fork}
             canSpawn={canSpawn}
             resumable={s.resumable}
+            capable={caps.canFork}
+            agent={s.agent}
             iconSize={15}
             className="inline-flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-900 px-4 py-2 text-body font-medium text-fg-muted transition-colors enabled:hover:border-ink-600 enabled:hover:text-fg disabled:opacity-40"
           />

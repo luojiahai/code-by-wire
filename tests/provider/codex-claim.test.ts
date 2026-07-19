@@ -103,3 +103,36 @@ describe("applyClaims", () => {
     expect(listed).toBe(false);
   });
 });
+
+describe("resume pty claim-binding invariant", () => {
+  // A codex Resume registers its pty ALREADY claim-bound (managed-registry `add`'s claimedRollout).
+  // These lock the two properties binding buys. An unbound resume pty of an OLD rollout would be
+  // pending forever — its own rollout never enters the recent candidate window, so detectClaims'
+  // "already renamed" skip can't see it — and could mis-claim a fresh same-cwd rollout.
+  it("a claim-bound resume pty never matches a fresh same-cwd rollout", () => {
+    const resumed = pty({
+      id: "old-rollout-id",
+      spawnedAtMs: 10_000,
+      claimedRollout: "/x/old.jsonl",
+    });
+    expect(
+      detectClaims([resumed], [roll()], new Set(["/x/old.jsonl"])),
+    ).toEqual([]);
+  });
+  it("applyClaims stays lazy when every codex pty is claim-bound", () => {
+    let walked = false;
+    applyClaims({
+      ptys: [pty({ claimedRollout: "/x/old.jsonl" })],
+      claimedRollouts: new Set(["/x/old.jsonl"]),
+      listRollouts: () => {
+        walked = true;
+        return [];
+      },
+      readHead: () => null,
+      apply: () => {
+        throw new Error("nothing should claim");
+      },
+    });
+    expect(walked).toBe(false);
+  });
+});

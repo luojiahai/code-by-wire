@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@shared/types";
 import { tNow } from "../i18n";
+import { AGENTS } from "@shared/agents";
 
 /**
  * Whether Resume (resume under this session's own id) is available *right now*. Both resume surfaces show
@@ -16,9 +17,12 @@ export function canResumeSession(s: Session): boolean {
 /**
  * A session that never recorded a real model (only '<synthetic>' turns — usually one that errored at
  * startup) has no valid model to resume, so `claude --resume`/`--fork-session` will 400. Both surfaces
- * route the first click through a warning modal when this is true.
+ * route the first click through a warning modal when this is true. Model-picker-less agents (codex)
+ * never gate here: their CLI restores its own model and the app passes no model flag, so "no recorded
+ * model" is normal there, not a hazard.
  */
 export function isModelUnknown(s: Session): boolean {
+  if (!AGENTS[s.agent].capabilities.hasModelPicker) return false;
   return s.modelId == null && s.modelRaw == null;
 }
 

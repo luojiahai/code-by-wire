@@ -43,7 +43,6 @@ export function LeftSidebar({
   onSelect,
   onNew,
   onQuickAdd,
-  canSpawn,
   canSpawnFor,
   onResume,
   onFork,
@@ -64,10 +63,8 @@ export function LeftSidebar({
    *  Never rejects — App surfaces failures in the New session view — so this only gates the
    *  busy mark. */
   onQuickAdd: (cwd: string, agent: AgentId) => Promise<void>;
-  canSpawn: boolean;
-  /** Per-agent spawn gate for the quick-add menu's disabled state (design spec — a folder's "+"
-   *  should stay usable as long as ANY agent can spawn, unlike `canSpawn`, which stays claude-only
-   *  for row-level Resume/Fork). */
+  /** Per-agent CLI gate: rows gate their Resume/Fork on their own agent; the folder "+" and agent
+   *  picker stay usable as long as ANY agent can spawn. */
   canSpawnFor: (agent: AgentId) => boolean;
   onResume: (id: string) => Promise<void>;
   onFork: (session: Session) => Promise<void>;
@@ -171,8 +168,7 @@ export function LeftSidebar({
       document.removeEventListener("keydown", onKey);
     };
   }, [agentMenu]);
-  // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn —
-  // canSpawn itself stays claude-only, reserved for row-level Resume/Fork gating.
+  // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn.
   const anySpawnable = AGENT_IDS.some((a) => canSpawnFor(a));
 
   return (
@@ -305,7 +301,7 @@ export function LeftSidebar({
                     session={s}
                     selected={s.id === selectedId}
                     onSelect={() => onSelect(s.id)}
-                    canSpawn={canSpawn}
+                    canSpawn={canSpawnFor(s.agent)}
                     onResume={onResume}
                     onFork={onFork}
                     onEnd={onEnd}
@@ -486,7 +482,7 @@ export function LeftSidebar({
                                   session={s}
                                   selected={s.id === selectedId}
                                   onSelect={() => onSelect(s.id)}
-                                  canSpawn={canSpawn}
+                                  canSpawn={canSpawnFor(s.agent)}
                                   onResume={onResume}
                                   onFork={onFork}
                                   onEnd={onEnd}

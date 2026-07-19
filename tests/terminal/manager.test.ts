@@ -178,7 +178,13 @@ const REQ = {
   cols: 80,
   rows: 30,
 };
-const RESUME_REQ = { id: "sess-1", cwd: "/work/app", cols: 80, rows: 30 };
+const RESUME_REQ = {
+  id: "sess-1",
+  cwd: "/work/app",
+  agent: "claude" as const,
+  cols: 80,
+  rows: 30,
+};
 const FORK_REQ = {
   id: "fork-1",
   sourceId: "sess-1",
@@ -374,6 +380,34 @@ describe("createTerminalManager", () => {
     h.manager.resume(RESUME_REQ);
     expect(h.ptys).toHaveLength(1);
     expect(h.spawned).toEqual(["sess-1"]);
+  });
+
+  it("codex resume: spawns `codex resume <id>` under the same id and registers it claim-bound", () => {
+    const spawnedInfos: unknown[] = [];
+    const spawnedIds: string[] = [];
+    const h = harness({
+      onSpawned: (id, _pid, info) => {
+        spawnedIds.push(id);
+        spawnedInfos.push(info);
+      },
+    });
+    h.manager.resume({
+      id: "11111111-2222-3333-4444-555555555555",
+      cwd: "/work/app",
+      agent: "codex",
+      claimedRollout: "/x/rollout.jsonl",
+      cols: 80,
+      rows: 30,
+    });
+    expect(spawnedIds).toEqual(["11111111-2222-3333-4444-555555555555"]);
+    expect(h.ptys[0].state.spawnedWith!.args).toEqual([
+      "-ic",
+      "'codex' 'resume' '11111111-2222-3333-4444-555555555555'",
+    ]);
+    expect(spawnedInfos[0]).toMatchObject({
+      agent: "codex",
+      claimedRollout: "/x/rollout.jsonl",
+    });
   });
 
   it("fork: resumes the source under a NEW id with --fork-session (no --model in argv), wrapped in the login shell, and registers it Managed under the new id with the source model as its picked alias", () => {

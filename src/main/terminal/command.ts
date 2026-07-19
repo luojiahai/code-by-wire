@@ -122,15 +122,20 @@ export function toSpawnForm(
 }
 
 /**
- * Argv to Resume an Ended session: `claude --resume <id>` under the session's OWN id, so the CLI keeps
- * writing the same Transcript at `projects/<cwd-slug>/<id>.jsonl`. No `--model`: `--resume` restores the
- * session's model ("model settings still apply"), which is the "inherit" in one-click Resume.
+ * Argv to Resume an Ended session under its OWN id, per agent: claude (`claude --resume <id>`)
+ * keeps writing the same Transcript at `projects/<cwd-slug>/<id>.jsonl`; codex
+ * (`codex resume <id>` — subcommand form, no flags) appends in place to the same rollout file.
+ * No `--model` on either: both CLIs restore the session's model themselves, which is the
+ * "inherit" in one-click Resume. The binary name comes from the AGENTS descriptor, matching
+ * buildSpawnCommand's per-agent dispatch.
  */
-export function buildResumeCommand(opts: { id: string }): ClaudeCommand {
-  return {
-    file: "claude",
-    args: ["--resume", opts.id],
-  };
+export function buildResumeCommand(opts: {
+  agent: AgentId;
+  id: string;
+}): ClaudeCommand {
+  if (opts.agent === "claude")
+    return { file: "claude", args: ["--resume", opts.id] };
+  return { file: AGENTS[opts.agent].binary, args: ["resume", opts.id] };
 }
 
 /**

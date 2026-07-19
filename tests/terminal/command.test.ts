@@ -37,11 +37,22 @@ describe("buildClaudeCommand", () => {
 });
 
 describe("buildResumeCommand", () => {
-  it("resumes the session under its own id, with no --model (resume restores the model)", () => {
-    expect(buildResumeCommand({ id: "sid-9" })).toEqual({
+  it("claude: resumes the session under its own id, with no --model (resume restores the model)", () => {
+    expect(buildResumeCommand({ agent: "claude", id: "sid-9" })).toEqual({
       file: "claude",
       args: ["--resume", "sid-9"],
     });
+  });
+  it("codex: the `resume` subcommand with the rollout uuid, no flags", () => {
+    expect(buildResumeCommand({ agent: "codex", id: "u-1" })).toEqual({
+      file: "codex",
+      args: ["resume", "u-1"],
+    });
+  });
+  it("codex resume routes through the win32 PATHEXT shim like every bare command", () => {
+    expect(
+      launchForm(buildResumeCommand({ agent: "codex", id: "u-1" }), "win32"),
+    ).toEqual({ file: "cmd.exe", args: ["/c", "codex", "resume", "u-1"] });
   });
 });
 

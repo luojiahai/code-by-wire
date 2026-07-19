@@ -3,12 +3,18 @@ import type { AgentId } from "@shared/agents";
 import type { ManagedPty } from "./provider/claude/rotation";
 
 /** Everything the app knows about a pty it spawned: the picked model alias (claude only), the
- *  agent, the spawn cwd, and the spawn wall-clock — the last two are the codex claim's inputs. */
+ *  agent, the spawn cwd, the spawn wall-clock (the codex claim's inputs, alongside cwd), and — for
+ *  a codex Resume — the rollout path it's already claim-bound to (see `claimedRollout` below). */
 export interface ManagedEntryInfo {
   model?: Family;
   agent: AgentId;
   cwd: string;
   spawnedAtMs: number;
+  /** The rollout path this pty is claim-bound to AT registration (codex Resume: the pty id IS the
+   *  rollout id, and an old rollout never enters the claim matcher's recent candidate window, so an
+   *  unbound resume pty would sit pending forever and could mis-claim a fresh same-cwd rollout —
+   *  see provider/codex/claim.ts). Undefined for fresh spawns, which claim later via `claim()`. */
+  claimedRollout?: string;
 }
 
 export interface ManagedCodexPty {
@@ -71,7 +77,8 @@ export function createManagedRegistry(): ManagedRegistry {
     { pid: number; info: ManagedEntryInfo; claimedRollout?: string }
   >();
   return {
-    add: (id, pid, info) => byId.set(id, { pid, info }),
+    add: (id, pid, info) =>
+      byId.set(id, { pid, info, claimedRollout: info.claimedRollout }),
     remove: (id) => byId.delete(id),
     has: (id) => byId.has(id),
     modelOf: (id) => byId.get(id)?.info.model,

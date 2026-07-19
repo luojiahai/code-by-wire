@@ -134,4 +134,19 @@ describe("createManagedRegistry", () => {
     expect(r.claimedRollouts()).toEqual(new Set(["/x/rollout-1.jsonl"]));
     expect(r.codexEntries()[0].claimedRollout).toBe("/x/rollout-1.jsonl");
   });
+
+  it("add with claimedRollout registers already claim-bound (codex Resume): visible to every claim-matcher input", () => {
+    const reg = createManagedRegistry();
+    reg.add("u-1", 42, {
+      agent: "codex",
+      cwd: "/w",
+      spawnedAtMs: 5,
+      claimedRollout: "/x/r.jsonl",
+    });
+    expect(reg.claimedRolloutOf("u-1")).toBe("/x/r.jsonl");
+    expect(reg.codexEntries()).toEqual([
+      { id: "u-1", cwd: "/w", spawnedAtMs: 5, claimedRollout: "/x/r.jsonl" },
+    ]);
+    expect(reg.claimedRollouts().has("/x/r.jsonl")).toBe(true);
+  });
 });

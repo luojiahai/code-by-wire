@@ -14,13 +14,14 @@ describe("AGENTS registry", () => {
       expect(AGENTS[id].binary.length).toBeGreaterThan(0);
     }
   });
-  it("claude has every capability; codex V3 has transcript + telemetry + rate limits", () => {
+  it("claude has every capability; codex V4 has transcript + telemetry + rate limits + resume", () => {
     expect(Object.values(AGENTS.claude.capabilities).every(Boolean)).toBe(true);
-    const { hasTranscript, hasTelemetry, hasRateLimits, ...rest } =
+    const { hasTranscript, hasTelemetry, hasRateLimits, canResume, ...rest } =
       AGENTS.codex.capabilities;
     expect(hasTranscript).toBe(true);
     expect(hasTelemetry).toBe(true);
     expect(hasRateLimits).toBe(true);
+    expect(canResume).toBe(true);
     expect(Object.values(rest).some(Boolean)).toBe(false);
   });
   it("labels and binaries are the branded/spawnable names", () => {
