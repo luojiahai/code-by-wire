@@ -11,6 +11,7 @@ import {
   formatMonthShort,
   formatUsd,
   formatBytes,
+  formatWindowLabel,
 } from "@shared/format";
 
 describe("formatRelativeTime", () => {
@@ -145,6 +146,25 @@ describe("formatUsd", () => {
     expect(formatUsd(0)).toBe("$0.00");
     expect(formatUsd(-3)).toBe("$0.00");
     expect(formatUsd(Number.NaN)).toBe("$0.00");
+  });
+});
+
+describe("formatWindowLabel", () => {
+  it("renders a rate-limit window's own duration as fixed-width shorthand", () => {
+    expect(formatWindowLabel(300)).toBe("5h");
+    expect(formatWindowLabel(10_080)).toBe("7d");
+    expect(formatWindowLabel(43_200)).toBe("30d");
+  });
+
+  it("uses minutes under an hour and rounds hours", () => {
+    expect(formatWindowLabel(45)).toBe("45m");
+    expect(formatWindowLabel(90)).toBe("2h");
+  });
+
+  it("coerces non-finite or non-positive input to '-'", () => {
+    expect(formatWindowLabel(0)).toBe("-");
+    expect(formatWindowLabel(-5)).toBe("-");
+    expect(formatWindowLabel(NaN)).toBe("-");
   });
 });
 

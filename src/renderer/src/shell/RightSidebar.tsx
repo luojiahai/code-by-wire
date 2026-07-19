@@ -13,7 +13,7 @@ import { OverlayScroll } from "../ui/OverlayScroll";
 /**
  * The right sidebar's content (design spec §6): an empty draggable top strip — the fixed right
  * toggle cluster floats over it — then the telemetry panel stack: Pressure, Spend, Throughput,
- * Duty, then a hairline, then Session. Renders as plain content — the caller slots it inside a
+ * then Duty when the agent has it, then a hairline, then Session. Renders as plain content — the caller slots it inside a
  * `Pane` (Task 11), so this owns no width/position of its own beyond filling its parent.
  *
  * Polls its own transcript: this pane is now a sibling of `Workspace` at the App level rather than a
@@ -31,7 +31,8 @@ export function RightSidebar({
 }) {
   const { t } = useI18n();
   const doc = useTranscript(session.id);
-  const hasTelemetry = AGENTS[session.agent].capabilities.hasTelemetry;
+  const caps = AGENTS[session.agent].capabilities;
+  const hasTelemetry = caps.hasTelemetry;
   return (
     <div className="flex h-full flex-col border-l border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) text-(--ui-text-tertiary) shadow-[inset_0.0625rem_0_0_color-mix(in_srgb,white_12%,transparent)]">
       <div
@@ -51,8 +52,12 @@ export function RightSidebar({
               context={doc?.context ?? null}
               contextPct={session.contextPct}
               contextWindow={session.contextWindow}
-              account={account}
+              /* Account is derived from Claude sources (statusline + Claude's OAuth usage API), so
+                 it must not backfill another agent's windows via pickWindow — the one sanctioned
+                 id-check in this file, until Account itself goes multi-agent (spec: Future work). */
+              account={session.agent === "claude" ? account : null}
               rateLimits={session.rateLimits ?? null}
+              agent={session.agent}
             />
             <SectionDivider />
             <SpendPanel
@@ -60,12 +65,22 @@ export function RightSidebar({
               costUsd={session.costUsd ?? null}
             />
             <SectionDivider />
-            <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
-            <SectionDivider />
-            <DutyPanel
-              apiDurationMs={session.apiDurationMs ?? null}
-              sessionClockMs={session.sessionClockMs ?? null}
+            {/* Keyed by session: the panel's sparkline accumulates per-session history in state, and
+                this sidebar (unlike Workspace) is NOT remounted per session — without the key the
+                previous session's trend would persist into the next session's sparkline. */}
+            <TokenSpeedPanel
+              key={session.id}
+              speed={metrics ? metrics.tokenSpeed : null}
             />
+            {caps.hasDuty && (
+              <>
+                <SectionDivider />
+                <DutyPanel
+                  apiDurationMs={session.apiDurationMs ?? null}
+                  sessionClockMs={session.sessionClockMs ?? null}
+                />
+              </>
+            )}
             <SectionDivider />
             <SessionPanel
               session={session}

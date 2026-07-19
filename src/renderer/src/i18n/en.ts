@@ -8,6 +8,7 @@ import {
   formatTokensAxis,
   formatTokensShort,
   formatTps,
+  formatWindowLabel,
 } from "@shared/format";
 
 /**
@@ -636,6 +637,10 @@ export const en = {
     dayShort: (day: string) => formatDayShort(day),
     dayLong: (day: string) => formatDayLong(day),
     monthShort: (day: string) => formatMonthShort(day),
+    // Codex-only: a rate-limit window's real duration, when its shape doesn't match Claude's fixed
+    // 5h/7d pair (see @shared/format's formatWindowLabel doc). Not translated — same fixed-width
+    // technical shorthand as windowFiveHour/windowSevenDay below, kept identical across locales.
+    windowLabel: (minutes: number) => formatWindowLabel(minutes),
   },
   // Large-number abbreviation. English groups by powers of 10^3 (k/M) via the shared
   // formatTokensShort/formatTokensAxis helpers; zh groups by powers of 10^4 (万/亿) with

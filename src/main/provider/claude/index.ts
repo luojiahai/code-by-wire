@@ -40,13 +40,8 @@ import { readGit } from "../../git/read-git";
 import { readPr } from "../../git/read-pr";
 import { readVoiceEnabled } from "../../settings/voice";
 import { readRemoteControl } from "../../settings/remote-control";
-import type {
-  GitInfo,
-  MetricsRead,
-  PrInfo,
-  SessionMetrics,
-  TokenSpeed,
-} from "@shared/metrics";
+import { metricsToken, type MetricsTokenSources } from "../metrics-token";
+import type { MetricsRead, SessionMetrics, TokenSpeed } from "@shared/metrics";
 import type {
   ShellsRead,
   ShellOutputRead,
@@ -74,43 +69,6 @@ export interface ClaudeProviderDeps {
 
 const DEFAULT_RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
-/** A stable 32-bit hash of the composite metrics token (transcript mtime + git/voice/remote state), so the
- *  renderer's numeric `since` dedupe works even though those changes aren't mtimes. */
-function hashToken(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** The git portion of the metrics change token: a compact string of the state that should re-trigger a
- *  recompute, or 'nogit' when the cwd isn't a repo. */
-function gitTokenStr(git: GitInfo | null): string {
-  return git
-    ? `${git.sha}:${git.insertions}:${git.deletions}:${git.dirty}:${git.ahead}:${git.behind}`
-    : "nogit";
-}
-
-/** The PR portion of the metrics change token: the PR number plus the fields the SessionPanel PR row
- *  now renders (review state / gh state / title). Folded into metricsToken so a background `gh` fetch
- *  that changes only the review state — number and url unchanged — still re-renders the PR cell. */
-function prTokenStr(pr: PrInfo | null): string {
-  return pr
-    ? `pr:${pr.number}:${pr.state ?? ""}:${pr.reviewDecision ?? ""}:${pr.title ?? ""}`
-    : "nopr";
-}
-
-/** The lazy metric sources read before the change token: the git glance, voice flag, and remote-control
- *  flag. git/voice are null off a repo-less cwd. */
-interface MetricsSources {
-  git: GitInfo | null;
-  pr: PrInfo | null;
-  voice: boolean | null;
-  remote: boolean | null;
-}
-
 /** Read git, voice, and remote for a session. Folded into the change token (metricsToken) so the header's
  *  Voice/Remote stats and the Git panel can't go stale on a settings/manifest change that never touched the
  *  transcript. (These run every poll; mtime-gating their reads the way readGit does is the perf follow-up.) */
@@ -118,7 +76,7 @@ function readSources(
   cwd: string,
   claudeDir: string,
   id: string,
-): MetricsSources {
+): MetricsTokenSources {
   const git = cwd ? readGit(cwd) : null;
   return {
     git,
@@ -131,17 +89,10 @@ function readSources(
   };
 }
 
-/** The composite change token: transcript mtime plus every source that should re-trigger a recompute. */
-function metricsToken(mtimeMs: number, s: MetricsSources): number {
-  return hashToken(
-    `${mtimeMs}|${gitTokenStr(s.git)}|${prTokenStr(s.pr)}|${s.voice}|${s.remote}`,
-  );
-}
-
 /** Assemble the lazy SessionMetrics from the precomputed token speed and the already-read sources. */
 function buildMetrics(
   tokenSpeed: TokenSpeed | null,
-  s: MetricsSources,
+  s: MetricsTokenSources,
 ): SessionMetrics {
   return {
     tokenSpeed,

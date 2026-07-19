@@ -6,7 +6,8 @@ import type {
   RateLimitWindows,
   ExtraUsage,
 } from "@shared/types";
-import { pickWindow } from "@shared/statusline";
+import type { AgentId } from "@shared/agents";
+import { pickWindow, showRateRow } from "@shared/statusline";
 import { contextView } from "@shared/context";
 import { cx } from "../../ui/atoms";
 import { FillGauge } from "../../ui/charts";
@@ -36,7 +37,7 @@ function RateRow({
   return (
     <div className={cx("flex items-center gap-2", !w && "opacity-40")}>
       <span className="w-7 shrink-0 text-xs text-(--ui-text-tertiary)">
-        {label}
+        {w?.windowMinutes != null ? t.time.windowLabel(w.windowMinutes) : label}
       </span>
       <div className="min-w-0 flex-1">
         <FillGauge
@@ -61,9 +62,10 @@ function RateRow({
  * The cockpit's headroom instrument (cockpit spec §Pressure): live context fill (capture preferred,
  * transcript fallback — contextView unchanged) toward the window, then one row per rate-limit
  * window, each merged per-session (spec §1.4): the selected session's own capture window wins,
- * the account API window fills what it's missing. 5h and 7d always render (dashed off a
- * capture-less or API-billed account); the weekly per-model buckets appear only when either side
- * carries them.
+ * the account API window fills what it's missing. 5h and 7d always render dimmed for Claude
+ * (dashed off a capture-less or API-billed account); for codex, once a rate-limits fetch has
+ * landed, a window confirmed absent from it (plan-tier dependent) hides its row instead (see
+ * `showRateRow`). The weekly per-model buckets appear only when either side carries them.
  */
 export function PressurePanel({
   live,
@@ -72,6 +74,7 @@ export function PressurePanel({
   contextWindow,
   account,
   rateLimits,
+  agent,
 }: {
   live: ContextBreakdown | null;
   context: ContextBreakdown | null;
@@ -80,6 +83,7 @@ export function PressurePanel({
   account: Account | null;
   /** The selected session's own capture windows — the merge's winning side. */
   rateLimits?: RateLimitWindows | null;
+  agent: AgentId;
 }) {
   const { t } = useI18n();
   const view = useMemo(
@@ -108,6 +112,13 @@ export function PressurePanel({
     account?.sevenDayOpus,
     now,
   );
+  const isCodex = agent === "codex";
+  const windowsFetched = rateLimits != null;
+  // Codex window durations are plan-tier dependent (a free account has a single 30-day window, not
+  // 5h/7d), so before the first limits fetch lands the static "5h"/"7d" labels would assert a
+  // duration that may be wrong — show a neutral placeholder until the real windows (and their
+  // dynamic windowMinutes labels) arrive. Claude's static labels are untouched in every state.
+  const codexLoading = isCodex && !windowsFetched;
 
   return (
     <PanelSection>
@@ -147,16 +158,20 @@ export function PressurePanel({
         </p>
       )}
       <div className="mt-1 space-y-1.5">
-        <RateRow
-          label={t.dock.pressure.windowFiveHour}
-          window={fiveHour}
-          now={now}
-        />
-        <RateRow
-          label={t.dock.pressure.windowSevenDay}
-          window={sevenDay}
-          now={now}
-        />
+        {showRateRow(isCodex, windowsFetched, rateLimits?.fiveHour) && (
+          <RateRow
+            label={codexLoading ? "-" : t.dock.pressure.windowFiveHour}
+            window={fiveHour}
+            now={now}
+          />
+        )}
+        {showRateRow(isCodex, windowsFetched, rateLimits?.sevenDay) && (
+          <RateRow
+            label={codexLoading ? "-" : t.dock.pressure.windowSevenDay}
+            window={sevenDay}
+            now={now}
+          />
+        )}
         {sevenDaySonnet && (
           <RateRow
             label={t.dock.pressure.windowSevenDaySonnet}

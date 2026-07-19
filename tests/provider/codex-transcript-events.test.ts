@@ -411,4 +411,29 @@ describe("parseRolloutEvents — turns and context", () => {
   it("context stays null without token_count", () => {
     expect(parseRolloutEvents(jsonl(user("hi"))).context).toBeNull();
   });
+
+  it("carries cache_write_input_tokens into the context split's cacheCreation", () => {
+    const jsonl = JSON.stringify({
+      timestamp: "2026-07-19T10:00:10.000Z",
+      type: "event_msg",
+      payload: {
+        type: "token_count",
+        info: {
+          total_token_usage: {},
+          last_token_usage: {
+            input_tokens: 900,
+            cached_input_tokens: 100,
+            cache_write_input_tokens: 50,
+          },
+          model_context_window: null,
+        },
+      },
+    });
+    const doc = parseRolloutEvents(jsonl);
+    expect(doc.context).toEqual({
+      input: 800,
+      cacheRead: 100,
+      cacheCreation: 50,
+    });
+  });
 });
