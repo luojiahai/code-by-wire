@@ -1,12 +1,15 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   codexUsageUrl,
+  fetchAppServerLimits,
   parseAppServerRateLimits,
   parseWhamUsage,
   readCodexAuth,
+  type AppServerChild,
+  type AppServerSpawn,
 } from "../../src/main/provider/codex/limits";
 
 const NOW = Date.parse("2026-07-19T10:00:00.000Z");
@@ -280,5 +283,118 @@ describe("readCodexAuth / codexUsageUrl", () => {
       'chatgpt_base_url = "https://api.example.com/"\n',
     );
     expect(codexUsageUrl(dir)).toBe("https://api.example.com/api/codex/usage");
+  });
+});
+
+/** A scripted app-server child: records stdin lines, lets the test emit stdout lines and lifecycle. */
+function fakeChild() {
+  const written: string[] = [];
+  let onData: ((d: string) => void) | null = null;
+  let onClose: ((code: number | null) => void) | null = null;
+  let onError: ((err: Error) => void) | null = null;
+  let killed = false;
+  const child: AppServerChild = {
+    stdin: {
+      write: (d: string) => {
+        written.push(d);
+      },
+      end: () => {},
+    },
+    stdout: {
+      setEncoding: () => {},
+      on: (_ev, cb) => {
+        onData = cb;
+      },
+    },
+    on: (ev, cb) => {
+      if (ev === "close") onClose = cb as (code: number | null) => void;
+      if (ev === "error") onError = cb as (err: Error) => void;
+    },
+    kill: () => {
+      killed = true;
+      onClose?.(null);
+    },
+  };
+  return {
+    child,
+    written,
+    emit: (line: string) => onData?.(line + "\n"),
+    error: (e: Error) => onError?.(e),
+    wasKilled: () => killed,
+  };
+}
+
+describe("fetchAppServerLimits", () => {
+  it("drives initialize → initialized → account/rateLimits/read and parses the result", async () => {
+    const f = fakeChild();
+    const spawnFn: AppServerSpawn = () => f.child;
+    const p = fetchAppServerLimits({ spawnFn, platform: "win32" });
+    await Promise.resolve();
+    const first = JSON.parse(f.written[0]) as { id: number; method: string };
+    expect(first.method).toBe("initialize");
+    f.emit(JSON.stringify({ id: first.id, result: {} }));
+    await Promise.resolve();
+    expect(
+      f.written.some(
+        (w) => (JSON.parse(w) as { method?: string }).method === "initialized",
+      ),
+    ).toBe(true);
+    const readReq = f.written
+      .map((w) => JSON.parse(w) as { id?: number; method?: string })
+      .find((w) => w.method === "account/rateLimits/read");
+    expect(readReq).toBeDefined();
+    f.emit(
+      JSON.stringify({
+        id: readReq!.id,
+        result: {
+          rate_limits: {
+            primary: {
+              used_percent: 21,
+              window_minutes: 300,
+              resets_at: 1_800_000_000,
+            },
+          },
+        },
+      }),
+    );
+    const windows = await p;
+    expect(windows?.fiveHour?.usedPct).toBe(21);
+    expect(f.wasKilled()).toBe(true); // child terminated after the read
+  });
+
+  it("resolves null and kills the child on init timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const f = fakeChild();
+      const p = fetchAppServerLimits({
+        spawnFn: () => f.child,
+        platform: "win32",
+      });
+      await vi.advanceTimersByTimeAsync(8_001);
+      expect(await p).toBeNull();
+      expect(f.wasKilled()).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("resolves null on spawn error", async () => {
+    const spawnFn: AppServerSpawn = () => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    };
+    expect(
+      await fetchAppServerLimits({ spawnFn, platform: "win32" }),
+    ).toBeNull();
+  });
+
+  it("resolves null when the child exits before answering", async () => {
+    const f = fakeChild();
+    const p = fetchAppServerLimits({
+      spawnFn: () => f.child,
+      platform: "win32",
+    });
+    await Promise.resolve();
+    f.child.kill(); // triggers close
+    expect(await p).toBeNull();
   });
 });
