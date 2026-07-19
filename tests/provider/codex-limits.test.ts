@@ -117,6 +117,24 @@ describe("parseWhamUsage", () => {
     expect(parseWhamUsage("garbage", NOW)).toBeNull();
     expect(parseWhamUsage(null, NOW)).toBeNull();
   });
+
+  it("assigns a lone surviving window to ITS OWN slot, not by iteration order, when its sibling is discarded", () => {
+    const w = parseWhamUsage(
+      {
+        rate_limit: {
+          primary_window: { used_percent: "not-a-number" }, // discarded entirely — malformed
+          secondary_window: {
+            used_percent: 22,
+            limit_window_seconds: 120,
+            reset_at: 1_800_500_000,
+          }, // unrecognized length (2 min)
+        },
+      },
+      NOW,
+    );
+    expect(w?.fiveHour).toBeUndefined();
+    expect(w?.sevenDay).toEqual({ usedPct: 22, resetsAt: 1_800_500_000_000 });
+  });
 });
 
 describe("parseAppServerRateLimits", () => {
