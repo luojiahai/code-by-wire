@@ -506,6 +506,8 @@ export const en = {
     spend: {
       heading: "Spend",
       info: "What this session has consumed: total tokens by kind — fresh input, generated output, cached reads, and the 5-minute and 1-hour cache writes. The $ is Claude Code's own session accounting; on a subscription it is the API-equivalent value, not a bill.",
+      infoCodex:
+        "What this session has consumed: total tokens by kind — fresh input, generated output, and cached reads. Codex reports no cost accounting, so there is no $ figure.",
       // Mirrors ui/token-kinds.ts's TOKEN_KINDS, keyed the same way, so SpendPanel can render
       // translated label/description text while still iterating TOKEN_KINDS for order and key.
       kinds: {

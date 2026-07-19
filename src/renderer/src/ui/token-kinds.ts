@@ -37,3 +37,10 @@ export const TOKEN_KINDS: TokenKind[] = [
       "Context written into the longer-lived 1-hour cache. 2× input.",
   },
 ];
+
+/** The codex row set: codex reports no cache-write tokens at all (its CLI ≤0.144 drops the API's
+ *  cache_write_tokens field during parsing), so its Spend panel renders only the three kinds that
+ *  carry real data. Derived from TOKEN_KINDS so order and copy can never drift. */
+export const CORE_TOKEN_KINDS: TokenKind[] = TOKEN_KINDS.filter((k) =>
+  ["input", "output", "cacheRead"].includes(k.key),
+);

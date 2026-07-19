@@ -3,7 +3,7 @@ import type { ModelUsage, Usage } from "@shared/types";
 import { viewUsageByModel } from "@shared/usage-by-model";
 import { formatUsd } from "@shared/format";
 import { MetricTip } from "../../ui/MetricTip";
-import { TOKEN_KINDS, type TokenKind } from "../../ui/token-kinds";
+import type { TokenKind } from "../../ui/token-kinds";
 import { useI18n } from "../../i18n";
 import { PanelSection, PanelHeading, StatRow } from "./chrome";
 
@@ -48,9 +48,17 @@ function KindLabel({
 export function SpendPanel({
   usageByModel,
   costUsd,
+  kinds,
+  info,
 }: {
   usageByModel: ModelUsage[];
   costUsd: number | null;
+  /** Which token kinds to render, in order — the caller's agent composition decides
+   *  (Claude: TOKEN_KINDS; codex: CORE_TOKEN_KINDS). */
+  kinds: TokenKind[];
+  /** Heading-popover override: the shared t.dock.spend.info copy describes Claude's 5m/1h
+   *  rows and $ accounting, so codex passes t.dock.spend.infoCodex instead. */
+  info?: string;
 }) {
   const { t } = useI18n();
   const view = useMemo(() => viewUsageByModel(usageByModel), [usageByModel]);
@@ -59,7 +67,7 @@ export function SpendPanel({
 
   return (
     <PanelSection>
-      <PanelHeading icon="coins" info={t.dock.spend.info}>
+      <PanelHeading icon="coins" info={info ?? t.dock.spend.info}>
         {t.dock.spend.heading}
       </PanelHeading>
 
@@ -74,7 +82,7 @@ export function SpendPanel({
       </div>
 
       <div className="space-y-1.5">
-        {TOKEN_KINDS.map((k) => (
+        {kinds.map((k) => (
           <StatRow
             key={k.key}
             label={<KindLabel {...t.dock.spend.kinds[k.key]} />}
