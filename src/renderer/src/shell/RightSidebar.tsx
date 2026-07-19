@@ -9,6 +9,7 @@ import { TokenSpeedPanel } from "../workspace/panels/TokenSpeedPanel";
 import { DutyPanel } from "../workspace/panels/DutyPanel";
 import { SessionPanel } from "./SessionPanel";
 import { OverlayScroll } from "../ui/OverlayScroll";
+import { TOKEN_KINDS } from "../ui/token-kinds";
 
 /**
  * The right sidebar's content (design spec §6): an empty draggable top strip — the fixed right
@@ -63,6 +64,7 @@ export function RightSidebar({
             <SpendPanel
               usageByModel={session.usageByModel ?? []}
               costUsd={session.costUsd ?? null}
+              kinds={TOKEN_KINDS}
             />
             <SectionDivider />
             {/* Keyed by session: the panel's sparkline accumulates per-session history in state, and
