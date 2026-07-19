@@ -8,8 +8,8 @@ const SPARK_SAMPLES = 30;
 
 /** Accumulate a ring buffer of total-tps samples across polls, so the sparkline has a series to draw from a
  *  metric that only reports a current snapshot. Appends when the value changes (each poll re-rolls the 60s
- *  window, so it rarely repeats); resets with the panel, which RightSidebar remounts per session via
- *  `key={session.id}` — one session's trend must never bleed into the next session's sparkline. */
+ *  window, so it rarely repeats); resets with the panel, which the sidebar compositions remount per
+ *  session via `key={session.id}` — one session's trend must never bleed into the next's sparkline. */
 function useSpeedHistory(tps: number | null): number[] {
   const [history, setHistory] = useState<number[]>([]);
   useEffect(() => {
