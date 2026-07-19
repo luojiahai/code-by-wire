@@ -71,13 +71,14 @@ export const AGENTS: Record<AgentId, AgentDescriptor> = {
     binary: "claude",
     capabilities: ALL,
   },
-  // V1 codex is a plain CLI in a pty: discovery-backed rows, no transcript/telemetry/dock yet.
-  // V2+ flips flags here as provider readers land — the surfaces need no edits.
+  // V2 codex: the transcript pane is live (rollout-backed readTranscript). Everything else is
+  // still gated off; later versions flip more flags as provider readers land — the surfaces
+  // need no edits.
   codex: {
     id: "codex",
     label: "Codex",
     binary: "codex",
-    capabilities: NONE,
+    capabilities: { ...NONE, hasTranscript: true },
   },
 };
 
