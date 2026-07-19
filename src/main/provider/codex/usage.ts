@@ -1,3 +1,4 @@
+import type { TokenSpeed } from "@shared/metrics";
 import type { ContextBreakdown } from "@shared/transcript";
 import type { ModelUsage, Usage } from "@shared/types";
 import { asRecord } from "./rollout";
@@ -191,5 +192,60 @@ export function scanRolloutTelemetry(jsonl: string): RolloutTelemetry {
     effortLevel,
     compactionCount,
     tokenEvents,
+  };
+}
+
+/** Codex's own /status reserves this much for prompts, tools, and compact headroom — both sides of
+ *  the remaining-percent division subtract it, so our fill matches what codex shows its user. */
+export const CODEX_CONTEXT_BASELINE_TOKENS = 12_000;
+
+/** Context fill 0-100 exactly as codex's TUI computes it: 100 − percent_of_context_window_remaining,
+ *  over last_token_usage.total_tokens. A window at/below the baseline degenerates to the raw ratio
+ *  (never a division by ≤0); an unknown window reads 0 like pctOfWindow does. */
+export function codexContextPct(totalTokens: number, window: number): number {
+  if (window <= 0) return 0;
+  const effective = window - CODEX_CONTEXT_BASELINE_TOKENS;
+  if (effective <= 0)
+    return Math.min(100, Math.round((totalTokens / window) * 100));
+  const used = Math.max(0, totalTokens - CODEX_CONTEXT_BASELINE_TOKENS);
+  const remaining = Math.min(
+    100,
+    Math.max(0, Math.round(((effective - used) / effective) * 100)),
+  );
+  return 100 - remaining;
+}
+
+/**
+ * Token throughput over the rolling window, from token_count deltas. Each event's tokens are spread
+ * over the interval since the PREVIOUS event (the first event has no interval and never counts);
+ * intervals are sequential by construction so the denominator is their clipped sum — the codex
+ * analog of transcript-speed.ts's computeTokenSpeed, coarser because codex reports per turn, not
+ * per message. Null when fewer than two events land in the window or the duration is zero.
+ */
+export function speedFromTokenEvents(
+  events: CodexTokenEvent[],
+  windowMs: number,
+): TokenSpeed | null {
+  if (events.length < 2) return null;
+  const latest = events[events.length - 1].tsMs;
+  const windowStart = windowMs > 0 ? latest - windowMs : -Infinity;
+  let input = 0;
+  let output = 0;
+  let durMs = 0;
+  for (let i = 1; i < events.length; i++) {
+    const ev = events[i];
+    if (ev.tsMs < windowStart) continue;
+    const start = Math.max(events[i - 1].tsMs, windowStart);
+    if (ev.tsMs <= start) continue; // zero-length or out-of-order interval
+    durMs += ev.tsMs - start;
+    input += ev.input;
+    output += ev.output;
+  }
+  if (durMs <= 0) return null;
+  const sec = durMs / 1000;
+  return {
+    inputTps: input / sec,
+    outputTps: output / sec,
+    totalTps: (input + output) / sec,
   };
 }

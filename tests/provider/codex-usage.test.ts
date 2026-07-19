@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   scanRolloutTelemetry,
   breakdownFromTokenUsage,
+  codexContextPct,
+  speedFromTokenEvents,
+  CODEX_CONTEXT_BASELINE_TOKENS,
 } from "../../src/main/provider/codex/usage";
 
 const line = (o: unknown): string => JSON.stringify(o);
@@ -248,5 +251,68 @@ describe("breakdownFromTokenUsage", () => {
         cache_write_input_tokens: 40,
       }),
     ).toEqual({ input: 400, cacheRead: 600, cacheCreation: 40 });
+  });
+});
+
+describe("codexContextPct", () => {
+  it("matches the codex TUI formula (12k baseline off both sides)", () => {
+    // window 272000 → effective 260000; total 142000 → used 130000 → remaining 50% → fill 50%
+    expect(codexContextPct(142_000, 272_000)).toBe(50);
+  });
+  it("reads 0% fill at/below the baseline", () => {
+    expect(codexContextPct(12_000, 272_000)).toBe(0);
+    expect(codexContextPct(500, 272_000)).toBe(0);
+  });
+  it("clamps to 100% when used exceeds the effective window", () => {
+    expect(codexContextPct(400_000, 272_000)).toBe(100);
+  });
+  it("falls back to the raw ratio for a degenerate window ≤ baseline", () => {
+    expect(codexContextPct(5_000, CODEX_CONTEXT_BASELINE_TOKENS)).toBe(42); // 5000/12000
+  });
+  it("is 0 for an unknown window", () => {
+    expect(codexContextPct(1_000, 0)).toBe(0);
+  });
+});
+
+describe("speedFromTokenEvents", () => {
+  const t0 = Date.parse("2026-07-19T10:00:00.000Z");
+  it("computes tps over consecutive event intervals inside the window", () => {
+    const speed = speedFromTokenEvents(
+      [
+        { tsMs: t0, input: 100, output: 10 },
+        { tsMs: t0 + 10_000, input: 500, output: 200 }, // 10s interval
+        { tsMs: t0 + 20_000, input: 300, output: 100 }, // 10s interval
+      ],
+      60_000,
+    );
+    // events 2+3 count (the first has no prior interval): (500+300)/20s input, (200+100)/20s output
+    expect(speed).toEqual({ inputTps: 40, outputTps: 15, totalTps: 55 });
+  });
+  it("clips intervals to the window start and drops events before it", () => {
+    const speed = speedFromTokenEvents(
+      [
+        { tsMs: t0, input: 9_999, output: 9_999 }, // outside a 30s window ending at t0+60s
+        { tsMs: t0 + 50_000, input: 100, output: 0 }, // interval clipped to [t0+30s, t0+50s] = 20s
+        { tsMs: t0 + 60_000, input: 100, output: 0 }, // 10s interval
+      ],
+      30_000,
+    );
+    expect(speed).not.toBeNull();
+    expect(speed!.inputTps).toBeCloseTo(200 / 30, 5);
+  });
+  it("returns null with fewer than two events or zero duration", () => {
+    expect(speedFromTokenEvents([], 60_000)).toBeNull();
+    expect(
+      speedFromTokenEvents([{ tsMs: t0, input: 1, output: 1 }], 60_000),
+    ).toBeNull();
+    expect(
+      speedFromTokenEvents(
+        [
+          { tsMs: t0, input: 1, output: 1 },
+          { tsMs: t0, input: 1, output: 1 },
+        ],
+        60_000,
+      ),
+    ).toBeNull();
   });
 });
