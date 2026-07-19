@@ -7,7 +7,8 @@ order: 1
 ## Install
 
 Code-by-wire needs [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
-installed locally. That's what it reads sessions from.
+and/or [Codex](https://developers.openai.com/codex/cli) installed locally.
+That's what it reads sessions from.
 
 Grab the build for your platform from the [Download page](/download/).
 On macOS, open the `.dmg` and drag Code-by-wire to Applications. The app is signed
@@ -17,8 +18,8 @@ for now, so if SmartScreen warns, click **More info → Run anyway**.
 ## First launch
 
 Open the app. Every session already running on your machine, including anything
-Claude Code has touched, shows up immediately in the session rail on the left,
-grouped by project. Nothing to configure.
+Claude Code or Codex has touched, shows up immediately in the session rail on
+the left, grouped by project. Nothing to configure.
 
 ## A tour of the main views
 

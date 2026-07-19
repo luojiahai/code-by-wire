@@ -64,12 +64,12 @@ export interface CodexProvider extends Provider {
 }
 
 /**
- * The Codex read-side provider. V1 shipped discovery (sidebar rows from bounded head-reads of
- * `$CODEX_HOME/sessions/**` rollouts); V2 adds the transcript pane: readTranscript parses the whole
- * rollout into the shared TranscriptDoc, getToolResult backs the drill-in modal. Every other
+ * The Codex read-side provider. It shipped discovery first (sidebar rows from bounded head-reads
+ * of `$CODEX_HOME/sessions/**` rollouts), then the transcript pane: readTranscript parses the
+ * whole rollout into the shared TranscriptDoc, getToolResult backs the drill-in modal. Every other
  * transcript-shaped reader still settles empty (the renderer's capability gates hide those
- * surfaces, and the polls that do run hit these cheap arms). V2+ turns readers on one by one and
- * flips the matching AGENTS capability flags — no renderer wiring.
+ * surfaces, and the polls that do run hit these cheap arms). Future work turns readers on one by
+ * one and flips the matching AGENTS capability flags — no renderer wiring.
  */
 export function createCodexProvider(
   deps: CodexProviderDeps = {},

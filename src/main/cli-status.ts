@@ -14,7 +14,7 @@ export interface CliProbeInput {
     | { status: "spawnError" } // the binary isn't actually there (ENOENT, or a shell's exit 127)
     | { status: "failed" }; // ran but non-zero / timeout / garbage
   auth: { status: "ok" } | { status: "loggedOut" } | { status: "unknown" };
-  /** null → no minimum-version gate (codex in V1 has no known floor to enforce). */
+  /** null → no minimum-version gate (codex has no known floor to enforce). */
   floor: string | null;
   /** null → no --version product-tag check (only Claude's `claude` binary needs the collision guard
    *  below; codex has no known-collision risk to defend against yet). */
@@ -25,7 +25,7 @@ export interface CliProbeInput {
 }
 
 /** How to probe one agent's CLI. floor null → no minimum-version gate; productPattern null → no
- *  --version tag check; checkAuth false → no auth stage (codex has no `auth status` in V1). */
+ *  --version tag check; checkAuth false → no auth stage (codex has no `auth status` command). */
 export interface AgentProbeSpec {
   binary: string;
   floor: string | null;

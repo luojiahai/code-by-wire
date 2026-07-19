@@ -40,7 +40,7 @@ describe("resumeActionDisabled", () => {
     ).toBe(true);
   });
 
-  it("capable:false disables regardless of everything else (codex V1 Resume/Fork)", () => {
+  it("capable:false disables regardless of everything else (codex Resume/Fork)", () => {
     expect(
       resumeActionDisabled({ canSpawn: true, resumable: true, capable: false }),
     ).toBe(true);

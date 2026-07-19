@@ -73,9 +73,9 @@ export const AGENTS: Record<AgentId, AgentDescriptor> = {
     binary: "claude",
     capabilities: ALL,
   },
-  // V4 codex: Resume (the provider resolves rollout targets; the terminal spawns `codex resume
-  // <id>`, claim-bound at registration). Activity/subagents/fork still gated off; later versions
-  // flip more flags as provider readers land — the surfaces need no edits.
+  // codex: Resume (the provider resolves rollout targets; the terminal spawns `codex resume
+  // <id>`, claim-bound at registration). Activity/subagents/fork still gated off; future work
+  // flips more flags as provider readers land — the surfaces need no edits.
   codex: {
     id: "codex",
     label: "Codex",

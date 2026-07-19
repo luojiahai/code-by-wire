@@ -8,13 +8,13 @@
 
 [![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=luojiahai&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/luojiahai)
 
-**驾驭每一个 Claude Code 会话并监控其遥测数据，尽在一个驾驶舱。**
+驾驭编码 agent（Claude Code、Codex）并监控其遥测数据，尽在一个驾驶舱。
 
 ![Code-by-wire：一个实时 Claude Code 会话，含会话侧栏、会话记录与遥测面板](docs/assets/cbw-screenshot.png)
 
 ## 功能
 
-本地需要已安装 Claude Code。打开应用，你机器上正在跑的每个会话就已经在这里。
+本地需要已安装 Claude Code 和/或 Codex。打开应用，你机器上正在跑的每个会话就已经在这里。
 
 - **所有会话，一条侧栏。** 管理你机器上正在跑的每一个会话，全都在这一条侧栏里：按项目分组，
   可搜索，标出实时状态。
@@ -36,7 +36,8 @@
 | Windows · ARM64       | [`Code-by-wire-Setup-arm64.exe`](https://github.com/luojiahai/code-by-wire/releases/latest/download/Code-by-wire-Setup-arm64.exe) |
 
 点一下即开始下载，始终是最新版本。你需要在本地安装
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code)，这样才有会话可供观察和控制。
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) 和/或
+[Codex](https://developers.openai.com/codex/cli)，这样才有会话可供观察和控制。
 
 macOS 上打开 `.dmg`，把 Code-by-wire 拖进「应用程序」。应用已由 Apple 签名并公证，可以直接
 打开。Windows 上运行 `.exe`；目前未签名，如果 SmartScreen 警告，点 **更多信息 → 仍要运行**。

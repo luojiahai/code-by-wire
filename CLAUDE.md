@@ -23,11 +23,16 @@ lockfile from the root workspace. Run its commands from inside `website/`:
 
 Electron app, three processes:
 
-- **main** (`src/main/`) — Node. Reads Claude Code transcripts (`provider/claude/`), analytics in better-sqlite3 (`db/`), pty terminals (`terminal/`), git, settings. Request/response only — no background timers or `fs.watch`; the renderer polls.
+- **main** (`src/main/`) — Node. Reads Claude Code and Codex transcripts (`provider/claude/`, `provider/codex/`), analytics in better-sqlite3 (`db/`), pty terminals (`terminal/`), git, settings. Request/response only — no background timers or `fs.watch`; the renderer polls.
 - **preload** (`src/preload/`) — contextBridge exposing `window.api` to the renderer.
 - **renderer** (`src/renderer/src/`) — React 19 + Tailwind 4 + xterm.
 
 `src/shared/` holds types and constants imported across processes via the `@shared/*` alias. IPC channel names are centralized in `src/shared/ipc.ts` (the `IPC` object); handlers register in `src/main/ipc.ts`. Adding a channel means touching both.
+
+This app supports multiple coding agents (Claude Code, Codex). `src/shared/agents.ts` is the
+source of truth: the `AGENTS` registry and its `AgentCapabilities` flags. Renderer surfaces gate
+on those flags, never on agent id — so enabling a surface for an agent is a registry edit plus a
+provider implementation, not new surface wiring.
 
 ## Code style
 

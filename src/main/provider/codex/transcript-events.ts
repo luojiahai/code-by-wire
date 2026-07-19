@@ -286,7 +286,7 @@ export function parseRolloutEvents(
       }
       // orphan outputs (no matching call): ignored
     }
-    // compaction / context_compaction / agent_message / unknown payloads: skipped in V1
+    // compaction / context_compaction / agent_message / unknown payloads: skipped
   }
   finalizeOpen();
 
