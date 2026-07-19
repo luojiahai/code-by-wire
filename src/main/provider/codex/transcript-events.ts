@@ -6,6 +6,7 @@ import type {
   TurnSummary,
 } from "@shared/transcript";
 import { asRecord } from "./rollout";
+import { breakdownFromTokenUsage } from "./usage";
 
 /** Exact prefixes of injected-context user items (codex's environment_context / user_instructions
  *  protocol constants, plus the plugin advertisement): machine context, never a typed prompt. A
@@ -224,14 +225,7 @@ export function parseRolloutEvents(
       } else if (kind === "token_count") {
         const info = asRecord(payload.info);
         const last = asRecord(info?.last_token_usage);
-        if (last) {
-          const cached = num(last.cached_input_tokens);
-          context = {
-            input: Math.max(0, num(last.input_tokens) - cached),
-            cacheRead: cached,
-            cacheCreation: 0,
-          };
-        }
+        if (last) context = breakdownFromTokenUsage(last);
       }
       // user_message / agent_message / everything else: response_item duplicates, or
       // non-conversational telemetry — never rendered.
