@@ -28,6 +28,7 @@ import type { ManagedRegistry } from "../managed-registry";
 import { createTerminalManager } from "./manager";
 import { createPtyProcess } from "./pty-process";
 import { createRecorder } from "./recorder";
+import { gateResume, gateFork, type ResumeTarget } from "./resume-gate";
 
 /** Resolve symlinks in the spawn cwd before recording it in the managed registry. The codex
  *  rollout-claim correlation (provider/codex/claim.ts) matches on this value against the cwd
@@ -93,12 +94,16 @@ export function registerTerminalIpc({
   window,
   managed,
   resolveResumeTarget,
+  agentOf,
   env,
   posixShell,
 }: {
   window: BrowserWindow;
   managed: ManagedRegistry;
-  resolveResumeTarget: (id: string) => { alive: boolean; cwd: string } | null;
+  resolveResumeTarget: (id: string) => ResumeTarget | null;
+  /** id → agent (registry → sessions table → "claude"), resolved in main — never trusted from the
+   *  renderer — so resume spawns the right CLI and fork can refuse non-claude sources. */
+  agentOf: (id: string) => AgentId;
   /** Returns the env for spawned/resumed `claude` sessions. Omitted in production (Managed sessions no
    *  longer need a custom env — they spawn through the login shell, which resolves everything itself);
    *  omitted in most tests too, where the manager falls back to `process.env`. */
@@ -148,17 +153,18 @@ export function registerTerminalIpc({
     });
     return draftSession(req.id, req.cwd, req.model, req.agent);
   });
-  // Resume an Ended session: relaunch it under its own id. The liveness re-check here is the guarantee
-  // behind the Ended-only state gate — a session that came back to life since the last sync is refused,
-  // so two processes never share one Transcript. cwd is resolved in main, not trusted from the renderer.
+  // Resume an Ended session: relaunch it under its own id, per agent. The liveness re-check here is
+  // the guarantee behind the Ended-only state gate — a session that came back to life since the last
+  // sync is refused, so two processes never share one Transcript. cwd (and, for codex, the rollout
+  // claim binding) is resolved in main, not trusted from the renderer.
   ipcMain.handle(TERMINAL.resume, (_e, req: ResumeRequest): ResumeResult => {
-    const target = resolveResumeTarget(req.id);
-    if (!target) return { ok: false, reason: "unresolvable" };
-    if (target.alive) return { ok: false, reason: "alive" };
+    const d = gateResume(agentOf(req.id), resolveResumeTarget(req.id));
+    if (!d.ok) return { ok: false, reason: d.reason };
     manager.resume({
       id: req.id,
-      cwd: target.cwd,
-      agent: "claude",
+      cwd: d.cwd,
+      agent: d.agent,
+      claimedRollout: d.claimedRollout,
       cols: req.cols,
       rows: req.rows,
     });
@@ -168,14 +174,18 @@ export function registerTerminalIpc({
   // is left untouched. No liveness gate — unlike resume, a fork writes its own Transcript, so it's safe
   // even while the source is still running. cwd is resolved in main from the source id, not trusted from
   // the renderer; the only refusal is an unresolvable source (no registry entry and no Transcript cwd).
+  // A non-claude source is refused outright (gateFork) — fork is claude-only.
   ipcMain.handle(TERMINAL.fork, (_e, req: ForkRequest): ForkResult => {
-    const target = resolveResumeTarget(req.sourceId);
-    if (!target) return { ok: false, reason: "unresolvable" };
+    const d = gateFork(
+      agentOf(req.sourceId),
+      resolveResumeTarget(req.sourceId),
+    );
+    if (!d.ok) return { ok: false, reason: "unresolvable" };
     manager.fork({
       id: req.newId,
       sourceId: req.sourceId,
       model: req.model,
-      cwd: target.cwd,
+      cwd: d.cwd,
       cols: req.cols,
       rows: req.rows,
     });
@@ -184,7 +194,7 @@ export function registerTerminalIpc({
     // model rides in from the renderer only for this draft; --fork-session restores the real one.
     return {
       ok: true,
-      session: draftSession(req.newId, target.cwd, req.model, "claude"),
+      session: draftSession(req.newId, d.cwd, req.model, "claude"),
     };
   });
   const onWrite = (_e: IpcMainEvent, id: string, data: string) =>

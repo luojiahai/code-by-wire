@@ -73,7 +73,10 @@ const WINDOW_BACKGROUND: Record<"dark" | "light", string> = {
 
 function createWindow(
   managed: ManagedRegistry,
-  resolveResumeTarget: (id: string) => { alive: boolean; cwd: string } | null,
+  resolveResumeTarget: (
+    id: string,
+  ) => { alive: boolean; cwd: string; rolloutPath?: string } | null,
+  agentOf: (id: string) => AgentId,
   registerRename: (rename: (from: string, to: string) => void) => void,
   shellEnv: () => NodeJS.ProcessEnv,
   appTheme: "dark" | "light",
@@ -120,6 +123,7 @@ function createWindow(
     window: win,
     managed,
     resolveResumeTarget,
+    agentOf,
     posixShell: { isExecutable: isExecutableFile, findOnPath },
   });
   registerRename(rename);
@@ -202,6 +206,7 @@ app
     const services: {
       provider?: Provider;
       cliStatus?: ReturnType<typeof createCliStatusController>;
+      agentOf?: (id: string) => AgentId;
     } = {};
     // Stand the window up FIRST, before the synchronous login-shell probe + claudeDir-dependent wiring
     // below. The probe (and the initial sync) run in this same synchronous turn, so the renderer's first
@@ -212,6 +217,7 @@ app
       createWindow(
         managed,
         (id) => services.provider?.resolveResumeTarget(id) ?? null,
+        (id) => services.agentOf?.(id) ?? "claude",
         registerRename,
         shellTermEnv,
         appSettings.read().appTheme ?? "dark",
@@ -315,6 +321,7 @@ app
     // anything unknown is claude (the legacy default — never a projects/ sweep for a codex id).
     const agentOf = (id: string): AgentId =>
       managed.agentOf(id) ?? getSessionAgent(db, id) ?? "claude";
+    services.agentOf = agentOf;
     const provider = createCompositeProvider(
       { claude: claudeProvider, codex: codexProvider },
       agentOf,
