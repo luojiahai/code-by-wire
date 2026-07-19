@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   modelKnown,
   modelLabel,
+  pinnedModelBadge,
   ctxColor,
   isContextHigh,
   CONTEXT_WARN_PCT,
@@ -84,6 +85,32 @@ describe("modelLabel", () => {
     expect(
       modelLabel("opus", "claude-opus-4-8", undefined, { compact: true }),
     ).toBe("Opus");
+  });
+});
+
+describe("pinnedModelBadge — the pinned row's model chip: real family or a truthful agent-id fallback", () => {
+  it("shows the family for a Managed Claude session with no raw yet (the fronted picked alias)", () => {
+    expect(pinnedModelBadge("claude", "opus", undefined, "managed")).toBe(
+      "opus",
+    );
+  });
+  it("shows the family for an Observed Claude session whose raw transcript id is recognized", () => {
+    expect(
+      pinnedModelBadge("claude", "opus", "claude-opus-4-8", "observed"),
+    ).toBe("opus");
+  });
+  it("falls back to the agent id for an Observed Claude session with no real model captured", () => {
+    expect(pinnedModelBadge("claude", "opus", undefined, "observed")).toBe(
+      "claude",
+    );
+  });
+  it("falls back to the agent id for a Codex session — its raw id never matches a Claude family", () => {
+    expect(
+      pinnedModelBadge("codex", "opus", "gpt-5.1-codex", "managed"),
+    ).toBe("codex");
+    expect(pinnedModelBadge("codex", "opus", undefined, "managed")).toBe(
+      "codex",
+    );
   });
 });
 

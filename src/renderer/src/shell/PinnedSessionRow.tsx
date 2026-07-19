@@ -4,6 +4,7 @@ import { cx, Lamp } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { AgentIcon } from "../ui/agent-icons";
 import { AGENTS } from "@shared/agents";
+import { pinnedModelBadge } from "../ui/meta";
 import { useI18n } from "../i18n";
 import { ungroupedLabel } from "./session-list-model";
 import { useSessionMenu } from "./use-session-menu";
@@ -169,7 +170,12 @@ export function PinnedSessionRow({
               metaHide,
             )}
           >
-            {session.model}
+            {pinnedModelBadge(
+              session.agent,
+              session.model,
+              session.modelId ?? session.modelRaw,
+              session.management,
+            )}
           </span>
         </span>
       </button>

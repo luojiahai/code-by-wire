@@ -180,3 +180,20 @@ export function modelLabel(
   if (opts?.compact || !raw) return label;
   return `${label} (${raw})`;
 }
+
+/** The pinned row's model chip: the real family when either the raw captured model id is
+ *  recognized, or there's no raw but the session is a Managed pick modelKnown vouches for —
+ *  otherwise the plain agent id, never the normalize fallback wearing a family it never earned.
+ *  Mirrors modelLabel's raw-first, vouched-second, else-honest chain, condensed to a short label
+ *  with no parenthetical (the pinned chip has no room for one). */
+export function pinnedModelBadge(
+  agent: AgentId,
+  model: Family,
+  raw: string | undefined,
+  management: Management,
+): string {
+  const trusted =
+    (raw !== undefined && isKnownModelString(raw)) ||
+    modelKnown(management, agent);
+  return trusted ? model : agent;
+}
