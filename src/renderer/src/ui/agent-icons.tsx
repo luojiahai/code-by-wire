@@ -10,13 +10,7 @@ import type { AgentId } from "@shared/agents";
  *  lobe-icons "-color" asset verbatim — a flat brand fill (Claude), or a badge/gradient if
  *  that's the agent's real color mark (Codex): don't force every agent into the same shape. */
 
-function ClaudeMark({
-  size,
-  className,
-}: {
-  size: number;
-  className?: string;
-}) {
+function ClaudeMark({ size, className }: { size: number; className?: string }) {
   return (
     <svg
       width={size}
@@ -32,13 +26,7 @@ function ClaudeMark({
   );
 }
 
-function CodexMark({
-  size,
-  className,
-}: {
-  size: number;
-  className?: string;
-}) {
+function CodexMark({ size, className }: { size: number; className?: string }) {
   const gradientId = useId();
   return (
     <svg

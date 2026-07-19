@@ -105,9 +105,9 @@ describe("pinnedModelBadge — the pinned row's model chip: real family or a tru
     );
   });
   it("falls back to the agent id for a Codex session — its raw id never matches a Claude family", () => {
-    expect(
-      pinnedModelBadge("codex", "opus", "gpt-5.1-codex", "managed"),
-    ).toBe("codex");
+    expect(pinnedModelBadge("codex", "opus", "gpt-5.1-codex", "managed")).toBe(
+      "codex",
+    );
     expect(pinnedModelBadge("codex", "opus", undefined, "managed")).toBe(
       "codex",
     );
