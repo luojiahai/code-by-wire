@@ -45,6 +45,12 @@ export interface SpawnRequest {
 export interface ResumeSpawn {
   id: string;
   cwd: string;
+  /** Which agent to resume — decides the resume argv (claude `--resume <id>`, codex `resume <id>`). */
+  agent: AgentId;
+  /** Codex only: the session's rollout path, bound to the registry entry AT registration so the
+   *  claim matcher never sees this pty as pending. An old rollout is outside the matcher's recent
+   *  candidate window, so an unbound resume pty could mis-claim a fresh same-cwd rollout. */
+  claimedRollout?: string;
   cols: number;
   rows: number;
 }
@@ -91,7 +97,12 @@ export interface TerminalManagerDeps {
   onSpawned: (
     id: string,
     pid: number,
-    info: { model?: Family; agent: AgentId; cwd: string },
+    info: {
+      model?: Family;
+      agent: AgentId;
+      cwd: string;
+      claimedRollout?: string;
+    },
   ) => void;
   /** Drop `id`'s Managed label (the registry's `remove`) once its pty is gone — natural exit or a
    *  disposeAll on window close — so Managed-ness stays anchored to the pty's actual lifetime and a
@@ -125,7 +136,8 @@ export interface TerminalManagerDeps {
 
 export interface TerminalManager {
   spawn(req: SpawnRequest): void;
-  /** Resume an Ended session under its own id with `claude --resume <id>` — same pty machinery as spawn. */
+  /** Resume an Ended session under its own id, per agent (`claude --resume <id>` / `codex resume <id>`)
+   *  — same pty machinery as spawn. */
   resume(req: ResumeSpawn): void;
   /** Fork a session: resume `sourceId`'s conversation into a fresh `id` with `--fork-session`, so the
    *  source Transcript is left intact and the fork writes its own. Same pty machinery as spawn/resume. */
@@ -187,6 +199,7 @@ export function createTerminalManager(
     rows: number,
     agent: AgentId,
     model?: Family,
+    claimedRollout?: string,
   ): void {
     if (terms.has(id)) return; // idempotent — a double start of one id is a no-op
     if (!statDir(cwd)) {
@@ -261,7 +274,7 @@ export function createTerminalManager(
       deps.notifyExit(term.id, exitCode);
     });
 
-    deps.onSpawned(id, pty.pid, { model, agent, cwd });
+    deps.onSpawned(id, pty.pid, { model, agent, cwd, claimedRollout });
   }
 
   function spawn(req: SpawnRequest): void {
@@ -280,21 +293,24 @@ export function createTerminalManager(
     );
   }
 
-  // Resume: resume an Ended session under its OWN id. The resume argv carries no --model (the CLI restores
-  // the session's model), so there is no `model` in the request. Resume is Claude-only (codex has no
-  // resume-by-id equivalent in this app yet), so the agent is always "claude" here.
+  // Resume: resume an Ended session under its OWN id, per agent. The resume argv carries no --model
+  // (both CLIs restore the session's model), so there is no `model` in the request. A codex resume
+  // carries its rollout path through to registration, so the registry entry is claim-bound from the
+  // first instant the pty exists (see ResumeSpawn.claimedRollout).
   function resume(req: ResumeSpawn): void {
     start(
       req.id,
       toSpawnForm(
-        buildResumeCommand({ agent: "claude", id: req.id }),
+        buildResumeCommand({ agent: req.agent, id: req.id }),
         platform,
         platform === "win32" ? undefined : posixShellDeps(),
       ),
       req.cwd,
       req.cols,
       req.rows,
-      "claude",
+      req.agent,
+      undefined,
+      req.claimedRollout,
     );
   }
 

@@ -9,6 +9,11 @@ export interface ManagedEntryInfo {
   agent: AgentId;
   cwd: string;
   spawnedAtMs: number;
+  /** The rollout path this pty is claim-bound to AT registration (codex Resume: the pty id IS the
+   *  rollout id, and an old rollout never enters the claim matcher's recent candidate window, so an
+   *  unbound resume pty would sit pending forever and could mis-claim a fresh same-cwd rollout —
+   *  see provider/codex/claim.ts). Undefined for fresh spawns, which claim later via `claim()`. */
+  claimedRollout?: string;
 }
 
 export interface ManagedCodexPty {
@@ -71,7 +76,8 @@ export function createManagedRegistry(): ManagedRegistry {
     { pid: number; info: ManagedEntryInfo; claimedRollout?: string }
   >();
   return {
-    add: (id, pid, info) => byId.set(id, { pid, info }),
+    add: (id, pid, info) =>
+      byId.set(id, { pid, info, claimedRollout: info.claimedRollout }),
     remove: (id) => byId.delete(id),
     has: (id) => byId.has(id),
     modelOf: (id) => byId.get(id)?.info.model,
