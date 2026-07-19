@@ -314,6 +314,7 @@ app
       managed: {
         has: (id) => managed.agentOf(id) === "codex",
         cwdOf: (id) => managed.cwdOf(id),
+        codexEntries: () => managed.codexEntries(),
       },
     });
     // id → agent: live drafts answer from the registry; indexed rows from the sessions table;

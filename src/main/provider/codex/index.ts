@@ -33,6 +33,15 @@ export const CODEX_WORKING_WINDOW_MS = 10_000;
 
 const DEFAULT_RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** One live app-owned codex pty, as the provider needs to see it: enough to synthesize a
+ *  zero-turn candidate (id, cwd, spawn time) and to know whether it's already claimed. */
+interface ManagedCodexPtyLike {
+  id: string;
+  cwd: string;
+  spawnedAtMs: number;
+  claimedRollout?: string;
+}
+
 export interface CodexProviderDeps {
   codexDir?: string;
   now?: () => number;
@@ -43,6 +52,10 @@ export interface CodexProviderDeps {
   managed?: {
     has(id: string): boolean;
     cwdOf?(id: string): string | undefined;
+    /** Live app-owned codex ptys, claimed or not — the liveness source for a session with no
+     *  rollout on disk yet (codex flushes nothing until the first turn completes, unlike claude's
+     *  sessions/*.json registry file). Optional so existing tests that only need `has` still build. */
+    codexEntries?(): ManagedCodexPtyLike[];
   };
   /** Account-scoped rate limits (limits.ts service). Optional so existing tests build without it. */
   limits?: { read(): RateLimitWindows | null };
@@ -128,15 +141,20 @@ export function createCodexProvider(
     };
   };
 
+  const managedCodexEntries = (): ManagedCodexPtyLike[] =>
+    deps.managed?.codexEntries?.() ?? [];
+
   const candidates = (): SessionCandidate[] => {
     const cutoff = now() - recentWindowMs;
     const out: SessionCandidate[] = [];
+    const seen = new Set<string>();
     for (const r of listRollouts(codexDir)) {
       // Recent rollouts surface like recent claude transcripts; a stale one still surfaces while
       // a live pty owns it (the claimed row must not vanish mid-session).
       if (r.mtimeMs < cutoff && !managed.has(r.id)) continue;
       const head = headFor(r.path, r.mtimeMs);
       if (!head) continue;
+      seen.add(r.id);
       const sig = signalsFor(r.mtimeMs, managed.has(r.id));
       out.push({
         id: r.id,
@@ -147,6 +165,24 @@ export function createCodexProvider(
         transcriptPath: r.path,
         transcriptMtimeMs: r.mtimeMs,
         updatedAt: head.timestampMs ?? r.timestampMs,
+      });
+    }
+    // A live app-owned pty that hasn't written a rollout yet: codex flushes nothing to disk until
+    // the first turn completes, so a zero-turn session has no file for the loop above to find.
+    // Without this, it's invisible to discovery — the renderer's optimistic draft (hydrated
+    // 'working' at spawn) never gets superseded, so it never idles and never clears on End.
+    // Mirrors claude's registry-only candidate (a live pid with no transcript yet).
+    for (const pty of managedCodexEntries()) {
+      if (seen.has(pty.id) || pty.claimedRollout !== undefined) continue;
+      out.push({
+        id: pty.id,
+        agent: "codex",
+        alive: true,
+        status: undefined,
+        cwd: pty.cwd,
+        transcriptPath: undefined,
+        transcriptMtimeMs: 0,
+        updatedAt: pty.spawnedAtMs,
       });
     }
     return out;

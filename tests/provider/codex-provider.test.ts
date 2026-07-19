@@ -91,6 +91,64 @@ describe("createCodexProvider", () => {
     expect(withPty.listCandidates()).toHaveLength(1);
   });
 
+  it("a live managed pty with no rollout yet (codex hasn't flushed a turn) still surfaces as an idle skeleton candidate", () => {
+    // codex writes nothing to disk until the first turn completes — no registry-file analog like
+    // claude's sessions/*.json. Without a skeleton candidate here, a zero-turn session is invisible
+    // to discovery and the renderer's optimistic draft never gets superseded (issue: stuck "working").
+    const home = mkdtempSync(join(tmpdir(), "codexp-empty-"));
+    const draftId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    const p = createCodexProvider({
+      codexDir: home,
+      now: () => Date.now(),
+      managed: {
+        has: (id) => id === draftId,
+        codexEntries: () => [
+          { id: draftId, cwd: "/Users/me/fresh-proj", spawnedAtMs: Date.now() },
+        ],
+      },
+    });
+    const [c] = p.listCandidates();
+    expect(c).toMatchObject({
+      id: draftId,
+      agent: "codex",
+      cwd: "/Users/me/fresh-proj",
+      transcriptPath: undefined,
+    });
+    const s = p.summarize(c);
+    expect(s.state).toBe("idle");
+    expect(s.management).toBe("managed");
+  });
+
+  it("a claimed managed pty (rollout landed) doesn't also produce a duplicate skeleton row", () => {
+    const { home } = homeWithOneRollout();
+    const p = createCodexProvider({
+      codexDir: home,
+      now: () => Date.now(),
+      managed: {
+        has: (id) => id === ID,
+        codexEntries: () => [
+          {
+            id: ID,
+            cwd: "/Users/me/proj",
+            spawnedAtMs: Date.now(),
+            claimedRollout: "/anything",
+          },
+        ],
+      },
+    });
+    expect(p.listCandidates()).toHaveLength(1); // the real rollout row, not a second skeleton
+  });
+
+  it("ending a zero-turn managed session (pty removed from the registry, no rollout ever written) drops out of candidates entirely", () => {
+    const home = mkdtempSync(join(tmpdir(), "codexp-ended-"));
+    const p = createCodexProvider({
+      codexDir: home,
+      now: () => Date.now(),
+      managed: { has: () => false, codexEntries: () => [] }, // pty already gone (killed)
+    });
+    expect(p.listCandidates()).toHaveLength(0);
+  });
+
   it("unimplemented readers settle absent; resolveSessionCwd works", () => {
     const { home } = homeWithOneRollout();
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
