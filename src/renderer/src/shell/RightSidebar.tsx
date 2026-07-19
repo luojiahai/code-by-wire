@@ -65,7 +65,13 @@ export function RightSidebar({
               costUsd={session.costUsd ?? null}
             />
             <SectionDivider />
-            <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
+            {/* Keyed by session: the panel's sparkline accumulates per-session history in state, and
+                this sidebar (unlike Workspace) is NOT remounted per session — without the key the
+                previous session's trend would persist into the next session's sparkline. */}
+            <TokenSpeedPanel
+              key={session.id}
+              speed={metrics ? metrics.tokenSpeed : null}
+            />
             {caps.hasDuty && (
               <>
                 <SectionDivider />
