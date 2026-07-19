@@ -114,6 +114,11 @@ export function PressurePanel({
   );
   const isCodex = agent === "codex";
   const windowsFetched = rateLimits != null;
+  // Codex window durations are plan-tier dependent (a free account has a single 30-day window, not
+  // 5h/7d), so before the first limits fetch lands the static "5h"/"7d" labels would assert a
+  // duration that may be wrong — show a neutral placeholder until the real windows (and their
+  // dynamic windowMinutes labels) arrive. Claude's static labels are untouched in every state.
+  const codexLoading = isCodex && !windowsFetched;
 
   return (
     <PanelSection>
@@ -155,14 +160,14 @@ export function PressurePanel({
       <div className="mt-1 space-y-1.5">
         {showRateRow(isCodex, windowsFetched, rateLimits?.fiveHour) && (
           <RateRow
-            label={t.dock.pressure.windowFiveHour}
+            label={codexLoading ? "-" : t.dock.pressure.windowFiveHour}
             window={fiveHour}
             now={now}
           />
         )}
         {showRateRow(isCodex, windowsFetched, rateLimits?.sevenDay) && (
           <RateRow
-            label={t.dock.pressure.windowSevenDay}
+            label={codexLoading ? "-" : t.dock.pressure.windowSevenDay}
             window={sevenDay}
             now={now}
           />
