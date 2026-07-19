@@ -5,6 +5,7 @@ import {
   writeFileSync,
   utimesSync,
   appendFileSync,
+  rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,6 +13,7 @@ import {
   createCodexProvider,
   CODEX_WORKING_WINDOW_MS,
 } from "../../src/main/provider/codex";
+import type { Session } from "@shared/types";
 
 const ID = "11111111-2222-3333-4444-555555555555";
 const META = `{"timestamp":"2026-07-18T10:30:01.000Z","type":"session_meta","payload":{"id":"${ID}","timestamp":"2026-07-18T10:30:01.000Z","cwd":"/Users/me/proj","originator":"codex_cli_rs","cli_version":"0.29.0"}}`;
@@ -95,7 +97,18 @@ describe("createCodexProvider", () => {
     expect(p.readTasks(ID)).toEqual({ status: "absent" });
     expect(p.readShells(ID)).toEqual({ status: "absent" });
     expect(p.readMonitors(ID)).toEqual({ status: "absent" });
-    expect(p.readMetrics(ID)).toEqual({ status: "absent" });
+    // readMetrics is live (not stubbed): the fixture rollout resolves, so this settles a changed
+    // snapshot rather than absent — the fixture cwd isn't a real repo, so git/pr/speed are null.
+    expect(p.readMetrics(ID)).toMatchObject({
+      status: "changed",
+      metrics: {
+        tokenSpeed: null,
+        git: null,
+        pr: null,
+        voiceEnabled: null,
+        remoteControl: null,
+      },
+    });
     expect(p.readSubagentTranscript(ID, "a")).toEqual({ status: "absent" });
     expect(p.readShellOutput(ID, "s")).toEqual({ status: "absent" });
     expect(p.readMonitorOutput(ID, "m")).toEqual({ status: "absent" });
@@ -174,5 +187,157 @@ describe("createCodexProvider", () => {
     });
     expect(p.getToolResult(ID, "nope")).toEqual({ found: false });
     expect(p.getToolResult("unknown-id", "call_1")).toEqual({ found: false });
+  });
+});
+
+const ROLLOUT_ID = "11111111-2222-3333-4444-555555555555";
+
+function writeTelemetryRollout(codexDir: string): string {
+  const dir = join(codexDir, "sessions", "2026", "07", "19");
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, `rollout-2026-07-19T10-00-00-${ROLLOUT_ID}.jsonl`);
+  const lines = [
+    JSON.stringify({
+      timestamp: "2026-07-19T10:00:00.000Z",
+      type: "session_meta",
+      payload: {
+        id: ROLLOUT_ID,
+        cwd: "/work/thing",
+        timestamp: "2026-07-19T10:00:00.000Z",
+      },
+    }),
+    JSON.stringify({
+      timestamp: "2026-07-19T10:00:01.000Z",
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "user",
+        content: [{ type: "input_text", text: "hello codex" }],
+      },
+    }),
+    JSON.stringify({
+      timestamp: "2026-07-19T10:00:02.000Z",
+      type: "turn_context",
+      payload: { model: "gpt-5.3-codex", effort: "medium" },
+    }),
+    JSON.stringify({
+      timestamp: "2026-07-19T10:00:10.000Z",
+      type: "event_msg",
+      payload: {
+        type: "token_count",
+        info: {
+          total_token_usage: {
+            input_tokens: 1_000,
+            cached_input_tokens: 600,
+            output_tokens: 200,
+            total_tokens: 1_200,
+          },
+          last_token_usage: {
+            input_tokens: 1_000,
+            cached_input_tokens: 600,
+            output_tokens: 200,
+            total_tokens: 142_000,
+          },
+          model_context_window: 272_000,
+        },
+        rate_limits: null,
+      },
+    }),
+  ];
+  writeFileSync(path, lines.join("\n"));
+  return path;
+}
+
+describe("codex telemetry (summarize + overlay + readMetrics)", () => {
+  it("summarize fills usage, per-model attribution, model, effort from the rollout", () => {
+    const codexDir = mkdtempSync(join(tmpdir(), "codex-telemetry-"));
+    try {
+      writeTelemetryRollout(codexDir);
+      const provider = createCodexProvider({ codexDir });
+      const c = provider.listCandidates().find((x) => x.id === ROLLOUT_ID)!;
+      const s = provider.summarize(c);
+      expect(s.usage.inputTokens).toBe(400);
+      expect(s.usage.cacheReadTokens).toBe(600);
+      expect(s.usageByModel).toEqual([
+        {
+          modelRaw: "gpt-5.3-codex",
+          usage: expect.objectContaining({ inputTokens: 400 }),
+        },
+      ]);
+      expect(s.modelRaw).toBe("gpt-5.3-codex");
+      expect(s.effortLevel).toBe("medium");
+      expect(s.contextTokens).toBe(142_000);
+    } finally {
+      rmSync(codexDir, { recursive: true, force: true });
+    }
+  });
+
+  it("overlaySessions attaches liveContext, real window, TUI contextPct, and rateLimits to codex rows only", () => {
+    const codexDir = mkdtempSync(join(tmpdir(), "codex-overlay-"));
+    try {
+      writeTelemetryRollout(codexDir);
+      const limits = {
+        read: () => ({
+          fiveHour: { usedPct: 42, resetsAt: 1_800_000_000_000 },
+        }),
+      };
+      const provider = createCodexProvider({ codexDir, limits });
+      const codexRow = {
+        id: ROLLOUT_ID,
+        agent: "codex",
+        contextPct: 0,
+        contextWindow: 200_000,
+      } as Session;
+      const claudeRow = {
+        id: "other",
+        agent: "claude",
+        contextPct: 7,
+        contextWindow: 200_000,
+      } as Session;
+      const [codexOut, claudeOut] = provider.overlaySessions([
+        codexRow,
+        claudeRow,
+      ]);
+      expect(codexOut.contextWindow).toBe(272_000);
+      expect(codexOut.contextPct).toBe(50); // TUI formula: (142k−12k)/(272k−12k) used → fill 50
+      expect(codexOut.liveContext).toEqual({
+        input: 400,
+        cacheRead: 600,
+        cacheCreation: 0,
+      });
+      expect(codexOut.rateLimits?.fiveHour?.usedPct).toBe(42);
+      expect(claudeOut).toBe(claudeRow); // non-codex rows pass through untouched
+    } finally {
+      rmSync(codexDir, { recursive: true, force: true });
+    }
+  });
+
+  it("readMetrics returns a changed snapshot with the unchanged-token contract", () => {
+    const codexDir = mkdtempSync(join(tmpdir(), "codex-metrics-"));
+    try {
+      writeTelemetryRollout(codexDir);
+      const provider = createCodexProvider({ codexDir });
+      const first = provider.readMetrics(ROLLOUT_ID);
+      expect(first.status).toBe("changed");
+      if (first.status !== "changed") return;
+      // one token_count → no completed interval → null speed; temp cwd is not a repo → null git
+      expect(first.metrics.tokenSpeed).toBeNull();
+      expect(first.metrics.voiceEnabled).toBeNull();
+      expect(first.metrics.remoteControl).toBeNull();
+      const second = provider.readMetrics(ROLLOUT_ID, first.mtimeMs);
+      expect(second.status).toBe("unchanged");
+    } finally {
+      rmSync(codexDir, { recursive: true, force: true });
+    }
+  });
+
+  it("readMetrics settles absent for an unknown id", () => {
+    const codexDir = mkdtempSync(join(tmpdir(), "codex-metrics-absent-"));
+    try {
+      const provider = createCodexProvider({ codexDir });
+      expect(provider.readMetrics("no-such-id").status).toBe("absent");
+    } finally {
+      rmSync(codexDir, { recursive: true, force: true });
+    }
   });
 });

@@ -1,5 +1,11 @@
 import type { Provider } from "../types";
-import type { PersistedSession, SessionCandidate, Usage } from "@shared/types";
+import type {
+  PersistedSession,
+  RateLimitWindows,
+  Session,
+  SessionCandidate,
+  Usage,
+} from "@shared/types";
 import { normalizeModelId } from "@shared/models";
 import { deriveSessionState } from "../claude/state";
 import { projectFromCwd } from "../../project-name";
@@ -8,6 +14,17 @@ import { resolveCodexDir } from "./config";
 import { listRollouts, readRolloutHead, type RolloutHead } from "./rollout";
 import { parseRolloutEvents } from "./transcript-events";
 import { extractToolResult } from "./tool-result";
+import { createScanCache } from "../../util/scan-cache";
+import {
+  codexContextPct,
+  scanRolloutTelemetry,
+  speedFromTokenEvents,
+  type RolloutTelemetry,
+} from "./usage";
+import { metricsToken } from "../metrics-token";
+import { SPEED_WINDOW_MS } from "../claude/transcript-speed";
+import { readGit } from "../../git/read-git";
+import { readPr } from "../../git/read-pr";
 
 /** A rollout touched within this window is "codex is producing output right now". Managed rows
  *  older than it are idle (pty alive, codex at its prompt); observed rows older than it read
@@ -27,6 +44,8 @@ export interface CodexProviderDeps {
     has(id: string): boolean;
     cwdOf?(id: string): string | undefined;
   };
+  /** Account-scoped rate limits (limits.ts service). Optional so existing tests build without it. */
+  limits?: { read(): RateLimitWindows | null };
 }
 
 const ZERO_USAGE: Usage = {
@@ -38,6 +57,12 @@ const ZERO_USAGE: Usage = {
   cacheCreation1hTokens: 0,
 };
 
+/** The codex provider plus its overview-time session overlay (the codex analog of the claude
+ *  statusline overlay — attaches the non-persisted telemetry fields; see overviewNow). */
+export interface CodexProvider extends Provider {
+  overlaySessions(sessions: Session[]): Session[];
+}
+
 /**
  * The Codex read-side provider. V1 shipped discovery (sidebar rows from bounded head-reads of
  * `$CODEX_HOME/sessions/**` rollouts); V2 adds the transcript pane: readTranscript parses the whole
@@ -46,7 +71,9 @@ const ZERO_USAGE: Usage = {
  * surfaces, and the polls that do run hit these cheap arms). V2+ turns readers on one by one and
  * flips the matching AGENTS capability flags — no renderer wiring.
  */
-export function createCodexProvider(deps: CodexProviderDeps = {}): Provider {
+export function createCodexProvider(
+  deps: CodexProviderDeps = {},
+): CodexProvider {
   const codexDir = resolveCodexDir(deps.codexDir);
   const now = deps.now ?? (() => Date.now());
   const recentWindowMs = deps.recentWindowMs ?? DEFAULT_RECENT_WINDOW_MS;
@@ -76,6 +103,12 @@ export function createCodexProvider(deps: CodexProviderDeps = {}): Provider {
     for (const r of listRollouts(codexDir)) pathById.set(r.id, r.path);
     const found = pathById.get(id);
     return found && existsSync(found) ? found : null;
+  };
+
+  const telemetry = createScanCache<RolloutTelemetry>(scanRolloutTelemetry);
+  const telemetryFor = (id: string): RolloutTelemetry | null => {
+    const path = rolloutPathFor(id);
+    return path ? telemetry.read(path) : null;
   };
 
   // Same signal split as claude's registry status: a fresh rollout is "busy"; deriveSessionState
@@ -117,6 +150,7 @@ export function createCodexProvider(deps: CodexProviderDeps = {}): Provider {
     const head = c.transcriptPath
       ? headFor(c.transcriptPath, c.transcriptMtimeMs)
       : null;
+    const tel = c.transcriptPath ? telemetry.read(c.transcriptPath) : null;
     const fallbackName = projectFromCwd(c.cwd);
     return {
       id: c.id,
@@ -129,16 +163,19 @@ export function createCodexProvider(deps: CodexProviderDeps = {}): Provider {
         signalsFor(c.transcriptMtimeMs, managed.has(c.id)),
       ),
       management: managed.has(c.id) ? "managed" : "observed",
-      // Inert placeholder family (spec: model surfaces are unreachable for codex via capability
-      // gates); ModelSelection/--model never applies to codex spawns.
-      model: normalizeModelId(undefined),
+      // The raw turn_context model is the honest label (SessionPanel prefers modelRaw); the
+      // normalized family stays inert for codex — the context window rides the overlay, not it.
+      model: normalizeModelId(tel?.modelRaw ?? undefined),
+      modelRaw: tel?.modelRaw ?? undefined,
       lastActivityMs: c.transcriptMtimeMs || c.updatedAt || 0,
       createdMs: c.updatedAt || 0,
       awaitingUser: false,
       transcriptMtimeMs: c.transcriptMtimeMs,
-      usage: ZERO_USAGE,
-      usageByModel: [],
-      contextTokens: 0,
+      usage: tel?.usage ?? ZERO_USAGE,
+      usageByModel: tel?.usageByModel ?? [],
+      contextTokens: tel?.contextTokens ?? 0,
+      effortLevel: tel?.effortLevel ?? undefined,
+      compactionCount: tel?.compactionCount || undefined,
     };
   };
 
@@ -193,7 +230,42 @@ export function createCodexProvider(deps: CodexProviderDeps = {}): Provider {
     readShellOutput: () => ({ status: "absent" }),
     readMonitors: () => ({ status: "absent" }),
     readMonitorOutput: () => ({ status: "absent" }),
-    readMetrics: () => ({ status: "absent" }),
+    readMetrics: (id, sinceMtimeMs) => {
+      try {
+        const path = rolloutPathFor(id);
+        if (!path) return { status: "absent" };
+        let mtimeMs: number;
+        try {
+          mtimeMs = statSync(path).mtimeMs;
+        } catch {
+          return { status: "absent" };
+        }
+        const cwd = headFor(path, mtimeMs)?.cwd ?? "";
+        const git = cwd ? readGit(cwd) : null;
+        // Same skip rule as claude's readSources: no browsable remote → no gh spawn.
+        const pr = cwd && git && git.remoteUrl ? readPr(cwd, git.branch) : null;
+        const sources = { git, pr, voice: null, remote: null };
+        const token = metricsToken(mtimeMs, sources);
+        if (token === sinceMtimeMs)
+          return { status: "unchanged", mtimeMs: token };
+        const tel = telemetry.read(path);
+        return {
+          status: "changed",
+          mtimeMs: token,
+          metrics: {
+            tokenSpeed: tel
+              ? speedFromTokenEvents(tel.tokenEvents, SPEED_WINDOW_MS)
+              : null,
+            git,
+            pr,
+            voiceEnabled: null,
+            remoteControl: null,
+          },
+        };
+      } catch {
+        return { status: "error" };
+      }
+    },
     resolveResumeTarget: () => null,
     resolveSessionCwd: (id) => {
       for (const r of listRollouts(codexDir)) {
@@ -203,5 +275,27 @@ export function createCodexProvider(deps: CodexProviderDeps = {}): Provider {
       }
       return managed.cwdOf?.(id) ?? null;
     },
+    // The codex analog of the claude statusline overlay: attach the non-persisted telemetry fields
+    // (liveContext, real window, TUI-formula contextPct, account rate limits) at overview time.
+    // liveContext is load-bearing — the renderer's contextView only honors a provided pct when a
+    // live breakdown is present. Non-codex rows pass through untouched.
+    overlaySessions: (sessions: Session[]): Session[] =>
+      sessions.map((s) => {
+        if (s.agent !== "codex") return s;
+        const tel = telemetryFor(s.id);
+        const limits = deps.limits?.read() ?? null;
+        if (!tel && !limits) return s;
+        const window = tel?.modelContextWindow ?? s.contextWindow;
+        return {
+          ...s,
+          contextWindow: window,
+          contextPct:
+            tel && tel.contextTokens > 0
+              ? codexContextPct(tel.contextTokens, window)
+              : s.contextPct,
+          liveContext: tel?.liveContext ?? undefined,
+          rateLimits: limits ?? undefined,
+        };
+      }),
   };
 }
