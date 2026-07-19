@@ -2,9 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   modelKnown,
   modelLabel,
+  pinnedModelBadge,
   ctxColor,
+  ctxTone,
   isContextHigh,
   CONTEXT_WARN_PCT,
+  CONTEXT_DANGER_PCT,
   STATE_META,
 } from "../../src/renderer/src/ui/meta";
 
@@ -87,6 +90,32 @@ describe("modelLabel", () => {
   });
 });
 
+describe("pinnedModelBadge — the pinned row's model chip: real family or a truthful agent-id fallback", () => {
+  it("shows the family for a Managed Claude session with no raw yet (the fronted picked alias)", () => {
+    expect(pinnedModelBadge("claude", "opus", undefined, "managed")).toBe(
+      "opus",
+    );
+  });
+  it("shows the family for an Observed Claude session whose raw transcript id is recognized", () => {
+    expect(
+      pinnedModelBadge("claude", "opus", "claude-opus-4-8", "observed"),
+    ).toBe("opus");
+  });
+  it("falls back to the agent id for an Observed Claude session with no real model captured", () => {
+    expect(pinnedModelBadge("claude", "opus", undefined, "observed")).toBe(
+      "claude",
+    );
+  });
+  it("falls back to the agent id for a Codex session — its raw id never matches a Claude family", () => {
+    expect(pinnedModelBadge("codex", "opus", "gpt-5.1-codex", "managed")).toBe(
+      "codex",
+    );
+    expect(pinnedModelBadge("codex", "opus", undefined, "managed")).toBe(
+      "codex",
+    );
+  });
+});
+
 describe("ctxColor — context ring fill, same thresholds as barFill", () => {
   it("is neutral steel while roomy, below 70%", () => {
     expect(ctxColor(0)).toBe("var(--color-steel)");
@@ -98,9 +127,27 @@ describe("ctxColor — context ring fill, same thresholds as barFill", () => {
     expect(ctxColor(84)).toBe("var(--color-accent)");
   });
 
-  it("brightens at 85% and above", () => {
-    expect(ctxColor(85)).toBe("var(--color-accent-bright)");
-    expect(ctxColor(100)).toBe("var(--color-accent-bright)");
+  it("turns danger-red at 85% and above", () => {
+    expect(ctxColor(85)).toBe("var(--color-danger)");
+    expect(ctxColor(100)).toBe("var(--color-danger)");
+  });
+});
+
+describe("ctxTone — context numeral text color, same thresholds as ctxColor", () => {
+  it("is neutral fg while roomy, below 70%", () => {
+    expect(ctxTone(0)).toBe("text-fg");
+    expect(ctxTone(69)).toBe("text-fg");
+  });
+
+  it("warms to amber from 70%", () => {
+    expect(ctxTone(70)).toBe("text-accent");
+    expect(ctxTone(84)).toBe("text-accent");
+  });
+
+  it("turns danger-red at 85% and above", () => {
+    expect(CONTEXT_DANGER_PCT).toBe(85);
+    expect(ctxTone(85)).toBe("text-danger");
+    expect(ctxTone(100)).toBe("text-danger");
   });
 });
 

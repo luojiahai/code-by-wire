@@ -35,12 +35,10 @@ export const zh: Translations = {
     system: {
       title: "系统",
       lede: "驱动本应用的底层机件，保持绿灯。",
-      agent: "代理",
     },
     about: {
       title: "关于",
-      tagline:
-        "在同一座驾驶舱里，驾驭编码 agent（Claude Code、Codex）并监控其遥测。",
+      tagline: "在同一座驾驶舱里驾驭编码智能代理。",
     },
     cli: {
       title: "Claude Code CLI",
@@ -225,7 +223,7 @@ export const zh: Translations = {
       ledeBefore: "在所选目录中启动",
       ledeGeneric: "，并通过实时终端驱动。",
       sessionSetup: "会话设置",
-      agent: "代理",
+      agent: "智能代理",
       directory: "目录",
       choose: "选择…",
       noDirectoryChosen: "未选择目录",
@@ -333,7 +331,7 @@ export const zh: Translations = {
     },
   },
   stats: {
-    agentLabel: "代理",
+    agentLabel: "智能代理",
     comingSoonFor: (label: string) => `${label} 统计——即将推出…`,
     clearDayFilter: "清除日期筛选",
     buildingHistory: "正在构建历史记录…",

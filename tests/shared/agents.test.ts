@@ -24,6 +24,10 @@ describe("AGENTS registry", () => {
     expect(canResume).toBe(true);
     expect(Object.values(rest).some(Boolean)).toBe(false);
   });
+  it("only Claude has hasStatsDb — Codex has no stats database yet", () => {
+    expect(AGENTS.claude.capabilities.hasStatsDb).toBe(true);
+    expect(AGENTS.codex.capabilities.hasStatsDb).toBe(false);
+  });
   it("labels and binaries are the branded/spawnable names", () => {
     expect(AGENTS.claude).toMatchObject({
       label: "Claude Code",

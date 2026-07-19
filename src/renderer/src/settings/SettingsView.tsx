@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { CliStatusByAgent } from "@shared/cli-status";
 import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
 import { isUpdatePending } from "@shared/update";
@@ -8,6 +7,7 @@ import { CliCard } from "./CliCard";
 import { CodexCliCard } from "./CodexCliCard";
 import { StatuslineCard } from "./StatuslineCard";
 import { StatsDbCard } from "./StatsDbCard";
+import { AgentIcon } from "../ui/agent-icons";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import { Icon } from "../ui/icons";
 import type { IconName } from "../ui/icon-names";
@@ -46,14 +46,8 @@ export function SettingsView({
   update?: UpdateControls;
 }) {
   const { t } = useI18n();
-  // Lives here, not inside SystemSection: a recheck can change cliStatus.claude?.kind, which used to
-  // key a remount of the whole System subtree (to reset CliCard's stale install-tab default) — but
-  // that remount would ALSO reset a locally-owned `agent` pane selection, silently snapping the user
-  // back to the Claude pane mid-session (e.g. during the boot warm-check window). Owning it up here
-  // means the remount below can stay scoped to just CliCard's own subtree.
-  const [systemAgent, setSystemAgent] = useState<AgentId>("claude");
-  // The nav dot always reads Claude's status specifically (not whichever agent's pane is selected
-  // inside System) — it's the sidebar's summary lamp, and Claude is the agent every session can spawn.
+  // The nav dot always reads Claude's status specifically — it's the sidebar's summary lamp, and
+  // Claude is the agent every session can spawn.
   const cliDot = footerView(cliStatus.claude ?? null).dot;
   const cliTrips = cliDot === "warn" || cliDot === "error";
   const updatePending = update ? isUpdatePending(update.state.phase) : false;
@@ -110,8 +104,6 @@ export function SettingsView({
               cliStatus={cliStatus}
               checking={checking}
               onRecheck={onRecheck}
-              agent={systemAgent}
-              onAgentChange={setSystemAgent}
             />
           )}
           {section === "appearance" && (
@@ -134,14 +126,10 @@ function SystemSection({
   cliStatus,
   checking,
   onRecheck,
-  agent,
-  onAgentChange,
 }: {
   cliStatus: CliStatusByAgent;
   checking: AgentId | null;
   onRecheck: (agent: AgentId) => void;
-  agent: AgentId;
-  onAgentChange: (agent: AgentId) => void;
 }) {
   const { t } = useI18n();
   return (
@@ -150,46 +138,37 @@ function SystemSection({
         title={t.settings.system.title}
         lede={t.settings.system.lede}
       />
-      <div className="relative w-fit">
-        <select
-          aria-label={t.settings.system.agent}
-          value={agent}
-          onChange={(e) => onAgentChange(e.target.value as AgentId)}
-          className="appearance-none rounded-md border border-ink-700 bg-well py-1.5 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary"
-        >
-          {AGENT_IDS.map((id) => (
-            <option key={id} value={id}>
+      {AGENT_IDS.map((id) => (
+        <div key={id} className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <AgentIcon agent={id} size={15} />
+            <span className="font-display text-label font-semibold uppercase tracking-[0.1em] text-fg-faint">
               {AGENTS[id].label}
-            </option>
-          ))}
-        </select>
-        <Icon
-          name="chevron-down"
-          size={14}
-          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
-        />
-      </div>
-      {agent === "claude" ? (
-        <>
-          {/* Remount just this card (not the pane selection above) when Claude's kind changes, so a
-           *  recheck can't leave the remedy's install-tab default stale. A no-op recheck keeps the
-           *  same kind, so the instance survives. */}
-          <CliCard
-            key={cliStatus.claude?.kind ?? "pending"}
-            cliStatus={cliStatus.claude ?? null}
-            checking={checking === "claude"}
-            onRecheck={() => onRecheck("claude")}
-          />
-          <StatuslineCard />
-        </>
-      ) : (
-        <CodexCliCard
-          status={cliStatus.codex ?? null}
-          checking={checking === "codex"}
-          onRecheck={() => onRecheck("codex")}
-        />
-      )}
-      <StatsDbCard />
+            </span>
+          </div>
+          {id === "claude" ? (
+            <>
+              {/* Remount just this card (not the whole section) when Claude's kind changes, so a
+               *  recheck can't leave the remedy's install-tab default stale. A no-op recheck keeps
+               *  the same kind, so the instance survives. */}
+              <CliCard
+                key={cliStatus.claude?.kind ?? "pending"}
+                cliStatus={cliStatus.claude ?? null}
+                checking={checking === "claude"}
+                onRecheck={() => onRecheck("claude")}
+              />
+              <StatuslineCard />
+            </>
+          ) : (
+            <CodexCliCard
+              status={cliStatus.codex ?? null}
+              checking={checking === "codex"}
+              onRecheck={() => onRecheck("codex")}
+            />
+          )}
+          {AGENTS[id].capabilities.hasStatsDb && <StatsDbCard />}
+        </div>
+      ))}
     </>
   );
 }

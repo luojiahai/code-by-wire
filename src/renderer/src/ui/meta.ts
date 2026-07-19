@@ -52,13 +52,13 @@ export const FAMILY_LABEL: Record<Family, string> = {
 /** Below this %, the context gauge is noise; at or above it the sidebar row surfaces the number and
  *  ctxTone warms it to amber. One constant so the "show it" gate and the color never disagree. */
 export const CONTEXT_WARN_PCT = 70;
-/** At or above this %, the context gauge redlines: bright amber fill and a danger tick. */
+/** At or above this %, the context gauge redlines: danger-red fill and a danger-red tick. */
 export const CONTEXT_DANGER_PCT = 85;
 
 /** Tailwind text tone for a context %: primary at rest — the cockpit's Pressure hero reads at the
- *  same weight as its sibling heroes — warming to amber and brightening as the window fills. */
+ *  same weight as its sibling heroes — warming to amber, then redlining as the window fills. */
 export function ctxTone(pct: number): string {
-  if (pct >= CONTEXT_DANGER_PCT) return "text-accent-bright";
+  if (pct >= CONTEXT_DANGER_PCT) return "text-danger";
   if (pct >= CONTEXT_WARN_PCT) return "text-accent";
   return "text-fg";
 }
@@ -79,11 +79,11 @@ export function barFill(pct: number, high = 85): string {
 
 /**
  * The context ring's fill color as a CSS var: neutral steel while roomy (telemetry reads as data, not an
- * affordance — sky is reserved for interaction), amber from 70%, bright amber from 85% — the same 70/85
+ * affordance — sky is reserved for interaction), amber from 70%, danger-red from 85% — the same 70/85
  * breakpoints as `ctxTone`, so the ring's color and the % text inside it never disagree on "how full".
  */
 export function ctxColor(pct: number): string {
-  if (pct >= CONTEXT_DANGER_PCT) return "var(--color-accent-bright)";
+  if (pct >= CONTEXT_DANGER_PCT) return "var(--color-danger)";
   if (pct >= CONTEXT_WARN_PCT) return "var(--color-accent)";
   return "var(--color-steel)";
 }
@@ -179,4 +179,21 @@ export function modelLabel(
   const label = FAMILY_LABEL[raw ? normalizeModelId(raw) : family];
   if (opts?.compact || !raw) return label;
   return `${label} (${raw})`;
+}
+
+/** The pinned row's model chip: the real family when either the raw captured model id is
+ *  recognized, or there's no raw but the session is a Managed pick modelKnown vouches for —
+ *  otherwise the plain agent id, never the normalize fallback wearing a family it never earned.
+ *  Mirrors modelLabel's raw-first, vouched-second, else-honest chain, condensed to a short label
+ *  with no parenthetical (the pinned chip has no room for one). */
+export function pinnedModelBadge(
+  agent: AgentId,
+  model: Family,
+  raw: string | undefined,
+  management: Management,
+): string {
+  const trusted =
+    (raw !== undefined && isKnownModelString(raw)) ||
+    modelKnown(management, agent);
+  return trusted ? model : agent;
 }

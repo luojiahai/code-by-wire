@@ -4,6 +4,7 @@ import { cx, Lamp } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { AgentIcon } from "../ui/agent-icons";
 import { AGENTS } from "@shared/agents";
+import { pinnedModelBadge } from "../ui/meta";
 import { useI18n } from "../i18n";
 import { ungroupedLabel } from "./session-list-model";
 import { useSessionMenu } from "./use-session-menu";
@@ -133,7 +134,7 @@ export function PinnedSessionRow({
           </span>
           <span
             className={cx(
-              "grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)",
+              "grid size-3.5 shrink-0 place-items-center",
               "group-hover:mr-5 group-has-[:focus-visible]:mr-5",
               menu.open && "mr-5",
             )}
@@ -169,7 +170,12 @@ export function PinnedSessionRow({
               metaHide,
             )}
           >
-            {session.model}
+            {pinnedModelBadge(
+              session.agent,
+              session.model,
+              session.modelId ?? session.modelRaw,
+              session.management,
+            )}
           </span>
         </span>
       </button>

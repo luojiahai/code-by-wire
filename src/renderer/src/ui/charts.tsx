@@ -65,7 +65,7 @@ export function FillGauge({
           left: `${caution}%`,
           right: `${100 - danger}%`,
           background:
-            "color-mix(in srgb, var(--color-accent) 12%, transparent)",
+            "color-mix(in srgb, var(--color-accent) 32%, transparent)",
         }}
       />
       <span
@@ -74,7 +74,7 @@ export function FillGauge({
           left: `${danger}%`,
           right: 0,
           background:
-            "color-mix(in srgb, var(--color-accent) 22%, transparent)",
+            "color-mix(in srgb, var(--color-danger) 32%, transparent)",
         }}
       />
       <span
@@ -82,7 +82,7 @@ export function FillGauge({
         style={{ width: `${w}%`, background: fill }}
       />
       <span
-        className="absolute -inset-y-px w-px bg-accent"
+        className="absolute -inset-y-px w-px bg-danger"
         style={{ left: `${danger}%` }}
       />
     </div>

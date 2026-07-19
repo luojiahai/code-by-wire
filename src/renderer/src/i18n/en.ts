@@ -51,12 +51,10 @@ export const en = {
     system: {
       title: "System",
       lede: "The machinery feeding this app. Keep it green.",
-      agent: "Agent",
     },
     about: {
       title: "About",
-      tagline:
-        "Pilot coding agents (Claude Code, Codex) and monitor their telemetry from one cockpit.",
+      tagline: "Pilot coding agents from one cockpit.",
     },
     cli: {
       title: "Claude Code CLI",

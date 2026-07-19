@@ -123,7 +123,7 @@ export function SessionRow({
           </span>
         )}
         <span
-          className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)"
+          className="grid size-3.5 shrink-0 place-items-center"
           title={AGENTS[session.agent].label}
         >
           <AgentIcon agent={session.agent} size={13} />
