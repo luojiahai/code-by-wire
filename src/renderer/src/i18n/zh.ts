@@ -224,7 +224,7 @@ export const zh: Translations = {
       ledeBefore: "在所选目录中启动",
       ledeGeneric: "，并通过实时终端驱动。",
       sessionSetup: "会话设置",
-      agent: "代理",
+      agent: "智能代理",
       directory: "目录",
       choose: "选择…",
       noDirectoryChosen: "未选择目录",
@@ -332,7 +332,7 @@ export const zh: Translations = {
     },
   },
   stats: {
-    agentLabel: "代理",
+    agentLabel: "智能代理",
     comingSoonFor: (label: string) => `${label} 统计——即将推出…`,
     clearDayFilter: "清除日期筛选",
     buildingHistory: "正在构建历史记录…",
