@@ -57,6 +57,7 @@ export function RightSidebar({
                  id-check in this file, until Account itself goes multi-agent (spec: Future work). */
               account={session.agent === "claude" ? account : null}
               rateLimits={session.rateLimits ?? null}
+              agent={session.agent}
             />
             <SectionDivider />
             <SpendPanel

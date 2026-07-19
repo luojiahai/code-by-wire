@@ -102,6 +102,21 @@ export function pickWindow(
   return liveWindow(session, now) ?? liveWindow(api, now);
 }
 
+/** Whether a rate-limit row should render at all. Claude's fiveHour/sevenDay rows always render
+ *  (dimmed when absent — the row's absence is transient: not yet loaded, or an API-billed account
+ *  with no windows). Codex's window SET is plan-tier-dependent — a free account genuinely reports
+ *  only one window, forever — so once a real fetch has landed (`windowsFetched`), an absent codex
+ *  window is CONFIRMED absent for this account and its row should disappear rather than sit
+ *  permanently dimmed. Before the first successful fetch, codex rows render dimmed too, same as
+ *  Claude, since we don't yet know what this account has. */
+export function showRateRow(
+  isCodex: boolean,
+  windowsFetched: boolean,
+  window: RateLimit | undefined,
+): boolean {
+  return !isCodex || !windowsFetched || window != null;
+}
+
 /**
  * The app-wide Account. Windows are a pass-through of the usage-API fetch (each through the
  * liveWindow guard so a reset elapsing inside the TTL drops rather than shows stale); they exist
