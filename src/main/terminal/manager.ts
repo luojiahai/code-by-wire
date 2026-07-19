@@ -287,7 +287,7 @@ export function createTerminalManager(
     start(
       req.id,
       toSpawnForm(
-        buildResumeCommand({ id: req.id }),
+        buildResumeCommand({ agent: "claude", id: req.id }),
         platform,
         platform === "win32" ? undefined : posixShellDeps(),
       ),
