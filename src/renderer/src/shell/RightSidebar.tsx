@@ -31,7 +31,8 @@ export function RightSidebar({
 }) {
   const { t } = useI18n();
   const doc = useTranscript(session.id);
-  const hasTelemetry = AGENTS[session.agent].capabilities.hasTelemetry;
+  const caps = AGENTS[session.agent].capabilities;
+  const hasTelemetry = caps.hasTelemetry;
   return (
     <div className="flex h-full flex-col border-l border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) text-(--ui-text-tertiary) shadow-[inset_0.0625rem_0_0_color-mix(in_srgb,white_12%,transparent)]">
       <div
@@ -51,7 +52,10 @@ export function RightSidebar({
               context={doc?.context ?? null}
               contextPct={session.contextPct}
               contextWindow={session.contextWindow}
-              account={account}
+              /* Account is derived from Claude sources (statusline + Claude's OAuth usage API), so
+                 it must not backfill another agent's windows via pickWindow — the one sanctioned
+                 id-check in this file, until Account itself goes multi-agent (spec: Future work). */
+              account={session.agent === "claude" ? account : null}
               rateLimits={session.rateLimits ?? null}
             />
             <SectionDivider />
@@ -61,11 +65,15 @@ export function RightSidebar({
             />
             <SectionDivider />
             <TokenSpeedPanel speed={metrics ? metrics.tokenSpeed : null} />
-            <SectionDivider />
-            <DutyPanel
-              apiDurationMs={session.apiDurationMs ?? null}
-              sessionClockMs={session.sessionClockMs ?? null}
-            />
+            {caps.hasDuty && (
+              <>
+                <SectionDivider />
+                <DutyPanel
+                  apiDurationMs={session.apiDurationMs ?? null}
+                  sessionClockMs={session.sessionClockMs ?? null}
+                />
+              </>
+            )}
             <SectionDivider />
             <SessionPanel
               session={session}

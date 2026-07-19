@@ -27,6 +27,9 @@ export interface AgentCapabilities {
   hasActivity: boolean;
   /** The right-sidebar telemetry stack (pressure/spend/speed/duty/git) has data for this agent. */
   hasTelemetry: boolean;
+  /** The Duty panel (api-time over wall-time) has data for this agent (Claude: statusLine cost).
+   *  Codex has no honest api-duration source, so its telemetry stack renders without Duty. */
+  hasDuty: boolean;
   /** The new-session form offers a model picker (spawn takes a --model flag). */
   hasModelPicker: boolean;
 }
@@ -49,6 +52,7 @@ const ALL = {
   canFork: true,
   hasActivity: true,
   hasTelemetry: true,
+  hasDuty: true,
   hasModelPicker: true,
 } as const satisfies AgentCapabilities;
 
@@ -61,6 +65,7 @@ const NONE = {
   canFork: false,
   hasActivity: false,
   hasTelemetry: false,
+  hasDuty: false,
   hasModelPicker: false,
 } as const satisfies AgentCapabilities;
 
@@ -71,14 +76,19 @@ export const AGENTS: Record<AgentId, AgentDescriptor> = {
     binary: "claude",
     capabilities: ALL,
   },
-  // V2 codex: the transcript pane is live (rollout-backed readTranscript). Everything else is
-  // still gated off; later versions flip more flags as provider readers land — the surfaces
-  // need no edits.
+  // V3 codex: transcript + the right-sidebar telemetry stack (rollout scan + limits service; no
+  // Duty — no honest api-duration source). Activity/subagents/resume/fork still gated off; later
+  // versions flip more flags as provider readers land — the surfaces need no edits.
   codex: {
     id: "codex",
     label: "Codex",
     binary: "codex",
-    capabilities: { ...NONE, hasTranscript: true },
+    capabilities: {
+      ...NONE,
+      hasTranscript: true,
+      hasTelemetry: true,
+      hasRateLimits: true,
+    },
   },
 };
 
