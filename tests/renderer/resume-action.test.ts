@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { resumeActionDisabled } from "../../src/renderer/src/workspace/resume-action";
+import { isModelUnknown, resumeActionDisabled } from "../../src/renderer/src/workspace/resume-action";
+import type { Session } from "@shared/types";
 
 describe("resumeActionDisabled", () => {
   it("is enabled when the CLI can spawn and the session is resumable", () => {
@@ -43,5 +44,21 @@ describe("resumeActionDisabled", () => {
     expect(resumeActionDisabled({ canSpawn: true, resumable: true })).toBe(
       false,
     ); // default true — existing call sites unaffected
+  });
+});
+
+const s = (o: Partial<Session>): Session => o as Session;
+
+describe("isModelUnknown", () => {
+  it("claude with no recorded model → unknown (routes the click through the confirm)", () => {
+    expect(isModelUnknown(s({ agent: "claude" }))).toBe(true);
+  });
+  it("claude with a recorded model → known", () => {
+    expect(isModelUnknown(s({ agent: "claude", modelRaw: "claude-sonnet-5" }))).toBe(
+      false,
+    );
+  });
+  it("codex (no model picker) → never unknown: its CLI restores its own model, no flag is passed", () => {
+    expect(isModelUnknown(s({ agent: "codex" }))).toBe(false);
   });
 });

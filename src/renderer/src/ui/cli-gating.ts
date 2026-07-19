@@ -1,6 +1,6 @@
 import type { CliStatus, CliStatusByAgent } from "@shared/cli-status";
 import { AGENTS, type AgentId } from "@shared/agents";
-import { tNow } from "../i18n";
+import { tNow, type Translations } from "../i18n";
 
 export interface SpawnGate {
   canSpawn: boolean;
@@ -35,4 +35,14 @@ export function spawnGateFor(
     canSpawn: false,
     reason: tNow().settings.cli.unavailableReasonFor(AGENTS[agent].label),
   };
+}
+
+/** The `!canSpawn` tooltip for a session-scoped control (Resume/Fork): claude keeps the fixed
+ *  Sys-lamp wording — the title-bar lamp only ever reflects claude — while any other agent names
+ *  its own CLI and points at Settings → System, where its health card actually lives. Takes the
+ *  caller's live `t` so the title tracks the locale like the rest of its chain. */
+export function cliUnusableTitle(t: Translations, agent: AgentId): string {
+  return agent === "claude"
+    ? t.settings.cli.unavailableReason
+    : t.settings.cli.unavailableReasonFor(AGENTS[agent].label);
 }
