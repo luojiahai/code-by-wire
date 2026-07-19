@@ -4,8 +4,10 @@ import {
   modelLabel,
   pinnedModelBadge,
   ctxColor,
+  ctxTone,
   isContextHigh,
   CONTEXT_WARN_PCT,
+  CONTEXT_DANGER_PCT,
   STATE_META,
 } from "../../src/renderer/src/ui/meta";
 
@@ -125,9 +127,27 @@ describe("ctxColor — context ring fill, same thresholds as barFill", () => {
     expect(ctxColor(84)).toBe("var(--color-accent)");
   });
 
-  it("brightens at 85% and above", () => {
-    expect(ctxColor(85)).toBe("var(--color-accent-bright)");
-    expect(ctxColor(100)).toBe("var(--color-accent-bright)");
+  it("turns danger-red at 85% and above", () => {
+    expect(ctxColor(85)).toBe("var(--color-danger)");
+    expect(ctxColor(100)).toBe("var(--color-danger)");
+  });
+});
+
+describe("ctxTone — context numeral text color, same thresholds as ctxColor", () => {
+  it("is neutral fg while roomy, below 70%", () => {
+    expect(ctxTone(0)).toBe("text-fg");
+    expect(ctxTone(69)).toBe("text-fg");
+  });
+
+  it("warms to amber from 70%", () => {
+    expect(ctxTone(70)).toBe("text-accent");
+    expect(ctxTone(84)).toBe("text-accent");
+  });
+
+  it("turns danger-red at 85% and above", () => {
+    expect(CONTEXT_DANGER_PCT).toBe(85);
+    expect(ctxTone(85)).toBe("text-danger");
+    expect(ctxTone(100)).toBe("text-danger");
   });
 });
 
