@@ -12,7 +12,11 @@ import type { AgentId } from "@shared/agents";
  *  Codex keeps the "Mono" variant's full-bleed path (static-svg/icons/codex.svg, same shape used
  *  here before brand colors) and fills it with the exact linear gradient the "Color" variant
  *  defines (#B1A7FF → #7A9DFF → #3941FF) — the real brand gradient, no badge, same silhouette
- *  language as Claude and as every lucide glyph elsewhere in the app. */
+ *  language as Claude and as every lucide glyph elsewhere in the app.
+ *  Adding an agent = one glyph component + one AGENT_GLYPHS entry, using that agent's own
+ *  lobe-icons asset — the "Color" variant verbatim if its silhouette matches every other icon
+ *  here (a flat brand fill, like Claude), or the "Mono" shape recolored with the "Color"
+ *  variant's fill/gradient if the official Color asset carries a badge/backdrop (like Codex). */
 
 function ClaudeMark({ size, className }: { size: number; className?: string }) {
   return (
