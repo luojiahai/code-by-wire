@@ -6,6 +6,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.40] - 2026-07-20
+
+### Changed
+
+- Claude and Codex icons now render in their official brand colors
+  everywhere (sidebar rows, pinned rows, agent picker, empty states, header
+  toggle, Settings headings) instead of a theme-tinted mono glyph. Codex
+  uses its official gradient on the same monochrome silhouette used
+  elsewhere in the app, with no separate badge/backdrop shape.
+- Settings → System replaces the single-agent dropdown with both agents'
+  sections always stacked and visible; the Stats database card is now
+  gated on a new `hasStatsDb` capability flag (Claude only, since Codex
+  has no stats database yet).
+- The Pressure hero's context gauge now redlines in the app's danger red
+  past the 85% threshold instead of just brightening to a second amber
+  shade, and its zone-shading opacity is bumped from 12% to 32% for better
+  legibility.
+- README, `package.json`, the website, and the in-app Settings → About
+  tagline no longer describe the app as Claude-Code-only now that Codex
+  CLI support has shipped; the About tagline itself is shortened to
+  "Pilot coding agents from one cockpit." SECURITY.md's outbound-network
+  claim now covers both Claude's and Codex's usage/rate-limit APIs.
+- The Chinese translation now uses 智能代理 for "Agent" (README and
+  in-app, keeping 子代理 for "Subagent") and 词元 for "token" in the
+  README, closing the last raw-English terms in the localization.
+
+### Fixed
+
+- Pinned Codex rows no longer show a fabricated model badge ("opus"); the
+  badge now shows the real model family when trustworthy, or falls back
+  to the plain agent id otherwise — the same latent issue is fixed for
+  adopted/observed Claude sessions too.
+
 ## [0.1.39] - 2026-07-19
 
 ### Added
@@ -946,6 +979,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Unsigned `.dmg` published to GitHub Releases.
 
 [Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.39...HEAD
+[0.1.40]: https://github.com/luojiahai/code-by-wire/compare/v0.1.39...v0.1.40
 [0.1.39]: https://github.com/luojiahai/code-by-wire/compare/v0.1.38...v0.1.39
 [0.1.38]: https://github.com/luojiahai/code-by-wire/compare/v0.1.37...v0.1.38
 [0.1.37]: https://github.com/luojiahai/code-by-wire/compare/v0.1.36...v0.1.37
