@@ -10,6 +10,7 @@ import {
   type StatsDbInfo,
 } from "@shared/ipc";
 import { normalizeLocale, type Locale } from "@shared/locale";
+import type { Session } from "@shared/types";
 import type { Provider } from "./provider/types";
 import type { SqliteDb } from "./db/driver";
 import type { StatusLineReader } from "@shared/statusline";
@@ -127,6 +128,9 @@ export interface IpcDeps {
   /** The OAuth usage service — the account's rate-limit fill side. Optional like accountEmail:
    *  when absent, the panel runs on capture windows alone. */
   usage?: UsageService;
+  /** Per-agent session overlays applied in overviewNow after the claude statusline overlay —
+   *  the generic seam a provider uses to attach non-persisted fields (codex telemetry today). */
+  sessionOverlays?: Array<(sessions: Session[]) => Session[]>;
 }
 
 export function attachCliStatus<T extends object>(
@@ -158,6 +162,7 @@ export function registerIpc({
   statuslineLaunchFault,
   caffeinate,
   usage,
+  sessionOverlays,
 }: IpcDeps): { sync: () => void } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
@@ -243,13 +248,24 @@ export function registerIpc({
     // Apply user renames AFTER the statusLine overlay so a cbw rename wins over the derived title and
     // Claude's live session_name. Read fresh each call so a just-persisted rename shows immediately.
     const overlaid = overlaySessions(base.sessions, byId);
-    const named = applyTitleOverrides(overlaid, sessionTitles?.read() ?? {});
+    // Per-agent overlays (codex telemetry today): after the claude overlay, before renames/pins.
+    const agentOverlaid = (sessionOverlays ?? []).reduce(
+      (acc, overlay) => overlay(acc),
+      overlaid,
+    );
+    const named = applyTitleOverrides(
+      agentOverlaid,
+      sessionTitles?.read() ?? {},
+    );
     const pinned = applyPinOverrides(named, sessionPins?.read() ?? {});
     // A6 last tier: fill the settings.json default only where no per-session source (capture or
-    // transcript scan) answered.
+    // transcript scan) answered. Claude-only — the default comes from claude's settings.json, so
+    // it must never masquerade as another agent's effort.
     const withEffort = defaultEffort
       ? pinned.map((s) =>
-          s.effortLevel ? s : { ...s, effortLevel: defaultEffort },
+          s.effortLevel || s.agent !== "claude"
+            ? s
+            : { ...s, effortLevel: defaultEffort },
         )
       : pinned;
     // Worktree sessions merge into their main repo's sidebar folder; tag them here, after the

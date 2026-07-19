@@ -14,6 +14,7 @@ import { migrate, getSessionAgent } from "./db/store";
 import { migrateAnalytics } from "./db/analytics";
 import { createClaudeProvider } from "./provider/claude";
 import { createCodexProvider } from "./provider/codex";
+import { createCodexLimitsService } from "./provider/codex/limits";
 import { resolveCodexDir } from "./provider/codex/config";
 import { listRollouts, readRolloutHead } from "./provider/codex/rollout";
 import { applyClaims } from "./provider/codex/claim";
@@ -295,9 +296,16 @@ app
       claudeDir,
       recentWindowMs,
     });
+    // Codex account rate limits: OAuth wham/usage first (auth.json read-only), app-server fallback.
+    // Same lazy-refresh contract as the claude usage service — refreshes ride renderer polls only.
+    const codexLimits = createCodexLimitsService({
+      codexDir,
+      fetchFn: net.fetch.bind(net),
+    });
     const codexProvider = createCodexProvider({
       codexDir,
       recentWindowMs,
+      limits: codexLimits,
       managed: {
         has: (id) => managed.agentOf(id) === "codex",
         cwdOf: (id) => managed.cwdOf(id),
@@ -401,6 +409,7 @@ app
       statuslineLaunchFault,
       caffeinate,
       usage,
+      sessionOverlays: [(sessions) => codexProvider.overlaySessions(sessions)],
     });
 
     // One-shot launch check: packaged only, and only when the user hasn't turned it off. Deferred so it
