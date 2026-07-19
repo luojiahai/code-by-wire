@@ -29,6 +29,7 @@ import { registerIpc } from "./ipc";
 import { createSettingsManager } from "./settings/manager";
 import { createStatusLineReader } from "./statusline/reader";
 import { registerTerminalIpc } from "./terminal/ipc";
+import type { ResumeTarget } from "./terminal/resume-gate";
 import { registerShellTerminalIpc } from "./terminal/shell-ipc";
 import {
   buildShellEnv,
@@ -73,9 +74,7 @@ const WINDOW_BACKGROUND: Record<"dark" | "light", string> = {
 
 function createWindow(
   managed: ManagedRegistry,
-  resolveResumeTarget: (
-    id: string,
-  ) => { alive: boolean; cwd: string; rolloutPath?: string } | null,
+  resolveResumeTarget: (id: string) => ResumeTarget | null,
   agentOf: (id: string) => AgentId,
   registerRename: (rename: (from: string, to: string) => void) => void,
   shellEnv: () => NodeJS.ProcessEnv,

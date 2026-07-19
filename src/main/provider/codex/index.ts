@@ -111,10 +111,16 @@ export function createCodexProvider(
     return path ? telemetry.read(path) : null;
   };
 
+  // The one freshness clock every liveness signal in this provider reads — signalsFor (row state)
+  // and resolveResumeTarget (the Resume refusal gate) must never disagree about what's fresh, so
+  // both call this instead of each inlining `now() - mtimeMs < CODEX_WORKING_WINDOW_MS`.
+  const isFresh = (mtimeMs: number): boolean =>
+    now() - mtimeMs < CODEX_WORKING_WINDOW_MS;
+
   // Same signal split as claude's registry status: a fresh rollout is "busy"; deriveSessionState
   // maps alive+busy → working, alive → idle, dead → ended.
   const signalsFor = (mtimeMs: number, isManaged: boolean) => {
-    const fresh = now() - mtimeMs < CODEX_WORKING_WINDOW_MS;
+    const fresh = isFresh(mtimeMs);
     return {
       alive: isManaged || fresh,
       status: fresh ? "busy" : undefined,
@@ -278,12 +284,15 @@ export function createCodexProvider(
       const cwd = headFor(path, mtimeMs)?.cwd;
       if (!cwd) return null;
       // Alive = a live app-owned pty already writes this rollout, OR the file is mtime-fresh — the
-      // same freshness signal signalsFor paints the row "working" with, so the refusal gate and the
+      // same isFresh() signalsFor paints the row "working" with, so the refusal gate and the
       // displayed state agree (claude's registry-pid analog). A live-but-IDLE external codex writes
       // nothing and is indistinguishable from an exited one (no pid registry to probe); that
       // residual two-writer risk is accepted and documented in the spec.
-      const fresh = now() - mtimeMs < CODEX_WORKING_WINDOW_MS;
-      return { alive: managed.has(id) || fresh, cwd, rolloutPath: path };
+      return {
+        alive: managed.has(id) || isFresh(mtimeMs),
+        cwd,
+        rolloutPath: path,
+      };
     },
     resolveSessionCwd: (id) => {
       for (const r of listRollouts(codexDir)) {

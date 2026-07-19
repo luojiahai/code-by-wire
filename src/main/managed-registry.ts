@@ -3,7 +3,8 @@ import type { AgentId } from "@shared/agents";
 import type { ManagedPty } from "./provider/claude/rotation";
 
 /** Everything the app knows about a pty it spawned: the picked model alias (claude only), the
- *  agent, the spawn cwd, and the spawn wall-clock — the last two are the codex claim's inputs. */
+ *  agent, the spawn cwd, the spawn wall-clock (the codex claim's inputs, alongside cwd), and — for
+ *  a codex Resume — the rollout path it's already claim-bound to (see `claimedRollout` below). */
 export interface ManagedEntryInfo {
   model?: Family;
   agent: AgentId;

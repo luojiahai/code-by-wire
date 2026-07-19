@@ -283,10 +283,11 @@ function WorkspaceBody({
 
 /** The center column's live view. Every session gets the Claude Code ⇄ Transcript switcher in `MiddleHeader`;
  *  `transcriptOn` (lifted to `Workspace`, threaded down here) drives which side shows: off is the Terminal
- *  — the live xterm for a running Managed session, else the ObservedTerminal panel (Fork always, Resume once
- *  Ended) — on is the Transcript, or the drilled Subagent surface when the drill-stack is non-empty.
- *  Drilling a lane auto-selects the Transcript side. A background shell opens in a modal instead (see
- *  WorkspaceBody), so it never touches this toggle. */
+ *  — the live xterm for a running Managed session, else the ObservedTerminal panel (Fork shows whenever the
+ *  agent's `canFork` capability is on, disabled with a coming-soon tooltip otherwise; Resume once Ended) —
+ *  on is the Transcript, or the drilled Subagent surface when the drill-stack is non-empty. Drilling a lane
+ *  auto-selects the Transcript side. A background shell opens in a modal instead (see WorkspaceBody), so it
+ *  never touches this toggle. */
 function CenterView({
   session: s,
   doc,
@@ -339,8 +340,9 @@ function CenterView({
 
   // The Terminal side is the live in-app xterm only for a Managed session that's still running;
   // otherwise — an Observed session running in another terminal, or any Ended session (including a
-  // just-exited Managed one that re-derives Observed) — it's the ObservedTerminal panel: Fork is always
-  // offered, Resume only once the session has Ended.
+  // just-exited Managed one that re-derives Observed) — it's the ObservedTerminal panel: Fork shows
+  // whenever the agent's canFork capability is on (disabled with a coming-soon tooltip otherwise),
+  // Resume only once the session has Ended.
   const hasLiveTerminal = s.management === "managed" && s.state !== "ended";
   const caps = AGENTS[s.agent].capabilities;
   const terminalSlot = hasLiveTerminal ? (
