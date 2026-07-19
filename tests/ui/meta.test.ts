@@ -1,11 +1,27 @@
 import { describe, it, expect } from "vitest";
 import {
+  modelKnown,
   modelLabel,
   ctxColor,
   isContextHigh,
   CONTEXT_WARN_PCT,
   STATE_META,
 } from "../../src/renderer/src/ui/meta";
+
+describe("modelKnown — whether a rawless session's family can be vouched for", () => {
+  it("vouches for a Managed Claude session (spawn pinned the picked alias)", () => {
+    expect(modelKnown("managed", "claude")).toBe(true);
+  });
+  it("never vouches for a codex session — codex spawn has no model selection", () => {
+    // A fresh codex session (no turn_context yet) must show "Unknown", not the Opus normalize
+    // fallback: `managed` only says the app owns the pty, not that any model was ever picked.
+    expect(modelKnown("managed", "codex")).toBe(false);
+    expect(modelKnown("observed", "codex")).toBe(false);
+  });
+  it("never vouches for an Observed session — no picked alias to front", () => {
+    expect(modelKnown("observed", "claude")).toBe(false);
+  });
+});
 
 describe("modelLabel", () => {
   it("shows Family (raw) for a recognized model", () => {

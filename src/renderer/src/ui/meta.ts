@@ -1,4 +1,5 @@
-import type { SessionState } from "@shared/types";
+import type { Management, SessionState } from "@shared/types";
+import { AGENTS, type AgentId } from "@shared/agents";
 import {
   isKnownModelString,
   normalizeModelId,
@@ -144,6 +145,16 @@ export const CALENDAR_RAMP = [
   "color-mix(in srgb, var(--color-primary) 76%, transparent)", // 3
   "var(--color-primary)", // 4 — peak
 ] as const;
+
+/** Whether a session's `Family` can be trusted when no raw model was ever recorded: only a Managed
+ *  session of an agent whose spawn takes a --model flag — Claude's provider fronts the picked alias
+ *  from the registry until a real turn lands (`pickedModel`), so its family is real. An agent with no
+ *  model selection at spawn (codex — `hasModelPicker: false`) has nothing to front: `managed` only
+ *  says the app owns the pty, so a fresh codex session's family is just the normalize fallback and
+ *  `modelLabel` must say "Unknown" rather than wear it (e.g. "Opus" on a session that never ran one). */
+export function modelKnown(management: Management, agent: AgentId): boolean {
+  return management === "managed" && AGENTS[agent].capabilities.hasModelPicker;
+}
 
 /** A session's model label: the family name, plus the real resolved id in parens when we have one.
  *  `raw` is the live statusLine modelId else the persisted transcript modelRaw. A raw that matches no

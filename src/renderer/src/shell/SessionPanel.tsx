@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Session } from "@shared/types";
 import type { GitInfo, PrInfo } from "@shared/metrics";
-import { modelLabel } from "../ui/meta";
+import { modelKnown, modelLabel } from "../ui/meta";
 import { PanelSection, PanelHeading } from "../workspace/panels/chrome";
 import { useI18n } from "../i18n";
 import { GitReadout } from "./GitReadout";
@@ -26,7 +26,9 @@ export function SessionPanel({
     s.model,
     s.modelId ?? s.modelRaw,
     s.modelDisplayName,
-    { known: s.management === "managed" },
+    // Not bare `management === "managed"`: a managed codex session has no spawn model to vouch for
+    // (no --model flag exists), so its rawless family is only the Opus normalize fallback (#371).
+    { known: modelKnown(s.management, s.agent) },
   );
   const clock =
     s.sessionClockMs != null ? t.time.duration(s.sessionClockMs) : null;
