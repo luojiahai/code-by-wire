@@ -6,6 +6,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.39] - 2026-07-19
+
+### Added
+
+- Codex CLI is now a supported second agent throughout the app: pick Claude
+  Code or Codex CLI when starting a new session (from the new-session form
+  or a folder's quick-add), see which agent each session row belongs to via
+  a persistent mark, and check Codex CLI's health from Settings → System
+  alongside Claude's. Surfaces that don't apply to Codex (Duty stats, the
+  model picker, resume/fork where unsupported) capability-gate cleanly
+  instead of assuming Claude.
+- Codex CLI session transcripts render in the Transcript pane, parsed from
+  the session's rollout log — messages, reasoning, and tool calls with the
+  same drill-in detail as Claude Code sessions (diff rendering for file
+  edits is a planned follow-up).
+- Codex sessions get right-sidebar telemetry: rate-limit pressure (via
+  ChatGPT's usage API, falling back to the local `codex app-server` when
+  that's unavailable), token spend, context-window fill computed the same
+  way Codex's own `/status` reports it, and live throughput.
+- Resume now works for Codex CLI sessions, from the session menu, sidebar,
+  and the observed-session hero. Fork remains unsupported for Codex and
+  shows disabled rather than being hidden.
+
+### Changed
+
+- The Stats view gains an agent dropdown; Codex shows a "coming soon"
+  placeholder pane there for now.
+- The right sidebar's panels are now composed per agent instead of one
+  shared set with internal branching — Codex shows Pressure, Spend,
+  Throughput, and Session (no Duty panel), and its Spend panel lists
+  Input/Output/Cache read only, since Codex doesn't yet report cache-write
+  tokens.
+
 ## [0.1.38] - 2026-07-18
 
 ### Added
@@ -912,7 +945,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.38...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.39...HEAD
+[0.1.39]: https://github.com/luojiahai/code-by-wire/compare/v0.1.38...v0.1.39
 [0.1.38]: https://github.com/luojiahai/code-by-wire/compare/v0.1.37...v0.1.38
 [0.1.37]: https://github.com/luojiahai/code-by-wire/compare/v0.1.36...v0.1.37
 [0.1.36]: https://github.com/luojiahai/code-by-wire/compare/v0.1.35...v0.1.36
