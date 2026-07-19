@@ -29,6 +29,11 @@ Electron app, three processes:
 
 `src/shared/` holds types and constants imported across processes via the `@shared/*` alias. IPC channel names are centralized in `src/shared/ipc.ts` (the `IPC` object); handlers register in `src/main/ipc.ts`. Adding a channel means touching both.
 
+This app supports multiple coding agents (Claude Code, Codex). `src/shared/agents.ts` is the
+source of truth: the `AGENTS` registry and its `AgentCapabilities` flags. Renderer surfaces gate
+on those flags, never on agent id — so enabling a surface for an agent is a registry edit plus a
+provider implementation, not new surface wiring.
+
 ## Code style
 
 - `no-unsafe-*` lint rules are intentionally downgraded to warn repo-wide (in `eslint.config.mjs`) — driven by `src/main/provider/claude/`, whose readers consume `any` from external transcript JSON. Don't "fix" the warnings.
