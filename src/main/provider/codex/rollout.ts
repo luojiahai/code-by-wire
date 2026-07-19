@@ -75,7 +75,7 @@ export interface RolloutHead {
   title: string | null;
 }
 
-const asRecord = (v: unknown): Record<string, unknown> | null =>
+export const asRecord = (v: unknown): Record<string, unknown> | null =>
   v !== null && typeof v === "object" ? (v as Record<string, unknown>) : null;
 
 /** First human user text in a parsed line's payload, if this line is a user message. Titles

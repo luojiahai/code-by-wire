@@ -14,9 +14,11 @@ describe("AGENTS registry", () => {
       expect(AGENTS[id].binary.length).toBeGreaterThan(0);
     }
   });
-  it("claude has every capability; codex V1 has none", () => {
+  it("claude has every capability; codex V2 has exactly the transcript", () => {
     expect(Object.values(AGENTS.claude.capabilities).every(Boolean)).toBe(true);
-    expect(Object.values(AGENTS.codex.capabilities).some(Boolean)).toBe(false);
+    const { hasTranscript, ...rest } = AGENTS.codex.capabilities;
+    expect(hasTranscript).toBe(true);
+    expect(Object.values(rest).some(Boolean)).toBe(false);
   });
   it("labels and binaries are the branded/spawnable names", () => {
     expect(AGENTS.claude).toMatchObject({
