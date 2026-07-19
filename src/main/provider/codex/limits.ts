@@ -60,10 +60,12 @@ function windowFromRecord(
 }
 
 /** Classify by window length — 300 min → fiveHour, 10080 → sevenDay — with a positional fallback
- *  for unrecognized lengths so a window is never dropped on a length mismatch. The fallback
- *  preserves each window's own origin (primary's preference is fiveHour, secondary's is sevenDay)
- *  rather than assigning by iteration order, so a lone surviving secondary window (its sibling
- *  discarded as malformed) can't usurp the fiveHour slot just because that slot was checked first. */
+ *  for unrecognized lengths (or a length collision between primary and secondary) so a window is
+ *  never dropped. The fallback preserves each surviving window's own origin (primary's preference
+ *  is fiveHour, secondary's is sevenDay) rather than assigning by iteration order, so a lone
+ *  surviving secondary window (its sibling discarded as malformed) can't usurp the fiveHour slot,
+ *  and two same-length windows (a length collision) both still land somewhere rather than one
+ *  being silently dropped. */
 function classifyWindows(
   primary: ClassifiedWindow | null,
   secondary: ClassifiedWindow | null,
@@ -74,18 +76,23 @@ function classifyWindows(
     usedPct,
     resetsAt,
   });
-  // Length match first (order-independent — handles the API swapping primary/secondary).
-  for (const w of [primary, secondary]) {
+  // Length match first (order-independent — handles the API swapping primary/secondary). Whichever
+  // window doesn't land here (unrecognized length, OR its slot was already taken by a same-length
+  // sibling) carries its origin tag into the fallback below.
+  const remaining: Array<{ w: ClassifiedWindow; isPrimary: boolean }> = [];
+  for (const [w, isPrimary] of [
+    [primary, true],
+    [secondary, false],
+  ] as const) {
     if (!w) continue;
     if (w.windowMinutes === 300 && !out.fiveHour) out.fiveHour = strip(w);
     else if (w.windowMinutes === 10_080 && !out.sevenDay)
       out.sevenDay = strip(w);
+    else remaining.push({ w, isPrimary });
   }
-  // Positional fallback for whichever window(s) didn't length-match, preserving each's own
-  // primary→fiveHour / secondary→sevenDay preference; only overflows to the other slot when its
-  // preferred slot is already taken.
-  const placeByOrigin = (w: ClassifiedWindow, isPrimary: boolean): void => {
-    if (w.windowMinutes === 300 || w.windowMinutes === 10_080) return; // already placed above
+  // Positional fallback, by each window's own origin — never gated on windowMinutes, so a window
+  // reaching this loop is placed unconditionally (into its preferred slot, or the other one).
+  for (const { w, isPrimary } of remaining) {
     if (isPrimary) {
       if (!out.fiveHour) out.fiveHour = strip(w);
       else if (!out.sevenDay) out.sevenDay = strip(w);
@@ -93,9 +100,7 @@ function classifyWindows(
       if (!out.sevenDay) out.sevenDay = strip(w);
       else if (!out.fiveHour) out.fiveHour = strip(w);
     }
-  };
-  if (primary) placeByOrigin(primary, true);
-  if (secondary) placeByOrigin(secondary, false);
+  }
   return out;
 }
 

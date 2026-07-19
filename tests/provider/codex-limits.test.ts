@@ -135,6 +135,28 @@ describe("parseWhamUsage", () => {
     expect(w?.fiveHour).toBeUndefined();
     expect(w?.sevenDay).toEqual({ usedPct: 22, resetsAt: 1_800_500_000_000 });
   });
+
+  it("keeps BOTH windows when primary and secondary share the same recognized length", () => {
+    const w = parseWhamUsage(
+      {
+        rate_limit: {
+          primary_window: {
+            used_percent: 1,
+            limit_window_seconds: 18_000,
+            reset_at: 1_800_000_000,
+          },
+          secondary_window: {
+            used_percent: 2,
+            limit_window_seconds: 18_000,
+            reset_at: 1_800_500_000,
+          },
+        },
+      },
+      NOW,
+    );
+    expect(w?.fiveHour).toEqual({ usedPct: 1, resetsAt: 1_800_000_000_000 });
+    expect(w?.sevenDay).toEqual({ usedPct: 2, resetsAt: 1_800_500_000_000 });
+  });
 });
 
 describe("parseAppServerRateLimits", () => {
