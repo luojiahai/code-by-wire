@@ -33,6 +33,7 @@ export function PinnedSessionRow({
   onEnd,
   onRename,
   onTogglePin,
+  showAgentIcon = true,
 }: {
   session: Session;
   selected: boolean;
@@ -43,6 +44,7 @@ export function PinnedSessionRow({
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
+  showAgentIcon?: boolean;
 }) {
   const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
@@ -132,16 +134,18 @@ export function PinnedSessionRow({
           >
             {t.time.ago(session.lastActivityMs, Date.now())}
           </span>
-          <span
-            className={cx(
-              "grid size-3.5 shrink-0 place-items-center",
-              "group-hover:mr-5 group-has-[:focus-visible]:mr-5",
-              menu.open && "mr-5",
-            )}
-            title={AGENTS[session.agent].label}
-          >
-            <AgentIcon agent={session.agent} size={13} />
-          </span>
+          {showAgentIcon && (
+            <span
+              className={cx(
+                "grid size-3.5 shrink-0 place-items-center",
+                "group-hover:mr-5 group-has-[:focus-visible]:mr-5",
+                menu.open && "mr-5",
+              )}
+              title={AGENTS[session.agent].label}
+            >
+              <AgentIcon agent={session.agent} size={13} />
+            </span>
+          )}
         </span>
         <span className="flex w-full min-w-0 items-center gap-1 pl-5 text-[0.72rem] leading-none text-(--ui-text-quaternary)">
           <span className="min-w-0 truncate">{repo}</span>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "@shared/types";
 import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
@@ -20,6 +20,9 @@ import { SidebarPanelLabel } from "./SidebarPanelLabel";
 import { OverlayScroll } from "../ui/OverlayScroll";
 
 const ACTIVE_ONLY_KEY = "cbw.sessionsActiveOnly.v1";
+const SHOW_AGENT_ICON_KEY = "cbw.sessionsShowAgentIcon.v1";
+const AGENT_FILTER_KEY = "cbw.sessionsAgentFilter.v1";
+const PINNED_PROJECTS_KEY = "cbw.pinnedProjects.v1";
 
 /** Reads the persisted active-only flag; missing, malformed, or unreadable → false. */
 function loadActiveOnly(): boolean {
@@ -27,6 +30,39 @@ function loadActiveOnly(): boolean {
     return window.localStorage.getItem(ACTIVE_ONLY_KEY) === "true";
   } catch {
     return false;
+  }
+}
+
+function loadBoolean(key: string, fallback: boolean): boolean {
+  try {
+    const value = window.localStorage.getItem(key);
+    return value === null ? fallback : value === "true";
+  } catch {
+    return fallback;
+  }
+}
+
+function loadAgentFilter(): AgentId | "all" {
+  try {
+    const value = window.localStorage.getItem(AGENT_FILTER_KEY);
+    return value && AGENT_IDS.includes(value as AgentId)
+      ? (value as AgentId)
+      : "all";
+  } catch {
+    return "all";
+  }
+}
+
+function loadPinnedProjects(): ReadonlySet<string> {
+  try {
+    const value: unknown = JSON.parse(
+      window.localStorage.getItem(PINNED_PROJECTS_KEY) ?? "[]",
+    );
+    return new Set(
+      Array.isArray(value) ? value.filter((v) => typeof v === "string") : [],
+    );
+  } catch {
+    return new Set();
   }
 }
 
@@ -87,23 +123,52 @@ export function LeftSidebar({
     new Set(),
   );
   const [activeOnly, setActiveOnly] = useState(loadActiveOnly);
-  const searched = filterSessions(sessions, query);
+  const [showAgentIcon, setShowAgentIcon] = useState(() =>
+    loadBoolean(SHOW_AGENT_ICON_KEY, true),
+  );
+  const [agentFilter, setAgentFilter] = useState<AgentId | "all">(
+    loadAgentFilter,
+  );
+  const [pinnedProjects, setPinnedProjects] =
+    useState<ReadonlySet<string>>(loadPinnedProjects);
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  const searched = filterSessions(sessions, query).filter(
+    (s) => agentFilter === "all" || s.agent === agentFilter,
+  );
   const pinned = pinnedSessions(searched);
   // Search decides which folders exist; the active filter then narrows rows INSIDE the groups so
   // a folder with only ended sessions still renders (2026-07-17 spec §3). Grouping before the
   // filter also keeps folder order derived from all matched sessions — toggling never reshuffles.
   const allGroups = groupSessionsByProject(searched, homeDir);
   const groups = activeOnly ? filterGroupsActive(allGroups) : allGroups;
+  const pinnedGroups = groups.filter((g) => pinnedProjects.has(g.key));
+  const otherGroups = groups.filter((g) => !pinnedProjects.has(g.key));
   const allCollapsed =
     groups.length > 0 && groups.every((g) => collapsed.has(g.key));
-  const toggleActiveOnly = () => {
-    const next = !activeOnly;
+  const setActiveOnlyPersisted = (next: boolean) => {
     try {
       window.localStorage.setItem(ACTIVE_ONLY_KEY, String(next));
     } catch {
       // Storage failures are nonfatal — the toggle still works for this run.
     }
     setActiveOnly(next);
+  };
+  const toggleProjectPin = (key: string) => {
+    setPinnedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        window.localStorage.setItem(
+          PINNED_PROJECTS_KEY,
+          JSON.stringify([...next]),
+        );
+      } catch {
+        /* Nonfatal. */
+      }
+      return next;
+    });
   };
   const toggleGroup = (key: string) => {
     const expanding = collapsed.has(key);
@@ -168,6 +233,22 @@ export function LeftSidebar({
       document.removeEventListener("keydown", onKey);
     };
   }, [agentMenu]);
+  useEffect(() => {
+    if (!filterMenuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!filterMenuRef.current?.contains(e.target as Node))
+        setFilterMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setFilterMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [filterMenuOpen]);
   // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn.
   const anySpawnable = AGENT_IDS.some((a) => canSpawnFor(a));
 
@@ -307,6 +388,7 @@ export function LeftSidebar({
                     onEnd={onEnd}
                     onRename={onRename}
                     onTogglePin={onTogglePin}
+                    showAgentIcon={showAgentIcon}
                   />
                 ))}
               </div>
@@ -343,156 +425,282 @@ export function LeftSidebar({
                     size={12}
                   />
                 </button>
-                <button
-                  type="button"
-                  onClick={toggleActiveOnly}
-                  aria-pressed={activeOnly}
-                  title={
-                    activeOnly
-                      ? t.shell.sidebar.showAllSessions
-                      : t.shell.sidebar.showActiveOnly
-                  }
-                  className={cx(
-                    "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
-                    activeOnly
-                      ? "border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-fg"
-                      : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
+                <div ref={filterMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setFilterMenuOpen((open) => !open)}
+                    aria-expanded={filterMenuOpen}
+                    aria-haspopup="menu"
+                    title={t.shell.sidebar.filterSessions}
+                    className={cx(
+                      "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
+                      activeOnly || agentFilter !== "all" || !showAgentIcon
+                        ? "border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-fg"
+                        : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
+                    )}
+                  >
+                    <Icon name="filter" size={12} />
+                  </button>
+                  {filterMenuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-6 z-50 w-52 rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl"
+                    >
+                      <p className="px-2 pb-1 pt-0.5 text-[0.68rem] font-medium text-(--ui-text-quaternary)">
+                        {t.shell.sidebar.visibilityFilter}
+                      </p>
+                      {[
+                        [false, t.shell.sidebar.showAllSessions],
+                        [true, t.shell.sidebar.showActiveOnly],
+                      ].map(([value, label]) => (
+                        <button
+                          key={String(value)}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={activeOnly === value}
+                          onClick={() =>
+                            setActiveOnlyPersisted(value as boolean)
+                          }
+                          className="flex w-full items-center gap-2 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
+                        >
+                          <span className="grid size-3.5 place-items-center">
+                            {activeOnly === value && (
+                              <Icon name="check" size={12} />
+                            )}
+                          </span>
+                          {label as string}
+                        </button>
+                      ))}
+                      <div className="my-1 border-t border-(--ui-stroke-tertiary)" />
+                      <button
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={showAgentIcon}
+                        onClick={() => {
+                          const next = !showAgentIcon;
+                          setShowAgentIcon(next);
+                          try {
+                            window.localStorage.setItem(
+                              SHOW_AGENT_ICON_KEY,
+                              String(next),
+                            );
+                          } catch {
+                            /* Nonfatal. */
+                          }
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
+                      >
+                        <span className="grid size-3.5 place-items-center">
+                          {showAgentIcon && <Icon name="check" size={12} />}
+                        </span>
+                        {t.shell.sidebar.showAgentIcon}
+                      </button>
+                      <div className="my-1 border-t border-(--ui-stroke-tertiary)" />
+                      <p className="px-2 pb-1 pt-0.5 text-[0.68rem] font-medium text-(--ui-text-quaternary)">
+                        {t.shell.sidebar.agentFilter}
+                      </p>
+                      {(["all", ...AGENT_IDS] as const).map((agent) => (
+                        <button
+                          key={agent}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={agentFilter === agent}
+                          onClick={() => {
+                            setAgentFilter(agent);
+                            try {
+                              window.localStorage.setItem(
+                                AGENT_FILTER_KEY,
+                                agent,
+                              );
+                            } catch {
+                              /* Nonfatal. */
+                            }
+                          }}
+                          className="flex w-full items-center gap-2 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
+                        >
+                          <span className="grid size-3.5 place-items-center">
+                            {agentFilter === agent && (
+                              <Icon name="check" size={12} />
+                            )}
+                          </span>
+                          {agent === "all"
+                            ? t.shell.sidebar.allAgents
+                            : AGENTS[agent].label}
+                        </button>
+                      ))}
+                    </div>
                   )}
-                >
-                  <Icon name="filter" size={12} />
-                </button>
+                </div>
               </div>
             </div>
             <div className="px-2.5">
-              {groups.length === 0 ? (
+              {pinnedGroups.length === 0 && (
                 <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
-                  {activeOnly && sessions.length > 0
-                    ? t.shell.sidebar.noActiveSessions
-                    : t.shell.sidebar.noSessionsYet}
+                  {t.shell.sidebar.noPinnedProjects}
                 </p>
+              )}
+              {groups.length === 0 ? (
+                <>
+                  <div className="mx-2 mt-2 border-t border-(--ui-stroke-tertiary)" />
+                  <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
+                    {activeOnly && sessions.length > 0
+                      ? t.shell.sidebar.noActiveSessions
+                      : t.shell.sidebar.noSessionsYet}
+                  </p>
+                </>
               ) : (
                 <div className="flex flex-col gap-px">
-                  {groups.map((g) => {
+                  {[...pinnedGroups, ...otherGroups].map((g, index) => {
                     const cwd = g.cwd;
                     return (
-                      <div key={g.key}>
-                        <div className="group/project relative rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none">
-                          <button
-                            type="button"
-                            onClick={() => toggleGroup(g.key)}
-                            aria-expanded={!collapsed.has(g.key)}
-                            // When every agent is down the "+" is pointer-events-none, so a hover over it
-                            // lands here instead — carry its reason so that affordance survives (spec §4).
-                            title={
-                              cwd && !anySpawnable
-                                ? t.settings.cli.unavailableReason
-                                : cwd
-                            }
-                            className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
-                          >
-                            <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
-                              <Icon
-                                name={
-                                  collapsed.has(g.key)
-                                    ? "folder"
-                                    : "folder-open"
-                                }
-                                size={14}
-                              />
-                            </span>
-                            <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
-                              {g.label}
-                            </span>
-                            {g.hint && (
-                              <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-                                {g.hint}
-                              </span>
-                            )}
-                            <span className="ml-auto grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
-                              <Icon
-                                name="chevron-right"
-                                size={13}
-                                className={cx(
-                                  "transition-transform",
-                                  !collapsed.has(g.key) && "rotate-90",
-                                )}
-                              />
-                            </span>
-                          </button>
-                          {cwd && (
+                      <Fragment key={g.key}>
+                        {index === pinnedGroups.length && (
+                          <div className="mx-2 mb-1 mt-2 border-t border-(--ui-stroke-tertiary)" />
+                        )}
+                        <div>
+                          <div className="group/project relative rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none">
                             <button
                               type="button"
-                              onClick={(e) => {
-                                const r =
-                                  e.currentTarget.getBoundingClientRect();
-                                setAgentMenu((cur) =>
-                                  cur?.key === g.key
-                                    ? null
-                                    : {
-                                        key: g.key,
-                                        cwd,
-                                        left: Math.min(
-                                          r.left,
-                                          window.innerWidth - 176 - 8,
-                                        ),
-                                        top: r.bottom + 6,
-                                      },
-                                );
-                              }}
-                              disabled={
-                                AGENT_IDS.every((a) => !canSpawnFor(a)) ||
-                                quickAdding.has(g.key)
-                              }
-                              aria-label={t.shell.sidebar.newSessionIn(cwd)}
+                              onClick={() => toggleGroup(g.key)}
+                              aria-expanded={!collapsed.has(g.key)}
+                              // When every agent is down the "+" is pointer-events-none, so a hover over it
+                              // lands here instead — carry its reason so that affordance survives (spec §4).
                               title={
-                                anySpawnable
-                                  ? t.shell.sidebar.newSessionIn(cwd)
-                                  : t.settings.cli.unavailableReason
+                                cwd && !anySpawnable
+                                  ? t.settings.cli.unavailableReason
+                                  : cwd
                               }
-                              className={cx(
-                                "absolute right-5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",
-                                anySpawnable && !quickAdding.has(g.key)
-                                  ? "cursor-pointer text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
-                                  : !anySpawnable
-                                    ? // No agent usable: pass the click through to the collapse toggle beneath
-                                      // (which carries the reason in its title) so the disabled "+" doesn't
-                                      // dead-zone its ~20px strip.
-                                      "pointer-events-none text-(--ui-text-quaternary)/50"
-                                    : // Quick-add in flight (transient): keep the click inert so it can't
-                                      // re-collapse the group we just expanded for the incoming draft row.
-                                      "cursor-not-allowed text-(--ui-text-quaternary)/50",
-                              )}
+                              className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
                             >
-                              <Icon name="plus" size={13} />
-                            </button>
-                          )}
-                        </div>
-                        {!collapsed.has(g.key) &&
-                          (g.sessions.length === 0 ? (
-                            manuallyExpanded.has(g.key) && (
-                              <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
-                                {t.shell.sidebar.noActiveSessions}
-                              </p>
-                            )
-                          ) : (
-                            <div className="flex flex-col gap-px pb-1">
-                              {g.sessions.map((s) => (
-                                <SessionRow
-                                  key={s.id}
-                                  session={s}
-                                  selected={s.id === selectedId}
-                                  onSelect={() => onSelect(s.id)}
-                                  canSpawn={canSpawnFor(s.agent)}
-                                  onResume={onResume}
-                                  onFork={onFork}
-                                  onEnd={onEnd}
-                                  onRename={onRename}
-                                  onTogglePin={onTogglePin}
+                              <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
+                                <Icon
+                                  name={
+                                    collapsed.has(g.key)
+                                      ? "folder"
+                                      : "folder-open"
+                                  }
+                                  size={14}
                                 />
-                              ))}
-                            </div>
-                          ))}
-                      </div>
+                              </span>
+                              <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
+                                {g.label}
+                              </span>
+                              <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
+                                <Icon
+                                  name="chevron-right"
+                                  size={13}
+                                  className={cx(
+                                    "transition-transform",
+                                    !collapsed.has(g.key) && "rotate-90",
+                                  )}
+                                />
+                              </span>
+                              {g.hint && (
+                                <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
+                                  {g.hint}
+                                </span>
+                              )}
+                              <span className="ml-auto w-11 shrink-0" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleProjectPin(g.key)}
+                              aria-pressed={pinnedProjects.has(g.key)}
+                              aria-label={
+                                pinnedProjects.has(g.key)
+                                  ? t.shell.sidebar.unpinProject
+                                  : t.shell.sidebar.pinProject
+                              }
+                              title={
+                                pinnedProjects.has(g.key)
+                                  ? t.shell.sidebar.unpinProject
+                                  : t.shell.sidebar.pinProject
+                              }
+                              className="absolute right-1 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:opacity-100 group-hover/project:opacity-100"
+                            >
+                              <Icon
+                                name={
+                                  pinnedProjects.has(g.key) ? "pin-off" : "pin"
+                                }
+                                size={12}
+                              />
+                            </button>
+                            {cwd && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  const r =
+                                    e.currentTarget.getBoundingClientRect();
+                                  setAgentMenu((cur) =>
+                                    cur?.key === g.key
+                                      ? null
+                                      : {
+                                          key: g.key,
+                                          cwd,
+                                          left: Math.min(
+                                            r.left,
+                                            window.innerWidth - 176 - 8,
+                                          ),
+                                          top: r.bottom + 6,
+                                        },
+                                  );
+                                }}
+                                disabled={
+                                  AGENT_IDS.every((a) => !canSpawnFor(a)) ||
+                                  quickAdding.has(g.key)
+                                }
+                                aria-label={t.shell.sidebar.newSessionIn(cwd)}
+                                title={
+                                  anySpawnable
+                                    ? t.shell.sidebar.newSessionIn(cwd)
+                                    : t.settings.cli.unavailableReason
+                                }
+                                className={cx(
+                                  "absolute right-6 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",
+                                  anySpawnable && !quickAdding.has(g.key)
+                                    ? "cursor-pointer text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
+                                    : !anySpawnable
+                                      ? // No agent usable: pass the click through to the collapse toggle beneath
+                                        // (which carries the reason in its title) so the disabled "+" doesn't
+                                        // dead-zone its ~20px strip.
+                                        "pointer-events-none text-(--ui-text-quaternary)/50"
+                                      : // Quick-add in flight (transient): keep the click inert so it can't
+                                        // re-collapse the group we just expanded for the incoming draft row.
+                                        "cursor-not-allowed text-(--ui-text-quaternary)/50",
+                                )}
+                              >
+                                <Icon name="plus" size={13} />
+                              </button>
+                            )}
+                          </div>
+                          {!collapsed.has(g.key) &&
+                            (g.sessions.length === 0 ? (
+                              manuallyExpanded.has(g.key) && (
+                                <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
+                                  {t.shell.sidebar.noActiveSessions}
+                                </p>
+                              )
+                            ) : (
+                              <div className="flex flex-col gap-px pb-1">
+                                {g.sessions.map((s) => (
+                                  <SessionRow
+                                    key={s.id}
+                                    session={s}
+                                    selected={s.id === selectedId}
+                                    onSelect={() => onSelect(s.id)}
+                                    canSpawn={canSpawnFor(s.agent)}
+                                    onResume={onResume}
+                                    onFork={onFork}
+                                    onEnd={onEnd}
+                                    onRename={onRename}
+                                    onTogglePin={onTogglePin}
+                                    showAgentIcon={showAgentIcon}
+                                  />
+                                ))}
+                              </div>
+                            ))}
+                        </div>
+                      </Fragment>
                     );
                   })}
                 </div>
