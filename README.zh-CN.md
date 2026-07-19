@@ -8,7 +8,7 @@
 
 [![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=luojiahai&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/luojiahai)
 
-驾驭编码 agent（Claude Code、Codex）并监控其遥测数据，尽在一个驾驶舱。
+驾驭编码智能代理（Claude Code、Codex）并监控其遥测数据，尽在一个驾驶舱。
 
 ![Code-by-wire：一个实时 Claude Code 会话，含会话侧栏、会话记录与遥测面板](docs/assets/cbw-screenshot.png)
 
@@ -21,7 +21,7 @@
 - **驱动、fork，或只是旁观。** 在内嵌终端里启动一个会话，fork 一个正在跑的，接管一个你在别处
   启动的，或只读旁观它。
 - **完整的会话记录。** 每条消息、每次工具调用与结果，从磁盘重建并清晰渲染。
-- **CLI 隐藏的遥测。** 上下文压力、花费、token 吞吐、占空比、git、任务、子 agent 与后台
+- **CLI 隐藏的遥测。** 上下文压力、花费、token 吞吐、占空比、git、任务、子代理与后台
   shell，实时呈现，逐会话展示。
 - **纵观全貌。** 一个跨会话的 Stats 视图，配一整年的贡献日历，以及精确、绝不估算的总量。
 - **限额尽收眼底。** 直接从磁盘读出你账户的限流窗口，附实时重置倒计时。
