@@ -159,7 +159,7 @@ export function CustomSelect<T extends string | number>({
           }
           tabIndex={-1}
           className={cx(
-            "absolute right-0 top-full z-50 mt-1.5 min-w-full rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl",
+            "absolute right-0 top-full z-50 mt-1.5 max-h-64 min-w-full overflow-y-auto rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl",
             menuClassName,
           )}
         >
@@ -172,6 +172,7 @@ export function CustomSelect<T extends string | number>({
                 id={`${listboxId}-option-${index}`}
                 type="button"
                 role="option"
+                tabIndex={-1}
                 aria-selected={selected}
                 aria-disabled={Boolean(option.disabled)}
                 disabled={option.disabled}

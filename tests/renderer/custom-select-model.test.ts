@@ -18,6 +18,8 @@ describe("custom select navigation", () => {
     expect(firstEnabledIndex(options)).toBe(1);
     expect(lastEnabledIndex(options)).toBe(3);
     expect(firstEnabledIndex([{ disabled: true }])).toBe(-1);
+    expect(lastEnabledIndex([{ disabled: true }])).toBe(-1);
+    expect(lastEnabledIndex([])).toBe(-1);
   });
 
   it("keeps an enabled selection and reconciles invalid selections", () => {
@@ -36,6 +38,11 @@ describe("custom select navigation", () => {
     expect(moveEnabledIndex(options, 3, 1)).toBe(1);
     expect(moveEnabledIndex(options, 3, -1)).toBe(1);
     expect(moveEnabledIndex(options, 1, -1)).toBe(3);
+  });
+
+  it("moves from invalid boundary indexes in either direction", () => {
+    expect(moveEnabledIndex(options, -1, 1)).toBe(1);
+    expect(moveEnabledIndex(options, options.length, -1)).toBe(3);
   });
 
   it("returns -1 when no option is enabled", () => {
