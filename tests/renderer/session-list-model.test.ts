@@ -6,6 +6,8 @@ import {
   filterGroupsActive,
   groupSessionsByProject,
   pinnedSessions,
+  filterGroups,
+  partitionProjectGroups,
 } from "../../src/renderer/src/shell/session-list-model";
 import type { Session } from "@shared/types";
 
@@ -144,5 +146,42 @@ describe("session list model", () => {
     expect(out.map((g) => g.key)).toEqual(groups.map((g) => g.key));
     expect(out.map((g) => g.cwd)).toEqual(groups.map((g) => g.cwd));
     expect(out.map((g) => g.label)).toEqual(groups.map((g) => g.label));
+  });
+
+  it("filterGroups preserves every group while combining visibility and agent filters", () => {
+    const groups = groupSessionsByProject([
+      mk({ id: "ac", cwd: "/a", state: "working", agent: "claude" }),
+      mk({ id: "ae", cwd: "/a", state: "ended", agent: "claude" }),
+      mk({ id: "bc", cwd: "/b", state: "idle", agent: "codex" }),
+    ]);
+
+    const filtered = filterGroups(groups, {
+      visibility: "active",
+      showAgentIcons: true,
+      agent: "claude",
+    });
+
+    expect(filtered).toHaveLength(groups.length);
+    expect(filtered.map((g) => g.key)).toEqual(groups.map((g) => g.key));
+    expect(
+      filtered
+        .flatMap((g) => g.sessions)
+        .every((s) => s.state !== "ended" && s.agent === "claude"),
+    ).toBe(true);
+    expect(filtered.find((g) => g.key === "/b")!.sessions).toEqual([]);
+  });
+
+  it("partitionProjectGroups sorts pins newest-first and preserves other order", () => {
+    const groups = groupSessionsByProject([
+      mk({ id: "a", cwd: "/a", lastActivityMs: 300 }),
+      mk({ id: "c", cwd: "/c", lastActivityMs: 200 }),
+      mk({ id: "b", cwd: "/b", lastActivityMs: 100 }),
+      mk({ id: "d", cwd: "/d", lastActivityMs: 50 }),
+    ]);
+
+    const result = partitionProjectGroups(groups, { "/b": 200, "/a": 100 });
+    expect(result.pinned.map((g) => g.key)).toEqual(["/b", "/a"]);
+    expect(result.others.map((g) => g.key)).toEqual(["/c", "/d"]);
+    expect([...result.pinned, ...result.others]).toHaveLength(groups.length);
   });
 });

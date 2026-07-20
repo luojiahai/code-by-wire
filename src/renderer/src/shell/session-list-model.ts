@@ -1,5 +1,6 @@
 import type { Session } from "@shared/types";
 import { tNow } from "../i18n";
+import type { SessionsListPreferences } from "./session-list-preferences";
 
 /** One flat list, no visible section split: live sessions first (newest-created first), then
  *  ended sessions appended (most-recently-active first) — see design spec §4. */
@@ -67,6 +68,31 @@ export function pinnedSessions(sessions: Session[]): Session[] {
  *  folders; a group can come back empty, which the sidebar renders as a bare folder header. */
 export function filterGroupsActive(groups: SessionGroup[]): SessionGroup[] {
   return groups.map((g) => ({ ...g, sessions: filterActive(g.sessions) }));
+}
+
+export function filterGroups(
+  groups: SessionGroup[],
+  preferences: SessionsListPreferences,
+): SessionGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    sessions: group.sessions.filter(
+      (session) =>
+        (preferences.visibility === "all" || session.state !== "ended") &&
+        (preferences.agent === "all" || session.agent === preferences.agent),
+    ),
+  }));
+}
+
+export function partitionProjectGroups(
+  groups: SessionGroup[],
+  projectPins: Record<string, number>,
+): { pinned: SessionGroup[]; others: SessionGroup[] } {
+  const pinned = groups
+    .filter((group) => projectPins[group.key] !== undefined)
+    .sort((a, b) => projectPins[b.key] - projectPins[a.key]);
+  const others = groups.filter((group) => projectPins[group.key] === undefined);
+  return { pinned, others };
 }
 
 /** The parent directory of `cwd`, with a leading homeDir abbreviated to `~`:
