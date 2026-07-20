@@ -185,6 +185,7 @@ export const zh: Translations = {
       hideProject: "隐藏项目",
       unhideProject: "取消隐藏项目",
       hiddenLabel: "已隐藏",
+      noHiddenProjects: "没有隐藏项目。",
       projectActions: "项目操作",
       absolutePath: "绝对路径",
       copyPath: "复制路径",

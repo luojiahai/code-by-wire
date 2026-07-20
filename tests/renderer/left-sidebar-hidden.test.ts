@@ -12,8 +12,15 @@ describe("LeftSidebar Hidden disclosure", () => {
     expect(source).toContain("const hiddenCount = hiddenProjects.length;");
   });
 
+  it("always renders, independent of hiddenCount, with an empty-state line", () => {
+    expect(source).not.toContain("{hiddenCount > 0 &&");
+    expect(source).toContain("t.shell.sidebar.noHiddenProjects");
+  });
+
   it("is a compact non-sticky companion row with a hairline and adjacent count", () => {
-    const hidden = source.slice(source.indexOf("{hiddenCount > 0"));
+    const hidden = source.slice(
+      source.indexOf("mx-2 mt-1 border-t border-sidebar-border"),
+    );
     expect(hidden).toMatch(
       /hiddenLabel[\s\S]*hiddenCount[\s\S]*name=\{hiddenCollapsed \? "chevron-right" : "chevron-down"\}/,
     );
