@@ -7,6 +7,8 @@ import {
 import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
 import { FAMILY_LABEL } from "../ui/meta";
 import { Icon } from "../ui/icons";
+import { AgentIcon } from "../ui/agent-icons";
+import { CustomSelect } from "../ui/CustomSelect";
 import { useI18n } from "../i18n";
 import { PageHeader, Card } from "./page-primitives";
 
@@ -112,25 +114,22 @@ export function NewSessionView({
                 <label className="block text-meta font-semibold uppercase tracking-wider text-fg-muted">
                   {t.shell.newSession.agent}
                 </label>
-                <div className="relative mt-1.5">
-                  <select
+                <div className="mt-1.5">
+                  <CustomSelect
+                    ariaLabel={t.shell.newSession.agent}
                     value={agent}
-                    onChange={(e) => setAgent(e.target.value as AgentId)}
-                    className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
-                  >
-                    {AGENT_IDS.map((id) => (
-                      <option key={id} value={id} disabled={!canSpawnFor(id)}>
-                        {AGENTS[id].label}
-                        {canSpawnFor(id)
-                          ? ""
-                          : ` — ${t.settings.cli.unavailableShort}`}
-                      </option>
-                    ))}
-                  </select>
-                  <Icon
-                    name="chevron-down"
-                    size={14}
-                    className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
+                    onChange={setAgent}
+                    options={AGENT_IDS.map((id) => ({
+                      value: id,
+                      label: AGENTS[id].label,
+                      leading: <AgentIcon agent={id} size={14} />,
+                      disabled: !canSpawnFor(id),
+                      secondary: canSpawnFor(id)
+                        ? undefined
+                        : t.settings.cli.unavailableShort,
+                    }))}
+                    className="w-full py-2 pl-2.5 text-body"
+                    menuClassName="w-full"
                   />
                 </div>
               </div>
@@ -158,31 +157,23 @@ export function NewSessionView({
                   <label className="block text-meta font-semibold uppercase tracking-wider text-fg-muted">
                     {t.shell.newSession.model}
                   </label>
-                  <div className="relative mt-1.5">
-                    <select
+                  <div className="mt-1.5">
+                    <CustomSelect
+                      ariaLabel={t.shell.newSession.model}
                       value={model}
-                      onChange={(e) =>
-                        setModel(e.target.value as ModelSelection)
-                      }
-                      className="w-full appearance-none rounded-md border border-ink-700 bg-well py-2 pl-2.5 pr-8 text-body text-fg outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
-                    >
-                      <option value="default">
-                        {t.shell.newSession.modelDefault}
-                      </option>
-                      {(defaults?.allowed ?? FAMILIES).map((id) => {
-                        const override = defaults?.overrides[id];
-                        return (
-                          <option key={id} value={id}>
-                            {FAMILY_LABEL[id]}
-                            {override ? ` (${override})` : ""}
-                          </option>
-                        );
-                      })}
-                    </select>
-                    <Icon
-                      name="chevron-down"
-                      size={14}
-                      className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
+                      onChange={setModel}
+                      options={[
+                        {
+                          value: "default",
+                          label: t.shell.newSession.modelDefault,
+                        },
+                        ...(defaults?.allowed ?? FAMILIES).map((id) => ({
+                          value: id,
+                          label: `${FAMILY_LABEL[id]}${defaults?.overrides[id] ? ` (${defaults.overrides[id]})` : ""}`,
+                        })),
+                      ]}
+                      className="w-full py-2 pl-2.5 text-body"
+                      menuClassName="w-full"
                     />
                   </div>
                 </div>
