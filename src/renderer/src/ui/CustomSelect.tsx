@@ -2,18 +2,46 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
+  type FocusEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 import { cx } from "./atoms";
 import {
   firstEnabledIndex,
+  intersectVerticalBounds,
   lastEnabledIndex,
+  menuPlacement,
   moveEnabledIndex,
   selectedOrFirstEnabledIndex,
+  type MenuPlacement,
+  type VerticalBounds,
 } from "./custom-select-model";
 import { Icon } from "./icons";
+
+const MENU_GAP = 6;
+const CLIPPING_OVERFLOW = new Set(["auto", "clip", "hidden", "scroll"]);
+
+function clippingBounds(element: HTMLElement): VerticalBounds {
+  let bounds = { top: 0, bottom: window.innerHeight };
+  for (
+    let ancestor = element.parentElement;
+    ancestor;
+    ancestor = ancestor.parentElement
+  ) {
+    if (!CLIPPING_OVERFLOW.has(getComputedStyle(ancestor).overflowY)) continue;
+    const rect = ancestor.getBoundingClientRect();
+    const top = rect.top + ancestor.clientTop;
+    bounds = intersectVerticalBounds(bounds, {
+      top,
+      bottom: top + ancestor.clientHeight,
+    });
+  }
+  return bounds;
+}
 
 export interface CustomSelectOption<T extends string | number> {
   value: T;
@@ -40,6 +68,10 @@ export function CustomSelect<T extends string | number>({
 }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [placement, setPlacement] = useState<MenuPlacement>({
+    side: "below",
+    maxHeight: 0,
+  });
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -69,6 +101,28 @@ export function CustomSelect<T extends string | number>({
     setOpen(true);
   };
 
+  const placeMenu = useCallback(() => {
+    const root = rootRef.current;
+    const trigger = triggerRef.current;
+    const listbox = listboxRef.current;
+    if (!root || !trigger || !listbox) return;
+    const triggerRect = trigger.getBoundingClientRect();
+    const bounds = clippingBounds(root);
+    const next = menuPlacement({
+      triggerTop: triggerRect.top,
+      triggerBottom: triggerRect.bottom,
+      boundaryTop: bounds.top,
+      boundaryBottom: bounds.bottom,
+      menuHeight: listbox.scrollHeight,
+      gap: MENU_GAP,
+    });
+    setPlacement((current) =>
+      current.side === next.side && current.maxHeight === next.maxHeight
+        ? current
+        : next,
+    );
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     setActiveIndex((index) => selectedOrFirstEnabledIndex(options, index));
@@ -78,13 +132,30 @@ export function CustomSelect<T extends string | number>({
     if (open) listboxRef.current?.focus({ preventScroll: true });
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (open) placeMenu();
+  }, [open, options, placeMenu]);
+
   useEffect(() => {
     if (!open) return;
-    const onDown = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node))
-        close();
+    const reposition = () => placeMenu();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
     };
-    const onKey = (event: KeyboardEvent) => {
+  }, [open, placeMenu]);
+
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    const option = listboxRef.current?.children.item(activeIndex);
+    if (option instanceof HTMLElement)
+      option.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, open]);
+
+  const onKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
       switch (event.key) {
         case "Escape":
           event.preventDefault();
@@ -113,17 +184,26 @@ export function CustomSelect<T extends string | number>({
           select(activeIndex);
           break;
       }
+    },
+    [activeIndex, close, options, select],
+  );
+
+  const onBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) close();
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node))
+        close();
     };
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [activeIndex, close, open, options, select]);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [close, open]);
 
   return (
-    <div ref={rootRef} className="relative shrink-0">
+    <div ref={rootRef} onBlur={onBlur} className="relative shrink-0">
       <button
         ref={triggerRef}
         type="button"
@@ -158,8 +238,13 @@ export function CustomSelect<T extends string | number>({
             activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
           }
           tabIndex={-1}
+          onKeyDown={onKeyDown}
+          style={{ maxHeight: placement.maxHeight }}
           className={cx(
-            "absolute right-0 top-full z-50 mt-1.5 min-w-full rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl",
+            "absolute right-0 z-50 min-w-full overflow-y-auto overscroll-contain rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl",
+            placement.side === "above"
+              ? "bottom-full mb-1.5"
+              : "top-full mt-1.5",
             menuClassName,
           )}
         >
