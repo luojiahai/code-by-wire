@@ -9,36 +9,30 @@ const features = [
     title: 'Every session in one rail',
     description:
       'Manage every session running on your machine from one rail: grouped by project, searchable, each flagging its live state.',
-    size: 'lg',
   },
   {
     title: 'Drive, fork, or just watch',
     description:
       'Spawn a session in an embedded terminal, fork a live one, resume one you started elsewhere, or observe it read-only.',
-    size: 'md',
   },
   {
     title: 'The full transcript',
     description: 'Every message, tool call, and result, reconstructed from disk and rendered cleanly.',
-    size: 'md',
   },
   {
     title: 'The full telemetry',
     description:
       'Context pressure, spend, token throughput, duty cycle, git, tasks, subagents, and background shells, live per session.',
-    size: 'md',
   },
   {
     title: 'The whole story',
     description:
       'A cross-session Stats view with a year-long contributions calendar and exact, never-estimated totals.',
-    size: 'md',
   },
   {
     title: 'Your rate limits in view',
     description:
       "Your account's rate-limit windows, read straight from disk, with live reset countdowns.",
-    size: 'full',
   },
 ];
 ---
@@ -79,7 +73,7 @@ const features = [
     <div class="feature-grid">
       {
         features.map((feature) => (
-          <div class={`feature feature-${feature.size}`} data-reveal>
+          <div class="feature" data-reveal>
             <h3>{feature.title}</h3>
             <p>{feature.description}</p>
           </div>
@@ -229,31 +223,15 @@ const features = [
     background: var(--bg);
     padding: 32px;
   }
-  .feature-lg,
-  .feature-full {
-    background: var(--bg-raised);
-    box-shadow: inset 0 1px 0 var(--border-strong);
-  }
-  .feature-lg {
-    grid-column: span 2;
-  }
-  .feature-full {
-    grid-column: span 3;
-  }
   .feature h3 {
     font-size: 17px;
     font-weight: 600;
     margin-bottom: 10px;
   }
-  .feature-lg h3,
-  .feature-full h3 {
-    font-size: 19px;
-  }
   .feature p {
     color: var(--text-dim);
     font-size: 14px;
     line-height: 1.6;
-    max-width: 52ch;
   }
   @media (prefers-reduced-motion: no-preference) {
     .feature-grid > :nth-child(1) {
@@ -297,10 +275,6 @@ const features = [
     }
     .feature-grid {
       grid-template-columns: 1fr;
-    }
-    .feature-lg,
-    .feature-full {
-      grid-column: span 1;
     }
   }
 </style>
