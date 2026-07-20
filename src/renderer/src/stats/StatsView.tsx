@@ -12,6 +12,7 @@ import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
 import { useI18n } from "../i18n";
 import { Icon } from "../ui/icons";
 import { AgentIcon } from "../ui/agent-icons";
+import { CustomSelect } from "../ui/CustomSelect";
 import { RangeFilter } from "./shared";
 import { OverviewCard } from "./OverviewCard";
 import { ModelsCard } from "./ModelsCard";
@@ -122,25 +123,17 @@ export function StatsView() {
     <OverlayScroll className="h-full min-w-0 flex-1 bg-ink-950 text-fg">
       <div className="mx-auto flex max-w-[1100px] flex-col gap-4 px-6 py-6">
         <div className="flex items-center justify-between gap-2">
-          <div className="relative">
-            <select
-              aria-label={t.stats.agentLabel}
-              value={agent}
-              onChange={(e) => setAgent(e.target.value as AgentId)}
-              className="appearance-none rounded-md border border-ink-700 bg-well py-1 pl-2.5 pr-7 text-meta text-fg outline-none focus:border-primary"
-            >
-              {AGENT_IDS.map((id) => (
-                <option key={id} value={id}>
-                  {AGENTS[id].label}
-                </option>
-              ))}
-            </select>
-            <Icon
-              name="chevron-down"
-              size={13}
-              className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-fg-muted"
-            />
-          </div>
+          <CustomSelect
+            ariaLabel={t.stats.agentLabel}
+            value={agent}
+            onChange={setAgent}
+            options={AGENT_IDS.map((id) => ({
+              value: id,
+              label: AGENTS[id].label,
+              leading: <AgentIcon agent={id} size={13} />,
+            }))}
+            className="py-1 pl-2.5 text-meta"
+          />
           <div className="flex items-center gap-2">
             {hasStats && isDayRange(range) && (
               <button
