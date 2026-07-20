@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cx } from "../ui/atoms";
 
 /**
  * A page-level title block: heading + optional lede paragraph + optional right-aligned controls
@@ -36,12 +37,19 @@ export function PageHeader({
 export function Card({
   title,
   children,
+  overflowVisible = false,
 }: {
   title: string;
   children: ReactNode;
+  overflowVisible?: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-ink-800 bg-ink-925">
+    <div
+      className={cx(
+        "rounded-xl border border-ink-800 bg-ink-925",
+        overflowVisible ? "overflow-visible" : "overflow-hidden",
+      )}
+    >
       <div className="border-b border-ink-850 px-4 py-2.5 font-display text-label font-semibold uppercase tracking-[0.1em] text-fg-faint">
         {title}
       </div>

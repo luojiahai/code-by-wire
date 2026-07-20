@@ -69,7 +69,7 @@ export function NewSessionView({
   // ModalShell used to own Escape-to-close; without it, this view owns its own window-level listener.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape" && !e.defaultPrevented) onCancel();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -108,7 +108,7 @@ export function NewSessionView({
           }
         />
         <div className="mt-4">
-          <Card title={t.shell.newSession.sessionSetup}>
+          <Card title={t.shell.newSession.sessionSetup} overflowVisible>
             <div className="flex flex-col gap-4 p-4">
               <div>
                 <label className="block text-meta font-semibold uppercase tracking-wider text-fg-muted">
@@ -119,15 +119,18 @@ export function NewSessionView({
                     ariaLabel={t.shell.newSession.agent}
                     value={agent}
                     onChange={setAgent}
-                    options={AGENT_IDS.map((id) => ({
-                      value: id,
-                      label: AGENTS[id].label,
-                      leading: <AgentIcon agent={id} size={14} />,
-                      disabled: !canSpawnFor(id),
-                      secondary: canSpawnFor(id)
-                        ? undefined
-                        : t.settings.cli.unavailableShort,
-                    }))}
+                    options={AGENT_IDS.map((id) => {
+                      const canSpawn = canSpawnFor(id);
+                      return {
+                        value: id,
+                        label: AGENTS[id].label,
+                        leading: <AgentIcon agent={id} size={14} />,
+                        disabled: !canSpawn,
+                        secondary: canSpawn
+                          ? undefined
+                          : t.settings.cli.unavailableShort,
+                      };
+                    })}
                     className="w-full py-2 pl-2.5 text-body"
                     menuClassName="w-full"
                   />

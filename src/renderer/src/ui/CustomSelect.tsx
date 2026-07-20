@@ -75,7 +75,7 @@ export function CustomSelect<T extends string | number>({
   }, [open, options]);
 
   useEffect(() => {
-    if (open) listboxRef.current?.focus();
+    if (open) listboxRef.current?.focus({ preventScroll: true });
   }, [open]);
 
   useEffect(() => {
@@ -138,9 +138,15 @@ export function CustomSelect<T extends string | number>({
           className,
         )}
       >
-        {current?.leading}
-        <span>{current?.label ?? "—"}</span>
-        <Icon name="chevron-down" size={13} className="text-fg-faint" />
+        <span className="flex min-w-0 items-center gap-2">
+          {current?.leading}
+          <span className="truncate">{current?.label ?? "—"}</span>
+        </span>
+        <Icon
+          name="chevron-down"
+          size={13}
+          className="ml-auto shrink-0 text-fg-faint"
+        />
       </button>
       {open && (
         <div
