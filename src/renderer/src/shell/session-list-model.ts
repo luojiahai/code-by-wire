@@ -1,5 +1,7 @@
 import type { Session } from "@shared/types";
 import { tNow } from "../i18n";
+import type { SessionsListPreferences } from "./session-list-preferences";
+import type { ProjectState } from "@shared/ipc";
 
 /** One flat list, no visible section split: live sessions first (newest-created first), then
  *  ended sessions appended (most-recently-active first) — see design spec §4. */
@@ -67,6 +69,74 @@ export function pinnedSessions(sessions: Session[]): Session[] {
  *  folders; a group can come back empty, which the sidebar renders as a bare folder header. */
 export function filterGroupsActive(groups: SessionGroup[]): SessionGroup[] {
   return groups.map((g) => ({ ...g, sessions: filterActive(g.sessions) }));
+}
+
+export function filterGroups(
+  groups: SessionGroup[],
+  preferences: SessionsListPreferences,
+): SessionGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    sessions: group.sessions.filter(
+      (session) =>
+        (preferences.visibility === "all" || session.state !== "ended") &&
+        (preferences.agent === "all" || session.agent === preferences.agent),
+    ),
+  }));
+}
+
+export function partitionProjectGroups(
+  groups: SessionGroup[],
+  state: ProjectState,
+): { pinned: SessionGroup[]; others: SessionGroup[]; hidden: SessionGroup[] } {
+  const pinned = groups
+    .filter(
+      (group) =>
+        group.cwd !== undefined && state[group.key]?.pinnedAtMs !== undefined,
+    )
+    .sort(
+      (a, b) =>
+        (state[b.key]?.pinnedAtMs ?? 0) - (state[a.key]?.pinnedAtMs ?? 0),
+    );
+  const hidden = groups
+    .filter(
+      (group) =>
+        group.cwd !== undefined && state[group.key]?.hiddenAtMs !== undefined,
+    )
+    .sort(
+      (a, b) =>
+        (state[b.key]?.hiddenAtMs ?? 0) - (state[a.key]?.hiddenAtMs ?? 0),
+    );
+  const others = groups.filter(
+    (group) =>
+      group.cwd === undefined ||
+      (state[group.key]?.pinnedAtMs === undefined &&
+        state[group.key]?.hiddenAtMs === undefined),
+  );
+  return { pinned, others, hidden };
+}
+
+/** Groups controlled by the Sessions header. Hidden is a separate disclosure and must never
+ * influence the visible list's collapse-all state, even while that disclosure is expanded. */
+export function visibleProjectGroups(
+  pinned: SessionGroup[],
+  others: SessionGroup[],
+): SessionGroup[] {
+  return [...pinned, ...others];
+}
+
+export function toggleVisibleProjectGroups(
+  collapsed: ReadonlySet<string>,
+  visible: SessionGroup[],
+): ReadonlySet<string> {
+  const next = new Set(collapsed);
+  const allCollapsed =
+    visible.length > 0 && visible.every((group) => collapsed.has(group.key));
+  for (const group of visible) {
+    if (allCollapsed) next.delete(group.key);
+    else next.add(group.key);
+  }
+  return next;
 }
 
 /** The parent directory of `cwd`, with a leading homeDir abbreviated to `~`:

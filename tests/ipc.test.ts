@@ -509,6 +509,167 @@ describe("registerIpc setSessionPinned", () => {
   });
 });
 
+describe("registerIpc setProjectPlacement", () => {
+  it("returns hidden, pinned, and unhidden state with mutual exclusion", async () => {
+    const db = openTestDb();
+    migrate(db);
+    let clock = 100;
+    const projectState: Record<
+      string,
+      { pinnedAtMs?: number; hiddenAtMs?: number }
+    > = {};
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      projectState: {
+        read: () => ({ ...projectState }),
+        setPlacement: (key, placement) => {
+          if (placement === "ordinary") delete projectState[key];
+          else
+            projectState[key] =
+              placement === "pinned"
+                ? { pinnedAtMs: ++clock }
+                : { hiddenAtMs: ++clock };
+        },
+      },
+    });
+
+    const hidden = (await handlers.get(IPC.setProjectPlacement)!(
+      {},
+      "/repo",
+      "hidden",
+    )) as OverviewData;
+    expect(hidden.projectState["/repo"]).toEqual({ hiddenAtMs: 101 });
+
+    const pinned = (await handlers.get(IPC.setProjectPlacement)!(
+      {},
+      "/repo",
+      "pinned",
+    )) as OverviewData;
+    expect(pinned.projectState["/repo"]).toEqual({ pinnedAtMs: 102 });
+    expect(pinned.projectState["/repo"].hiddenAtMs).toBeUndefined();
+
+    const unhidden = (await handlers.get(IPC.setProjectPlacement)!(
+      {},
+      "/repo",
+      "ordinary",
+    )) as OverviewData;
+    expect(unhidden.projectState["/repo"]).toBeUndefined();
+  });
+
+  it("includes project pins in overview and returns each persisted toggle", async () => {
+    const db = openTestDb();
+    migrate(db);
+    const projectState: Record<string, { pinnedAtMs: number }> = {
+      "/seed": { pinnedAtMs: 111 },
+    };
+    const projectPinStore = {
+      read: () => ({ ...projectState }),
+      setPlacement: (key: string, placement: string) => {
+        if (placement === "pinned") projectState[key] = { pinnedAtMs: 999 };
+        else delete projectState[key];
+      },
+    };
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      projectState: projectPinStore,
+    });
+
+    expect(
+      (handlers.get(IPC.overview)!() as OverviewData).projectState,
+    ).toEqual({ "/seed": { pinnedAtMs: 111 } });
+    const pinned = (await handlers.get(IPC.setProjectPlacement)!(
+      {},
+      "/repo",
+      "pinned",
+    )) as OverviewData;
+    expect(projectState["/repo"]).toEqual({ pinnedAtMs: 999 });
+    expect(pinned.projectState["/repo"]).toEqual({ pinnedAtMs: 999 });
+
+    const unpinned = (await handlers.get(IPC.setProjectPlacement)!(
+      {},
+      "/repo",
+      "ordinary",
+    )) as OverviewData;
+    expect(projectState["/repo"]).toBeUndefined();
+    expect(unpinned.projectState).toEqual({ "/seed": { pinnedAtMs: 111 } });
+  });
+
+  it.each(["", "   ", "\t\n"])(
+    "rejects an empty project key %j without mutating the store",
+    async (key) => {
+      const db = openTestDb();
+      migrate(db);
+      const projectState: Record<string, { pinnedAtMs: number }> = {};
+      const projectPinStore = {
+        read: () => ({ ...projectState }),
+        setPlacement: (key: string, placement: string) => {
+          if (placement === "pinned") projectState[key] = { pinnedAtMs: 999 };
+          else delete projectState[key];
+        },
+      };
+      registerIpc({
+        db,
+        provider: provider(() => []),
+        projectState: projectPinStore,
+      });
+
+      const overview = (await handlers.get(IPC.setProjectPlacement)!(
+        {},
+        key,
+        "pinned",
+      )) as OverviewData;
+      expect(projectState).toEqual({});
+      expect(overview.projectState).toEqual({});
+    },
+  );
+
+  it("rejects an invalid placement without mutating the store", () => {
+    const db = openTestDb();
+    migrate(db);
+    let writes = 0;
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      projectState: {
+        read: () => ({}),
+        setPlacement: () => {
+          writes += 1;
+        },
+      },
+    });
+    handlers.get(IPC.setProjectPlacement)!({}, "/repo", "invalid");
+    expect(writes).toBe(0);
+  });
+
+  it("serves the unchanged overview when persistence fails", () => {
+    const db = openTestDb();
+    migrate(db);
+    const projectState = { "/seed": { pinnedAtMs: 111 } };
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      projectState: {
+        read: () => ({ ...projectState }),
+        setPlacement: () => {
+          throw new Error("disk full");
+        },
+      },
+    });
+
+    let overview: OverviewData | undefined;
+    expect(() => {
+      overview = handlers.get(IPC.setProjectPlacement)!(
+        {},
+        "/repo",
+        "pinned",
+      ) as OverviewData;
+    }).not.toThrow();
+    expect(overview?.projectState).toEqual(projectState);
+  });
+});
+
 describe("registerIpc caffeinate", () => {
   it("serves off from the inert default when no caffeinate dep is wired", () => {
     const db = openTestDb();

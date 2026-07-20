@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "@shared/types";
+import type { ProjectPlacement, ProjectState } from "@shared/ipc";
 import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { AgentIcon } from "../ui/agent-icons";
 import { useI18n } from "../i18n";
 import {
-  filterGroupsActive,
+  filterGroups,
   filterSessions,
   groupSessionsByProject,
+  partitionProjectGroups,
+  visibleProjectGroups,
+  toggleVisibleProjectGroups,
   pinnedSessions,
 } from "./session-list-model";
 import { SessionRow } from "./SessionRow";
@@ -18,17 +22,13 @@ import { OVERVIEW_ID } from "../stats/sentinel";
 import { SETTINGS_ID } from "../settings/sentinel";
 import { SidebarPanelLabel } from "./SidebarPanelLabel";
 import { OverlayScroll } from "../ui/OverlayScroll";
-
-const ACTIVE_ONLY_KEY = "cbw.sessionsActiveOnly.v1";
-
-/** Reads the persisted active-only flag; missing, malformed, or unreadable → false. */
-function loadActiveOnly(): boolean {
-  try {
-    return window.localStorage.getItem(ACTIVE_ONLY_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
+import {
+  loadSessionsListPreferences,
+  saveSessionsListPreferences,
+  type SessionsListPreferences,
+} from "./session-list-preferences";
+import { SessionFilterMenu } from "./SessionFilterMenu";
+import { ProjectGroupRow } from "./ProjectGroupRow";
 
 /**
  * The left sidebar's content (design spec §4): an empty draggable top strip — the traffic lights
@@ -39,6 +39,7 @@ function loadActiveOnly(): boolean {
 export function LeftSidebar({
   sessions,
   homeDir,
+  projectState,
   selectedId,
   onSelect,
   onNew,
@@ -49,6 +50,7 @@ export function LeftSidebar({
   onEnd,
   onRename,
   onTogglePin,
+  onSetProjectPlacement,
   updatePending,
   route,
   onRoute,
@@ -56,6 +58,7 @@ export function LeftSidebar({
   sessions: Session[];
   /** For ~-abbreviating group hints; '' before the first overview lands (hints then show raw parents). */
   homeDir: string;
+  projectState: ProjectState;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
@@ -71,6 +74,10 @@ export function LeftSidebar({
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
+  onSetProjectPlacement: (
+    key: string,
+    placement: ProjectPlacement,
+  ) => Promise<void>;
   /** True while a software update is pending (available/downloading/downloaded) —
    *  badges the Settings gear (design spec 2026-07-09-update-dot). */
   updatePending: boolean;
@@ -80,31 +87,42 @@ export function LeftSidebar({
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [hiddenCollapsed, setHiddenCollapsed] = useState(true);
   // Folders expanded by a direct click, as opposed to the expand-all button: only these show the
   // per-folder "No active sessions." line when the active filter empties them (2026-07-17 spec §3
   // — expand-all must not flood the list with empty-state lines).
   const [manuallyExpanded, setManuallyExpanded] = useState<ReadonlySet<string>>(
     new Set(),
   );
-  const [activeOnly, setActiveOnly] = useState(loadActiveOnly);
+  const [preferences, setPreferences] = useState(() =>
+    loadSessionsListPreferences(window.localStorage),
+  );
+  const updatePreferences = (next: SessionsListPreferences) => {
+    setPreferences(next);
+    saveSessionsListPreferences(window.localStorage, next);
+  };
+  const filterActive =
+    preferences.visibility === "active" || preferences.agent !== "all";
   const searched = filterSessions(sessions, query);
   const pinned = pinnedSessions(searched);
   // Search decides which folders exist; the active filter then narrows rows INSIDE the groups so
   // a folder with only ended sessions still renders (2026-07-17 spec §3). Grouping before the
   // filter also keeps folder order derived from all matched sessions — toggling never reshuffles.
   const allGroups = groupSessionsByProject(searched, homeDir);
-  const groups = activeOnly ? filterGroupsActive(allGroups) : allGroups;
+  const groups = filterGroups(allGroups, preferences);
+  const {
+    pinned: pinnedProjects,
+    others: otherProjects,
+    hidden: hiddenProjects,
+  } = partitionProjectGroups(groups, projectState);
+  const visibleGroups = visibleProjectGroups(pinnedProjects, otherProjects);
+  const hiddenCount = partitionProjectGroups(
+    groupSessionsByProject(sessions, homeDir),
+    projectState,
+  ).hidden.length;
   const allCollapsed =
-    groups.length > 0 && groups.every((g) => collapsed.has(g.key));
-  const toggleActiveOnly = () => {
-    const next = !activeOnly;
-    try {
-      window.localStorage.setItem(ACTIVE_ONLY_KEY, String(next));
-    } catch {
-      // Storage failures are nonfatal — the toggle still works for this run.
-    }
-    setActiveOnly(next);
-  };
+    visibleGroups.length > 0 &&
+    visibleGroups.every((g) => collapsed.has(g.key));
   const toggleGroup = (key: string) => {
     const expanding = collapsed.has(key);
     setCollapsed((prev) => {
@@ -152,6 +170,12 @@ export function LeftSidebar({
     top: number;
   } | null>(null);
   const agentMenuRef = useRef<HTMLDivElement>(null);
+  const filterTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  const [filterMenu, setFilterMenu] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!agentMenu) return;
@@ -168,8 +192,101 @@ export function LeftSidebar({
       document.removeEventListener("keydown", onKey);
     };
   }, [agentMenu]);
+
+  useEffect(() => {
+    if (!filterMenu) return;
+    function onDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        !filterMenuRef.current?.contains(target) &&
+        !filterTriggerRef.current?.contains(target)
+      ) {
+        setFilterMenu(null);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setFilterMenu(null);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [filterMenu]);
   // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn.
   const anySpawnable = AGENT_IDS.some((a) => canSpawnFor(a));
+
+  const renderProjectGroup = (
+    g: (typeof groups)[number],
+    placement: ProjectPlacement,
+  ) => {
+    const cwd = g.cwd;
+    return (
+      <div key={g.key}>
+        <ProjectGroupRow
+          group={g}
+          collapsed={collapsed.has(g.key)}
+          placement={placement}
+          quickAddDisabled={!anySpawnable}
+          quickAdding={quickAdding.has(g.key)}
+          unavailableReason={t.settings.cli.unavailableReason}
+          newSessionLabel={cwd ? t.shell.sidebar.newSessionIn(cwd) : undefined}
+          pinLabel={t.shell.sidebar.pinProject}
+          unpinLabel={t.shell.sidebar.unpinProject}
+          hideLabel={t.shell.sidebar.hideProject}
+          unhideLabel={t.shell.sidebar.unhideProject}
+          projectActionsLabel={t.shell.sidebar.projectActions}
+          absolutePathLabel={t.shell.sidebar.absolutePath}
+          copyPathLabel={t.shell.sidebar.copyPath}
+          onToggle={() => toggleGroup(g.key)}
+          onQuickAdd={(button) => {
+            if (!cwd) return;
+            const r = button.getBoundingClientRect();
+            setAgentMenu((cur) =>
+              cur?.key === g.key
+                ? null
+                : {
+                    key: g.key,
+                    cwd,
+                    left: Math.min(r.left, window.innerWidth - 176 - 8),
+                    top: r.bottom + 6,
+                  },
+            );
+          }}
+          onSetPlacement={(next) => onSetProjectPlacement(g.key, next)}
+        />
+        {!collapsed.has(g.key) &&
+          (g.sessions.length === 0 ? (
+            manuallyExpanded.has(g.key) && (
+              <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
+                {preferences.agent !== "all"
+                  ? t.shell.sidebar.noMatchingSessions
+                  : t.shell.sidebar.noActiveSessions}
+              </p>
+            )
+          ) : (
+            <div className="flex flex-col gap-px pb-1">
+              {g.sessions.map((s) => (
+                <SessionRow
+                  key={s.id}
+                  session={s}
+                  selected={s.id === selectedId}
+                  onSelect={() => onSelect(s.id)}
+                  canSpawn={canSpawnFor(s.agent)}
+                  onResume={onResume}
+                  onFork={onFork}
+                  onEnd={onEnd}
+                  onRename={onRename}
+                  onTogglePin={onTogglePin}
+                  showAgentIcon={preferences.showAgentIcons}
+                />
+              ))}
+            </div>
+          ))}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -321,11 +438,12 @@ export function LeftSidebar({
                 <button
                   type="button"
                   onClick={() => {
-                    if (allCollapsed) {
-                      // Expand-all is NOT a manual expand: empty folders open silently, no empty-state line.
-                      setCollapsed(new Set());
-                    } else {
-                      setCollapsed(new Set(groups.map((g) => g.key)));
+                    // Expand-all is NOT a manual expand: empty folders open silently, no empty-state line.
+                    // Hidden owns a separate disclosure, so preserve its per-folder collapse state.
+                    setCollapsed((current) =>
+                      toggleVisibleProjectGroups(current, visibleGroups),
+                    );
+                    if (!allCollapsed) {
                       setManuallyExpanded(new Set());
                     }
                   }}
@@ -344,17 +462,28 @@ export function LeftSidebar({
                   />
                 </button>
                 <button
+                  ref={filterTriggerRef}
                   type="button"
-                  onClick={toggleActiveOnly}
-                  aria-pressed={activeOnly}
-                  title={
-                    activeOnly
-                      ? t.shell.sidebar.showAllSessions
-                      : t.shell.sidebar.showActiveOnly
-                  }
+                  onClick={() => {
+                    const trigger = filterTriggerRef.current;
+                    if (!trigger || filterMenu) {
+                      setFilterMenu(null);
+                      return;
+                    }
+                    const rect = trigger.getBoundingClientRect();
+                    setFilterMenu({
+                      left: Math.max(8, rect.right - 192),
+                      top: rect.bottom + 6,
+                    });
+                  }}
+                  aria-pressed={filterActive}
+                  aria-expanded={filterMenu !== null}
+                  aria-haspopup="menu"
+                  aria-label={t.shell.sidebar.filterMenuLabel}
+                  title={t.shell.sidebar.filterMenuLabel}
                   className={cx(
                     "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
-                    activeOnly
+                    filterActive
                       ? "border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-fg"
                       : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
                   )}
@@ -364,141 +493,53 @@ export function LeftSidebar({
               </div>
             </div>
             <div className="px-2.5">
-              {groups.length === 0 ? (
-                <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
-                  {activeOnly && sessions.length > 0
-                    ? t.shell.sidebar.noActiveSessions
-                    : t.shell.sidebar.noSessionsYet}
-                </p>
-              ) : (
+              <div className="flex flex-col gap-px">
+                {pinnedProjects.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-(--ui-text-quaternary)">
+                    {t.shell.sidebar.noPinnedProjects}
+                  </p>
+                ) : (
+                  pinnedProjects.map((g) => renderProjectGroup(g, "pinned"))
+                )}
+                <div className="mx-2 my-1 border-t border-sidebar-border" />
+                {groups.length === 0 ? (
+                  <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
+                    {filterActive && sessions.length > 0
+                      ? t.shell.sidebar.noMatchingSessions
+                      : t.shell.sidebar.noSessionsYet}
+                  </p>
+                ) : (
+                  otherProjects.map((g) => renderProjectGroup(g, "ordinary"))
+                )}
+              </div>
+            </div>
+          </div>
+          {hiddenCount > 0 && (
+            <div className="mx-4.5 mt-1 border-t border-sidebar-border pt-1">
+              <button
+                type="button"
+                onClick={() => setHiddenCollapsed((value) => !value)}
+                aria-expanded={!hiddenCollapsed}
+                className="flex h-6 w-full items-center gap-1 rounded-sm text-(--ui-text-quaternary) hover:bg-(--ui-row-hover-background) hover:text-fg"
+              >
+                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.12em]">
+                  {t.shell.sidebar.hiddenLabel}
+                </span>
+                <span className="rounded-full bg-(--ui-control-active-background) px-1.5 text-[0.64rem] tabular-nums">
+                  {hiddenCount}
+                </span>
+                <Icon
+                  name={hiddenCollapsed ? "chevron-right" : "chevron-down"}
+                  size={12}
+                />
+              </button>
+              {!hiddenCollapsed && (
                 <div className="flex flex-col gap-px">
-                  {groups.map((g) => {
-                    const cwd = g.cwd;
-                    return (
-                      <div key={g.key}>
-                        <div className="group/project relative rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none">
-                          <button
-                            type="button"
-                            onClick={() => toggleGroup(g.key)}
-                            aria-expanded={!collapsed.has(g.key)}
-                            // When every agent is down the "+" is pointer-events-none, so a hover over it
-                            // lands here instead — carry its reason so that affordance survives (spec §4).
-                            title={
-                              cwd && !anySpawnable
-                                ? t.settings.cli.unavailableReason
-                                : cwd
-                            }
-                            className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
-                          >
-                            <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
-                              <Icon
-                                name={
-                                  collapsed.has(g.key)
-                                    ? "folder"
-                                    : "folder-open"
-                                }
-                                size={14}
-                              />
-                            </span>
-                            <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
-                              {g.label}
-                            </span>
-                            {g.hint && (
-                              <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-                                {g.hint}
-                              </span>
-                            )}
-                            <span className="ml-auto grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
-                              <Icon
-                                name="chevron-right"
-                                size={13}
-                                className={cx(
-                                  "transition-transform",
-                                  !collapsed.has(g.key) && "rotate-90",
-                                )}
-                              />
-                            </span>
-                          </button>
-                          {cwd && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                const r =
-                                  e.currentTarget.getBoundingClientRect();
-                                setAgentMenu((cur) =>
-                                  cur?.key === g.key
-                                    ? null
-                                    : {
-                                        key: g.key,
-                                        cwd,
-                                        left: Math.min(
-                                          r.left,
-                                          window.innerWidth - 176 - 8,
-                                        ),
-                                        top: r.bottom + 6,
-                                      },
-                                );
-                              }}
-                              disabled={
-                                AGENT_IDS.every((a) => !canSpawnFor(a)) ||
-                                quickAdding.has(g.key)
-                              }
-                              aria-label={t.shell.sidebar.newSessionIn(cwd)}
-                              title={
-                                anySpawnable
-                                  ? t.shell.sidebar.newSessionIn(cwd)
-                                  : t.settings.cli.unavailableReason
-                              }
-                              className={cx(
-                                "absolute right-5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",
-                                anySpawnable && !quickAdding.has(g.key)
-                                  ? "cursor-pointer text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
-                                  : !anySpawnable
-                                    ? // No agent usable: pass the click through to the collapse toggle beneath
-                                      // (which carries the reason in its title) so the disabled "+" doesn't
-                                      // dead-zone its ~20px strip.
-                                      "pointer-events-none text-(--ui-text-quaternary)/50"
-                                    : // Quick-add in flight (transient): keep the click inert so it can't
-                                      // re-collapse the group we just expanded for the incoming draft row.
-                                      "cursor-not-allowed text-(--ui-text-quaternary)/50",
-                              )}
-                            >
-                              <Icon name="plus" size={13} />
-                            </button>
-                          )}
-                        </div>
-                        {!collapsed.has(g.key) &&
-                          (g.sessions.length === 0 ? (
-                            manuallyExpanded.has(g.key) && (
-                              <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
-                                {t.shell.sidebar.noActiveSessions}
-                              </p>
-                            )
-                          ) : (
-                            <div className="flex flex-col gap-px pb-1">
-                              {g.sessions.map((s) => (
-                                <SessionRow
-                                  key={s.id}
-                                  session={s}
-                                  selected={s.id === selectedId}
-                                  onSelect={() => onSelect(s.id)}
-                                  canSpawn={canSpawnFor(s.agent)}
-                                  onResume={onResume}
-                                  onFork={onFork}
-                                  onEnd={onEnd}
-                                  onRename={onRename}
-                                  onTogglePin={onTogglePin}
-                                />
-                              ))}
-                            </div>
-                          ))}
-                      </div>
-                    );
-                  })}
+                  {hiddenProjects.map((g) => renderProjectGroup(g, "hidden"))}
                 </div>
               )}
             </div>
-          </div>
+          )}
         </OverlayScroll>
       </div>
       {agentMenu &&
@@ -539,6 +580,25 @@ export function LeftSidebar({
                 {AGENTS[a].label}
               </button>
             ))}
+          </div>,
+          document.body,
+        )}
+      {filterMenu &&
+        createPortal(
+          <div
+            ref={filterMenuRef}
+            className="z-50"
+            style={{
+              position: "fixed",
+              left: filterMenu.left,
+              top: filterMenu.top,
+            }}
+          >
+            <SessionFilterMenu
+              preferences={preferences}
+              onChange={updatePreferences}
+              onClose={() => setFilterMenu(null)}
+            />
           </div>,
           document.body,
         )}
