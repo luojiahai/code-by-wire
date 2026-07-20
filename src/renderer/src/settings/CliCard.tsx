@@ -1,15 +1,7 @@
-import { useState } from "react";
 import type { CliStatus } from "@shared/cli-status";
 import { footerView } from "../ui/rail-footer";
 import { cliStatusView } from "../ui/cli-status-view";
-import {
-  remediesFor,
-  INSTALL_TABS,
-  installTabLabel,
-  installTabNote,
-} from "../ui/cli-remedies";
 import { Icon } from "../ui/icons";
-import { cx } from "../ui/atoms";
 import { Card } from "../shell/page-primitives";
 import { useI18n } from "../i18n";
 import type { Translations } from "../i18n";
@@ -18,6 +10,7 @@ import {
   ReadoutRow,
   FaultBand,
   RailButton,
+  DocsLink,
   type LampTone,
 } from "./system-primitives";
 
@@ -81,7 +74,10 @@ export function CliCard({
       {cliStatus && cliStatus.kind !== "ready" && view && (
         <FaultBand headline={view.headline.toUpperCase()}>
           <div className="mb-2">{view.detail}</div>
-          <Remedy status={cliStatus} />
+          <DocsLink
+            href="https://code.claude.com/docs/en/setup"
+            label={t.settings.cli.installDocs}
+          />
         </FaultBand>
       )}
 
@@ -98,92 +94,5 @@ export function CliCard({
         value={cliStatus?.configDir.active ?? "~/.claude"}
       />
     </Card>
-  );
-}
-
-/** The remedy block for a non-ready CLI: install tabs, an update/verify command, or login guidance, plus
- *  a docs link. `installMethod` is always "unknown" — the app no longer resolves a binary path to guess
- *  it from — so the install tab and upgrade command default to a fixed choice rather than a smart guess. */
-function Remedy({ status }: { status: CliStatus }) {
-  const { t } = useI18n();
-  const remedy = remediesFor({ kind: status.kind, installMethod: "unknown" });
-  const [tab, setTab] = useState(remedy.defaultTab ?? "native");
-  const activeInstall = INSTALL_TABS.find((entry) => entry.method === tab);
-  return (
-    <div className="flex flex-col gap-2.5">
-      {remedy.section === "install" && (
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-1.5">
-            {INSTALL_TABS.map((entry) => (
-              <button
-                key={entry.method}
-                type="button"
-                onClick={() => setTab(entry.method)}
-                className={cx(
-                  "rounded-md px-2 py-1 text-aux transition-colors",
-                  tab === entry.method
-                    ? "bg-ink-700 text-fg"
-                    : "text-fg-muted hover:text-fg",
-                )}
-              >
-                {installTabLabel(entry.method, t)}
-              </button>
-            ))}
-          </div>
-          {activeInstall && (
-            <CommandRow
-              cmd={activeInstall.command}
-              note={installTabNote(activeInstall.method, t)}
-            />
-          )}
-        </div>
-      )}
-      {remedy.section === "update" && remedy.command && (
-        <CommandRow cmd={remedy.command} />
-      )}
-      {remedy.section === "login" && (
-        <div className="text-aux text-fg-faint">
-          {t.settings.cli.loginBefore} <code className="font-mono">claude</code>{" "}
-          {t.settings.cli.loginAfter}
-        </div>
-      )}
-      {remedy.section === "verify" && (
-        <div className="text-aux text-fg-faint">
-          {t.settings.cli.verifyBefore}{" "}
-          <code className="font-mono">claude --version</code>{" "}
-          {t.settings.cli.verifyAfter}
-        </div>
-      )}
-      <a
-        href="https://code.claude.com/docs/en/setup"
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1.5 text-aux text-primary transition-colors hover:text-primary-bright"
-      >
-        <Icon name="arrow-up-right" size={12} />
-        {t.settings.cli.installDocs}
-      </a>
-    </div>
-  );
-}
-
-function CommandRow({ cmd, note }: { cmd: string; note?: string }) {
-  const { t } = useI18n();
-  return (
-    <div>
-      <div className="flex items-center gap-2 rounded-md border border-ink-800 bg-ink-950 px-2 py-1.5">
-        <code className="flex-1 overflow-x-auto font-mono text-aux text-working">
-          {cmd}
-        </code>
-        <button
-          type="button"
-          onClick={() => void window.api.clipboardWriteText(cmd)}
-          className="shrink-0 text-aux text-fg-faint transition-colors hover:text-fg"
-        >
-          {t.settings.cli.copyAction}
-        </button>
-      </div>
-      {note && <div className="mt-1 text-label text-fg-faint">{note}</div>}
-    </div>
   );
 }

@@ -24,8 +24,8 @@ export interface CliStatusView {
   tone: CliStatusTone;
   /** Short title for the banner, e.g. "Ready" / "Update available". */
   headline: string;
-  /** One-line advice under the headline. For non-ready states this is the CLI's own remedy hint;
-   *  the actionable command(s) render separately from `remediesFor`. */
+  /** One-line advice under the headline. For non-ready states this is the CLI's own remedy hint —
+   *  what's wrong, not how to fix it; the fault band's docs link covers the "how". */
   detail: string;
 }
 

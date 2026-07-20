@@ -56,15 +56,7 @@ export const zh: Translations = {
       headlineNotFound: "未找到",
       detailReady: "已是最新版本，可以使用。",
       detailFallback: "需要处理。",
-      installNativeLabel: "原生安装器",
-      installNativeNote:
-        "将安装至 ~/.local/bin/claude — 请确保 ~/.local/bin 已加入 PATH。",
-      loginBefore: "启动一个会话（终端会提示你登录），或在终端中运行",
-      loginAfter: "命令。",
-      verifyBefore: "在终端中运行",
-      verifyAfter: "以确认其可正常工作。",
       installDocs: "安装文档",
-      copyAction: "复制",
       unavailableReason:
         "Claude Code CLI 当前不可用 — 请查看标题栏中的系统状态。",
       unavailableReasonFor: (label: string) =>
@@ -74,8 +66,6 @@ export const zh: Translations = {
     codexCli: {
       title: "Codex CLI",
       notInstalledHeadline: "未检测到",
-      installHint: "安装命令",
-      loginHint: "然后登录",
       docs: "Codex 文档",
     },
     statusline: {

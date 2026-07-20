@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cx } from "../ui/atoms";
+import { Icon } from "../ui/icons";
 
 /** Lamp + state-word tones for the System subsystem cards, matching the app's state hues:
  *  teal = live/healthy, amber = caution, red = hard fault, slate = indeterminate/off. */
@@ -120,6 +121,26 @@ export function RailButton({
     >
       {children}
     </button>
+  );
+}
+
+/** A fault band's link out to the docs — the app never resolves a fix in-app, only points at where
+ *  to find one. Opens in the OS default browser via the app's openExternal IPC, never an in-app
+ *  window (same click-intercept pattern as ExternalLink). */
+export function DocsLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      rel="noreferrer"
+      onClick={(e) => {
+        e.preventDefault();
+        void window.api.openExternal(href);
+      }}
+      className="inline-flex items-center gap-1.5 text-aux text-primary transition-colors hover:text-primary-bright"
+    >
+      <Icon name="arrow-up-right" size={12} />
+      {label}
+    </a>
   );
 }
 
