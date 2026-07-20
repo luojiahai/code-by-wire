@@ -12,8 +12,8 @@ import {
   filterSessions,
   groupSessionsByProject,
   partitionProjectGroups,
-  visibleProjectGroups,
-  toggleVisibleProjectGroups,
+  projectGroupsForCollapse,
+  toggleProjectGroups,
   pinnedSessions,
 } from "./session-list-model";
 import { SessionRow } from "./SessionRow";
@@ -116,11 +116,15 @@ export function LeftSidebar({
     others: otherProjects,
     hidden: hiddenProjects,
   } = partitionProjectGroups(groups, projectState);
-  const visibleGroups = visibleProjectGroups(pinnedProjects, otherProjects);
+  const collapsibleGroups = projectGroupsForCollapse(
+    pinnedProjects,
+    otherProjects,
+    hiddenProjects,
+  );
   const hiddenCount = hiddenProjects.length;
   const allCollapsed =
-    visibleGroups.length > 0 &&
-    visibleGroups.every((g) => collapsed.has(g.key));
+    collapsibleGroups.length > 0 &&
+    collapsibleGroups.every((g) => collapsed.has(g.key));
   const toggleGroup = (key: string) => {
     const expanding = collapsed.has(key);
     setCollapsed((prev) => {
@@ -467,9 +471,8 @@ export function LeftSidebar({
                   type="button"
                   onClick={() => {
                     // Expand-all is NOT a manual expand: empty folders open silently, no empty-state line.
-                    // Hidden owns a separate disclosure, so preserve its per-folder collapse state.
                     setCollapsed((current) =>
-                      toggleVisibleProjectGroups(current, visibleGroups),
+                      toggleProjectGroups(current, collapsibleGroups),
                     );
                     if (!allCollapsed) {
                       setManuallyExpanded(new Set());

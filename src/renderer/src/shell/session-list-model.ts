@@ -116,23 +116,25 @@ export function partitionProjectGroups(
   return { pinned, others, hidden };
 }
 
-/** Groups controlled by the Sessions header. Hidden is a separate disclosure and must never
- * influence the visible list's collapse-all state, even while that disclosure is expanded. */
-export function visibleProjectGroups(
+/** Every project group controlled by the Sessions header's expand/collapse-all button. Hidden
+ * groups participate even while their separate disclosure is closed, so opening it later reveals
+ * the same global collapse state as pinned and ordinary groups. */
+export function projectGroupsForCollapse(
   pinned: SessionGroup[],
   others: SessionGroup[],
+  hidden: SessionGroup[],
 ): SessionGroup[] {
-  return [...pinned, ...others];
+  return [...pinned, ...others, ...hidden];
 }
 
-export function toggleVisibleProjectGroups(
+export function toggleProjectGroups(
   collapsed: ReadonlySet<string>,
-  visible: SessionGroup[],
+  groups: SessionGroup[],
 ): ReadonlySet<string> {
   const next = new Set(collapsed);
   const allCollapsed =
-    visible.length > 0 && visible.every((group) => collapsed.has(group.key));
-  for (const group of visible) {
+    groups.length > 0 && groups.every((group) => collapsed.has(group.key));
+  for (const group of groups) {
     if (allCollapsed) next.delete(group.key);
     else next.add(group.key);
   }

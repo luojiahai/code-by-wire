@@ -4,8 +4,8 @@ import {
   groupSessionsByProject,
   parentHint,
   ungroupedLabel,
-  visibleProjectGroups,
-  toggleVisibleProjectGroups,
+  projectGroupsForCollapse,
+  toggleProjectGroups,
 } from "../../src/renderer/src/shell/session-list-model";
 
 let seq = 0;
@@ -135,8 +135,8 @@ describe("parentHint", () => {
   });
 });
 
-describe("visibleProjectGroups", () => {
-  it("excludes hidden groups from Sessions collapse state even when Hidden is expanded", () => {
+describe("projectGroupsForCollapse", () => {
+  it("includes pinned, ordinary, and hidden groups", () => {
     const pinned = [{ key: "/pinned" }] as ReturnType<
       typeof groupSessionsByProject
     >;
@@ -147,24 +147,27 @@ describe("visibleProjectGroups", () => {
       typeof groupSessionsByProject
     >;
 
-    expect(visibleProjectGroups(pinned, ordinary)).toEqual([
+    expect(projectGroupsForCollapse(pinned, ordinary, hidden)).toEqual([
       ...pinned,
       ...ordinary,
+      ...hidden,
     ]);
-    expect(visibleProjectGroups(pinned, ordinary)).not.toContain(hidden[0]);
   });
 
-  it("preserves invisible hidden collapse state while toggling visible groups", () => {
+  it("toggles visible and hidden project groups together", () => {
     const visible = [{ key: "/visible" }] as ReturnType<
       typeof groupSessionsByProject
     >;
-    const collapsed = new Set(["/visible", "/hidden"]);
+    const hidden = [{ key: "/hidden" }] as ReturnType<
+      typeof groupSessionsByProject
+    >;
+    const groups = projectGroupsForCollapse([], visible, hidden);
 
-    expect(toggleVisibleProjectGroups(collapsed, visible)).toEqual(
-      new Set(["/hidden"]),
+    expect(toggleProjectGroups(new Set(), groups)).toEqual(
+      new Set(["/visible", "/hidden"]),
     );
-    expect(toggleVisibleProjectGroups(new Set(["/hidden"]), visible)).toEqual(
-      new Set(["/hidden", "/visible"]),
-    );
+    expect(
+      toggleProjectGroups(new Set(["/visible", "/hidden"]), groups),
+    ).toEqual(new Set());
   });
 });
