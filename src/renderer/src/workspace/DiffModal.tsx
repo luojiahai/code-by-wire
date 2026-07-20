@@ -49,25 +49,23 @@ export function DiffModal({
             {st.char} {st.label}
           </span>
         </div>
-        <div className="mt-2 flex items-start gap-2 rounded-md border border-ink-800 bg-well px-3 py-1.5 font-mono text-aux">
+        <div className="mt-2 flex items-start gap-2 rounded-md border border-ink-800 bg-well px-3 py-2 font-mono text-aux">
           <Icon
             name="folder"
             size={12}
             className="mt-0.5 shrink-0 text-fg-faint"
           />
-          <span className="min-w-0 flex-1 break-all leading-relaxed">
+          <span className="min-w-0 break-all leading-relaxed">
             <span className="text-fg-faint">{file.dir}</span>
             <span className="text-fg">{file.name}</span>
           </span>
-          <span className="mt-0.5 shrink-0 text-meta">
-            <span className="text-ok">+{diff.hunk.added.length}</span>{" "}
-            <span className="text-danger">−{diff.hunk.removed.length}</span>
-          </span>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
           <button
             type="button"
             onClick={pathCopy.copy}
             className={cx(
-              "mt-0.5 shrink-0 rounded-sm border px-2 py-0.5 text-label transition-colors",
+              "rounded-sm border px-2 py-0.5 text-label transition-colors",
               pathCopy.copied
                 ? "border-ink-600 text-fg"
                 : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
@@ -75,6 +73,10 @@ export function DiffModal({
           >
             {pathCopy.copied ? t.common.copied : t.modals.diff.copyPath}
           </button>
+          <div className="ml-auto font-mono text-meta">
+            <span className="text-ok">+{diff.hunk.added.length}</span>{" "}
+            <span className="text-danger">−{diff.hunk.removed.length}</span>
+          </div>
         </div>
       </div>
 
