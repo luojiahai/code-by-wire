@@ -84,6 +84,7 @@ export function ToolResultModal({
     >
       <div
         id="tool-result-title"
+        data-selectable-text="false"
         className="mb-3 flex items-center gap-2 text-aux"
       >
         <Icon
@@ -130,7 +131,10 @@ export function ToolResultModal({
         </button>
       </div>
 
-      <div className="mb-1 mt-4 text-label uppercase tracking-wider text-fg-faint">
+      <div
+        data-selectable-text="false"
+        className="mb-1 mt-4 text-label uppercase tracking-wider text-fg-faint"
+      >
         {t.modals.detail.output}
       </div>
       <OverlayScroll

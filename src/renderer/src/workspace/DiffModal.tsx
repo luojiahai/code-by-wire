@@ -37,7 +37,10 @@ export function DiffModal({
       onClose={onClose}
     >
       <div id="diff-title" className="mb-3 max-h-[30vh] overflow-y-auto">
-        <div className="flex items-center gap-2 text-aux">
+        <div
+          data-selectable-text="false"
+          className="flex items-center gap-2 text-aux"
+        >
           <Icon
             name={toolIcon(diff.tool)}
             size={14}
@@ -73,7 +76,10 @@ export function DiffModal({
           >
             {pathCopy.copied ? t.common.copied : t.modals.diff.copyPath}
           </button>
-          <div className="ml-auto font-mono text-meta">
+          <div
+            data-selectable-text="false"
+            className="ml-auto font-mono text-meta"
+          >
             <span className="text-ok">+{diff.hunk.added.length}</span>{" "}
             <span className="text-danger">−{diff.hunk.removed.length}</span>
           </div>
