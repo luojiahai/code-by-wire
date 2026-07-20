@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.42] - 2026-07-20
+
+### Fixed
+
+- Links now always open in the OS default browser instead of a bare
+  Electron window: main installs a `setWindowOpenHandler` + `will-navigate`
+  guard covering any link (not just the two CLI docs links, which also
+  switched to the app's `openExternal` pattern), and real OSC 8 terminal
+  hyperlinks (e.g. a PR link a CLI prints) now route through the same path
+  instead of silently doing nothing. Settings → System's Claude Code and
+  Codex CLI cards no longer print install/upgrade/login commands in the
+  fault band, just the status detail and a docs link, so instructions come
+  from the docs site instead of a possibly stale in-app copy.
+- The sidebar's Hidden projects section now always renders (with a "No
+  hidden projects." empty state) instead of disappearing when empty, and
+  its row indentation now matches the Sessions section.
+
 ## [0.1.41] - 2026-07-20
 
 ### Added
@@ -1016,7 +1033,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.41...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.42...HEAD
+[0.1.42]: https://github.com/luojiahai/code-by-wire/compare/v0.1.41...v0.1.42
 [0.1.41]: https://github.com/luojiahai/code-by-wire/compare/v0.1.40...v0.1.41
 [0.1.40]: https://github.com/luojiahai/code-by-wire/compare/v0.1.39...v0.1.40
 [0.1.39]: https://github.com/luojiahai/code-by-wire/compare/v0.1.38...v0.1.39

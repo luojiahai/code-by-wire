@@ -1,7 +1,7 @@
 {
   "name": "code-by-wire",
   "private": true,
-  "version": "0.1.41",
+  "version": "0.1.42",
   "description": "Pilot coding agents (Claude Code, Codex) and monitor their telemetry from one cockpit.",
   "author": "luojiahai",
   "license": "MIT",
