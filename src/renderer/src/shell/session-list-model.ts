@@ -116,6 +116,29 @@ export function partitionProjectGroups(
   return { pinned, others, hidden };
 }
 
+/** Groups controlled by the Sessions header. Hidden is a separate disclosure and must never
+ * influence the visible list's collapse-all state, even while that disclosure is expanded. */
+export function visibleProjectGroups(
+  pinned: SessionGroup[],
+  others: SessionGroup[],
+): SessionGroup[] {
+  return [...pinned, ...others];
+}
+
+export function toggleVisibleProjectGroups(
+  collapsed: ReadonlySet<string>,
+  visible: SessionGroup[],
+): ReadonlySet<string> {
+  const next = new Set(collapsed);
+  const allCollapsed =
+    visible.length > 0 && visible.every((group) => collapsed.has(group.key));
+  for (const group of visible) {
+    if (allCollapsed) next.delete(group.key);
+    else next.add(group.key);
+  }
+  return next;
+}
+
 /** The parent directory of `cwd`, with a leading homeDir abbreviated to `~`:
  *  "/Users/x/a/test" → "~/a". Absolute when outside home; raw parent when homeDir is unknown.
  *  Pure string math on posix separators (the app targets macOS chrome). */

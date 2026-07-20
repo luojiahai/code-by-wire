@@ -574,9 +574,7 @@ export function App() {
             onEnd={endSession}
             onRename={(id, title) => void renameSession(id, title)}
             onTogglePin={(id, pinned) => void togglePinSession(id, pinned)}
-            onSetProjectPlacement={(key, placement) =>
-              void setProjectPlacement(key, placement)
-            }
+            onSetProjectPlacement={setProjectPlacement}
             updatePending={updatePending}
             route={route}
             onRoute={setSelectedId}

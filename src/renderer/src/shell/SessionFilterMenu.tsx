@@ -55,6 +55,21 @@ export function SessionFilterMenu({
       </fieldset>
 
       <div className="my-1 border-t border-(--ui-stroke-tertiary)" />
+      <label className={itemClass}>
+        <input
+          type="checkbox"
+          checked={preferences.showAgentIcons}
+          onChange={(event) =>
+            onChange({
+              ...preferences,
+              showAgentIcons: event.currentTarget.checked,
+            })
+          }
+        />
+        {t.shell.sidebar.showAgentIcons}
+      </label>
+
+      <div className="my-1 border-t border-(--ui-stroke-tertiary)" />
       <fieldset className="m-0 border-0 p-0">
         <legend className="px-2 pb-1 pt-0.5 text-[0.6875rem] font-medium text-(--ui-text-quaternary)">
           {t.shell.sidebar.agentGroup}
@@ -83,21 +98,6 @@ export function SessionFilterMenu({
           </label>
         ))}
       </fieldset>
-
-      <div className="my-1 border-t border-(--ui-stroke-tertiary)" />
-      <label className={itemClass}>
-        <input
-          type="checkbox"
-          checked={preferences.showAgentIcons}
-          onChange={(event) =>
-            onChange({
-              ...preferences,
-              showAgentIcons: event.currentTarget.checked,
-            })
-          }
-        />
-        {t.shell.sidebar.showAgentIcons}
-      </label>
     </div>
   );
 }

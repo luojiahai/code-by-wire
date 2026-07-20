@@ -4,6 +4,8 @@ import {
   groupSessionsByProject,
   parentHint,
   ungroupedLabel,
+  visibleProjectGroups,
+  toggleVisibleProjectGroups,
 } from "../../src/renderer/src/shell/session-list-model";
 
 let seq = 0;
@@ -130,5 +132,39 @@ describe("parentHint", () => {
   });
   it("degrades to the raw parent when homeDir is unknown", () => {
     expect(parentHint("/Users/x/a/test", "")).toBe("/Users/x/a");
+  });
+});
+
+describe("visibleProjectGroups", () => {
+  it("excludes hidden groups from Sessions collapse state even when Hidden is expanded", () => {
+    const pinned = [{ key: "/pinned" }] as ReturnType<
+      typeof groupSessionsByProject
+    >;
+    const ordinary = [{ key: "/ordinary" }] as ReturnType<
+      typeof groupSessionsByProject
+    >;
+    const hidden = [{ key: "/hidden" }] as ReturnType<
+      typeof groupSessionsByProject
+    >;
+
+    expect(visibleProjectGroups(pinned, ordinary)).toEqual([
+      ...pinned,
+      ...ordinary,
+    ]);
+    expect(visibleProjectGroups(pinned, ordinary)).not.toContain(hidden[0]);
+  });
+
+  it("preserves invisible hidden collapse state while toggling visible groups", () => {
+    const visible = [{ key: "/visible" }] as ReturnType<
+      typeof groupSessionsByProject
+    >;
+    const collapsed = new Set(["/visible", "/hidden"]);
+
+    expect(toggleVisibleProjectGroups(collapsed, visible)).toEqual(
+      new Set(["/hidden"]),
+    );
+    expect(toggleVisibleProjectGroups(new Set(["/hidden"]), visible)).toEqual(
+      new Set(["/hidden", "/visible"]),
+    );
   });
 });

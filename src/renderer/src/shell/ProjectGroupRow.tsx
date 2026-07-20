@@ -5,6 +5,7 @@ import type { ProjectPlacement } from "@shared/ipc";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { placeProjectMenu, PROJECT_MENU_WIDTH } from "./project-menu-position";
+import { runProjectPlacementAction } from "./project-placement-action";
 
 export function ProjectGroupRow({
   group,
@@ -41,7 +42,7 @@ export function ProjectGroupRow({
   copyPathLabel: string;
   onToggle: () => void;
   onQuickAdd: (button: HTMLButtonElement) => void;
-  onSetPlacement: (placement: ProjectPlacement) => void;
+  onSetPlacement: (placement: ProjectPlacement) => Promise<void>;
 }) {
   const cwd = group.cwd;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -50,6 +51,21 @@ export function ProjectGroupRow({
   );
   const menuRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const placementPendingRef = useRef(false);
+  const [placementPending, setPlacementPending] = useState(false);
+  const setPlacement = async (placement: ProjectPlacement) => {
+    if (placementPendingRef.current) return;
+    placementPendingRef.current = true;
+    setPlacementPending(true);
+    try {
+      await runProjectPlacementAction(onSetPlacement, placement, () =>
+        setMenuOpen(false),
+      );
+    } finally {
+      placementPendingRef.current = false;
+      setPlacementPending(false);
+    }
+  };
   const placeMenu = useCallback(() => {
     const trigger = menuTriggerRef.current?.getBoundingClientRect();
     if (!trigger) return;
@@ -173,12 +189,12 @@ export function ProjectGroupRow({
                   <button
                     type="button"
                     role="menuitem"
+                    disabled={placementPending}
                     onClick={(event) => {
                       event.stopPropagation();
-                      onSetPlacement("ordinary");
-                      setMenuOpen(false);
+                      void setPlacement("ordinary").catch(() => undefined);
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
+                    className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Icon name="eye-off" size={12} />
                     {unhideLabel}
@@ -188,14 +204,14 @@ export function ProjectGroupRow({
                     <button
                       type="button"
                       role="menuitem"
+                      disabled={placementPending}
                       onClick={(event) => {
                         event.stopPropagation();
-                        onSetPlacement(
+                        void setPlacement(
                           placement === "pinned" ? "ordinary" : "pinned",
-                        );
-                        setMenuOpen(false);
+                        ).catch(() => undefined);
                       }}
-                      className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
+                      className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Icon
                         name={placement === "pinned" ? "pin-off" : "pin"}
@@ -206,12 +222,12 @@ export function ProjectGroupRow({
                     <button
                       type="button"
                       role="menuitem"
+                      disabled={placementPending}
                       onClick={(event) => {
                         event.stopPropagation();
-                        onSetPlacement("hidden");
-                        setMenuOpen(false);
+                        void setPlacement("hidden").catch(() => undefined);
                       }}
-                      className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
+                      className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Icon name="eye-off" size={12} />
                       {hideLabel}

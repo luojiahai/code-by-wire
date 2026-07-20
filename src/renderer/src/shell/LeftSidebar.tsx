@@ -12,6 +12,8 @@ import {
   filterSessions,
   groupSessionsByProject,
   partitionProjectGroups,
+  visibleProjectGroups,
+  toggleVisibleProjectGroups,
   pinnedSessions,
 } from "./session-list-model";
 import { SessionRow } from "./SessionRow";
@@ -72,7 +74,10 @@ export function LeftSidebar({
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
-  onSetProjectPlacement: (key: string, placement: ProjectPlacement) => void;
+  onSetProjectPlacement: (
+    key: string,
+    placement: ProjectPlacement,
+  ) => Promise<void>;
   /** True while a software update is pending (available/downloading/downloaded) —
    *  badges the Settings gear (design spec 2026-07-09-update-dot). */
   updatePending: boolean;
@@ -110,12 +115,14 @@ export function LeftSidebar({
     others: otherProjects,
     hidden: hiddenProjects,
   } = partitionProjectGroups(groups, projectState);
+  const visibleGroups = visibleProjectGroups(pinnedProjects, otherProjects);
   const hiddenCount = partitionProjectGroups(
     groupSessionsByProject(sessions, homeDir),
     projectState,
   ).hidden.length;
   const allCollapsed =
-    groups.length > 0 && groups.every((g) => collapsed.has(g.key));
+    visibleGroups.length > 0 &&
+    visibleGroups.every((g) => collapsed.has(g.key));
   const toggleGroup = (key: string) => {
     const expanding = collapsed.has(key);
     setCollapsed((prev) => {
@@ -431,11 +438,12 @@ export function LeftSidebar({
                 <button
                   type="button"
                   onClick={() => {
-                    if (allCollapsed) {
-                      // Expand-all is NOT a manual expand: empty folders open silently, no empty-state line.
-                      setCollapsed(new Set());
-                    } else {
-                      setCollapsed(new Set(groups.map((g) => g.key)));
+                    // Expand-all is NOT a manual expand: empty folders open silently, no empty-state line.
+                    // Hidden owns a separate disclosure, so preserve its per-folder collapse state.
+                    setCollapsed((current) =>
+                      toggleVisibleProjectGroups(current, visibleGroups),
+                    );
+                    if (!allCollapsed) {
                       setManuallyExpanded(new Set());
                     }
                   }}

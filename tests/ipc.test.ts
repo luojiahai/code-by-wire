@@ -510,6 +510,53 @@ describe("registerIpc setSessionPinned", () => {
 });
 
 describe("registerIpc setProjectPlacement", () => {
+  it("returns hidden, pinned, and unhidden state with mutual exclusion", async () => {
+    const db = openTestDb();
+    migrate(db);
+    let clock = 100;
+    const projectState: Record<
+      string,
+      { pinnedAtMs?: number; hiddenAtMs?: number }
+    > = {};
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      projectState: {
+        read: () => ({ ...projectState }),
+        setPlacement: (key, placement) => {
+          if (placement === "ordinary") delete projectState[key];
+          else
+            projectState[key] =
+              placement === "pinned"
+                ? { pinnedAtMs: ++clock }
+                : { hiddenAtMs: ++clock };
+        },
+      },
+    });
+
+    const hidden = (await handlers.get(IPC.setProjectPlacement)!(
+      {},
+      "/repo",
+      "hidden",
+    )) as OverviewData;
+    expect(hidden.projectState["/repo"]).toEqual({ hiddenAtMs: 101 });
+
+    const pinned = (await handlers.get(IPC.setProjectPlacement)!(
+      {},
+      "/repo",
+      "pinned",
+    )) as OverviewData;
+    expect(pinned.projectState["/repo"]).toEqual({ pinnedAtMs: 102 });
+    expect(pinned.projectState["/repo"].hiddenAtMs).toBeUndefined();
+
+    const unhidden = (await handlers.get(IPC.setProjectPlacement)!(
+      {},
+      "/repo",
+      "ordinary",
+    )) as OverviewData;
+    expect(unhidden.projectState["/repo"]).toBeUndefined();
+  });
+
   it("includes project pins in overview and returns each persisted toggle", async () => {
     const db = openTestDb();
     migrate(db);
