@@ -2,11 +2,15 @@ export interface SelectOptionState {
   disabled?: boolean;
 }
 
-export function firstEnabledIndex(options: readonly SelectOptionState[]): number {
+export function firstEnabledIndex(
+  options: readonly SelectOptionState[],
+): number {
   return options.findIndex((option) => !option.disabled);
 }
 
-export function lastEnabledIndex(options: readonly SelectOptionState[]): number {
+export function lastEnabledIndex(
+  options: readonly SelectOptionState[],
+): number {
   for (let index = options.length - 1; index >= 0; index -= 1) {
     if (!options[index].disabled) return index;
   }
@@ -17,7 +21,9 @@ export function selectedOrFirstEnabledIndex(
   options: readonly SelectOptionState[],
   selectedIndex: number,
 ): number {
-  return selectedIndex >= 0 && !options[selectedIndex]?.disabled
+  return selectedIndex >= 0 &&
+    selectedIndex < options.length &&
+    !options[selectedIndex].disabled
     ? selectedIndex
     : firstEnabledIndex(options);
 }

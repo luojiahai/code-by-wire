@@ -26,6 +26,11 @@ describe("custom select navigation", () => {
     expect(selectedOrFirstEnabledIndex(options, -1)).toBe(1);
   });
 
+  it("reconciles an out-of-range active index after options change", () => {
+    expect(selectedOrFirstEnabledIndex([{}, { disabled: true }], 3)).toBe(0);
+    expect(selectedOrFirstEnabledIndex([], 3)).toBe(-1);
+  });
+
   it("moves through enabled options and wraps", () => {
     expect(moveEnabledIndex(options, 1, 1)).toBe(3);
     expect(moveEnabledIndex(options, 3, 1)).toBe(1);
