@@ -7,7 +7,7 @@ import { Icon } from "../ui/icons";
 import { AgentIcon } from "../ui/agent-icons";
 import { useI18n } from "../i18n";
 import {
-  filterGroupsActive,
+  filterGroups,
   filterSessions,
   groupSessionsByProject,
   pinnedSessions,
@@ -18,17 +18,12 @@ import { OVERVIEW_ID } from "../stats/sentinel";
 import { SETTINGS_ID } from "../settings/sentinel";
 import { SidebarPanelLabel } from "./SidebarPanelLabel";
 import { OverlayScroll } from "../ui/OverlayScroll";
-
-const ACTIVE_ONLY_KEY = "cbw.sessionsActiveOnly.v1";
-
-/** Reads the persisted active-only flag; missing, malformed, or unreadable → false. */
-function loadActiveOnly(): boolean {
-  try {
-    return window.localStorage.getItem(ACTIVE_ONLY_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
+import {
+  loadSessionsListPreferences,
+  saveSessionsListPreferences,
+  type SessionsListPreferences,
+} from "./session-list-preferences";
+import { SessionFilterMenu } from "./SessionFilterMenu";
 
 /**
  * The left sidebar's content (design spec §4): an empty draggable top strip — the traffic lights
@@ -88,25 +83,24 @@ export function LeftSidebar({
   const [manuallyExpanded, setManuallyExpanded] = useState<ReadonlySet<string>>(
     new Set(),
   );
-  const [activeOnly, setActiveOnly] = useState(loadActiveOnly);
+  const [preferences, setPreferences] = useState(() =>
+    loadSessionsListPreferences(window.localStorage),
+  );
+  const updatePreferences = (next: SessionsListPreferences) => {
+    setPreferences(next);
+    saveSessionsListPreferences(window.localStorage, next);
+  };
+  const filterActive =
+    preferences.visibility === "active" || preferences.agent !== "all";
   const searched = filterSessions(sessions, query);
   const pinned = pinnedSessions(searched);
   // Search decides which folders exist; the active filter then narrows rows INSIDE the groups so
   // a folder with only ended sessions still renders (2026-07-17 spec §3). Grouping before the
   // filter also keeps folder order derived from all matched sessions — toggling never reshuffles.
   const allGroups = groupSessionsByProject(searched, homeDir);
-  const groups = activeOnly ? filterGroupsActive(allGroups) : allGroups;
+  const groups = filterGroups(allGroups, preferences);
   const allCollapsed =
     groups.length > 0 && groups.every((g) => collapsed.has(g.key));
-  const toggleActiveOnly = () => {
-    const next = !activeOnly;
-    try {
-      window.localStorage.setItem(ACTIVE_ONLY_KEY, String(next));
-    } catch {
-      // Storage failures are nonfatal — the toggle still works for this run.
-    }
-    setActiveOnly(next);
-  };
   const toggleGroup = (key: string) => {
     const expanding = collapsed.has(key);
     setCollapsed((prev) => {
@@ -154,6 +148,12 @@ export function LeftSidebar({
     top: number;
   } | null>(null);
   const agentMenuRef = useRef<HTMLDivElement>(null);
+  const filterTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  const [filterMenu, setFilterMenu] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!agentMenu) return;
@@ -170,6 +170,28 @@ export function LeftSidebar({
       document.removeEventListener("keydown", onKey);
     };
   }, [agentMenu]);
+
+  useEffect(() => {
+    if (!filterMenu) return;
+    function onDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        !filterMenuRef.current?.contains(target) &&
+        !filterTriggerRef.current?.contains(target)
+      ) {
+        setFilterMenu(null);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setFilterMenu(null);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [filterMenu]);
   // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn.
   const anySpawnable = AGENT_IDS.some((a) => canSpawnFor(a));
 
@@ -346,17 +368,28 @@ export function LeftSidebar({
                   />
                 </button>
                 <button
+                  ref={filterTriggerRef}
                   type="button"
-                  onClick={toggleActiveOnly}
-                  aria-pressed={activeOnly}
-                  title={
-                    activeOnly
-                      ? t.shell.sidebar.showAllSessions
-                      : t.shell.sidebar.showActiveOnly
-                  }
+                  onClick={() => {
+                    const trigger = filterTriggerRef.current;
+                    if (!trigger || filterMenu) {
+                      setFilterMenu(null);
+                      return;
+                    }
+                    const rect = trigger.getBoundingClientRect();
+                    setFilterMenu({
+                      left: Math.max(8, rect.right - 192),
+                      top: rect.bottom + 6,
+                    });
+                  }}
+                  aria-pressed={filterActive}
+                  aria-expanded={filterMenu !== null}
+                  aria-haspopup="menu"
+                  aria-label={t.shell.sidebar.filterMenuLabel}
+                  title={t.shell.sidebar.filterMenuLabel}
                   className={cx(
                     "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
-                    activeOnly
+                    filterActive
                       ? "border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-fg"
                       : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
                   )}
@@ -368,8 +401,8 @@ export function LeftSidebar({
             <div className="px-2.5">
               {groups.length === 0 ? (
                 <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
-                  {activeOnly && sessions.length > 0
-                    ? t.shell.sidebar.noActiveSessions
+                  {filterActive && sessions.length > 0
+                    ? t.shell.sidebar.noMatchingSessions
                     : t.shell.sidebar.noSessionsYet}
                 </p>
               ) : (
@@ -473,7 +506,9 @@ export function LeftSidebar({
                           (g.sessions.length === 0 ? (
                             manuallyExpanded.has(g.key) && (
                               <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
-                                {t.shell.sidebar.noActiveSessions}
+                                {preferences.agent !== "all"
+                                  ? t.shell.sidebar.noMatchingSessions
+                                  : t.shell.sidebar.noActiveSessions}
                               </p>
                             )
                           ) : (
@@ -490,6 +525,7 @@ export function LeftSidebar({
                                   onEnd={onEnd}
                                   onRename={onRename}
                                   onTogglePin={onTogglePin}
+                                  showAgentIcon={preferences.showAgentIcons}
                                 />
                               ))}
                             </div>
@@ -541,6 +577,24 @@ export function LeftSidebar({
                 {AGENTS[a].label}
               </button>
             ))}
+          </div>,
+          document.body,
+        )}
+      {filterMenu &&
+        createPortal(
+          <div
+            ref={filterMenuRef}
+            style={{
+              position: "fixed",
+              left: filterMenu.left,
+              top: filterMenu.top,
+            }}
+          >
+            <SessionFilterMenu
+              preferences={preferences}
+              onChange={updatePreferences}
+              onClose={() => setFilterMenu(null)}
+            />
           </div>,
           document.body,
         )}

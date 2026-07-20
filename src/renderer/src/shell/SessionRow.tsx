@@ -31,6 +31,7 @@ export function SessionRow({
   onEnd,
   onRename,
   onTogglePin,
+  showAgentIcon = true,
 }: {
   session: Session;
   selected: boolean;
@@ -41,6 +42,7 @@ export function SessionRow({
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
+  showAgentIcon?: boolean;
 }) {
   const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
@@ -122,12 +124,14 @@ export function SessionRow({
             <span className="truncate">{session.worktree.name}</span>
           </span>
         )}
-        <span
-          className="grid size-3.5 shrink-0 place-items-center"
-          title={AGENTS[session.agent].label}
-        >
-          <AgentIcon agent={session.agent} size={13} />
-        </span>
+        {showAgentIcon && (
+          <span
+            className="grid size-3.5 shrink-0 place-items-center"
+            title={AGENTS[session.agent].label}
+          >
+            <AgentIcon agent={session.agent} size={13} />
+          </span>
+        )}
       </button>
       <div
         ref={menu.rootRef}
