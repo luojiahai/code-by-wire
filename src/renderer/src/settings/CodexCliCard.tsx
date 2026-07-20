@@ -8,6 +8,7 @@ import {
   ReadoutRow,
   FaultBand,
   RailButton,
+  DocsLink,
   type LampTone,
 } from "./system-primitives";
 
@@ -58,24 +59,10 @@ export function CodexCliCard({
       />
       {status && status.kind !== "ready" && (
         <FaultBand headline={t.settings.codexCli.notInstalledHeadline}>
-          <div className="flex flex-col gap-1.5">
-            <div>
-              {t.settings.codexCli.installHint}{" "}
-              <code className="font-mono">npm i -g @openai/codex</code>
-              {", "}
-              {t.settings.codexCli.loginHint}{" "}
-              <code className="font-mono">codex login</code>.
-            </div>
-            <a
-              href="https://developers.openai.com/codex/cli"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-aux text-primary transition-colors hover:text-primary-bright"
-            >
-              <Icon name="arrow-up-right" size={12} />
-              {t.settings.codexCli.docs}
-            </a>
-          </div>
+          <DocsLink
+            href="https://developers.openai.com/codex/cli"
+            label={t.settings.codexCli.docs}
+          />
         </FaultBand>
       )}
       <ReadoutRow

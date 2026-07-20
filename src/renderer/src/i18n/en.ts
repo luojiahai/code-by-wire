@@ -72,16 +72,7 @@ export const en = {
       headlineNotFound: "Not found",
       detailReady: "Up to date and ready.",
       detailFallback: "Action needed.",
-      installNativeLabel: "Native installer",
-      installNativeNote:
-        "Installs to ~/.local/bin/claude — make sure ~/.local/bin is on your PATH.",
-      loginBefore:
-        "Start a session (the terminal prompts you to log in), or run",
-      loginAfter: "in your shell.",
-      verifyBefore: "Run",
-      verifyAfter: "in a terminal to check it works.",
       installDocs: "Install docs",
-      copyAction: "copy",
       unavailableReason:
         "Claude Code CLI isn't usable — see Sys status in the title bar.",
       // Per-agent form: the title-bar Sys lamp only ever reflects Claude's status (see
@@ -94,8 +85,6 @@ export const en = {
     codexCli: {
       title: "Codex CLI",
       notInstalledHeadline: "NOT DETECTED",
-      installHint: "Install with",
-      loginHint: "then sign in with",
       docs: "Codex docs",
     },
     statusline: {

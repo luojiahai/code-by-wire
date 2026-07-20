@@ -4,8 +4,10 @@ import {
   nativeTheme,
   net,
   powerSaveBlocker,
+  shell,
 } from "electron";
 import { applyLegacyDockIconIfNeeded } from "./dock-icon";
+import { isHttpUrl } from "./open-external";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { openDb } from "./db/sqlite";
@@ -102,6 +104,26 @@ function createWindow(
     },
   });
   if (isMac) win.setSheetOffset(HEADER_HEIGHT_PX);
+
+  // No in-app browser, anywhere: this app has no setWindowOpenHandler by default, so anything that
+  // would otherwise spawn a new window (a stray target="_blank", a future window.open()) falls
+  // through to Electron's default action — a bare, chromeless BrowserWindow inside the app (see the
+  // comment in xterm/web-links.ts, which routes around this the hard way). Deny every new-window
+  // request outright and hand http(s) targets to the OS default browser instead, same guard the
+  // shell:openExternal IPC handler uses (ipc.ts).
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isHttpUrl(url)) void shell.openExternal(url);
+    return { action: "deny" };
+  });
+  // Belt-and-suspenders: the app is a single-page renderer that never legitimately navigates itself
+  // to a new document (only in-page routing) — a top-level "will-navigate" means some link or
+  // redirect skipped the openExternal path. Let the initial load and same-URL reloads through;
+  // deny anything else and, for http(s), forward it to the OS browser.
+  win.webContents.on("will-navigate", (event, url) => {
+    if (url === win.webContents.getURL()) return;
+    event.preventDefault();
+    if (isHttpUrl(url)) void shell.openExternal(url);
+  });
 
   // Let the renderer slide the wordmark into the corner when the traffic lights vacate it: push the
   // window's native fullscreen state on every change, and re-push on each load so a dev reload re-syncs
