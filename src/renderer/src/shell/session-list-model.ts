@@ -89,9 +89,14 @@ export function partitionProjectGroups(
   projectPins: Record<string, number>,
 ): { pinned: SessionGroup[]; others: SessionGroup[] } {
   const pinned = groups
-    .filter((group) => projectPins[group.key] !== undefined)
+    .filter(
+      (group) =>
+        group.cwd !== undefined && projectPins[group.key] !== undefined,
+    )
     .sort((a, b) => projectPins[b.key] - projectPins[a.key]);
-  const others = groups.filter((group) => projectPins[group.key] === undefined);
+  const others = groups.filter(
+    (group) => group.cwd === undefined || projectPins[group.key] === undefined,
+  );
   return { pinned, others };
 }
 

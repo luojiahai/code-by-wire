@@ -10,6 +10,7 @@ import {
   filterGroups,
   filterSessions,
   groupSessionsByProject,
+  partitionProjectGroups,
   pinnedSessions,
 } from "./session-list-model";
 import { SessionRow } from "./SessionRow";
@@ -24,6 +25,7 @@ import {
   type SessionsListPreferences,
 } from "./session-list-preferences";
 import { SessionFilterMenu } from "./SessionFilterMenu";
+import { ProjectGroupRow } from "./ProjectGroupRow";
 
 /**
  * The left sidebar's content (design spec §4): an empty draggable top strip — the traffic lights
@@ -34,6 +36,7 @@ import { SessionFilterMenu } from "./SessionFilterMenu";
 export function LeftSidebar({
   sessions,
   homeDir,
+  projectPins,
   selectedId,
   onSelect,
   onNew,
@@ -44,6 +47,7 @@ export function LeftSidebar({
   onEnd,
   onRename,
   onTogglePin,
+  onToggleProjectPin,
   updatePending,
   route,
   onRoute,
@@ -99,6 +103,8 @@ export function LeftSidebar({
   // filter also keeps folder order derived from all matched sessions — toggling never reshuffles.
   const allGroups = groupSessionsByProject(searched, homeDir);
   const groups = filterGroups(allGroups, preferences);
+  const { pinned: pinnedProjects, others: otherProjects } =
+    partitionProjectGroups(groups, projectPins);
   const allCollapsed =
     groups.length > 0 && groups.every((g) => collapsed.has(g.key));
   const toggleGroup = (key: string) => {
@@ -194,6 +200,72 @@ export function LeftSidebar({
   }, [filterMenu]);
   // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn.
   const anySpawnable = AGENT_IDS.some((a) => canSpawnFor(a));
+
+  const renderProjectGroup = (
+    g: (typeof groups)[number],
+    isPinned: boolean,
+  ) => {
+    const cwd = g.cwd;
+    return (
+      <div key={g.key}>
+        <ProjectGroupRow
+          group={g}
+          collapsed={collapsed.has(g.key)}
+          pinned={isPinned}
+          quickAddDisabled={!anySpawnable}
+          quickAdding={quickAdding.has(g.key)}
+          unavailableReason={t.settings.cli.unavailableReason}
+          newSessionLabel={cwd ? t.shell.sidebar.newSessionIn(cwd) : undefined}
+          pinLabel={t.shell.sidebar.pinProject}
+          unpinLabel={t.shell.sidebar.unpinProject}
+          onToggle={() => toggleGroup(g.key)}
+          onQuickAdd={(button) => {
+            if (!cwd) return;
+            const r = button.getBoundingClientRect();
+            setAgentMenu((cur) =>
+              cur?.key === g.key
+                ? null
+                : {
+                    key: g.key,
+                    cwd,
+                    left: Math.min(r.left, window.innerWidth - 176 - 8),
+                    top: r.bottom + 6,
+                  },
+            );
+          }}
+          onTogglePin={() => onToggleProjectPin(g.key, !isPinned)}
+        />
+        {!collapsed.has(g.key) &&
+          (g.sessions.length === 0 ? (
+            manuallyExpanded.has(g.key) && (
+              <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
+                {preferences.agent !== "all"
+                  ? t.shell.sidebar.noMatchingSessions
+                  : t.shell.sidebar.noActiveSessions}
+              </p>
+            )
+          ) : (
+            <div className="flex flex-col gap-px pb-1">
+              {g.sessions.map((s) => (
+                <SessionRow
+                  key={s.id}
+                  session={s}
+                  selected={s.id === selectedId}
+                  onSelect={() => onSelect(s.id)}
+                  canSpawn={canSpawnFor(s.agent)}
+                  onResume={onResume}
+                  onFork={onFork}
+                  onEnd={onEnd}
+                  onRename={onRename}
+                  onTogglePin={onTogglePin}
+                  showAgentIcon={preferences.showAgentIcons}
+                />
+              ))}
+            </div>
+          ))}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -399,142 +471,25 @@ export function LeftSidebar({
               </div>
             </div>
             <div className="px-2.5">
-              {groups.length === 0 ? (
-                <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
-                  {filterActive && sessions.length > 0
-                    ? t.shell.sidebar.noMatchingSessions
-                    : t.shell.sidebar.noSessionsYet}
-                </p>
-              ) : (
-                <div className="flex flex-col gap-px">
-                  {groups.map((g) => {
-                    const cwd = g.cwd;
-                    return (
-                      <div key={g.key}>
-                        <div className="group/project relative rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none">
-                          <button
-                            type="button"
-                            onClick={() => toggleGroup(g.key)}
-                            aria-expanded={!collapsed.has(g.key)}
-                            // When every agent is down the "+" is pointer-events-none, so a hover over it
-                            // lands here instead — carry its reason so that affordance survives (spec §4).
-                            title={
-                              cwd && !anySpawnable
-                                ? t.settings.cli.unavailableReason
-                                : cwd
-                            }
-                            className="flex min-h-[1.625rem] w-full cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-1 text-left"
-                          >
-                            <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
-                              <Icon
-                                name={
-                                  collapsed.has(g.key)
-                                    ? "folder"
-                                    : "folder-open"
-                                }
-                                size={14}
-                              />
-                            </span>
-                            <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
-                              {g.label}
-                            </span>
-                            {g.hint && (
-                              <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-                                {g.hint}
-                              </span>
-                            )}
-                            <span className="ml-auto grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
-                              <Icon
-                                name="chevron-right"
-                                size={13}
-                                className={cx(
-                                  "transition-transform",
-                                  !collapsed.has(g.key) && "rotate-90",
-                                )}
-                              />
-                            </span>
-                          </button>
-                          {cwd && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                const r =
-                                  e.currentTarget.getBoundingClientRect();
-                                setAgentMenu((cur) =>
-                                  cur?.key === g.key
-                                    ? null
-                                    : {
-                                        key: g.key,
-                                        cwd,
-                                        left: Math.min(
-                                          r.left,
-                                          window.innerWidth - 176 - 8,
-                                        ),
-                                        top: r.bottom + 6,
-                                      },
-                                );
-                              }}
-                              disabled={
-                                AGENT_IDS.every((a) => !canSpawnFor(a)) ||
-                                quickAdding.has(g.key)
-                              }
-                              aria-label={t.shell.sidebar.newSessionIn(cwd)}
-                              title={
-                                anySpawnable
-                                  ? t.shell.sidebar.newSessionIn(cwd)
-                                  : t.settings.cli.unavailableReason
-                              }
-                              className={cx(
-                                "absolute right-5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-opacity duration-100 ease-out focus-visible:opacity-100 group-hover/project:opacity-100",
-                                anySpawnable && !quickAdding.has(g.key)
-                                  ? "cursor-pointer text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
-                                  : !anySpawnable
-                                    ? // No agent usable: pass the click through to the collapse toggle beneath
-                                      // (which carries the reason in its title) so the disabled "+" doesn't
-                                      // dead-zone its ~20px strip.
-                                      "pointer-events-none text-(--ui-text-quaternary)/50"
-                                    : // Quick-add in flight (transient): keep the click inert so it can't
-                                      // re-collapse the group we just expanded for the incoming draft row.
-                                      "cursor-not-allowed text-(--ui-text-quaternary)/50",
-                              )}
-                            >
-                              <Icon name="plus" size={13} />
-                            </button>
-                          )}
-                        </div>
-                        {!collapsed.has(g.key) &&
-                          (g.sessions.length === 0 ? (
-                            manuallyExpanded.has(g.key) && (
-                              <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
-                                {preferences.agent !== "all"
-                                  ? t.shell.sidebar.noMatchingSessions
-                                  : t.shell.sidebar.noActiveSessions}
-                              </p>
-                            )
-                          ) : (
-                            <div className="flex flex-col gap-px pb-1">
-                              {g.sessions.map((s) => (
-                                <SessionRow
-                                  key={s.id}
-                                  session={s}
-                                  selected={s.id === selectedId}
-                                  onSelect={() => onSelect(s.id)}
-                                  canSpawn={canSpawnFor(s.agent)}
-                                  onResume={onResume}
-                                  onFork={onFork}
-                                  onEnd={onEnd}
-                                  onRename={onRename}
-                                  onTogglePin={onTogglePin}
-                                  showAgentIcon={preferences.showAgentIcons}
-                                />
-                              ))}
-                            </div>
-                          ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="flex flex-col gap-px">
+                {pinnedProjects.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-(--ui-text-quaternary)">
+                    {t.shell.sidebar.noPinnedProjects}
+                  </p>
+                ) : (
+                  pinnedProjects.map((g) => renderProjectGroup(g, true))
+                )}
+                <div className="mx-2 my-1 border-t border-sidebar-border" />
+                {groups.length === 0 ? (
+                  <p className="px-2 py-2 text-xs text-(--ui-text-quaternary)">
+                    {filterActive && sessions.length > 0
+                      ? t.shell.sidebar.noMatchingSessions
+                      : t.shell.sidebar.noSessionsYet}
+                  </p>
+                ) : (
+                  otherProjects.map((g) => renderProjectGroup(g, false))
+                )}
+              </div>
             </div>
           </div>
         </OverlayScroll>

@@ -180,6 +180,8 @@ export const zh: Translations = {
       agentGroup: "智能体",
       allAgents: "所有智能体",
       noPinnedProjects: "没有置顶项目。",
+      pinProject: "置顶项目",
+      unpinProject: "取消置顶项目",
       noMatchingSessions: "没有匹配的会话。",
       noActiveSessions: "没有活跃会话。",
       noSessionsYet: "暂无会话。",

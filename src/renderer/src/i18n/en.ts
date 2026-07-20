@@ -207,6 +207,8 @@ export const en = {
       agentGroup: "Agent",
       allAgents: "All agents",
       noPinnedProjects: "No pinned projects.",
+      pinProject: "Pin project",
+      unpinProject: "Unpin project",
       noMatchingSessions: "No matching sessions.",
       noActiveSessions: "No active sessions.",
       noSessionsYet: "No sessions yet.",

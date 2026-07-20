@@ -184,4 +184,26 @@ describe("session list model", () => {
     expect(result.others.map((g) => g.key)).toEqual(["/c", "/d"]);
     expect([...result.pinned, ...result.others]).toHaveLength(groups.length);
   });
+
+  it("partitionProjectGroups only pins groups with a stable cwd", () => {
+    const pathGroup = {
+      key: "/repo",
+      cwd: "/repo",
+      label: "repo",
+      sessions: [mk({ id: "path", cwd: "/repo" })],
+    };
+    const fallbackGroup = {
+      key: "repo",
+      label: "repo",
+      sessions: [mk({ id: "fallback", cwd: undefined })],
+    };
+
+    const result = partitionProjectGroups([pathGroup, fallbackGroup], {
+      "/repo": 100,
+      repo: 200,
+    });
+
+    expect(result.pinned.map((g) => g.key)).toEqual(["/repo"]);
+    expect(result.others.map((g) => g.key)).toEqual(["repo"]);
+  });
 });
