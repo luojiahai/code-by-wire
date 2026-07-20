@@ -62,7 +62,10 @@ export function ProjectGroupRow({
         <div className="mr-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-100 ease-out group-hover/project:opacity-100 group-focus-within/project:opacity-100">
           <button
             type="button"
-            onClick={(event) => onQuickAdd(event.currentTarget)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onQuickAdd(event.currentTarget);
+            }}
             disabled={quickAddDisabled || quickAdding}
             aria-label={newSessionLabel}
             title={quickAddDisabled ? unavailableReason : newSessionLabel}
@@ -77,7 +80,10 @@ export function ProjectGroupRow({
           </button>
           <button
             type="button"
-            onClick={onTogglePin}
+            onClick={(event) => {
+              event.stopPropagation();
+              onTogglePin();
+            }}
             aria-label={pinned ? unpinLabel : pinLabel}
             title={pinned ? unpinLabel : pinLabel}
             className="grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
