@@ -542,32 +542,37 @@ export function LeftSidebar({
               </div>
             </div>
           </div>
-          {hiddenCount > 0 && (
-            <div className="mx-4.5 mt-1 border-t border-sidebar-border pt-1">
-              <button
-                type="button"
-                onClick={() => setHiddenCollapsed((value) => !value)}
-                aria-expanded={!hiddenCollapsed}
-                className="flex h-6 w-full items-center gap-1 rounded-sm text-(--ui-text-quaternary) hover:bg-(--ui-row-hover-background) hover:text-fg"
-              >
-                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.12em]">
-                  {t.shell.sidebar.hiddenLabel}
-                </span>
-                <span className="rounded-full bg-(--ui-control-active-background) px-1.5 text-[0.64rem] tabular-nums">
-                  {hiddenCount}
-                </span>
-                <Icon
-                  name={hiddenCollapsed ? "chevron-right" : "chevron-down"}
-                  size={12}
-                />
-              </button>
-              {!hiddenCollapsed && (
-                <div className="flex flex-col gap-px">
-                  {hiddenProjects.map((g) => renderProjectGroup(g, "hidden"))}
-                </div>
-              )}
-            </div>
-          )}
+          <div className="px-2.5">
+            <div className="mx-2 mt-1 border-t border-sidebar-border" />
+            <button
+              type="button"
+              onClick={() => setHiddenCollapsed((value) => !value)}
+              aria-expanded={!hiddenCollapsed}
+              className="mt-1 flex h-6 w-full items-center gap-1 rounded-sm pl-2 text-(--ui-text-quaternary) hover:bg-(--ui-row-hover-background) hover:text-fg"
+            >
+              <span className="text-[0.64rem] font-semibold uppercase tracking-[0.12em]">
+                {t.shell.sidebar.hiddenLabel}
+              </span>
+              <span className="rounded-full bg-(--ui-control-active-background) px-1.5 text-[0.64rem] tabular-nums">
+                {hiddenCount}
+              </span>
+              <Icon
+                name={hiddenCollapsed ? "chevron-right" : "chevron-down"}
+                size={12}
+              />
+            </button>
+            {!hiddenCollapsed && (
+              <div className="flex flex-col gap-px">
+                {hiddenProjects.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-(--ui-text-quaternary)">
+                    {t.shell.sidebar.noHiddenProjects}
+                  </p>
+                ) : (
+                  hiddenProjects.map((g) => renderProjectGroup(g, "hidden"))
+                )}
+              </div>
+            )}
+          </div>
         </OverlayScroll>
       </div>
       {agentMenu &&
