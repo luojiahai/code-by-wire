@@ -10,14 +10,18 @@ import NarrowLayout from '../layouts/NarrowLayout.astro';
   </p>
   <div class="sponsor-links">
     <a href="https://github.com/sponsors/luojiahai" class="sponsor-card">
-      <span class="sponsor-icon">♥</span>
+      <span class="sponsor-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7.5-4.35-10-9.1C.6 8.7 2.4 5 6 5c2 0 3.3 1 4 2.3C10.7 6 12 5 14 5c3.6 0 5.4 3.7 4 6.9-2.5 4.75-10 9.1-10 9.1z"/></svg>
+      </span>
       <span>
         <strong>GitHub Sponsors</strong>
         <span class="sponsor-desc">Recurring or one-time, through GitHub.</span>
       </span>
     </a>
     <a href="https://buymeacoffee.com/luojiahai" class="sponsor-card">
-      <span class="sponsor-icon">☕</span>
+      <span class="sponsor-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 9.5h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v2"/><path d="M12 3v2"/></svg>
+      </span>
       <span>
         <strong>Buy Me a Coffee</strong>
         <span class="sponsor-desc">A one-off way to say thanks.</span>
@@ -55,7 +59,15 @@ import NarrowLayout from '../layouts/NarrowLayout.astro';
     border-color: var(--border-strong);
   }
   .sponsor-icon {
-    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-dim);
   }
   .sponsor-card strong {
     display: block;

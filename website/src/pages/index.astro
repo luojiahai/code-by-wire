@@ -9,30 +9,36 @@ const features = [
     title: 'Every session in one rail',
     description:
       'Manage every session running on your machine from one rail: grouped by project, searchable, each flagging its live state.',
+    size: 'lg',
   },
   {
     title: 'Drive, fork, or just watch',
     description:
       'Spawn a session in an embedded terminal, fork a live one, resume one you started elsewhere, or observe it read-only.',
+    size: 'md',
   },
   {
     title: 'The full transcript',
     description: 'Every message, tool call, and result, reconstructed from disk and rendered cleanly.',
+    size: 'md',
   },
   {
     title: 'The telemetry the CLI hides',
     description:
       'Context pressure, spend, token throughput, duty cycle, git, tasks, subagents, and background shells, live per session.',
+    size: 'md',
   },
   {
     title: 'The whole story',
     description:
       'A cross-session Stats view with a year-long contributions calendar and exact, never-estimated totals.',
+    size: 'md',
   },
   {
     title: 'Your rate limits in view',
     description:
       "Your account's rate-limit windows, read straight from disk, with live reset countdowns.",
+    size: 'full',
   },
 ];
 ---
@@ -41,18 +47,20 @@ const features = [
   description="One live dashboard for every session: state, full transcript, an embedded terminal, and telemetry."
 >
   <section class="hero">
-    <h1>Pilot coding agents from one <span class="dim">cockpit</span>.</h1>
-    <p class="hero-sub">
+    <h1 class="hero-in" style="animation-delay: 0s">
+      Pilot coding agents from one <span class="dim">cockpit</span>.
+    </h1>
+    <p class="hero-sub hero-in" style="animation-delay: 0.08s">
       One live dashboard for every session: state, full transcript, an embedded terminal, and
       telemetry.
     </p>
-    <div class="hero-ctas">
+    <div class="hero-ctas hero-in" style="animation-delay: 0.16s">
       <a href={`${base}download/`} class="btn-primary">Download</a>
     </div>
   </section>
 
   <section class="screenshot-section">
-    <div class="screenshot-frame">
+    <div class="screenshot-frame" data-reveal>
       <div class="chrome"><span></span><span></span><span></span></div>
       <Image
         src={screenshot}
@@ -71,7 +79,7 @@ const features = [
     <div class="feature-grid">
       {
         features.map((feature) => (
-          <div class="feature">
+          <div class={`feature feature-${feature.size}`} data-reveal>
             <h3>{feature.title}</h3>
             <p>{feature.description}</p>
           </div>
@@ -80,6 +88,32 @@ const features = [
     </div>
   </section>
 </BaseLayout>
+
+<script>
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const targets = document.querySelectorAll('[data-reveal]');
+
+  // Elements are visible by default (see global.css). Only opt into the
+  // hidden pre-reveal state once we're guaranteed to observe them, so a
+  // failed/blocked script never leaves content permanently hidden.
+  if (!reduceMotion && 'IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+    );
+    targets.forEach((el) => {
+      el.classList.add('reveal-armed');
+      observer.observe(el);
+    });
+  }
+</script>
 
 <style>
   .hero {
@@ -120,6 +154,19 @@ const features = [
     padding: 14px 24px;
     border-radius: 8px;
     display: inline-block;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-in {
+      opacity: 0;
+      transform: translateY(12px);
+      animation: hero-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  }
+  @keyframes hero-in {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 </style>
 
@@ -182,15 +229,51 @@ const features = [
     background: var(--bg);
     padding: 32px;
   }
+  .feature-lg,
+  .feature-full {
+    background: var(--bg-raised);
+    box-shadow: inset 0 1px 0 var(--border-strong);
+  }
+  .feature-lg {
+    grid-column: span 2;
+  }
+  .feature-full {
+    grid-column: span 3;
+  }
   .feature h3 {
     font-size: 17px;
     font-weight: 600;
     margin-bottom: 10px;
   }
+  .feature-lg h3,
+  .feature-full h3 {
+    font-size: 19px;
+  }
   .feature p {
     color: var(--text-dim);
     font-size: 14px;
     line-height: 1.6;
+    max-width: 52ch;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .feature-grid > :nth-child(1) {
+      transition-delay: 0s;
+    }
+    .feature-grid > :nth-child(2) {
+      transition-delay: 0.06s;
+    }
+    .feature-grid > :nth-child(3) {
+      transition-delay: 0.12s;
+    }
+    .feature-grid > :nth-child(4) {
+      transition-delay: 0.18s;
+    }
+    .feature-grid > :nth-child(5) {
+      transition-delay: 0.24s;
+    }
+    .feature-grid > :nth-child(6) {
+      transition-delay: 0.3s;
+    }
   }
 </style>
 
@@ -214,6 +297,10 @@ const features = [
     }
     .feature-grid {
       grid-template-columns: 1fr;
+    }
+    .feature-lg,
+    .feature-full {
+      grid-column: span 1;
     }
   }
 </style>

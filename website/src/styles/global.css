@@ -1,6 +1,6 @@
 /* website/src/styles/global.css */
 @import "tailwindcss";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist";
 @import "@fontsource-variable/jetbrains-mono";
 
 * {
@@ -27,8 +27,25 @@ body {
 }
 
 body {
-  font-family: "Inter Variable", system-ui, sans-serif;
+  font-family: "Geist Variable", system-ui, sans-serif;
   line-height: 1.5;
+}
+
+/* [data-reveal] elements are visible by default. JS opts them into the
+   hidden pre-reveal state so a page with JS disabled, or where the reveal
+   script errors, never hides content permanently. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal].reveal-armed {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  [data-reveal].reveal-armed.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 a {
