@@ -34,7 +34,6 @@ export function DiffModal({
     <ModalShell
       labelledBy="diff-title"
       widthClass="w-[44rem] max-w-[92vw]"
-      contentOverflow="hidden"
       onClose={onClose}
     >
       <div id="diff-title" className="mb-3 max-h-[30vh] overflow-y-auto">

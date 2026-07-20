@@ -80,7 +80,6 @@ export function ToolResultModal({
     <ModalShell
       labelledBy="tool-result-title"
       widthClass="w-[44rem] max-w-[92vw]"
-      contentOverflow="hidden"
       onClose={onClose}
     >
       <div

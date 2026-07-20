@@ -28,7 +28,6 @@ export function ShellDetailModal({
     <ModalShell
       labelledBy="shell-detail-title"
       widthClass="w-[40rem] max-w-[92vw]"
-      contentOverflow="hidden"
       onClose={onClose}
     >
       <div

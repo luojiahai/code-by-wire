@@ -13,15 +13,12 @@ import { cx } from "./atoms";
 export function ModalShell({
   labelledBy,
   widthClass,
-  contentOverflow = "auto",
   closeDisabled = false,
   onClose,
   children,
 }: {
   labelledBy: string;
   widthClass: string;
-  /** Detail modals constrain their own content regions and suppress the native whole-body scrollbar. */
-  contentOverflow?: "auto" | "hidden";
   closeDisabled?: boolean;
   onClose: () => void;
   children: ReactNode;
@@ -85,12 +82,7 @@ export function ModalShell({
         onClick={(e) => e.stopPropagation()}
         onKeyDown={trapTab}
       >
-        <div
-          className={cx(
-            "max-h-[calc(100vh-5rem)]",
-            contentOverflow === "auto" ? "overflow-y-auto" : "overflow-hidden",
-          )}
-        >
+        <div className="max-h-[calc(100vh-5rem)] overflow-y-auto">
           {children}
         </div>
       </div>

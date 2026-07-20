@@ -27,7 +27,6 @@ export function MonitorDetailModal({
     <ModalShell
       labelledBy="monitor-detail-title"
       widthClass="w-[40rem] max-w-[92vw]"
-      contentOverflow="hidden"
       onClose={onClose}
     >
       <div
