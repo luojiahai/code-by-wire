@@ -7,6 +7,7 @@ import {
 } from "@shared/stats";
 import { useI18n } from "../i18n";
 import { CalendarHeatmap } from "../ui/charts";
+import { CustomSelect } from "../ui/CustomSelect";
 import { CALENDAR_RAMP } from "../ui/meta";
 import {
   calendarGrid,
@@ -269,19 +270,18 @@ function YearSwitcher({
 }) {
   const { t } = useI18n();
   return (
-    <select
-      value={value ?? "trailing"}
-      onChange={(e) =>
-        onChange(e.target.value === "trailing" ? null : Number(e.target.value))
-      }
-      className="rounded-md border border-ink-800 bg-ink-900 px-2 py-1 text-meta text-fg-muted"
-    >
-      <option value="trailing">{t.stats.overview.trailingYear}</option>
-      {years.map((y) => (
-        <option key={y} value={y}>
-          {y}
-        </option>
-      ))}
-    </select>
+    <CustomSelect
+      ariaLabel={t.stats.overview.trailingYear}
+      value={value === null ? "trailing" : String(value)}
+      onChange={(next) => onChange(next === "trailing" ? null : Number(next))}
+      options={[
+        { value: "trailing", label: t.stats.overview.trailingYear },
+        ...years.map((year) => ({
+          value: String(year),
+          label: String(year),
+        })),
+      ]}
+      className="px-2 py-1 text-meta text-fg-muted"
+    />
   );
 }
