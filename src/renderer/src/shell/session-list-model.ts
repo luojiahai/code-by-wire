@@ -1,6 +1,7 @@
 import type { Session } from "@shared/types";
 import { tNow } from "../i18n";
 import type { SessionsListPreferences } from "./session-list-preferences";
+import type { ProjectState } from "@shared/ipc";
 
 /** One flat list, no visible section split: live sessions first (newest-created first), then
  *  ended sessions appended (most-recently-active first) — see design spec §4. */
@@ -86,18 +87,33 @@ export function filterGroups(
 
 export function partitionProjectGroups(
   groups: SessionGroup[],
-  projectPins: Record<string, number>,
-): { pinned: SessionGroup[]; others: SessionGroup[] } {
+  state: ProjectState,
+): { pinned: SessionGroup[]; others: SessionGroup[]; hidden: SessionGroup[] } {
   const pinned = groups
     .filter(
       (group) =>
-        group.cwd !== undefined && projectPins[group.key] !== undefined,
+        group.cwd !== undefined && state[group.key]?.pinnedAtMs !== undefined,
     )
-    .sort((a, b) => projectPins[b.key] - projectPins[a.key]);
+    .sort(
+      (a, b) =>
+        (state[b.key]?.pinnedAtMs ?? 0) - (state[a.key]?.pinnedAtMs ?? 0),
+    );
+  const hidden = groups
+    .filter(
+      (group) =>
+        group.cwd !== undefined && state[group.key]?.hiddenAtMs !== undefined,
+    )
+    .sort(
+      (a, b) =>
+        (state[b.key]?.hiddenAtMs ?? 0) - (state[a.key]?.hiddenAtMs ?? 0),
+    );
   const others = groups.filter(
-    (group) => group.cwd === undefined || projectPins[group.key] === undefined,
+    (group) =>
+      group.cwd === undefined ||
+      (state[group.key]?.pinnedAtMs === undefined &&
+        state[group.key]?.hiddenAtMs === undefined),
   );
-  return { pinned, others };
+  return { pinned, others, hidden };
 }
 
 /** The parent directory of `cwd`, with a leading homeDir abbreviated to `~`:

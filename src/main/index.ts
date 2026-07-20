@@ -45,7 +45,7 @@ import { createAppSettingsStore } from "./app-settings";
 import { createCaffeinate } from "./caffeinate";
 import { createSessionTitleStore } from "./session-titles";
 import { createSessionPinStore } from "./session-pins";
-import { createProjectPinStore } from "./project-pins";
+import { createProjectStateStore } from "./project-state";
 import { createCliStatusController } from "./cli-check";
 import { createUpdater } from "./updater";
 import { createUsageService } from "./usage/fetch";
@@ -334,7 +334,7 @@ app
     const sessionPins = createSessionPinStore({
       dir: app.getPath("userData"),
     });
-    const projectPins = createProjectPinStore({
+    const projectState = createProjectStateStore({
       dir: app.getPath("userData"),
     });
     const cliStatus = createCliStatusController({
@@ -414,7 +414,7 @@ app
       cliStatus,
       sessionTitles,
       sessionPins,
-      projectPins,
+      projectState,
       updater,
       appSettings,
       settingsManager,

@@ -106,7 +106,9 @@ export function App() {
   const forkingRef = useRef<Set<string>>(new Set());
   const [account, setAccount] = useState<Account | null>(null);
   const [homeDir, setHomeDir] = useState("");
-  const [projectPins, setProjectPins] = useState<Record<string, number>>({});
+  const [projectState, setProjectState] = useState<
+    OverviewData["projectState"]
+  >({});
   const [cliStatus, setCliStatus] = useState<CliStatusByAgent>({});
   // The Settings sub-section to show. The Sys lamp jumps it to "system" (the CLI status home); the gear
   // reopens wherever the user last was.
@@ -130,7 +132,7 @@ export function App() {
     setAccount(o.account);
     setCliStatus(o.cliStatus);
     setHomeDir(o.homeDir);
-    setProjectPins(o.projectPins);
+    setProjectState(o.projectState);
   }
 
   async function recheckCli(agent: AgentId): Promise<void> {
@@ -370,8 +372,11 @@ export function App() {
     applyOverview(await window.api.setSessionPinned(id, pinned));
   }
 
-  async function toggleProjectPin(key: string, pinned: boolean): Promise<void> {
-    applyOverview(await window.api.setProjectPinned(key, pinned));
+  async function setProjectPlacement(
+    key: string,
+    placement: "pinned" | "hidden" | "ordinary",
+  ): Promise<void> {
+    applyOverview(await window.api.setProjectPlacement(key, placement));
   }
 
   // Fork a session: resume its conversation into a fresh id under `--fork-session`. Unlike Resume (which
@@ -555,7 +560,7 @@ export function App() {
           <LeftSidebar
             sessions={all}
             homeDir={homeDir}
-            projectPins={projectPins}
+            projectState={projectState}
             selectedId={selectedId}
             onSelect={setSelectedId}
             onNew={() => {
@@ -569,8 +574,8 @@ export function App() {
             onEnd={endSession}
             onRename={(id, title) => void renameSession(id, title)}
             onTogglePin={(id, pinned) => void togglePinSession(id, pinned)}
-            onToggleProjectPin={(key, pinned) =>
-              void toggleProjectPin(key, pinned)
+            onSetProjectPlacement={(key, placement) =>
+              void setProjectPlacement(key, placement)
             }
             updatePending={updatePending}
             route={route}

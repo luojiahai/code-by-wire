@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "@shared/types";
+import type { ProjectPlacement, ProjectState } from "@shared/ipc";
 import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
@@ -36,7 +37,7 @@ import { ProjectGroupRow } from "./ProjectGroupRow";
 export function LeftSidebar({
   sessions,
   homeDir,
-  projectPins,
+  projectState,
   selectedId,
   onSelect,
   onNew,
@@ -47,7 +48,7 @@ export function LeftSidebar({
   onEnd,
   onRename,
   onTogglePin,
-  onToggleProjectPin,
+  onSetProjectPlacement,
   updatePending,
   route,
   onRoute,
@@ -55,7 +56,7 @@ export function LeftSidebar({
   sessions: Session[];
   /** For ~-abbreviating group hints; '' before the first overview lands (hints then show raw parents). */
   homeDir: string;
-  projectPins: Record<string, number>;
+  projectState: ProjectState;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
@@ -71,7 +72,7 @@ export function LeftSidebar({
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
-  onToggleProjectPin: (key: string, pinned: boolean) => void;
+  onSetProjectPlacement: (key: string, placement: ProjectPlacement) => void;
   /** True while a software update is pending (available/downloading/downloaded) —
    *  badges the Settings gear (design spec 2026-07-09-update-dot). */
   updatePending: boolean;
@@ -81,6 +82,7 @@ export function LeftSidebar({
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [hiddenCollapsed, setHiddenCollapsed] = useState(true);
   // Folders expanded by a direct click, as opposed to the expand-all button: only these show the
   // per-folder "No active sessions." line when the active filter empties them (2026-07-17 spec §3
   // — expand-all must not flood the list with empty-state lines).
@@ -103,8 +105,15 @@ export function LeftSidebar({
   // filter also keeps folder order derived from all matched sessions — toggling never reshuffles.
   const allGroups = groupSessionsByProject(searched, homeDir);
   const groups = filterGroups(allGroups, preferences);
-  const { pinned: pinnedProjects, others: otherProjects } =
-    partitionProjectGroups(groups, projectPins);
+  const {
+    pinned: pinnedProjects,
+    others: otherProjects,
+    hidden: hiddenProjects,
+  } = partitionProjectGroups(groups, projectState);
+  const hiddenCount = partitionProjectGroups(
+    groupSessionsByProject(sessions, homeDir),
+    projectState,
+  ).hidden.length;
   const allCollapsed =
     groups.length > 0 && groups.every((g) => collapsed.has(g.key));
   const toggleGroup = (key: string) => {
@@ -203,7 +212,7 @@ export function LeftSidebar({
 
   const renderProjectGroup = (
     g: (typeof groups)[number],
-    isPinned: boolean,
+    placement: ProjectPlacement,
   ) => {
     const cwd = g.cwd;
     return (
@@ -211,13 +220,17 @@ export function LeftSidebar({
         <ProjectGroupRow
           group={g}
           collapsed={collapsed.has(g.key)}
-          pinned={isPinned}
+          placement={placement}
           quickAddDisabled={!anySpawnable}
           quickAdding={quickAdding.has(g.key)}
           unavailableReason={t.settings.cli.unavailableReason}
           newSessionLabel={cwd ? t.shell.sidebar.newSessionIn(cwd) : undefined}
           pinLabel={t.shell.sidebar.pinProject}
           unpinLabel={t.shell.sidebar.unpinProject}
+          hideLabel={t.shell.sidebar.hideProject}
+          unhideLabel={t.shell.sidebar.unhideProject}
+          absolutePathLabel={t.shell.sidebar.absolutePath}
+          copyPathLabel={t.shell.sidebar.copyPath}
           onToggle={() => toggleGroup(g.key)}
           onQuickAdd={(button) => {
             if (!cwd) return;
@@ -233,7 +246,7 @@ export function LeftSidebar({
                   },
             );
           }}
-          onTogglePin={() => onToggleProjectPin(g.key, !isPinned)}
+          onSetPlacement={(next) => onSetProjectPlacement(g.key, next)}
         />
         {!collapsed.has(g.key) &&
           (g.sessions.length === 0 ? (
@@ -477,7 +490,7 @@ export function LeftSidebar({
                     {t.shell.sidebar.noPinnedProjects}
                   </p>
                 ) : (
-                  pinnedProjects.map((g) => renderProjectGroup(g, true))
+                  pinnedProjects.map((g) => renderProjectGroup(g, "pinned"))
                 )}
                 <div className="mx-2 my-1 border-t border-sidebar-border" />
                 {groups.length === 0 ? (
@@ -487,11 +500,33 @@ export function LeftSidebar({
                       : t.shell.sidebar.noSessionsYet}
                   </p>
                 ) : (
-                  otherProjects.map((g) => renderProjectGroup(g, false))
+                  otherProjects.map((g) => renderProjectGroup(g, "ordinary"))
                 )}
               </div>
             </div>
           </div>
+          {hiddenCount > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setHiddenCollapsed((value) => !value)}
+                aria-expanded={!hiddenCollapsed}
+                className="sticky top-0 z-10 flex w-full items-center justify-between bg-(--ui-sidebar-surface-background) px-4.5 pb-1 pt-1.5"
+              >
+                <SidebarPanelLabel>
+                  {t.shell.sidebar.hiddenLabel}
+                </SidebarPanelLabel>
+                <span className="text-xs text-(--ui-text-quaternary)">
+                  {hiddenCount}
+                </span>
+              </button>
+              {!hiddenCollapsed && (
+                <div className="flex flex-col gap-px px-2.5">
+                  {hiddenProjects.map((g) => renderProjectGroup(g, "hidden"))}
+                </div>
+              )}
+            </div>
+          )}
         </OverlayScroll>
       </div>
       {agentMenu &&

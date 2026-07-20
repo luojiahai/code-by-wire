@@ -179,10 +179,17 @@ describe("session list model", () => {
       mk({ id: "d", cwd: "/d", lastActivityMs: 50 }),
     ]);
 
-    const result = partitionProjectGroups(groups, { "/b": 200, "/a": 100 });
+    const result = partitionProjectGroups(groups, {
+      "/b": { pinnedAtMs: 200 },
+      "/a": { pinnedAtMs: 100 },
+      "/c": { hiddenAtMs: 300 },
+    });
     expect(result.pinned.map((g) => g.key)).toEqual(["/b", "/a"]);
-    expect(result.others.map((g) => g.key)).toEqual(["/c", "/d"]);
-    expect([...result.pinned, ...result.others]).toHaveLength(groups.length);
+    expect(result.others.map((g) => g.key)).toEqual(["/d"]);
+    expect(result.hidden.map((g) => g.key)).toEqual(["/c"]);
+    expect([...result.pinned, ...result.others, ...result.hidden]).toHaveLength(
+      groups.length,
+    );
   });
 
   it("partitionProjectGroups only pins groups with a stable cwd", () => {
@@ -199,11 +206,24 @@ describe("session list model", () => {
     };
 
     const result = partitionProjectGroups([pathGroup, fallbackGroup], {
-      "/repo": 100,
-      repo: 200,
+      "/repo": { pinnedAtMs: 100 },
+      repo: { hiddenAtMs: 200 },
     });
 
     expect(result.pinned.map((g) => g.key)).toEqual(["/repo"]);
     expect(result.others.map((g) => g.key)).toEqual(["repo"]);
+    expect(result.hidden).toEqual([]);
+  });
+
+  it("sorts hidden projects newest-first", () => {
+    const groups = groupSessionsByProject([
+      mk({ id: "a", cwd: "/a", lastActivityMs: 300 }),
+      mk({ id: "b", cwd: "/b", lastActivityMs: 200 }),
+    ]);
+    const result = partitionProjectGroups(groups, {
+      "/a": { hiddenAtMs: 1 },
+      "/b": { hiddenAtMs: 2 },
+    });
+    expect(result.hidden.map((g) => g.key)).toEqual(["/b", "/a"]);
   });
 });
