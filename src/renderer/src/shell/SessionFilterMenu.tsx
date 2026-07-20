@@ -26,7 +26,7 @@ export function SessionFilterMenu({
           onClose();
         }
       }}
-      className="z-50 w-48 rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl"
+      className="w-48 rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl"
     >
       <fieldset className="m-0 border-0 p-0">
         <legend className="px-2 pb-1 pt-0.5 text-[0.6875rem] font-medium text-(--ui-text-quaternary)">

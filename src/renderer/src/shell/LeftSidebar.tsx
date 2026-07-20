@@ -584,6 +584,7 @@ export function LeftSidebar({
         createPortal(
           <div
             ref={filterMenuRef}
+            className="z-50"
             style={{
               position: "fixed",
               left: filterMenu.left,
