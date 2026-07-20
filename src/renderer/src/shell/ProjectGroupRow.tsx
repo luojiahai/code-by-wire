@@ -1,6 +1,7 @@
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import type { SessionGroup } from "./session-list-model";
+import { useId } from "react";
 
 export function ProjectGroupRow({
   group,
@@ -30,20 +31,40 @@ export function ProjectGroupRow({
   onTogglePin: () => void;
 }) {
   const cwd = group.cwd;
+  const duplicate = group.hint !== undefined && cwd !== undefined;
+  const tooltipId = useId();
   return (
     <div className="group/project relative flex min-h-[1.625rem] items-center rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none focus-within:bg-(--ui-row-hover-background)">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={!collapsed}
-        title={cwd && quickAddDisabled ? unavailableReason : cwd}
-        className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 text-left"
+        aria-describedby={duplicate ? tooltipId : undefined}
+        title={cwd && quickAddDisabled ? unavailableReason : undefined}
+        className="group/project-toggle flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 text-left"
       >
         <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-tertiary)">
           <Icon name={collapsed ? "folder" : "folder-open"} size={14} />
         </span>
-        <span className="min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg">
-          {group.label}
+        <span className="group/name relative inline-flex min-w-0">
+          <span
+            className={cx(
+              "min-w-0 truncate text-[0.8125rem] leading-none text-(--ui-text-tertiary) group-hover/project:text-fg",
+              duplicate &&
+                "underline decoration-dotted decoration-(--ui-text-quaternary) underline-offset-2",
+            )}
+          >
+            {group.label}
+          </span>
+          {duplicate && (
+            <span
+              id={tooltipId}
+              role="tooltip"
+              className="absolute left-0 top-full z-20 mt-1 hidden max-w-64 whitespace-nowrap rounded-md border border-(--ui-stroke-secondary) bg-(--ui-bg-elevated) px-2 py-1 text-xs text-fg shadow-(--shadow-md) group-hover/name:block group-focus-visible/project-toggle:block"
+            >
+              {cwd}
+            </span>
+          )}
         </span>
         <span className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)">
           <Icon
@@ -52,11 +73,6 @@ export function ProjectGroupRow({
             className={cx("transition-transform", !collapsed && "rotate-90")}
           />
         </span>
-        {group.hint && (
-          <span className="min-w-0 shrink-[2] truncate text-[0.72rem] leading-none text-(--ui-text-quaternary)">
-            {group.hint}
-          </span>
-        )}
       </button>
       {cwd && (
         <div className="mr-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-100 ease-out group-hover/project:opacity-100 group-focus-within/project:opacity-100">
