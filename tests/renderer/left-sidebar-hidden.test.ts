@@ -8,6 +8,10 @@ const source = readFileSync(
 );
 
 describe("LeftSidebar Hidden disclosure", () => {
+  it("derives its count from the searched hidden groups it renders", () => {
+    expect(source).toContain("const hiddenCount = hiddenProjects.length;");
+  });
+
   it("is a compact non-sticky companion row with a hairline and adjacent count", () => {
     const hidden = source.slice(source.indexOf("{hiddenCount > 0"));
     expect(hidden).toMatch(
