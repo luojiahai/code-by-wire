@@ -54,9 +54,17 @@ export class XtermTerminal {
 
   constructor(options: XtermTerminalOptions) {
     this.options = options;
+    const open = options.openExternal;
     this.raw = new Terminal({
       ...options.raw,
       theme: options.theme($terminalTheme.get()),
+      // OSC 8 hyperlinks (real escape-sequence links a CLI emits, e.g. a PR URL) are handled by
+      // xterm's own core, entirely separate from the WebLinksAddon wired below (which only
+      // pattern-matches plain-text URLs). Without this, xterm falls back to its built-in
+      // confirm()-then-window.open() handler — which our main-process setWindowOpenHandler now
+      // denies (no url is passed to that window.open call), so the link would silently do
+      // nothing. Route it through the same opener as everything else instead.
+      linkHandler: open ? { activate: (_event, uri) => open(uri) } : null,
     });
     // Live re-theme: the instance is long-lived, so a later Settings change must reassign
     // its theme (vscode: onDidColorThemeChange → _updateTheme).
