@@ -46,6 +46,7 @@ export const IPC = {
   clipboardReadText: "clipboard:readText",
   renameSession: "session:rename",
   setSessionPinned: "session:setPinned",
+  setProjectPinned: "project:setPinned",
   getToolResult: "toolResult:get",
   updateGetState: "update:getState",
   updateCheck: "update:check",
@@ -78,6 +79,7 @@ export interface IndexOverview {
 
 /** What the renderer receives: the index slice plus the live statusLine overlay (ipc.ts assembles it). */
 export interface OverviewData extends IndexOverview {
+  projectPins: Record<string, number>;
   /** App-wide account: billing mode + rate limits from the live statusLine. null when there is no
    *  statusLine data (no captures, or all stale) — the UI reads null as "no rate-limit bars". */
   account: Account | null;
@@ -238,6 +240,7 @@ export interface IpcApi {
   /** Persist (or clear) the durable pin mark for a session id, then return the fresh overview with
    *  pinnedAtMs stamped. Applied in overviewNow(), so overview() and refresh() carry it too. */
   setSessionPinned(id: string, pinned: boolean): Promise<OverviewData>;
+  setProjectPinned(key: string, pinned: boolean): Promise<OverviewData>;
   /** Fetch one tool call's full command + output on demand (the tool turn's detail modal). Not polled;
    *  a one-shot read keyed by the tool_use id. `agentId` reads the call from that subagent's own
    *  transcript file instead of the session transcript (the drilled Subagent view). */

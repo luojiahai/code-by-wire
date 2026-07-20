@@ -36,6 +36,7 @@ import { applyTitleOverrides } from "@shared/title-override";
 import { applyPinOverrides } from "@shared/pin-override";
 import type { SessionTitleStore } from "./session-titles";
 import type { SessionPinStore } from "./session-pins";
+import type { ProjectPinStore } from "./project-pins";
 import { getOverview, readSessionTitles } from "./db/store";
 import {
   readTotals,
@@ -113,6 +114,8 @@ export interface IpcDeps {
   sessionTitles?: SessionTitleStore;
   /** Durable pinned-session marks, stamped onto overview rows as pinnedAtMs. Defaults to no pins. */
   sessionPins?: SessionPinStore;
+  /** Durable project-group pins, keyed by the sidebar's canonical project key. */
+  projectPins?: ProjectPinStore;
   /** The update controller. Defaults to an inert "unsupported" updater when not wired. */
   updater?: Updater;
   /** The app's own settings store (auto-check preference). Defaults to a no-op. */
@@ -156,6 +159,7 @@ export function registerIpc({
   cliStatus,
   sessionTitles,
   sessionPins,
+  projectPins,
   updater,
   appSettings,
   settingsManager,
@@ -275,7 +279,12 @@ export function registerIpc({
       return wt ? { ...s, worktree: wt } : s;
     });
     return attachCliStatus(
-      { sessions: withWorktrees, account, homeDir: homedir() },
+      {
+        sessions: withWorktrees,
+        account,
+        homeDir: homedir(),
+        projectPins: projectPins?.read() ?? {},
+      },
       (agent) => cli.get(agent),
     );
   };
@@ -398,6 +407,21 @@ export function registerIpc({
       // fire-and-forget toggle; log and serve the unchanged overview so the next attempt retries.
       console.error(
         "setSessionPinned persist failed; serving unchanged rows",
+        err,
+      );
+    }
+    return overviewNow();
+  });
+  ipcMain.handle(IPC.setProjectPinned, (_e, key: string, pinned: boolean) => {
+    if (!key.trim()) {
+      console.error("setProjectPinned rejected empty project key");
+      return overviewNow();
+    }
+    try {
+      projectPins?.set(key, pinned);
+    } catch (err) {
+      console.error(
+        "setProjectPinned persist failed; serving unchanged overview",
         err,
       );
     }

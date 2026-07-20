@@ -28,6 +28,8 @@ const api: AppApi = {
     ipcRenderer.invoke(IPC.renameSession, id, title),
   setSessionPinned: (id, pinned) =>
     ipcRenderer.invoke(IPC.setSessionPinned, id, pinned),
+  setProjectPinned: (key, pinned) =>
+    ipcRenderer.invoke(IPC.setProjectPinned, key, pinned),
   readTranscript: (id, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readTranscript, id, sinceMtimeMs),
   getToolResult: (id, toolUseId, agentId) =>

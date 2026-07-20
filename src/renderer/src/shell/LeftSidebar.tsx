@@ -56,6 +56,7 @@ export function LeftSidebar({
   sessions: Session[];
   /** For ~-abbreviating group hints; '' before the first overview lands (hints then show raw parents). */
   homeDir: string;
+  projectPins: Record<string, number>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
@@ -71,6 +72,7 @@ export function LeftSidebar({
   onEnd: (id: string) => void;
   onRename: (id: string, title: string | null) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
+  onToggleProjectPin: (key: string, pinned: boolean) => void;
   /** True while a software update is pending (available/downloading/downloaded) —
    *  badges the Settings gear (design spec 2026-07-09-update-dot). */
   updatePending: boolean;

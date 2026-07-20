@@ -509,6 +509,79 @@ describe("registerIpc setSessionPinned", () => {
   });
 });
 
+describe("registerIpc setProjectPinned", () => {
+  it("includes project pins in overview and persists toggles", async () => {
+    const db = openTestDb();
+    migrate(db);
+    const projectPins: Record<string, number> = { "/seed": 111 };
+    const projectPinStore = {
+      read: () => ({ ...projectPins }),
+      set: (key: string, pinned: boolean) => {
+        if (pinned) projectPins[key] = 999;
+        else delete projectPins[key];
+      },
+    };
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      projectPins: projectPinStore,
+    });
+
+    expect((handlers.get(IPC.overview)!() as OverviewData).projectPins).toEqual(
+      { "/seed": 111 },
+    );
+    await handlers.get(IPC.setProjectPinned)!({}, "/repo", true);
+    expect(projectPins["/repo"]).toBe(999);
+  });
+
+  it("rejects an empty project key without mutating the store", async () => {
+    const db = openTestDb();
+    migrate(db);
+    const projectPins: Record<string, number> = {};
+    const projectPinStore = {
+      read: () => ({ ...projectPins }),
+      set: (key: string, pinned: boolean) => {
+        if (pinned) projectPins[key] = 999;
+        else delete projectPins[key];
+      },
+    };
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      projectPins: projectPinStore,
+    });
+
+    await handlers.get(IPC.setProjectPinned)!({}, "", true);
+    expect(projectPins[""]).toBeUndefined();
+  });
+
+  it("serves the unchanged overview when persistence fails", () => {
+    const db = openTestDb();
+    migrate(db);
+    const projectPins = { "/seed": 111 };
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      projectPins: {
+        read: () => ({ ...projectPins }),
+        set: () => {
+          throw new Error("disk full");
+        },
+      },
+    });
+
+    let overview: OverviewData | undefined;
+    expect(() => {
+      overview = handlers.get(IPC.setProjectPinned)!(
+        {},
+        "/repo",
+        true,
+      ) as OverviewData;
+    }).not.toThrow();
+    expect(overview?.projectPins).toEqual(projectPins);
+  });
+});
+
 describe("registerIpc caffeinate", () => {
   it("serves off from the inert default when no caffeinate dep is wired", () => {
     const db = openTestDb();
