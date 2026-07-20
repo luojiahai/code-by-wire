@@ -13,7 +13,7 @@ describe("ProjectGroupRow action isolation", () => {
       /onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*onQuickAdd/,
     );
     expect(source).toMatch(
-      /onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*setMenuOpen/,
+      /onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);[\s\S]*?setMenuOpen/,
     );
     expect(source).toMatch(/event\.stopPropagation\(\);\s*onSetPlacement/);
     expect(source).toMatch(
@@ -39,5 +39,22 @@ describe("ProjectGroupRow action isolation", () => {
     expect(source).toContain("group-hover/project:opacity-100");
     expect(source).toContain("group-focus-within/project:opacity-100");
     expect(source).toContain('menuOpen && "opacity-100"');
+  });
+
+  it("portals a fixed right-opening menu and tracks viewport changes", () => {
+    expect(source).toContain("createPortal(");
+    expect(source).toContain("document.body");
+    expect(source).toContain('position: "fixed"');
+    expect(source).toContain("placeProjectMenu");
+    expect(source).toContain(
+      'window.addEventListener("scroll", placeMenu, true)',
+    );
+    expect(source).toContain('window.addEventListener("resize", placeMenu)');
+  });
+
+  it("uses a generic project-actions label for the ellipsis", () => {
+    expect(source).toContain("projectActionsLabel");
+    expect(source).toContain("aria-label={projectActionsLabel}");
+    expect(source).not.toContain("tMenuLabel");
   });
 });

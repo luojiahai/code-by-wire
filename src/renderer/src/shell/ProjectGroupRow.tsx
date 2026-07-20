@@ -2,7 +2,9 @@ import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import type { SessionGroup } from "./session-list-model";
 import type { ProjectPlacement } from "@shared/ipc";
-import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { placeProjectMenu, PROJECT_MENU_WIDTH } from "./project-menu-position";
 
 export function ProjectGroupRow({
   group,
@@ -16,6 +18,7 @@ export function ProjectGroupRow({
   unpinLabel,
   hideLabel,
   unhideLabel,
+  projectActionsLabel,
   absolutePathLabel,
   copyPathLabel,
   onToggle,
@@ -33,6 +36,7 @@ export function ProjectGroupRow({
   unpinLabel: string;
   hideLabel: string;
   unhideLabel: string;
+  projectActionsLabel: string;
   absolutePathLabel: string;
   copyPathLabel: string;
   onToggle: () => void;
@@ -41,11 +45,26 @@ export function ProjectGroupRow({
 }) {
   const cwd = group.cwd;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(
+    null,
+  );
   const menuRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const placeMenu = useCallback(() => {
+    const trigger = menuTriggerRef.current?.getBoundingClientRect();
+    if (!trigger) return;
+    setMenuPos(
+      placeProjectMenu(
+        trigger,
+        { width: window.innerWidth, height: window.innerHeight },
+        menuRef.current?.getBoundingClientRect().height ?? 280,
+      ),
+    );
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
+    placeMenu();
     function onDown(event: MouseEvent) {
       const target = event.target as Node;
       if (
@@ -63,11 +82,15 @@ export function ProjectGroupRow({
     }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", placeMenu, true);
+    window.addEventListener("resize", placeMenu);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", placeMenu, true);
+      window.removeEventListener("resize", placeMenu);
     };
-  }, [menuOpen]);
+  }, [menuOpen, placeMenu]);
 
   return (
     <div className="group/project relative flex min-h-[1.625rem] items-center rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none focus-within:bg-(--ui-row-hover-background)">
@@ -122,113 +145,109 @@ export function ProjectGroupRow({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
+              if (!menuOpen) placeMenu();
               setMenuOpen((open) => !open);
             }}
-            aria-label={tMenuLabel(
-              placement,
-              pinLabel,
-              unpinLabel,
-              unhideLabel,
-            )}
+            aria-label={projectActionsLabel}
             aria-expanded={menuOpen}
             aria-haspopup="menu"
             className="grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
           >
             <Icon name="ellipsis" size={13} />
           </button>
-          {menuOpen && (
-            <div
-              ref={menuRef}
-              role="menu"
-              className="absolute right-1 top-full z-50 mt-1 w-64 rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl"
-            >
-              {placement === "hidden" ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onSetPlacement("ordinary");
-                    setMenuOpen(false);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
-                >
-                  <Icon name="eye-off" size={12} />
-                  {unhideLabel}
-                </button>
-              ) : (
-                <>
+          {menuOpen &&
+            menuPos &&
+            createPortal(
+              <div
+                ref={menuRef}
+                role="menu"
+                style={{
+                  position: "fixed",
+                  left: menuPos.left,
+                  top: menuPos.top,
+                  width: PROJECT_MENU_WIDTH,
+                }}
+                className="z-50 rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl"
+              >
+                {placement === "hidden" ? (
                   <button
                     type="button"
                     role="menuitem"
                     onClick={(event) => {
                       event.stopPropagation();
-                      onSetPlacement(
-                        placement === "pinned" ? "ordinary" : "pinned",
-                      );
-                      setMenuOpen(false);
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
-                  >
-                    <Icon
-                      name={placement === "pinned" ? "pin-off" : "pin"}
-                      size={12}
-                    />
-                    {placement === "pinned" ? unpinLabel : pinLabel}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onSetPlacement("hidden");
+                      onSetPlacement("ordinary");
                       setMenuOpen(false);
                     }}
                     className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
                   >
                     <Icon name="eye-off" size={12} />
-                    {hideLabel}
+                    {unhideLabel}
                   </button>
-                </>
-              )}
-              <div
-                role="separator"
-                className="mx-1 my-1 border-t border-(--ui-stroke-secondary)"
-              />
-              <div className="px-2 py-1">
-                <div className="text-[0.6875rem] font-medium text-(--ui-text-quaternary)">
-                  {absolutePathLabel}
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSetPlacement(
+                          placement === "pinned" ? "ordinary" : "pinned",
+                        );
+                        setMenuOpen(false);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
+                    >
+                      <Icon
+                        name={placement === "pinned" ? "pin-off" : "pin"}
+                        size={12}
+                      />
+                      {placement === "pinned" ? unpinLabel : pinLabel}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSetPlacement("hidden");
+                        setMenuOpen(false);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
+                    >
+                      <Icon name="eye-off" size={12} />
+                      {hideLabel}
+                    </button>
+                  </>
+                )}
+                <div
+                  role="separator"
+                  className="mx-1 my-1 border-t border-(--ui-stroke-secondary)"
+                />
+                <div className="px-2 py-1">
+                  <div className="text-[0.6875rem] font-medium text-(--ui-text-quaternary)">
+                    {absolutePathLabel}
+                  </div>
+                  <div className="mt-0.5 break-all text-xs leading-snug text-fg-muted">
+                    {cwd}
+                  </div>
                 </div>
-                <div className="mt-0.5 break-all text-xs leading-snug text-fg-muted">
-                  {cwd}
-                </div>
-              </div>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void window.api.clipboardWriteText(cwd);
-                  setMenuOpen(false);
-                }}
-                className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
-              >
-                <Icon name="copy" size={12} />
-                {copyPathLabel}
-              </button>
-            </div>
-          )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void window.api.clipboardWriteText(cwd);
+                    setMenuOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xs px-2 py-1.5 text-left text-xs text-fg-muted hover:bg-(--ui-control-hover-background) hover:text-fg"
+                >
+                  <Icon name="copy" size={12} />
+                  {copyPathLabel}
+                </button>
+              </div>,
+              document.body,
+            )}
         </div>
       )}
     </div>
   );
-}
-
-function tMenuLabel(
-  placement: ProjectPlacement,
-  pin: string,
-  unpin: string,
-  unhide: string,
-): string {
-  return placement === "hidden" ? unhide : placement === "pinned" ? unpin : pin;
 }

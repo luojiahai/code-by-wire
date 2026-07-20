@@ -212,6 +212,7 @@ export const en = {
       hideProject: "Hide project",
       unhideProject: "Unhide project",
       hiddenLabel: "Hidden",
+      projectActions: "Project actions",
       absolutePath: "Absolute path",
       copyPath: "Copy path",
       noMatchingSessions: "No matching sessions.",

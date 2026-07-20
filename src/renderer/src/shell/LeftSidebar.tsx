@@ -229,6 +229,7 @@ export function LeftSidebar({
           unpinLabel={t.shell.sidebar.unpinProject}
           hideLabel={t.shell.sidebar.hideProject}
           unhideLabel={t.shell.sidebar.unhideProject}
+          projectActionsLabel={t.shell.sidebar.projectActions}
           absolutePathLabel={t.shell.sidebar.absolutePath}
           copyPathLabel={t.shell.sidebar.copyPath}
           onToggle={() => toggleGroup(g.key)}
@@ -506,22 +507,26 @@ export function LeftSidebar({
             </div>
           </div>
           {hiddenCount > 0 && (
-            <div>
+            <div className="mx-4.5 mt-1 border-t border-sidebar-border pt-1">
               <button
                 type="button"
                 onClick={() => setHiddenCollapsed((value) => !value)}
                 aria-expanded={!hiddenCollapsed}
-                className="sticky top-0 z-10 flex w-full items-center justify-between bg-(--ui-sidebar-surface-background) px-4.5 pb-1 pt-1.5"
+                className="flex h-6 w-full items-center gap-1 rounded-sm text-(--ui-text-quaternary) hover:bg-(--ui-row-hover-background) hover:text-fg"
               >
-                <SidebarPanelLabel>
+                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.12em]">
                   {t.shell.sidebar.hiddenLabel}
-                </SidebarPanelLabel>
-                <span className="text-xs text-(--ui-text-quaternary)">
+                </span>
+                <span className="rounded-full bg-(--ui-control-active-background) px-1.5 text-[0.64rem] tabular-nums">
                   {hiddenCount}
                 </span>
+                <Icon
+                  name={hiddenCollapsed ? "chevron-right" : "chevron-down"}
+                  size={12}
+                />
               </button>
               {!hiddenCollapsed && (
-                <div className="flex flex-col gap-px px-2.5">
+                <div className="flex flex-col gap-px">
                   {hiddenProjects.map((g) => renderProjectGroup(g, "hidden"))}
                 </div>
               )}
