@@ -99,23 +99,22 @@ export function ToolResultModal({
         </span>
       </div>
 
-      <div className="rounded-md border border-ink-800 bg-well px-3 py-2 font-mono text-meta">
-        <OverlayScroll
-          axis="both"
-          contentClassName="flex max-h-40 items-start gap-2"
+      <OverlayScroll
+        axis="both"
+        className="rounded-md border border-ink-800 bg-well font-mono text-meta"
+        contentClassName="flex max-h-40 items-start gap-2 px-3 py-2"
+      >
+        <span
+          aria-hidden
+          data-selectable-text="false"
+          className="shrink-0 text-fg-faint"
         >
-          <span
-            aria-hidden
-            data-selectable-text="false"
-            className="shrink-0 text-fg-faint"
-          >
-            $
-          </span>
-          <pre className="min-w-0 flex-1 whitespace-pre-wrap break-words text-fg">
-            {command}
-          </pre>
-        </OverlayScroll>
-      </div>
+          $
+        </span>
+        <pre className="min-w-0 flex-1 whitespace-pre-wrap break-words text-fg">
+          {command}
+        </pre>
+      </OverlayScroll>
       <div className="mt-2 flex">
         <button
           type="button"
