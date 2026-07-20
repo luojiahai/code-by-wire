@@ -6,6 +6,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.41] - 2026-07-20
+
+### Added
+
+- Sessions sidebar now organizes projects into durable pinned, ordinary, and
+  hidden groups, with a persistent Sessions-only filter menu for activity,
+  agent icons, and agent selection. Project rows gained a separate Quick Add
+  action and a portaled menu for placement and path copying; pinned
+  sessions stay independent of project filters and placement.
+- Stats' agent/year picker and New Session's agent/model picker now use a
+  new reusable, accessible custom select component instead of native
+  `<select>` elements, showing agent icons and preserving disabled
+  capability states.
+
+### Changed
+
+- The inline New Session route no longer has modal-style Cancel/Escape
+  behavior now that it isn't presented as a modal. Read-only detail modals
+  (diff, tool result, shell detail, monitor detail) gained visible,
+  translated Close controls while keeping Escape and backdrop dismissal,
+  stay confined within the app window with overflow scoped to responsive
+  command/output scroll regions, and got refined command presentation,
+  selection behavior, copy placement, and spacing.
+
+### Fixed
+
+- The Sessions filter menu now stays within the viewport and scrolls in
+  short windows; the Hidden project count is derived from the groups
+  actually being displayed; and Sessions' expand/collapse-all now applies
+  to pinned, ordinary, and hidden projects alike (previously only
+  ordinary).
+- A newly created Codex session that hadn't completed a turn yet stayed
+  stuck showing "working" instead of idling, and ending it before any
+  prompt left a ghost row until the app relaunched — both traced to Codex
+  writing nothing to disk until the first turn completes. It now surfaces
+  as an idle candidate immediately, the same way Claude Code's
+  registry-only sessions do.
+
 ## [0.1.40] - 2026-07-20
 
 ### Changed
@@ -978,7 +1016,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.39...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.41...HEAD
+[0.1.41]: https://github.com/luojiahai/code-by-wire/compare/v0.1.40...v0.1.41
 [0.1.40]: https://github.com/luojiahai/code-by-wire/compare/v0.1.39...v0.1.40
 [0.1.39]: https://github.com/luojiahai/code-by-wire/compare/v0.1.38...v0.1.39
 [0.1.38]: https://github.com/luojiahai/code-by-wire/compare/v0.1.37...v0.1.38
