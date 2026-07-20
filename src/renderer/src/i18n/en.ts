@@ -596,7 +596,6 @@ export const en = {
    *  MonitorDetailModal) plus the OutputBox they share. Close/Copy reuse `common.close`/`common.copy`
    *  rather than minting per-modal duplicates. */
   modals: {
-    escToClose: "Esc to close",
     shellTitle: "Shell details",
     monitorTitle: "Monitor details",
     detail: {

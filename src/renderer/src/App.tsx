@@ -502,7 +502,6 @@ export function App() {
       <NewSessionView
         key={quickAddPrefill?.nonce ?? 0}
         onCreate={createSession}
-        onCancel={() => setSelectedId(OVERVIEW_ID)}
         canSpawnFor={(a) => spawnGateFor(cliStatus, a).canSpawn}
         initialCwd={quickAddPrefill?.cwd}
         initialError={quickAddPrefill?.error}

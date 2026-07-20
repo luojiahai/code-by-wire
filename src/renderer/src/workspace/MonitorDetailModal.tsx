@@ -1,4 +1,5 @@
 import type { Monitor } from "@shared/types";
+import { ModalCloseButton } from "../ui/ModalCloseButton";
 import { ModalShell } from "../ui/ModalShell";
 import { cx } from "../ui/atoms";
 import { useI18n } from "../i18n";
@@ -56,7 +57,7 @@ export function MonitorDetailModal({
       </div>
 
       <div className="mt-4 text-right text-label text-fg-faint">
-        {t.modals.escToClose}
+        <ModalCloseButton onClose={onClose} />
       </div>
     </ModalShell>
   );

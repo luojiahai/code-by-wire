@@ -1,4 +1,5 @@
 import type { DiffEvent } from "@shared/transcript";
+import { ModalCloseButton } from "../ui/ModalCloseButton";
 import { ModalShell } from "../ui/ModalShell";
 import { Icon } from "../ui/icons";
 import { OverlayScroll } from "../ui/OverlayScroll";
@@ -35,8 +36,11 @@ export function DiffModal({
       widthClass="w-[44rem] max-w-[92vw]"
       onClose={onClose}
     >
-      <div id="diff-title" className="mb-3">
-        <div className="flex items-center gap-2 text-aux">
+      <div id="diff-title" className="mb-3 max-h-[30vh] overflow-y-auto">
+        <div
+          data-selectable-text="false"
+          className="flex items-center gap-2 text-aux"
+        >
           <Icon
             name={toolIcon(diff.tool)}
             size={14}
@@ -48,25 +52,23 @@ export function DiffModal({
             {st.char} {st.label}
           </span>
         </div>
-        <div className="mt-2 flex items-start gap-2 rounded-md border border-ink-800 bg-well px-3 py-1.5 font-mono text-aux">
+        <div className="mt-2 flex items-start gap-2 rounded-md border border-ink-800 bg-well px-3 py-2 font-mono text-aux">
           <Icon
             name="folder"
             size={12}
             className="mt-0.5 shrink-0 text-fg-faint"
           />
-          <span className="min-w-0 flex-1 break-all leading-relaxed">
+          <span className="min-w-0 break-all leading-relaxed">
             <span className="text-fg-faint">{file.dir}</span>
             <span className="text-fg">{file.name}</span>
           </span>
-          <span className="mt-0.5 shrink-0 text-meta">
-            <span className="text-ok">+{diff.hunk.added.length}</span>{" "}
-            <span className="text-danger">−{diff.hunk.removed.length}</span>
-          </span>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
           <button
             type="button"
             onClick={pathCopy.copy}
             className={cx(
-              "mt-0.5 shrink-0 rounded-sm border px-2 py-0.5 text-label transition-colors",
+              "rounded-sm border px-2 py-0.5 text-label transition-colors",
               pathCopy.copied
                 ? "border-ink-600 text-fg"
                 : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
@@ -74,13 +76,20 @@ export function DiffModal({
           >
             {pathCopy.copied ? t.common.copied : t.modals.diff.copyPath}
           </button>
+          <div
+            data-selectable-text="false"
+            className="ml-auto font-mono text-meta"
+          >
+            <span className="text-ok">+{diff.hunk.added.length}</span>{" "}
+            <span className="text-danger">−{diff.hunk.removed.length}</span>
+          </div>
         </div>
       </div>
 
       <OverlayScroll
         axis="both"
         className="rounded-md border border-ink-800 bg-well"
-        contentClassName="max-h-[60vh] p-3 font-mono text-meta leading-relaxed"
+        contentClassName="max-h-[min(60vh,calc(100vh-14rem))] p-3 font-mono text-meta leading-relaxed"
       >
         {empty ? (
           <span className="text-fg-faint">{t.modals.diff.noChanges}</span>
@@ -113,7 +122,9 @@ export function DiffModal({
         >
           {copied ? t.common.copied : t.modals.diff.copyDiff}
         </button>
-        <span className="ml-auto">{t.modals.escToClose}</span>
+        <div className="ml-auto">
+          <ModalCloseButton onClose={onClose} />
+        </div>
       </div>
     </ModalShell>
   );

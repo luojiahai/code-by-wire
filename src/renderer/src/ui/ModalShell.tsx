@@ -6,10 +6,10 @@ import {
 } from "react";
 import { cx } from "./atoms";
 
-/** Shared chrome for the app's modals: a dimmed overlay, a centered focusable panel, Escape-to-close, a
- *  Tab focus-trap that keeps focus inside the panel, and focus restored to the prior element on close.
- *  `closeDisabled` suppresses the Escape and overlay-click close paths (used while a dialog is busy). The
- *  panel content is the children; the caller owns the heading/body/buttons. */
+/** Shared chrome for the app's modals: a dimmed overlay, a viewport-contained focusable panel,
+ *  Escape-to-close, a Tab focus-trap that keeps focus inside the panel, and focus restored on close.
+ *  `closeDisabled` suppresses the Escape and overlay-click close paths (used while a dialog is busy).
+ *  Oversized content scrolls inside the panel. The caller owns the heading/body/buttons. */
 export function ModalShell({
   labelledBy,
   widthClass,
@@ -65,7 +65,7 @@ export function ModalShell({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
       onClick={closeDisabled ? undefined : onClose}
     >
       <div
@@ -76,13 +76,15 @@ export function ModalShell({
         data-selectable-text="true"
         tabIndex={-1}
         className={cx(
-          "rounded-xl border border-ink-700 bg-ink-900 p-5 text-fg shadow-2xl outline-none",
+          "max-h-[calc(100vh-2rem)] rounded-xl border border-ink-700 bg-ink-900 p-5 text-fg shadow-2xl outline-none",
           widthClass,
         )}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={trapTab}
       >
-        {children}
+        <div className="max-h-[calc(100vh-5rem)] overflow-y-auto">
+          {children}
+        </div>
       </div>
     </div>
   );

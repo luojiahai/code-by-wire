@@ -1,4 +1,5 @@
 import type { BackgroundShell } from "@shared/types";
+import { ModalCloseButton } from "../ui/ModalCloseButton";
 import { ModalShell } from "../ui/ModalShell";
 import { cx } from "../ui/atoms";
 import { useI18n } from "../i18n";
@@ -48,10 +49,15 @@ export function ShellDetailModal({
         </div>
 
         <div className="text-meta text-fg-muted">{t.modals.detail.command}</div>
-        <div className="max-h-40 overflow-auto rounded-md border border-ink-800 bg-well px-3 py-2 font-mono text-meta">
-          <span className="break-all text-fg">
-            <span className="text-primary">$</span> {shell.command}
+        <div className="flex max-h-40 items-start gap-2 overflow-auto rounded-md border border-ink-800 bg-well px-3 py-2 font-mono text-meta">
+          <span
+            aria-hidden
+            data-selectable-text="false"
+            className="shrink-0 text-fg-faint"
+          >
+            $
           </span>
+          <span className="min-w-0 break-all text-fg">{shell.command}</span>
         </div>
 
         <div className="text-meta text-fg-muted">{t.modals.detail.output}</div>
@@ -59,7 +65,7 @@ export function ShellDetailModal({
       </div>
 
       <div className="mt-4 text-right text-label text-fg-faint">
-        {t.modals.escToClose}
+        <ModalCloseButton onClose={onClose} />
       </div>
     </ModalShell>
   );

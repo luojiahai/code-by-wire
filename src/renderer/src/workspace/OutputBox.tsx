@@ -28,7 +28,7 @@ export function OutputBox({ output }: { output: ShellOutputState }) {
       <OverlayScroll
         axis="both"
         className="rounded-md border border-ink-800 bg-well"
-        contentClassName="max-h-[60vh] p-3 font-mono text-meta leading-relaxed text-fg-muted"
+        contentClassName="max-h-[min(60vh,calc(100vh-26rem))] p-3 font-mono text-meta leading-relaxed text-fg-muted"
       >
         {output.text.split("\n").map((line, i) => (
           <AnsiLine key={i} text={line} />
