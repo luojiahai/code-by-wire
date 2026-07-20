@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "@shared/types";
 import type { ProjectPlacement, ProjectState } from "@shared/ipc";
@@ -12,8 +12,8 @@ import {
   filterSessions,
   groupSessionsByProject,
   partitionProjectGroups,
-  visibleProjectGroups,
-  toggleVisibleProjectGroups,
+  projectGroupsForCollapse,
+  toggleProjectGroups,
   pinnedSessions,
 } from "./session-list-model";
 import { SessionRow } from "./SessionRow";
@@ -29,6 +29,7 @@ import {
 } from "./session-list-preferences";
 import { SessionFilterMenu } from "./SessionFilterMenu";
 import { ProjectGroupRow } from "./ProjectGroupRow";
+import { placeAnchoredMenu } from "./anchored-menu-position";
 
 /**
  * The left sidebar's content (design spec §4): an empty draggable top strip — the traffic lights
@@ -115,14 +116,15 @@ export function LeftSidebar({
     others: otherProjects,
     hidden: hiddenProjects,
   } = partitionProjectGroups(groups, projectState);
-  const visibleGroups = visibleProjectGroups(pinnedProjects, otherProjects);
-  const hiddenCount = partitionProjectGroups(
-    groupSessionsByProject(sessions, homeDir),
-    projectState,
-  ).hidden.length;
+  const collapsibleGroups = projectGroupsForCollapse(
+    pinnedProjects,
+    otherProjects,
+    hiddenProjects,
+  );
+  const hiddenCount = hiddenProjects.length;
   const allCollapsed =
-    visibleGroups.length > 0 &&
-    visibleGroups.every((g) => collapsed.has(g.key));
+    collapsibleGroups.length > 0 &&
+    collapsibleGroups.every((g) => collapsed.has(g.key));
   const toggleGroup = (key: string) => {
     const expanding = collapsed.has(key);
     setCollapsed((prev) => {
@@ -172,7 +174,8 @@ export function LeftSidebar({
   const agentMenuRef = useRef<HTMLDivElement>(null);
   const filterTriggerRef = useRef<HTMLButtonElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
-  const [filterMenu, setFilterMenu] = useState<{
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [filterMenuPosition, setFilterMenuPosition] = useState<{
     left: number;
     top: number;
   } | null>(null);
@@ -194,18 +197,22 @@ export function LeftSidebar({
   }, [agentMenu]);
 
   useEffect(() => {
-    if (!filterMenu) return;
+    if (!filterMenuOpen) return;
     function onDown(e: MouseEvent) {
       const target = e.target as Node;
       if (
         !filterMenuRef.current?.contains(target) &&
         !filterTriggerRef.current?.contains(target)
       ) {
-        setFilterMenu(null);
+        setFilterMenuOpen(false);
+        setFilterMenuPosition(null);
       }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setFilterMenu(null);
+      if (e.key === "Escape") {
+        setFilterMenuOpen(false);
+        setFilterMenuPosition(null);
+      }
     }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -213,7 +220,32 @@ export function LeftSidebar({
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [filterMenu]);
+  }, [filterMenuOpen]);
+
+  useLayoutEffect(() => {
+    if (!filterMenuOpen) return;
+    function placeFilterMenu() {
+      const trigger = filterTriggerRef.current;
+      const menu = filterMenuRef.current;
+      if (!trigger || !menu) return;
+      const menuRect = menu.getBoundingClientRect();
+      setFilterMenuPosition(
+        placeAnchoredMenu(
+          trigger.getBoundingClientRect(),
+          { width: window.innerWidth, height: window.innerHeight },
+          { width: menuRect.width, height: menuRect.height },
+          "end",
+        ),
+      );
+    }
+    placeFilterMenu();
+    window.addEventListener("scroll", placeFilterMenu, true);
+    window.addEventListener("resize", placeFilterMenu);
+    return () => {
+      window.removeEventListener("scroll", placeFilterMenu, true);
+      window.removeEventListener("resize", placeFilterMenu);
+    };
+  }, [filterMenuOpen]);
   // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn.
   const anySpawnable = AGENT_IDS.some((a) => canSpawnFor(a));
 
@@ -439,9 +471,8 @@ export function LeftSidebar({
                   type="button"
                   onClick={() => {
                     // Expand-all is NOT a manual expand: empty folders open silently, no empty-state line.
-                    // Hidden owns a separate disclosure, so preserve its per-folder collapse state.
                     setCollapsed((current) =>
-                      toggleVisibleProjectGroups(current, visibleGroups),
+                      toggleProjectGroups(current, collapsibleGroups),
                     );
                     if (!allCollapsed) {
                       setManuallyExpanded(new Set());
@@ -465,19 +496,16 @@ export function LeftSidebar({
                   ref={filterTriggerRef}
                   type="button"
                   onClick={() => {
-                    const trigger = filterTriggerRef.current;
-                    if (!trigger || filterMenu) {
-                      setFilterMenu(null);
+                    if (filterMenuOpen) {
+                      setFilterMenuOpen(false);
+                      setFilterMenuPosition(null);
                       return;
                     }
-                    const rect = trigger.getBoundingClientRect();
-                    setFilterMenu({
-                      left: Math.max(8, rect.right - 192),
-                      top: rect.bottom + 6,
-                    });
+                    setFilterMenuPosition(null);
+                    setFilterMenuOpen(true);
                   }}
                   aria-pressed={filterActive}
-                  aria-expanded={filterMenu !== null}
+                  aria-expanded={filterMenuOpen}
                   aria-haspopup="menu"
                   aria-label={t.shell.sidebar.filterMenuLabel}
                   title={t.shell.sidebar.filterMenuLabel}
@@ -583,21 +611,27 @@ export function LeftSidebar({
           </div>,
           document.body,
         )}
-      {filterMenu &&
+      {filterMenuOpen &&
         createPortal(
           <div
             ref={filterMenuRef}
             className="z-50"
             style={{
               position: "fixed",
-              left: filterMenu.left,
-              top: filterMenu.top,
+              left: filterMenuPosition?.left ?? 0,
+              top: filterMenuPosition?.top ?? 0,
+              visibility: filterMenuPosition ? "visible" : "hidden",
+              maxHeight: "calc(100vh - 16px)",
+              overflowY: "auto",
             }}
           >
             <SessionFilterMenu
               preferences={preferences}
               onChange={updatePreferences}
-              onClose={() => setFilterMenu(null)}
+              onClose={() => {
+                setFilterMenuOpen(false);
+                setFilterMenuPosition(null);
+              }}
             />
           </div>,
           document.body,
