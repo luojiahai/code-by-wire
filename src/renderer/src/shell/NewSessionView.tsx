@@ -15,14 +15,12 @@ import { PageHeader, Card } from "./page-primitives";
 /**
  * The inline create-a-Managed-session form (design spec §5): the app's sole create-a-session surface,
  * rendered directly in the middle column's content area rather than behind a modal overlay — no
- * backdrop, no focus trap, so it owns its own window-level Escape listener and self-centers via a
- * full-size flex wrapper. `App.tsx` mounts it at the `NEW_SESSION_ID` route — reached from the
- * sidebar's "New session" button and, seeded via `initialCwd`/`initialError`, from a sidebar folder
- * quick-add that failed and fell back here to retry.
+ * backdrop or focus trap. It self-centers via a full-size flex wrapper. `App.tsx` mounts it at the
+ * `NEW_SESSION_ID` route — reached from the sidebar's "New session" button and, seeded via
+ * `initialCwd`/`initialError`, from a sidebar folder quick-add that failed and fell back here to retry.
  */
 export function NewSessionView({
   onCreate,
-  onCancel,
   canSpawnFor,
   busy: externalBusy,
   initialCwd,
@@ -33,7 +31,6 @@ export function NewSessionView({
     model: ModelSelection,
     agent: AgentId,
   ) => void | Promise<void>;
-  onCancel: () => void;
   /** Per-agent spawn gate: an agent whose CLI check failed renders as a disabled option. */
   canSpawnFor: (agent: AgentId) => boolean;
   /** An external in-flight signal from the caller (e.g. a future `App.tsx`'s broader busy state),
@@ -65,15 +62,6 @@ export function NewSessionView({
         /* keep defaults null; picker falls back to FAMILIES + bare labels */
       });
   }, []);
-
-  // ModalShell used to own Escape-to-close; without it, this view owns its own window-level listener.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented) onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
 
   async function pick() {
     const dir = await window.api.terminal.pickDirectory();
@@ -183,13 +171,7 @@ export function NewSessionView({
               )}
 
               {error && <p className="text-aux text-danger">{error}</p>}
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={onCancel}
-                  className="rounded-md px-3 py-1.5 text-body text-fg-muted transition-colors hover:text-fg"
-                >
-                  {t.common.cancel}
-                </button>
+              <div className="flex justify-end">
                 <button
                   onClick={() => void create()}
                   disabled={!cwd || busy}

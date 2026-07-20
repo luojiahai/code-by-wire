@@ -1,4 +1,5 @@
 import type { DiffEvent } from "@shared/transcript";
+import { ModalCloseButton } from "../ui/ModalCloseButton";
 import { ModalShell } from "../ui/ModalShell";
 import { Icon } from "../ui/icons";
 import { OverlayScroll } from "../ui/OverlayScroll";
@@ -33,9 +34,10 @@ export function DiffModal({
     <ModalShell
       labelledBy="diff-title"
       widthClass="w-[44rem] max-w-[92vw]"
+      contentOverflow="hidden"
       onClose={onClose}
     >
-      <div id="diff-title" className="mb-3">
+      <div id="diff-title" className="mb-3 max-h-[30vh] overflow-y-auto">
         <div className="flex items-center gap-2 text-aux">
           <Icon
             name={toolIcon(diff.tool)}
@@ -80,7 +82,7 @@ export function DiffModal({
       <OverlayScroll
         axis="both"
         className="rounded-md border border-ink-800 bg-well"
-        contentClassName="max-h-[60vh] p-3 font-mono text-meta leading-relaxed"
+        contentClassName="max-h-[min(60vh,calc(100vh-14rem))] p-3 font-mono text-meta leading-relaxed"
       >
         {empty ? (
           <span className="text-fg-faint">{t.modals.diff.noChanges}</span>
@@ -113,7 +115,9 @@ export function DiffModal({
         >
           {copied ? t.common.copied : t.modals.diff.copyDiff}
         </button>
-        <span className="ml-auto">{t.modals.escToClose}</span>
+        <div className="ml-auto">
+          <ModalCloseButton onClose={onClose} />
+        </div>
       </div>
     </ModalShell>
   );

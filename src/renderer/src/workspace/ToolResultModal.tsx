@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ToolEvent, ToolResultDetail } from "@shared/transcript";
+import { ModalCloseButton } from "../ui/ModalCloseButton";
 import { ModalShell } from "../ui/ModalShell";
 import { Icon } from "../ui/icons";
 import { OverlayScroll } from "../ui/OverlayScroll";
@@ -79,6 +80,7 @@ export function ToolResultModal({
     <ModalShell
       labelledBy="tool-result-title"
       widthClass="w-[44rem] max-w-[92vw]"
+      contentOverflow="hidden"
       onClose={onClose}
     >
       <div
@@ -97,16 +99,30 @@ export function ToolResultModal({
         </span>
       </div>
 
-      <div className="flex items-start gap-2 rounded-md border border-ink-800 bg-well px-3 py-2 font-mono text-meta">
-        <pre className="flex-1 whitespace-pre-wrap break-words text-fg">
-          <span className="text-primary">$</span> {command}
-        </pre>
+      <div className="rounded-md border border-ink-800 bg-well px-3 py-2 font-mono text-meta">
+        <OverlayScroll
+          axis="both"
+          contentClassName="flex max-h-40 items-start gap-2"
+        >
+          <span
+            aria-hidden
+            data-selectable-text="false"
+            className="shrink-0 text-fg-faint"
+          >
+            $
+          </span>
+          <pre className="min-w-0 flex-1 whitespace-pre-wrap break-words text-fg">
+            {command}
+          </pre>
+        </OverlayScroll>
+      </div>
+      <div className="mt-2 flex">
         <button
           type="button"
           disabled={state.phase !== "ready"}
           onClick={cmd.copy}
           className={cx(
-            "shrink-0 rounded-sm border px-2 py-0.5 text-label transition-colors disabled:opacity-40",
+            "rounded-sm border px-2 py-0.5 text-label transition-colors disabled:opacity-40",
             cmd.copied
               ? "border-ink-600 text-fg"
               : "border-ink-700 text-fg-muted hover:border-ink-600 hover:text-fg",
@@ -116,13 +132,13 @@ export function ToolResultModal({
         </button>
       </div>
 
-      <div className="mb-1 mt-3 text-label uppercase tracking-wider text-fg-faint">
+      <div className="mb-1 mt-4 text-label uppercase tracking-wider text-fg-faint">
         {t.modals.detail.output}
       </div>
       <OverlayScroll
         axis="both"
         className="rounded-md border border-ink-800 bg-well"
-        contentClassName="max-h-[60vh] p-3 font-mono text-meta leading-relaxed text-fg-muted"
+        contentClassName="max-h-[min(60vh,calc(100vh-25rem))] p-3 font-mono text-meta leading-relaxed text-fg-muted"
       >
         {state.phase === "loading" && (
           <span className="text-fg-faint">{t.modals.toolResult.loading}</span>
@@ -159,7 +175,9 @@ export function ToolResultModal({
         >
           {out.copied ? t.common.copied : t.modals.toolResult.copyOutput}
         </button>
-        <span className="ml-auto">{t.modals.escToClose}</span>
+        <div className="ml-auto">
+          <ModalCloseButton onClose={onClose} />
+        </div>
       </div>
     </ModalShell>
   );

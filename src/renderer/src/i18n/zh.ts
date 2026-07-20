@@ -520,7 +520,6 @@ export const zh: Translations = {
       description ? `子代理（${type}）：${description}` : `子代理（${type}）`,
   },
   modals: {
-    escToClose: "按 Esc 关闭",
     shellTitle: "后台终端详情",
     monitorTitle: "监控详情",
     detail: {
