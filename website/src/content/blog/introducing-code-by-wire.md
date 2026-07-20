@@ -19,7 +19,7 @@ running on your machine is there.
   a live one, resume one you started elsewhere, or observe it read-only.
 - **The full transcript.** Every message, tool call, and result, reconstructed
   from disk and rendered cleanly.
-- **The telemetry the CLI hides.** Context pressure, spend, token throughput,
-  duty cycle, git, tasks, subagents, and background shells, live per session.
+- **The full telemetry.** Context pressure, spend, token throughput, duty
+  cycle, git, tasks, subagents, and background shells, live per session.
 
 [Download it](/download/) and see for yourself.

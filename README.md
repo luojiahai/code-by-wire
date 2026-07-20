@@ -25,8 +25,8 @@ session already running on your machine is there.
   fork a live one, resume one you started elsewhere, or observe it read-only.
 - **The full transcript.** Every message, tool call, and result,
   reconstructed from disk and rendered cleanly.
-- **The telemetry the CLI hides.** Context pressure, spend, token throughput,
-  duty cycle, git, tasks, subagents, and background shells, live per session.
+- **The full telemetry.** Context pressure, spend, token throughput, duty
+  cycle, git, tasks, subagents, and background shells, live per session.
 - **The whole story.** A cross-session Stats view with a year-long
   contributions calendar and exact, never-estimated totals.
 - **Your rate limits in view.** Your account's rate-limit windows, read
