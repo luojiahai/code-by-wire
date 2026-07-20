@@ -38,6 +38,7 @@ import { LeftSidebar } from "./shell/LeftSidebar";
 import { RightSidebar } from "./shell/RightSidebar";
 import { NewSessionView } from "./shell/NewSessionView";
 import { MiddleHeader } from "./shell/MiddleHeader";
+import { projectPlacementMatches } from "./shell/project-placement-action";
 import { useMediaQuery, NARROW_VIEWPORT_QUERY } from "./shell/use-media-query";
 import { $paneOpen } from "./shell/panes";
 import {
@@ -376,7 +377,11 @@ export function App() {
     key: string,
     placement: "pinned" | "hidden" | "ordinary",
   ): Promise<void> {
-    applyOverview(await window.api.setProjectPlacement(key, placement));
+    const overview = await window.api.setProjectPlacement(key, placement);
+    applyOverview(overview);
+    if (!projectPlacementMatches(overview.projectState, key, placement)) {
+      throw new Error(`Project placement did not persist: ${placement}`);
+    }
   }
 
   // Fork a session: resume its conversation into a fresh id under `--fork-session`. Unlike Resume (which

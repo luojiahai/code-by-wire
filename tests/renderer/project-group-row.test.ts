@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { runProjectPlacementAction } from "../../src/renderer/src/shell/project-placement-action";
+import {
+  projectPlacementMatches,
+  runProjectPlacementAction,
+} from "../../src/renderer/src/shell/project-placement-action";
 
 const source = readFileSync(
   join(__dirname, "..", "..", "src/renderer/src/shell/ProjectGroupRow.tsx"),
@@ -101,5 +104,40 @@ describe("runProjectPlacementAction", () => {
       ),
     ).rejects.toThrow("disk full");
     expect(closed).toBe(false);
+  });
+});
+
+describe("projectPlacementMatches", () => {
+  it.each([
+    ["pinned", { pinnedAtMs: 1 }, true],
+    ["pinned", { pinnedAtMs: 1, hiddenAtMs: 2 }, false],
+    ["pinned", { hiddenAtMs: 2 }, false],
+    ["pinned", undefined, false],
+    ["hidden", { hiddenAtMs: 2 }, true],
+    ["hidden", { pinnedAtMs: 1, hiddenAtMs: 2 }, false],
+    ["hidden", { pinnedAtMs: 1 }, false],
+    ["hidden", undefined, false],
+    ["ordinary", undefined, true],
+    ["ordinary", {}, true],
+    ["ordinary", { pinnedAtMs: 1 }, false],
+    ["ordinary", { hiddenAtMs: 2 }, false],
+  ] as const)("matches %s against %j as %s", (placement, entry, expected) => {
+    expect(
+      projectPlacementMatches(
+        entry ? { "/repo": entry } : {},
+        "/repo",
+        placement,
+      ),
+    ).toBe(expected);
+  });
+
+  it("detects an unchanged overview after a failed persistence attempt", () => {
+    expect(
+      projectPlacementMatches(
+        { "/repo": { hiddenAtMs: 10 } },
+        "/repo",
+        "pinned",
+      ),
+    ).toBe(false);
   });
 });
