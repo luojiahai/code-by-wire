@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type ReactNode,
@@ -39,8 +40,10 @@ export function CustomSelect<T extends string | number>({
 }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const listboxId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const listboxRef = useRef<HTMLDivElement | null>(null);
   const selectedIndex = options.findIndex((option) => option.value === value);
   const current = options[selectedIndex];
   const disabled = firstEnabledIndex(options) === -1;
@@ -72,6 +75,10 @@ export function CustomSelect<T extends string | number>({
   }, [open, options]);
 
   useEffect(() => {
+    if (open) listboxRef.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     const onDown = (event: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node))
@@ -82,6 +89,7 @@ export function CustomSelect<T extends string | number>({
         case "Escape":
           event.preventDefault();
           close();
+          triggerRef.current?.focus();
           break;
         case "ArrowDown":
           event.preventDefault();
@@ -121,6 +129,7 @@ export function CustomSelect<T extends string | number>({
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={listboxId}
         aria-label={ariaLabel}
         disabled={disabled}
         onClick={toggle}
@@ -135,8 +144,14 @@ export function CustomSelect<T extends string | number>({
       </button>
       {open && (
         <div
+          ref={listboxRef}
+          id={listboxId}
           role="listbox"
           aria-label={ariaLabel}
+          aria-activedescendant={
+            activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
+          }
+          tabIndex={-1}
           className={cx(
             "absolute right-0 top-full z-50 mt-1.5 min-w-full rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl",
             menuClassName,
@@ -148,6 +163,7 @@ export function CustomSelect<T extends string | number>({
             return (
               <button
                 key={option.value}
+                id={`${listboxId}-option-${index}`}
                 type="button"
                 role="option"
                 aria-selected={selected}
