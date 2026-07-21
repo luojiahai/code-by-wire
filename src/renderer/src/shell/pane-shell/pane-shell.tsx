@@ -450,9 +450,10 @@ export function Pane({
         ref={paneRef}
         style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow }}
       >
+        {/* z-30: under the rail (z-40) and sashes (z-50) — only the revealed PANEL below outranks them. */}
         <div
           aria-hidden="true"
-          className="pointer-events-auto absolute inset-y-0 z-[60] [-webkit-app-region:no-drag]"
+          className="pointer-events-auto absolute inset-y-0 z-30 [-webkit-app-region:no-drag]"
           data-pane-reveal-trigger=""
           style={{
             [edge]: HOVER_REVEAL_EDGE_GUTTER,
