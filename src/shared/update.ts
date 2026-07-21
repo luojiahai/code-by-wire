@@ -81,6 +81,24 @@ function versionInFlight(prev: UpdateState): string {
   return "";
 }
 
+/** Whether an event may move on from a `downloaded` phase. That build is on disk and installs on the
+ *  next quit, so no check result may take the ready-to-restart action away: a re-check that spins,
+ *  fails, or reports "up to date" leaves the phase untouched. Only a genuinely newer version — or the
+ *  download of one — supersedes what is staged. */
+function leavesStaged(ev: UpdaterEvent, version: string): boolean {
+  switch (ev.type) {
+    case "checking":
+    case "not-available":
+    case "error":
+      return false;
+    case "available":
+      return ev.version !== version;
+    case "progress":
+    case "downloaded":
+      return true;
+  }
+}
+
 /** Pure reducer: fold one updater event into the next state. `unsupported` is sticky (a dev build never
  *  leaves it); `currentVersion` is always carried forward. */
 export function nextUpdateState(
@@ -88,19 +106,15 @@ export function nextUpdateState(
   ev: UpdaterEvent,
 ): UpdateState {
   if (prev.phase.kind === "unsupported") return prev;
+  const staged = prev.phase.kind === "downloaded" ? prev.phase : null;
+  if (staged && !leavesStaged(ev, staged.version)) return prev;
   const base = { currentVersion: prev.currentVersion };
   switch (ev.type) {
     case "checking":
-      // A check firing mid-download (shouldn't happen) must not wipe progress, and a re-check from
-      // the downloaded phase must not strand the user without the restart action if it errors.
-      if (prev.phase.kind === "downloading" || prev.phase.kind === "downloaded")
-        return prev;
+      // A check firing mid-download (shouldn't happen) must not wipe progress.
+      if (prev.phase.kind === "downloading") return prev;
       return { ...base, phase: { kind: "checking" } };
     case "available":
-      // A re-check that finds the same version we already downloaded keeps the ready-to-restart
-      // phase — the build is on disk, so offering "Download" again would be a lie.
-      if (prev.phase.kind === "downloaded" && prev.phase.version === ev.version)
-        return prev;
       return {
         ...base,
         phase: {

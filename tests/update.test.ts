@@ -141,6 +141,18 @@ describe("nextUpdateState", () => {
     expect(nextUpdateState(downloaded, { type: "checking" })).toBe(downloaded);
   });
 
+  it("a failed re-check keeps the ready-to-restart phase", () => {
+    expect(
+      nextUpdateState(downloaded, { type: "error", message: "net::ERR" }),
+    ).toBe(downloaded);
+  });
+
+  it("a re-check reporting no update keeps the ready-to-restart phase", () => {
+    expect(nextUpdateState(downloaded, { type: "not-available", at: 5 })).toBe(
+      downloaded,
+    );
+  });
+
   it("a re-check finding the same downloaded version stays downloaded", () => {
     expect(
       nextUpdateState(downloaded, { type: "available", version: "0.1.17" }),
