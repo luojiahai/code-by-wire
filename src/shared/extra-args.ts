@@ -109,3 +109,14 @@ export function extraArgsErrorMessage(e: ExtraArgsError): string {
     ? "Unclosed quote in launch arguments"
     : `Reserved launch argument: ${e.token}`;
 }
+
+/** Resolve a previously-stored raw args string back into argv tokens for resume/fork, where a hard
+ *  failure must never happen: a stored string that no longer validates (e.g. a denylist tightened
+ *  after it was saved) degrades to no extra args rather than breaking the resume/fork. */
+export function resolveStoredExtraArgs(
+  agent: AgentId,
+  stored: string,
+): string[] {
+  const check = validateExtraArgs(agent, stored);
+  return check.ok ? check.tokens : [];
+}

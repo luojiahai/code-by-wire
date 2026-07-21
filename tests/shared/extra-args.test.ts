@@ -3,6 +3,7 @@ import {
   validateExtraArgs,
   extraArgsErrorMessage,
   emptyLaunchPresets,
+  resolveStoredExtraArgs,
 } from "../../src/shared/extra-args";
 
 describe("validateExtraArgs — tokenizer", () => {
@@ -130,5 +131,24 @@ describe("emptyLaunchPresets", () => {
     const a = emptyLaunchPresets();
     expect(a).toEqual({ claude: [], codex: [] });
     expect(emptyLaunchPresets()).not.toBe(a);
+  });
+});
+
+describe("resolveStoredExtraArgs", () => {
+  it("resolves a valid stored string to its tokens", () => {
+    expect(resolveStoredExtraArgs("claude", "--model opus --verbose")).toEqual([
+      "--model",
+      "opus",
+      "--verbose",
+    ]);
+  });
+  it("resolves an empty stored string to no tokens", () => {
+    expect(resolveStoredExtraArgs("claude", "")).toEqual([]);
+  });
+  it("falls back to no tokens for a stored string with a reserved flag", () => {
+    expect(resolveStoredExtraArgs("claude", "--resume abc")).toEqual([]);
+  });
+  it("falls back to no tokens for a stored string with an unbalanced quote", () => {
+    expect(resolveStoredExtraArgs("claude", '--settings "oops')).toEqual([]);
   });
 });

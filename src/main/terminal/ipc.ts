@@ -22,7 +22,11 @@ import {
   type ForkResult,
   type ReattachSnapshot,
 } from "@shared/terminal";
-import { validateExtraArgs, extraArgsErrorMessage } from "@shared/extra-args";
+import {
+  validateExtraArgs,
+  extraArgsErrorMessage,
+  resolveStoredExtraArgs,
+} from "@shared/extra-args";
 import { hydrate } from "../db/store";
 import { projectFromCwd } from "../project-name";
 import type { ManagedRegistry } from "../managed-registry";
@@ -174,13 +178,12 @@ export function registerTerminalIpc({
     const d = gateResume(agentOf(req.id), resolveResumeTarget(req.id));
     if (!d.ok) return { ok: false, reason: d.reason };
     const stored = launchArgs?.get(req.id) ?? "";
-    const check = validateExtraArgs(d.agent, stored);
     manager.resume({
       id: req.id,
       cwd: d.cwd,
       agent: d.agent,
       claimedRollout: d.claimedRollout,
-      extraArgs: check.ok ? check.tokens : [],
+      extraArgs: resolveStoredExtraArgs(d.agent, stored),
       cols: req.cols,
       rows: req.rows,
     });
@@ -199,13 +202,12 @@ export function registerTerminalIpc({
     if (!d.ok) return { ok: false, reason: "unresolvable" };
     const stored = launchArgs?.get(req.sourceId) ?? "";
     if (stored) launchArgs?.set(req.newId, stored);
-    const check = validateExtraArgs("claude", stored);
     manager.fork({
       id: req.newId,
       sourceId: req.sourceId,
       model: req.model,
       cwd: d.cwd,
-      extraArgs: check.ok ? check.tokens : [],
+      extraArgs: resolveStoredExtraArgs("claude", stored),
       cols: req.cols,
       rows: req.rows,
     });
