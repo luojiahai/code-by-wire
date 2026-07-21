@@ -297,10 +297,12 @@ export const en = {
     },
     gitReadout: {
       uncommittedChanges: "Uncommitted changes",
+      copyBranch: "Copy branch",
     },
     sessionPanel: {
       heading: "Session",
       model: "Model",
+      copyModel: "Copy model",
       effort: "Effort",
       git: "Git",
       pr: "PR",

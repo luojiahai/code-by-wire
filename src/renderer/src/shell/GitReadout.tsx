@@ -1,5 +1,6 @@
 import type { Session } from "@shared/types";
 import type { GitInfo } from "@shared/metrics";
+import { CopyButton } from "../ui/CopyButton";
 import { useI18n } from "../i18n";
 
 /** The Session panel's Git readout, popover-free: the branch (or the short sha on a detached HEAD,
@@ -21,7 +22,7 @@ export function GitReadout({
   if (headLabel == null) return <span className="text-fg-muted">-</span>;
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-fg">
-      <span className="min-w-0 truncate" title={headLabel}>
+      <span className="min-w-0 break-all" title={headLabel}>
         {headLabel}
       </span>
       {dirty && (
@@ -30,6 +31,7 @@ export function GitReadout({
           title={t.shell.gitReadout.uncommittedChanges}
         />
       )}
+      <CopyButton value={headLabel} label={t.shell.gitReadout.copyBranch} />
     </span>
   );
 }

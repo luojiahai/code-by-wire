@@ -261,10 +261,12 @@ export const zh: Translations = {
     },
     gitReadout: {
       uncommittedChanges: "有未提交的更改",
+      copyBranch: "复制分支",
     },
     sessionPanel: {
       heading: "会话",
       model: "模型",
+      copyModel: "复制模型",
       effort: "推理强度",
       git: "Git",
       pr: "PR",

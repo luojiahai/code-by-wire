@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Session } from "@shared/types";
 import type { GitInfo, PrInfo } from "@shared/metrics";
 import { modelKnown, modelLabel } from "../ui/meta";
+import { CopyButton } from "../ui/CopyButton";
 import { PanelSection, PanelHeading } from "../workspace/panels/chrome";
 import { useI18n } from "../i18n";
 import { GitReadout } from "./GitReadout";
@@ -22,9 +23,12 @@ export function SessionPanel({
   pr?: PrInfo | null;
 }) {
   const { t } = useI18n();
+  // The exact resolved id — the live statusLine capture else the persisted transcript raw. Fronts the
+  // Model row's Copy button (the useful thing to paste), and is null before any real turn lands.
+  const modelRaw = s.modelId ?? s.modelRaw;
   const model = modelLabel(
     s.model,
-    s.modelId ?? s.modelRaw,
+    modelRaw,
     s.modelDisplayName,
     // Not bare `management === "managed"`: a managed codex session has no spawn model to vouch for
     // (no --model flag exists), so its rawless family is only the Opus normalize fallback (#371).
@@ -42,9 +46,12 @@ export function SessionPanel({
     <PanelSection>
       <PanelHeading icon="id-card">{t.shell.sessionPanel.heading}</PanelHeading>
       <SessionRow label={t.shell.sessionPanel.model}>
-        <span className="min-w-0 truncate" title={model}>
+        <span className="min-w-0 break-all" title={model}>
           {model}
         </span>
+        {modelRaw && (
+          <CopyButton value={modelRaw} label={t.shell.sessionPanel.copyModel} />
+        )}
       </SessionRow>
       <SessionRow label={t.shell.sessionPanel.effort}>
         {s.effortLevel ?? "-"}
