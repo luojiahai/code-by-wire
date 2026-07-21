@@ -128,6 +128,7 @@ export const zh: Translations = {
       autoCheckDesc: "每次启动应用时检查新版本",
       upToDate: "已是最新",
       check: "检查更新",
+      recheck: "重新检查",
       checking: "正在检查更新…",
       available: "有可用更新",
       onVersion: (version) => `当前 v${version}`,

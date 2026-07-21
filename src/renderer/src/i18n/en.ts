@@ -152,6 +152,7 @@ export const en = {
       autoCheckDesc: "Look for a new version each time the app starts",
       upToDate: "Up to date",
       check: "Check for updates",
+      recheck: "Check again",
       checking: "Checking for updates…",
       available: "Update available",
       onVersion: (version: string) => `On v${version}`,

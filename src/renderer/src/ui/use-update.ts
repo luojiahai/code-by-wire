@@ -29,7 +29,10 @@ export function useUpdate(): UpdateControls {
   return {
     state,
     autoCheck,
-    check: () => void window.api.checkForUpdate().then(setState),
+    check: () =>
+      window.api.checkForUpdate().then((s) => {
+        setState(s);
+      }),
     download: () => void window.api.downloadUpdate(),
     install: () => window.api.installUpdate(),
     setAutoCheck: (enabled) => {

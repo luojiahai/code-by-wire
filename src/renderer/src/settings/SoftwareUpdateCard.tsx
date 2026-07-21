@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { UpdateState } from "@shared/update";
 import { Icon } from "../ui/icons";
 import { cx } from "../ui/atoms";
@@ -8,7 +8,9 @@ import { useI18n } from "../i18n";
 export interface UpdateControls {
   state: UpdateState;
   autoCheck: boolean;
-  check: () => void;
+  /** Resolves once the check settles — the card spins its re-check button on the returned promise
+   *  in phases that stay put across a check (`downloaded`). */
+  check: () => Promise<void>;
   download: () => void;
   install: () => void;
   setAutoCheck: (enabled: boolean) => void;
@@ -73,8 +75,28 @@ export function SoftwareUpdateCard({ update }: { update: UpdateControls }) {
 
 function StatusRow({ update }: { update: UpdateControls }) {
   const { t } = useI18n();
+  // The `downloaded` phase survives a check (the reducer keeps it), so its re-check button spins on
+  // local state rather than on a `checking` phase it never enters.
+  const [rechecking, setRechecking] = useState(false);
   const { state } = update;
   const p = state.phase;
+
+  const recheck = (
+    <GhostButton
+      onClick={() => {
+        setRechecking(true);
+        void update.check().finally(() => setRechecking(false));
+      }}
+      disabled={rechecking}
+    >
+      <Icon
+        name="rotate-ccw"
+        size={13}
+        className={rechecking ? "animate-spin" : ""}
+      />
+      {t.settings.update.recheck}
+    </GhostButton>
+  );
 
   let tone: LampTone = "idle";
   let headline = t.settings.update.upToDate;
@@ -88,7 +110,7 @@ function StatusRow({ update }: { update: UpdateControls }) {
       headline = t.settings.update.upToDate;
       detail = `v${state.currentVersion}`;
       action = (
-        <GhostButton onClick={update.check}>
+        <GhostButton onClick={() => void update.check()}>
           {t.settings.update.check}
         </GhostButton>
       );
@@ -98,7 +120,7 @@ function StatusRow({ update }: { update: UpdateControls }) {
       headline = t.settings.update.upToDate;
       detail = `v${state.currentVersion}`;
       action = (
-        <GhostButton onClick={update.check}>
+        <GhostButton onClick={() => void update.check()}>
           {t.settings.update.check}
         </GhostButton>
       );
@@ -133,9 +155,12 @@ function StatusRow({ update }: { update: UpdateControls }) {
         </button>
       );
       action = (
-        <SolidButton onClick={update.download}>
-          {t.settings.update.download}
-        </SolidButton>
+        <>
+          {recheck}
+          <SolidButton onClick={update.download}>
+            {t.settings.update.download}
+          </SolidButton>
+        </>
       );
       break;
     case "downloading":
@@ -167,10 +192,13 @@ function StatusRow({ update }: { update: UpdateControls }) {
         </div>
       );
       action = (
-        <SolidButton onClick={update.install}>
-          <Icon name="rotate-ccw" size={13} className="mr-1.5" />
-          {t.settings.update.restartNow}
-        </SolidButton>
+        <>
+          {recheck}
+          <SolidButton onClick={update.install}>
+            <Icon name="rotate-ccw" size={13} className="mr-1.5" />
+            {t.settings.update.restartNow}
+          </SolidButton>
+        </>
       );
       break;
     case "error":
@@ -178,7 +206,7 @@ function StatusRow({ update }: { update: UpdateControls }) {
       headline = t.settings.update.checkError;
       detail = t.settings.update.retryDetail(p.message);
       action = (
-        <GhostButton onClick={update.check}>
+        <GhostButton onClick={() => void update.check()}>
           {t.settings.update.retry}
         </GhostButton>
       );
@@ -202,7 +230,9 @@ function StatusRow({ update }: { update: UpdateControls }) {
         <div className="mt-0.5 text-meta text-fg-muted">{detail}</div>
         {extra}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && (
+        <div className="flex shrink-0 items-center gap-2">{action}</div>
+      )}
     </div>
   );
 }

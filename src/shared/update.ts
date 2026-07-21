@@ -91,10 +91,16 @@ export function nextUpdateState(
   const base = { currentVersion: prev.currentVersion };
   switch (ev.type) {
     case "checking":
-      // A check firing mid-download (shouldn't happen) must not wipe progress.
-      if (prev.phase.kind === "downloading") return prev;
+      // A check firing mid-download (shouldn't happen) must not wipe progress, and a re-check from
+      // the downloaded phase must not strand the user without the restart action if it errors.
+      if (prev.phase.kind === "downloading" || prev.phase.kind === "downloaded")
+        return prev;
       return { ...base, phase: { kind: "checking" } };
     case "available":
+      // A re-check that finds the same version we already downloaded keeps the ready-to-restart
+      // phase — the build is on disk, so offering "Download" again would be a lie.
+      if (prev.phase.kind === "downloaded" && prev.phase.version === ev.version)
+        return prev;
       return {
         ...base,
         phase: {

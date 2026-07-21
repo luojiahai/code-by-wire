@@ -131,6 +131,36 @@ describe("nextUpdateState", () => {
       downloading,
     );
   });
+
+  const downloaded: UpdateState = {
+    currentVersion: "0.1.16",
+    phase: { kind: "downloaded", version: "0.1.17" },
+  };
+
+  it("a re-check from downloaded keeps the ready-to-restart phase", () => {
+    expect(nextUpdateState(downloaded, { type: "checking" })).toBe(downloaded);
+  });
+
+  it("a re-check finding the same downloaded version stays downloaded", () => {
+    expect(
+      nextUpdateState(downloaded, { type: "available", version: "0.1.17" }),
+    ).toBe(downloaded);
+  });
+
+  it("a re-check finding a newer version leaves downloaded", () => {
+    expect(
+      nextUpdateState(downloaded, { type: "available", version: "0.1.18" }),
+    ).toEqual({
+      currentVersion: "0.1.16",
+      phase: {
+        kind: "available",
+        version: "0.1.18",
+        releaseDate: undefined,
+        notesUrl:
+          "https://github.com/luojiahai/code-by-wire/releases/tag/v0.1.18",
+      },
+    });
+  });
 });
 
 describe("isUpdatePending", () => {
