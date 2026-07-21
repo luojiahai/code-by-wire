@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AGENTS, type AgentId } from "@shared/agents";
 import type { ModelSelection } from "@shared/models";
 import type { LaunchPreset } from "@shared/extra-args";
@@ -37,6 +37,16 @@ export function LaunchCommandField({
   const [menuOpen, setMenuOpen] = useState(false);
   /** Non-null while the inline "name this preset" input is showing; holds the draft name. */
   const [draftName, setDraftName] = useState<string | null>(null);
+  const argsRef = useRef<HTMLTextAreaElement>(null);
+
+  // A single-line <input> never wraps — long args just scroll out of view. A <textarea> wraps, but
+  // needs its height driven off scrollHeight to auto-grow instead of showing its own scrollbar.
+  useEffect(() => {
+    const el = argsRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
 
   const prefix =
     agent === "claude"
@@ -137,19 +147,26 @@ export function LaunchCommandField({
       </div>
 
       <div
-        className={`mt-1.5 flex items-baseline gap-1.5 rounded-md border border-dashed px-2.5 py-2 font-mono text-aux ${
+        className={`mt-1.5 flex items-start gap-1.5 rounded-md border border-dashed px-2.5 py-2 font-mono text-aux ${
           errorText ? "border-danger/60" : "border-ink-700"
         } bg-ink-925`}
       >
         <span className="shrink-0 whitespace-nowrap text-fg-faint">
           {prefix}
         </span>
-        <input
+        <textarea
+          ref={argsRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            // Args are one logical line — the tokenizer only splits on spaces/tabs, so a literal
+            // newline would just become embedded junk in a token. Wrapping is visual only.
+            if (e.key === "Enter") e.preventDefault();
+          }}
           placeholder={t.shell.newSession.argsPlaceholder}
           spellCheck={false}
-          className="min-w-0 flex-1 bg-transparent outline-none placeholder:italic placeholder:text-fg-faint"
+          rows={1}
+          className="min-w-0 flex-1 resize-none overflow-hidden bg-transparent outline-none placeholder:italic placeholder:text-fg-faint"
         />
       </div>
 
