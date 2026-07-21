@@ -559,7 +559,6 @@ export function App() {
           minWidth={LEFT_MIN_WIDTH}
           maxWidth={LEFT_MAX_WIDTH}
           resizable
-          divider
           hoverReveal
           forceCollapsed={narrow}
         >
@@ -626,7 +625,6 @@ export function App() {
           minWidth={RIGHT_MIN_WIDTH}
           maxWidth={RIGHT_MAX_WIDTH}
           resizable
-          divider
           hoverReveal
           disabled={!hasSession}
           forceCollapsed={narrow}
