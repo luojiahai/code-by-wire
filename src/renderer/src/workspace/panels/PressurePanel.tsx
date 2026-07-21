@@ -50,7 +50,7 @@ function RateRow({
       <span className="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-(--ui-text-secondary)">
         {w ? `${pct}%` : "-"}
       </span>
-      <span className="w-16 min-w-0 text-right font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
+      <span className="w-17 min-w-0 text-right font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
         {w ? t.time.countdown(w.resetsAt, now) : "-"}
       </span>
     </div>
@@ -224,7 +224,7 @@ function ExtraRow({ extra }: { extra: ExtraUsage }) {
       <span className="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-(--ui-text-secondary)">
         {pct}%
       </span>
-      <span className="w-16 min-w-0 text-right font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
+      <span className="w-17 min-w-0 text-right font-mono text-xs tabular-nums text-(--ui-text-tertiary)">
         -
       </span>
     </div>
