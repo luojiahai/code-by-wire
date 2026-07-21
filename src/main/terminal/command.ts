@@ -16,11 +16,13 @@ export interface ClaudeCommand {
  * omits `--model` entirely rather than passing the literal alias, so the CLI's own configured default
  * applies exactly as if the flag were never given. Always the bare `"claude"` command — which binary
  * that resolves to is the spawning shell's job (see toSpawnForm), not this app's. cwd and env are spawn
- * options, not argv, so this stays a pure function of its inputs.
+ * options, not argv, so this stays a pure function of its inputs. `extraArgs` is the user's validated
+ * custom suffix, always appended last so app-managed flags stay first.
  */
 export function buildClaudeCommand(opts: {
   id: string;
   model: ModelSelection;
+  extraArgs?: string[];
 }): ClaudeCommand {
   return {
     file: "claude",
@@ -28,6 +30,7 @@ export function buildClaudeCommand(opts: {
       "--session-id",
       opts.id,
       ...(opts.model === "default" ? [] : ["--model", opts.model]),
+      ...(opts.extraArgs ?? []),
     ],
   };
 }
@@ -43,10 +46,15 @@ export function buildSpawnCommand(opts: {
   agent: AgentId;
   id: string;
   model: ModelSelection;
+  extraArgs?: string[];
 }): ClaudeCommand {
   if (opts.agent === "claude")
-    return buildClaudeCommand({ id: opts.id, model: opts.model });
-  return { file: AGENTS[opts.agent].binary, args: [] };
+    return buildClaudeCommand({
+      id: opts.id,
+      model: opts.model,
+      extraArgs: opts.extraArgs,
+    });
+  return { file: AGENTS[opts.agent].binary, args: [...(opts.extraArgs ?? [])] };
 }
 
 /** Rewrite a Windows shim invocation into a launch form node-pty's ConPTY backend can run. A real `.exe`
@@ -132,10 +140,17 @@ export function toSpawnForm(
 export function buildResumeCommand(opts: {
   agent: AgentId;
   id: string;
+  extraArgs?: string[];
 }): ClaudeCommand {
   if (opts.agent === "claude")
-    return { file: "claude", args: ["--resume", opts.id] };
-  return { file: AGENTS[opts.agent].binary, args: ["resume", opts.id] };
+    return {
+      file: "claude",
+      args: ["--resume", opts.id, ...(opts.extraArgs ?? [])],
+    };
+  return {
+    file: AGENTS[opts.agent].binary,
+    args: ["resume", opts.id, ...(opts.extraArgs ?? [])],
+  };
 }
 
 /**
@@ -149,6 +164,7 @@ export function buildResumeCommand(opts: {
 export function buildForkCommand(opts: {
   sourceId: string;
   newId: string;
+  extraArgs?: string[];
 }): ClaudeCommand {
   return {
     file: "claude",
@@ -158,6 +174,7 @@ export function buildForkCommand(opts: {
       "--session-id",
       opts.newId,
       "--fork-session",
+      ...(opts.extraArgs ?? []),
     ],
   };
 }
