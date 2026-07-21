@@ -16,6 +16,8 @@ import {
 import { cx } from "../../ui/atoms";
 import {
   $paneStates,
+  clearPaneHeightOverride,
+  clearPaneWidthOverride,
   ensurePaneRegistered,
   setPaneHeightOverride,
   setPaneWidthOverride,
@@ -25,6 +27,7 @@ import {
   type PaneShellContextValue,
   type PaneSlot,
 } from "./context";
+import { rafCoalesce } from "./raf-coalesce";
 import {
   DEFAULT_HEIGHT,
   DEFAULT_RESIZE_MIN_HEIGHT,
@@ -353,6 +356,7 @@ export function Pane({
   // rail → right, right rail → left); the bottom row grows up from its top edge.
   const startResize = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>, axis: "x" | "y") => {
+      if (event.button !== 0) return;
       const rect = paneRef.current?.getBoundingClientRect();
       const base = (axis === "x" ? rect?.width : rect?.height) ?? 0;
       if (!canResize || base <= 0) return;
@@ -371,20 +375,33 @@ export function Pane({
       document.body.style.cursor = axis === "x" ? "col-resize" : "row-resize";
       document.body.style.userSelect = "none";
 
+      // pointermove outpaces the display, and every override write reflows the
+      // grid AND refits xterm — coalesce to one write per frame (the final
+      // position commits in cleanup via finish()).
+      const resize = rafCoalesce<number>((next) => apply(id, next));
+
       const onMove = (e: PointerEvent) => {
         const next =
           base + ((axis === "x" ? e.clientX : e.clientY) - start) * dir;
-        apply(id, Math.round(Math.min(max, Math.max(min, next))));
+        resize.push(Math.round(Math.min(max, Math.max(min, next))));
       };
+      // releasePointerCapture fires lostpointercapture, which re-enters
+      // cleanup — the `done` latch makes that second entry a no-op.
+      let done = false;
       const cleanup = () => {
+        if (done) return;
+        done = true;
+        resize.finish();
         document.body.style.cursor = restoreCursor;
         document.body.style.userSelect = restoreSelect;
         handle.releasePointerCapture?.(pointerId);
+        handle.removeEventListener("lostpointercapture", cleanup);
         window.removeEventListener("pointermove", onMove, true);
         window.removeEventListener("pointerup", cleanup, true);
         window.removeEventListener("pointercancel", cleanup, true);
         window.removeEventListener("blur", cleanup);
       };
+      handle.addEventListener("lostpointercapture", cleanup);
       window.addEventListener("pointermove", onMove, true);
       window.addEventListener("pointerup", cleanup, true);
       window.addEventListener("pointercancel", cleanup, true);
@@ -490,6 +507,11 @@ export function Pane({
                 : "left-0 -translate-x-1/2"),
           )}
           onPointerDown={(e) => startResize(e, axis)}
+          onDoubleClick={() =>
+            axis === "x"
+              ? clearPaneWidthOverride(id)
+              : clearPaneHeightOverride(id)
+          }
           role="separator"
           tabIndex={0}
         >
