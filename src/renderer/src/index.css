@@ -293,6 +293,11 @@
     var(--ui-accent) var(--theme-stroke-quaternary-accent-mix),
     color-mix(in srgb, var(--ui-base) 3%, transparent)
   );
+  --ui-sash-hover-border: color-mix(
+    in srgb,
+    var(--ui-accent) 18%,
+    var(--ui-stroke-tertiary)
+  );
   --stroke-nous: color-mix(in srgb, currentColor 3%, transparent);
 
   /* Surface aliases (hermes styles.css:256-268). --ui-editor-surface-background stays a plain

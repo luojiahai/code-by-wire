@@ -91,17 +91,19 @@ export interface PaneShellProps {
 }
 
 // Resize-sash geometry per axis: `x` is a vertical bar on the inner edge of a
-// column; `y` is a horizontal bar on the top edge of a bottom row.
+// column; `y` is a horizontal bar on the top edge of a bottom row. The 9px
+// `bar` hit area straddles the seam (hermes parity) and is only usable
+// because the grid item no longer clips (see the open-pane return below).
 const SASH = {
   x: {
     orientation: "vertical",
-    bar: "bottom-0 top-0 w-1 cursor-col-resize",
+    bar: "bottom-0 top-0 w-[9px] cursor-col-resize",
     line: "inset-y-0 left-1/2 w-px -translate-x-1/2",
     hover: "inset-y-0 left-1/2 w-1 -translate-x-1/2",
   },
   y: {
     orientation: "horizontal",
-    bar: "inset-x-0 top-0 h-1 -translate-y-1/2 cursor-row-resize",
+    bar: "inset-x-0 top-0 h-[9px] -translate-y-1/2 cursor-row-resize",
     line: "inset-x-0 top-1/2 h-px -translate-y-1/2",
     hover: "inset-x-0 top-1/2 h-1 -translate-y-1/2",
   },
@@ -465,7 +467,7 @@ export function Pane({
     <div
       aria-hidden={!open}
       className={cx(
-        "relative min-h-0 min-w-0 overflow-hidden",
+        "relative min-h-0 min-w-0",
         !open && "pointer-events-none",
         className,
       )}
@@ -480,7 +482,7 @@ export function Pane({
           aria-label={`Resize ${id}`}
           aria-orientation={sash.orientation}
           className={cx(
-            "group absolute z-20 [-webkit-app-region:no-drag]",
+            "group absolute z-50 [-webkit-app-region:no-drag]",
             sash.bar,
             !isBottomRow &&
               (slot.side === "left"
@@ -491,16 +493,25 @@ export function Pane({
           role="separator"
           tabIndex={0}
         >
-          {divider && <span className={cx("absolute bg-ink-800", sash.line)} />}
+          {divider && (
+            <span
+              className={cx("absolute bg-(--ui-stroke-secondary)", sash.line)}
+            />
+          )}
           <span
             className={cx(
-              "absolute bg-primary/40 opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100",
+              "absolute bg-(--ui-sash-hover-border) opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100",
               sash.hover,
             )}
           />
         </div>
       )}
-      {children}
+      {/* Clipping lives here, not on the grid item, so the seam-straddling sash
+          above escapes it. `relative` keeps this the containing block for the
+          pane's absolutely-positioned content (same box the grid item was). */}
+      <div className="relative h-full min-h-0 min-w-0 overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }
