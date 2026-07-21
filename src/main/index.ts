@@ -47,6 +47,8 @@ import { createAppSettingsStore } from "./app-settings";
 import { createCaffeinate } from "./caffeinate";
 import { createSessionTitleStore } from "./session-titles";
 import { createSessionPinStore } from "./session-pins";
+import { createLaunchArgsStore } from "./launch-args";
+import type { LaunchArgsStore } from "./launch-args";
 import { createProjectStateStore } from "./project-state";
 import { createCliStatusController } from "./cli-check";
 import { createUpdater } from "./updater";
@@ -79,6 +81,7 @@ function createWindow(
   managed: ManagedRegistry,
   resolveResumeTarget: (id: string) => ResumeTarget | null,
   agentOf: (id: string) => AgentId,
+  launchArgs: LaunchArgsStore,
   registerRename: (rename: (from: string, to: string) => void) => void,
   shellEnv: () => NodeJS.ProcessEnv,
   appTheme: "dark" | "light",
@@ -146,6 +149,7 @@ function createWindow(
     managed,
     resolveResumeTarget,
     agentOf,
+    launchArgs,
     posixShell: { isExecutable: isExecutableFile, findOnPath },
   });
   registerRename(rename);
@@ -235,11 +239,14 @@ app
     // overview() invoke just queues until registerIpc runs a few lines down — but the window has already
     // painted, so a slow login shell no longer blanks the screen on launch. Mirrors the lazy
     // correctedPath/shellTermEnv closure above and the setTimeout'd CLI check below.
+    // Per-session custom launch args: written by the spawn handler, read back on resume/fork.
+    const launchArgs = createLaunchArgsStore({ dir: app.getPath("userData") });
     const openWindow = (): void =>
       createWindow(
         managed,
         (id) => services.provider?.resolveResumeTarget(id) ?? null,
         (id) => services.agentOf?.(id) ?? "claude",
+        launchArgs,
         registerRename,
         shellTermEnv,
         appSettings.read().appTheme ?? "dark",
@@ -418,6 +425,7 @@ app
           managed.claim(to, rolloutPath);
           sessionTitles.rename(from, to);
           sessionPins.rename(from, to);
+          launchArgs.rename(from, to);
           renameInWindow(from, to);
         },
       });
