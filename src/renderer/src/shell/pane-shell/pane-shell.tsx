@@ -201,13 +201,14 @@ export function PaneShell({ children, className, style }: PaneShellProps) {
       const { open, track } = trackForPane(pane, paneStates);
       tracks.push(track);
       cssVars[`--pane-${pane.id}-width`] = track;
-      const gridRow = open && paneSide === bottomRailSide ? "1 / 2" : "1 / -1";
+      const aboveBottomRow = open && paneSide === bottomRailSide;
       paneById.set(pane.id, {
         open,
         side: paneSide,
         gridColumn: `${column} / ${column + 1}`,
-        gridRow,
+        gridRow: aboveBottomRow ? "1 / 2" : "1 / -1",
         bottomRow: false,
+        aboveBottomRow,
       });
       column++;
     };
@@ -227,14 +228,20 @@ export function PaneShell({ children, className, style }: PaneShellProps) {
         gridColumn,
         gridRow: "2 / 3",
         bottomRow: true,
+        aboveBottomRow: false,
       });
     }
 
     // Always emit explicit rows so `grid-row: 1 / -1` (full-height) resolves
     // against a known last line. With a bottom row active there are two tracks;
     // otherwise a single 1fr track behaves exactly like a single-row grid.
-    const gridTemplateRows = activeBottomRow
-      ? `minmax(0,1fr) ${heightTrackForPane(activeBottomRow, paneStates)}`
+    const bottomRowTrack = activeBottomRow
+      ? heightTrackForPane(activeBottomRow, paneStates)
+      : null;
+    if (bottomRowTrack) cssVars["--pane-bottom-row-height"] = bottomRowTrack;
+
+    const gridTemplateRows = bottomRowTrack
+      ? `minmax(0,1fr) ${bottomRowTrack}`
       : "minmax(0,1fr)";
 
     return {
@@ -495,6 +502,9 @@ export function Pane({
       style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow }}
     >
       {canResize && (
+        // A column shrunk above an active bottom row shares its vertical seam with that row's
+        // leading edge — the sash reaches down across the row (the grid item no longer clips),
+        // hermes' one-sash-per-seam behavior. Inline `bottom` overrides the class's bottom-0.
         <div
           aria-label={`Resize ${id}`}
           aria-orientation={sash.orientation}
@@ -513,6 +523,11 @@ export function Pane({
               : clearPaneHeightOverride(id)
           }
           role="separator"
+          style={
+            slot.aboveBottomRow
+              ? { bottom: "calc(-1 * var(--pane-bottom-row-height, 0px))" }
+              : undefined
+          }
           tabIndex={0}
         >
           {divider && (

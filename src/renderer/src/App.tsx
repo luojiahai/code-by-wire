@@ -31,7 +31,6 @@ import { useStatsPump } from "./stats/use-stats-pump";
 import { SettingsView, type SettingsSection } from "./settings/SettingsView";
 import { SETTINGS_ID } from "./settings/sentinel";
 import { useUpdate } from "./ui/use-update";
-import { cx } from "./ui/atoms";
 import { Pane, PaneMain, PaneShell } from "./shell/pane-shell";
 import { TitlebarControls } from "./shell/TitlebarControls";
 import { AppFooter } from "./shell/AppFooter";
@@ -602,16 +601,10 @@ export function App() {
           disabled={!terminalOpen}
           bottomRow={terminalAsRow}
         >
-          {/* The resize-edge seam is the sash's own full-bleed hairline (`divider`):
-              the left edge as a column, the top edge as a row — drawn above the
-              rail's z-40, so it never notches. Only the row-mode LEADING edge has
-              no sash, so that seam against the workspace stays a border here. */}
-          <div
-            className={cx(
-              "relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-editor-surface-background)",
-              terminalAsRow && "border-l border-(--ui-stroke-secondary)",
-            )}
-          >
+          {/* Seams are sash-drawn: the pane's own divider hairline on the resize edge (left as a
+              column, top as a row), and — in row mode — the metrics column's sash reaching down
+              across this row draws the shared leading seam. No borders here. */}
+          <div className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-editor-surface-background)">
             {/* As a full-height column the terminal reaches the top of the window, so it must clear
                 the titlebar band (the fixed sidebar-toggle clusters float there) — the same
                 --titlebar-height drag strip every other rail column reserves (see RightSidebar). As a
