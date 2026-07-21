@@ -149,6 +149,20 @@ export function registerTerminalIpc({
     posixShell,
   });
 
+  // A launch-args write failure must not abort the spawn/fork itself — the pty the user is waiting
+  // on still starts, it just won't have a saved entry to re-apply on a later resume. Mirrors the
+  // swallow-and-log contract setSessionPinned/setLaunchPresets use for the same class of failure.
+  function persistLaunchArgs(id: string, raw: string): void {
+    try {
+      launchArgs?.set(id, raw); // trims; empty clears — so a re-used id can't inherit stale args
+    } catch (err) {
+      console.error(
+        "launchArgs persist failed; session starts without a saved entry",
+        err,
+      );
+    }
+  }
+
   // The renderer mints the id and stands up its terminal BEFORE calling spawn, so the very first pty
   // bytes land on a live handle (no dropped output, no leaked flow-control credit). We spawn against
   // the id it sends and echo back the optimistic draft for that id.
@@ -158,7 +172,7 @@ export function registerTerminalIpc({
     const raw = req.extraArgs ?? "";
     const check = validateExtraArgs(req.agent, raw);
     if (!check.ok) throw new Error(extraArgsErrorMessage(check));
-    launchArgs?.set(req.id, raw); // trims; empty clears — so a re-used id can't inherit stale args
+    persistLaunchArgs(req.id, raw);
     manager.spawn({
       id: req.id,
       cwd: req.cwd,
@@ -201,7 +215,7 @@ export function registerTerminalIpc({
     );
     if (!d.ok) return { ok: false, reason: "unresolvable" };
     const stored = launchArgs?.get(req.sourceId) ?? "";
-    if (stored) launchArgs?.set(req.newId, stored);
+    if (stored) persistLaunchArgs(req.newId, stored);
     manager.fork({
       id: req.newId,
       sourceId: req.sourceId,
