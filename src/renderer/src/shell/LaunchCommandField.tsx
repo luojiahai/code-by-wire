@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { AGENTS, type AgentId } from "@shared/agents";
 import type { ModelSelection } from "@shared/models";
 import type { LaunchPreset } from "@shared/extra-args";
@@ -41,7 +41,9 @@ export function LaunchCommandField({
 
   // A single-line <input> never wraps — long args just scroll out of view. A <textarea> wraps, but
   // needs its height driven off scrollHeight to auto-grow instead of showing its own scrollbar.
-  useEffect(() => {
+  // Layout effect (not a plain effect) so a big jump — e.g. picking a long preset — resizes before
+  // the browser paints, instead of flashing one clipped frame first.
+  useLayoutEffect(() => {
     const el = argsRef.current;
     if (!el) return;
     el.style.height = "auto";
@@ -155,10 +157,12 @@ export function LaunchCommandField({
         <textarea
           ref={argsRef}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value.replace(/[\r\n]+/g, " "))}
           onKeyDown={(e) => {
             // Args are one logical line — the tokenizer only splits on spaces/tabs, so a literal
-            // newline would just become embedded junk in a token. Wrapping is visual only.
+            // newline would just become embedded junk in a token. Wrapping is visual only. Enter is
+            // blocked here for a keyboard newline; onChange strips any that arrive via paste (a
+            // <textarea>, unlike the <input> this replaced, doesn't reject pasted newlines itself).
             if (e.key === "Enter") e.preventDefault();
           }}
           placeholder={t.shell.newSession.argsPlaceholder}

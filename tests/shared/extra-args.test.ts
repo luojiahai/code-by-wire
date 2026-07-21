@@ -19,6 +19,20 @@ describe("validateExtraArgs — tokenizer", () => {
       validateExtraArgs("claude", "--verbose  --output-format\tjson"),
     ).toEqual({ ok: true, tokens: ["--verbose", "--output-format", "json"] });
   });
+  it("splits on newlines too, e.g. from a paste — main is the trust boundary", () => {
+    expect(validateExtraArgs("claude", "--verbose\n--model\r\nopus")).toEqual({
+      ok: true,
+      tokens: ["--verbose", "--model", "opus"],
+    });
+  });
+  it("a quoted span may still hold a literal newline deliberately", () => {
+    expect(
+      validateExtraArgs("claude", '--append-system-prompt "line1\nline2"'),
+    ).toEqual({
+      ok: true,
+      tokens: ["--append-system-prompt", "line1\nline2"],
+    });
+  });
   it("double quotes group a spaced value into one token", () => {
     expect(
       validateExtraArgs("claude", '--settings "/Users/me/My Dir/s.json"'),

@@ -44,9 +44,11 @@ const CLAUDE_RESERVED = new Set([
   "--fork-session",
 ]);
 
-/** Shell-like tokenizer for the args suffix: splits on spaces/tabs; `"…"` and `'…'` spans group
- *  (and may sit mid-token, so `--flag="a b"` is one token); backslash is a LITERAL character —
- *  never an escape — so Windows paths pass through untouched. */
+/** Shell-like tokenizer for the args suffix: splits on whitespace (spaces, tabs, and — since main is
+ *  the trust boundary and can't assume a renderer already stripped a pasted line break — newlines
+ *  too); `"…"` and `'…'` spans group (and may sit mid-token, so `--flag="a b"` is one token) and can
+ *  still hold a literal newline deliberately, the same way they already hold a literal space;
+ *  backslash is a LITERAL character — never an escape — so Windows paths pass through untouched. */
 function tokenize(
   input: string,
 ): { ok: true; tokens: string[] } | { ok: false; kind: "unbalanced-quote" } {
@@ -61,7 +63,7 @@ function tokenize(
     } else if (ch === '"' || ch === "'") {
       quote = ch;
       started = true; // an empty "" still yields a token
-    } else if (ch === " " || ch === "\t") {
+    } else if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
       if (started) {
         tokens.push(current);
         current = "";
