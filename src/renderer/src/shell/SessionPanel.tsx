@@ -105,7 +105,12 @@ export function SessionPanel({
 }
 
 /** One session row: a plain-case label on the left, a mono value cluster on the right.
- *  Plain case — uppercase is reserved for section headers. */
+ *  Plain case — uppercase is reserved for section headers.
+ *
+ *  Baseline-aligned, not centered: a wrapping value (Model, Branch) would otherwise pull the label
+ *  down to the middle of the block. `py-[3px]` stands in for the old `min-h-[1.375rem]` — a
+ *  single-line row keeps the same 22px height (16px line + 6px), and a wrapped one holds its first
+ *  line at that same offset instead of growing symmetrically around the label. */
 function SessionRow({
   label,
   children,
@@ -114,7 +119,7 @@ function SessionRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[1.375rem] items-center justify-between gap-3">
+    <div className="flex items-baseline justify-between gap-3 py-[3px]">
       <span className="shrink-0 text-xs text-(--ui-text-tertiary)">
         {label}
       </span>

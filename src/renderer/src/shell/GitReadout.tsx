@@ -16,17 +16,23 @@ export function GitReadout({
   git?: GitInfo | null;
 }) {
   const { t } = useI18n();
-  const branch = git?.branch ?? s.branch ?? null;
+  // The session's recorded branch stands in only until the glance lands — never over it. A landed
+  // glance with no branch means a detached HEAD, and the row dashes rather than naming a branch the
+  // worktree has already left (which the copy button would then hand to the clipboard).
+  const branch = git ? git.branch : (s.branch ?? null);
   const dirty = git?.dirty ?? false;
   if (branch == null) return <span className="text-fg-muted">-</span>;
   return (
-    <span className="flex min-w-0 items-center gap-1.5 text-fg">
+    // items-start, not items-center: a wrapped branch keeps the dot and the copy button on its first
+    // line. The 16px-tall button matches the line box as-is; the 6px dot takes a 5px nudge to sit
+    // centered on it.
+    <span className="flex min-w-0 items-start gap-1.5 text-fg">
       <span className="min-w-0 wrap-anywhere" title={branch}>
         {branch}
       </span>
       {dirty && (
         <span
-          className="h-[6px] w-[6px] shrink-0 rounded-full bg-accent"
+          className="mt-[5px] h-[6px] w-[6px] shrink-0 rounded-full bg-accent"
           title={t.shell.gitReadout.uncommittedChanges}
         />
       )}
