@@ -459,9 +459,10 @@ export function App() {
   // it stays suppressed (and its footer button disabled) on every other route.
   const terminalOpen = useStore($terminalVisible);
   // Hermes' railColumnOpen gate, cbw-translated: the terminal drops to a row inside the right
-  // rail only when the metrics sidebar is actually docked as a column (open, session selected,
-  // not narrow-collapsed to a hover-reveal overlay).
-  const terminalAsRow = terminalOpen && rightOpen && hasSession && !narrow;
+  // rail only when the metrics sidebar is actually docked as a column (open, not narrow-collapsed
+  // to a hover-reveal overlay). Hermes also gated on a selected session; here `terminalOpen`
+  // already implies one — the route gate below is exactly `hasSession` — so it isn't repeated.
+  const terminalAsRow = terminalOpen && rightOpen && !narrow;
   // The header's insets must clear the traffic lights / fixed toggle clusters whenever a pane
   // isn't actually docked next to it — whether the user closed it, or a narrow window
   // force-collapsed it — so both are driven by rendered state, not the stored preference alone.

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installTerminalKeybind } from "../../src/renderer/src/shell-terminal/keybinds";
 import {
   $activeSessionCwd,
   $terminalAllowed,
@@ -31,6 +32,20 @@ beforeEach(() => {
   $activeSessionCwd.set(undefined);
 });
 
+describe("$terminalAllowed", () => {
+  // The suite's beforeEach opens the gate for every other test, which would let the module default
+  // silently regress — so read it from a fresh module instance, before anything has set it.
+  it("starts closed, so a cold start can't flash the pane open before the route effect runs", async () => {
+    vi.resetModules();
+    window.localStorage.setItem("cbw.terminalTakeover", "true");
+    const fresh = await import("../../src/renderer/src/shell-terminal/store");
+    expect(fresh.$terminalTakeover.get()).toBe(true); // preference restored…
+    expect(fresh.$terminalAllowed.get()).toBe(false); // …but nothing is visible yet
+    expect(fresh.$terminalVisible.get()).toBe(false);
+    window.localStorage.removeItem("cbw.terminalTakeover");
+  });
+});
+
 describe("$terminalVisible", () => {
   it("shows only when the preference is on AND the route allows it", () => {
     const table: [boolean, boolean, boolean][] = [
@@ -60,6 +75,64 @@ describe("$terminalVisible", () => {
     setTerminalAllowed(false);
     expect(window.localStorage.getItem("cbw.terminalTakeover")).toBe("true");
     expect($terminalAllowed.get()).toBe(false);
+  });
+});
+
+describe("installTerminalKeybind", () => {
+  let uninstall: (() => void) | null = null;
+  afterEach(() => {
+    uninstall?.();
+    uninstall = null;
+  });
+
+  const pressCtrlBacktick = (): KeyboardEvent => {
+    const e = new KeyboardEvent("keydown", {
+      code: "Backquote",
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.body.dispatchEvent(e);
+    return e;
+  };
+
+  it("toggles the preference and claims the keystroke on a session route", () => {
+    uninstall = installTerminalKeybind();
+    const e = pressCtrlBacktick();
+    expect($terminalTakeover.get()).toBe(true);
+    expect(e.defaultPrevented).toBe(true);
+    expect(pressCtrlBacktick().defaultPrevented).toBe(true);
+    expect($terminalTakeover.get()).toBe(false);
+  });
+
+  it("leaves the keystroke alone off-route rather than swallowing it into a no-op", () => {
+    setTerminalAllowed(false);
+    uninstall = installTerminalKeybind();
+    const e = pressCtrlBacktick();
+    expect($terminalTakeover.get()).toBe(false);
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it("ignores modified variants", () => {
+    uninstall = installTerminalKeybind();
+    for (const mod of ["metaKey", "altKey", "shiftKey"] as const) {
+      const e = new KeyboardEvent("keydown", {
+        code: "Backquote",
+        ctrlKey: true,
+        [mod]: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      document.body.dispatchEvent(e);
+      expect($terminalTakeover.get()).toBe(false);
+      expect(e.defaultPrevented).toBe(false);
+    }
+  });
+
+  it("stops toggling once uninstalled", () => {
+    installTerminalKeybind()();
+    pressCtrlBacktick();
+    expect($terminalTakeover.get()).toBe(false);
   });
 });
 
