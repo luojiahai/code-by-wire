@@ -1,4 +1,6 @@
 import type { Usage } from "@shared/types";
+import { AGENT_IDS, agentOrDefault, type AgentId } from "@shared/agents";
+import type { AgentCounts } from "@shared/ipc";
 import type {
   StatsTotals,
   StatsByModel,
@@ -46,8 +48,12 @@ import type { WorktreeRow } from "../git/worktrees";
  * counted at their first, near-zero snapshot, undercounting subagent output ~85%). It only clears
  * processed_files so the next scan re-walks every transcript and upserts corrected usage over the
  * stale rows in place — turns history survives.
+ *
+ * v6 adds the analytics source agent to each turn. Existing rows are all Claude history, so the
+ * additive column's DEFAULT labels them without a wipe or re-scan; the composite index keeps each
+ * agent's timestamp-filtered reads efficient.
  */
-const ANALYTICS_SCHEMA_VERSION = 5;
+const ANALYTICS_SCHEMA_VERSION = 6;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -64,6 +70,7 @@ export function migrateAnalytics(db: SqliteDb): void {
     CREATE TABLE IF NOT EXISTS turns (
       message_id TEXT PRIMARY KEY,
       session_id TEXT NOT NULL,
+      agent TEXT NOT NULL DEFAULT 'claude',
       ts INTEGER NOT NULL DEFAULT 0,
       model_raw TEXT,
       input_tokens INTEGER NOT NULL DEFAULT 0,
@@ -104,6 +111,11 @@ export function migrateAnalytics(db: SqliteDb): void {
     db.exec(
       "ALTER TABLE turns ADD COLUMN cache_creation_1h_tokens INTEGER NOT NULL DEFAULT 0",
     );
+  if (!cols.includes("agent"))
+    db.exec(
+      "ALTER TABLE turns ADD COLUMN agent TEXT NOT NULL DEFAULT 'claude'",
+    );
+  db.exec("CREATE INDEX IF NOT EXISTS turns_agent_ts ON turns(agent, ts)");
 
   // The v1 → v2 one-time wipe (id-less surrogate re-key), scoped to exactly `from === 1` so a later bump
   // never re-wipes a v2+ user's durable history. Clear processed_files too so the next scan re-ingests
@@ -144,6 +156,7 @@ export function migrateAnalytics(db: SqliteDb): void {
 export interface AnalyticsTurn {
   messageId: string;
   sessionId: string;
+  agent: AgentId;
   ts: number;
   modelRaw?: string;
   usage: Usage;
@@ -154,11 +167,12 @@ export interface AnalyticsTurn {
 
 const UPSERT_TURN = `
   INSERT INTO turns
-    (message_id, session_id, ts, model_raw, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, cwd, project, branch)
+    (message_id, session_id, agent, ts, model_raw, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, cwd, project, branch)
   VALUES
-    (@message_id, @session_id, @ts, @model_raw, @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @cwd, @project, @branch)
+    (@message_id, @session_id, @agent, @ts, @model_raw, @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @cwd, @project, @branch)
   ON CONFLICT(message_id) DO UPDATE SET
     session_id = excluded.session_id,
+    agent = excluded.agent,
     ts = excluded.ts,
     model_raw = excluded.model_raw,
     input_tokens = excluded.input_tokens,
@@ -181,6 +195,7 @@ export function upsertTurns(db: SqliteDb, turns: AnalyticsTurn[]): void {
       stmt.run({
         message_id: t.messageId,
         session_id: t.sessionId,
+        agent: t.agent,
         ts: t.ts,
         model_raw: t.modelRaw ?? null,
         input_tokens: t.usage.inputTokens,
@@ -210,17 +225,53 @@ export function clearAnalytics(db: SqliteDb): void {
 /** What the durable store holds, for the Settings "Stats database" card's readout: row and distinct
  *  session counts plus the earliest ingested turn's ts. `oldestTs` is null on an empty store —
  *  SQL MIN() over no rows is NULL — which the card renders as "no history yet". */
-export function readDbCounts(db: SqliteDb): {
-  turns: number;
-  sessions: number;
+export function readAnalyticsDbCounts(db: SqliteDb): {
+  turns: AgentCounts;
+  sessions: AgentCounts;
   oldestTs: number | null;
+  processedFiles: number;
+  worktrees: number;
 } {
-  const row = db
+  const rows = db
     .prepare(
-      "SELECT COUNT(*) AS turns, COUNT(DISTINCT session_id) AS sessions, MIN(ts) AS oldest FROM turns",
+      `SELECT agent, COUNT(*) AS turns, COUNT(DISTINCT session_id) AS sessions
+       FROM turns GROUP BY agent`,
     )
-    .get() as { turns: number; sessions: number; oldest: number | null };
-  return { turns: row.turns, sessions: row.sessions, oldestTs: row.oldest };
+    .all() as { agent: string; turns: number; sessions: number }[];
+  const turnByAgent = Object.fromEntries(
+    AGENT_IDS.map((agent) => [agent, 0]),
+  ) as Record<AgentId, number>;
+  const sessionByAgent = { ...turnByAgent };
+  for (const row of rows) {
+    const agent = agentOrDefault(row.agent);
+    turnByAgent[agent] += row.turns;
+    sessionByAgent[agent] += row.sessions;
+  }
+  const scalar = db
+    .prepare(
+      `SELECT MIN(ts) AS oldest,
+         (SELECT COUNT(*) FROM processed_files) AS processed_files,
+         (SELECT COUNT(*) FROM worktrees) AS worktrees
+       FROM turns`,
+    )
+    .get() as {
+    oldest: number | null;
+    processed_files: number;
+    worktrees: number;
+  };
+  return {
+    turns: {
+      total: AGENT_IDS.reduce((sum, agent) => sum + turnByAgent[agent], 0),
+      byAgent: turnByAgent,
+    },
+    sessions: {
+      total: AGENT_IDS.reduce((sum, agent) => sum + sessionByAgent[agent], 0),
+      byAgent: sessionByAgent,
+    },
+    oldestTs: scalar.oldest,
+    processedFiles: scalar.processed_files,
+    worktrees: scalar.worktrees,
+  };
 }
 
 /** A file's incremental high-water mark: the mtime at which it was last fully processed (or the partial
@@ -323,10 +374,11 @@ export { emptyTotals } from "@shared/stats";
  */
 function tsWindow(
   win: StatsWindow,
+  agent: AgentId,
   requireTs = false,
-): { where: string; bind: Record<string, number>[] } {
-  const clauses: string[] = [];
-  const params: Record<string, number> = {};
+): { where: string; bind: Record<string, string | number>[] } {
+  const clauses: string[] = ["agent = @agent"];
+  const params: Record<string, string | number> = { agent };
   if (win.sinceMs != null) {
     clauses.push("ts >= @since");
     params.since = win.sinceMs;
@@ -346,8 +398,12 @@ function tsWindow(
  *  Single-sourced so the two can never group differently or fall out of sync. `win.sinceMs` null →
  *  all-time (no lower bound); a number is an inclusive lower bound on ts. `win.untilMs` null → no
  *  upper bound; a number is an exclusive upper bound on ts. */
-function groupByModel(db: SqliteDb, win: StatsWindow): ModelRow[] {
-  const { where, bind } = tsWindow(win);
+function groupByModel(
+  db: SqliteDb,
+  win: StatsWindow,
+  agent: AgentId,
+): ModelRow[] {
+  const { where, bind } = tsWindow(win, agent);
   return db
     .prepare(
       `SELECT
@@ -370,6 +426,7 @@ function groupByModel(db: SqliteDb, win: StatsWindow): ModelRow[] {
 export function readTotals(
   db: SqliteDb,
   win: StatsWindow = ALL_TIME,
+  agent: AgentId = "claude",
 ): StatsTotals {
   // win.sinceMs null → all-time (no bound). A number → an inclusive lower bound on ts (the window's start,
   // computed local-day-aware by the caller via rangeSinceMs). `bind` is spread into get/all: an empty
@@ -379,7 +436,7 @@ export function readTotals(
   // windowed bound is a positive epoch, so those turns fall out of dated ranges and survive only in
   // all-time. That's deliberate: a turn with no known time can't honestly be placed in a calendar window
   // (exact data only). The consequence is that all-time can exceed the sum of the windows — by design.
-  const { where, bind } = tsWindow(win);
+  const { where, bind } = tsWindow(win, agent);
 
   const t = db
     .prepare(
@@ -411,10 +468,10 @@ export function readTotals(
 /** Whether the store holds any turn at all, range-independent. Drives the Stats view's empty state so a
  *  scoped range that happens to be empty (e.g. "today" before any activity) shows zeroed cards, not the
  *  "No usage yet" empty state, when history exists outside the window. */
-export function hasAnyTurns(db: SqliteDb): boolean {
+export function hasAnyTurns(db: SqliteDb, agent: AgentId = "claude"): boolean {
   const row = db
-    .prepare("SELECT EXISTS(SELECT 1 FROM turns) AS present")
-    .get() as { present: number };
+    .prepare("SELECT EXISTS(SELECT 1 FROM turns WHERE agent = ?) AS present")
+    .get(agent) as { present: number };
   return row.present === 1;
 }
 
@@ -428,8 +485,9 @@ export function hasAnyTurns(db: SqliteDb): boolean {
 export function readByModel(
   db: SqliteDb,
   win: StatsWindow = ALL_TIME,
+  agent: AgentId = "claude",
 ): StatsByModel[] {
-  return foldModels(groupByModel(db, win));
+  return foldModels(groupByModel(db, win, agent));
 }
 
 /**
@@ -504,8 +562,9 @@ function groupByDimsAndModel(
   db: SqliteDb,
   cols: string,
   win: StatsWindow,
+  agent: AgentId,
 ): DimModelRow[] {
-  const { where, bind } = tsWindow(win);
+  const { where, bind } = tsWindow(win, agent);
   return db
     .prepare(
       `SELECT ${cols},
@@ -613,15 +672,17 @@ function foldBranches(rows: DimModelRow[]): StatsByBranch[] {
 export function readByProject(
   db: SqliteDb,
   win: StatsWindow = ALL_TIME,
+  agent: AgentId = "claude",
 ): StatsByProject[] {
-  return foldProjects(groupByDimsAndModel(db, "cwd, project", win));
+  return foldProjects(groupByDimsAndModel(db, "cwd, project", win, agent));
 }
 
 export function readByBranch(
   db: SqliteDb,
   win: StatsWindow = ALL_TIME,
+  agent: AgentId = "claude",
 ): StatsByBranch[] {
-  return foldBranches(groupByDimsAndModel(db, FINEST_DIMS, win));
+  return foldBranches(groupByDimsAndModel(db, FINEST_DIMS, win, agent));
 }
 
 /**
@@ -646,8 +707,12 @@ interface SessionModelRow extends ModelRow {
  * span and turn count, which that scan doesn't carry. `MIN(NULLIF(ts,0))` ignores the unknown-time sentinel
  * so an unparsed timestamp can't drag the span's start to the epoch; `COUNT(*)` still counts those turns.
  */
-function groupBySession(db: SqliteDb, win: StatsWindow): SessionModelRow[] {
-  const { where, bind } = tsWindow(win);
+function groupBySession(
+  db: SqliteDb,
+  win: StatsWindow,
+  agent: AgentId,
+): SessionModelRow[] {
+  const { where, bind } = tsWindow(win, agent);
   return db
     .prepare(
       `SELECT
@@ -758,8 +823,9 @@ function foldSessions(rows: SessionModelRow[]): StatsBySession[] {
 export function readBySession(
   db: SqliteDb,
   win: StatsWindow = ALL_TIME,
+  agent: AgentId = "claude",
 ): StatsBySession[] {
-  return foldSessions(groupBySession(db, win));
+  return foldSessions(groupBySession(db, win, agent));
 }
 
 /**
@@ -774,9 +840,10 @@ export function readRecords(
   db: SqliteDb,
   win: StatsWindow = ALL_TIME,
   nowMs: number = Date.now(),
+  agent: AgentId = "claude",
 ): StatsRecords {
   const today = localDayKey(nowMs);
-  const { where, bind } = tsWindow(win, true);
+  const { where, bind } = tsWindow(win, agent, true);
 
   const activeDays = (
     db
@@ -816,9 +883,9 @@ export function readRecords(
     db
       .prepare(
         `SELECT DISTINCT date(ts / 1000, 'unixepoch', 'localtime') AS day
-         FROM turns WHERE ts > 0 ORDER BY day`,
+         FROM turns WHERE agent = ? AND ts > 0 ORDER BY day`,
       )
-      .all() as { day: string }[]
+      .all(agent) as { day: string }[]
   ).map((r) => r.day);
 
   // Window span: a bounded range measures its own bounds (untilMs is exclusive, so the last covered
@@ -851,14 +918,15 @@ export function readRecords(
 export function readBreakdowns(
   db: SqliteDb,
   win: StatsWindow = ALL_TIME,
+  agent: AgentId = "claude",
 ): StatsBreakdowns {
-  const rows = groupByDimsAndModel(db, FINEST_DIMS, win);
+  const rows = groupByDimsAndModel(db, FINEST_DIMS, win, agent);
   return {
     byModel: foldModels(rows),
     byProject: foldProjects(rows),
     // The session cut needs the session grain plus per-session span/count aggregates the dims scan above
     // can't express, so it runs its own GROUP BY rather than folding `rows`.
-    bySession: readBySession(db, win),
+    bySession: readBySession(db, win, agent),
   };
 }
 
@@ -880,8 +948,12 @@ interface DayModelRow extends ModelRow {
  * so a turn with no known time never lands on a calendar day (no 1970 bucket — exact data only). `ts/1000`
  * is integer division to seconds; 'localtime' buckets by the main process's calendar day.
  */
-function groupByDayAndModel(db: SqliteDb, win: StatsWindow): DayModelRow[] {
-  const { where, bind } = tsWindow(win, true);
+function groupByDayAndModel(
+  db: SqliteDb,
+  win: StatsWindow,
+  agent: AgentId,
+): DayModelRow[] {
+  const { where, bind } = tsWindow(win, agent, true);
   return db
     .prepare(
       `SELECT
@@ -979,8 +1051,9 @@ function foldDays(rows: DayModelRow[]): DailyBucket[] {
 export function readDaily(
   db: SqliteDb,
   win: StatsWindow = ALL_TIME,
+  agent: AgentId = "claude",
 ): DailyBucket[] {
-  return foldDays(groupByDayAndModel(db, win));
+  return foldDays(groupByDayAndModel(db, win, agent));
 }
 
 /** A calendar day mid-fold: turns and total tokens summed across the day's models. */
@@ -1033,8 +1106,9 @@ function foldCalendar(rows: DayModelRow[]): CalendarDay[] {
 export function readCalendar(
   db: SqliteDb,
   win: StatsWindow = ALL_TIME,
+  agent: AgentId = "claude",
 ): CalendarDay[] {
-  return foldCalendar(groupByDayAndModel(db, win));
+  return foldCalendar(groupByDayAndModel(db, win, agent));
 }
 
 /**
@@ -1043,16 +1117,19 @@ export function readCalendar(
  * is offered only when real activity falls in it. strftime buckets by the main process's local calendar year,
  * the same 'localtime' the daily/calendar cuts use.
  */
-export function readCalendarYears(db: SqliteDb): number[] {
+export function readCalendarYears(
+  db: SqliteDb,
+  agent: AgentId = "claude",
+): number[] {
   const rows = db
     .prepare(
       `SELECT DISTINCT
          CAST(strftime('%Y', ts / 1000, 'unixepoch', 'localtime') AS INTEGER) AS y
        FROM turns
-       WHERE ts > 0
+       WHERE agent = ? AND ts > 0
        ORDER BY y DESC`,
     )
-    .all() as { y: number }[];
+    .all(agent) as { y: number }[];
   return rows.map((r) => r.y);
 }
 

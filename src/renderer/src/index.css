@@ -53,6 +53,9 @@
   --color-model-opus: #5e9adf; /* steel-blue */
   --color-model-sonnet: #b37bd9; /* orchid */
   --color-model-haiku: #db7fa4; /* rose */
+  --color-model-gpt-codex: #5fbf8f; /* jade */
+  --color-model-gpt: #c9a06a; /* copper */
+  --color-model-codex-mini: #6ab8c9; /* slate-cyan */
 
   /* Recessed sidebar — darkened surfaces for the sidebar column */
   --color-sidebar: #0a0a0a;

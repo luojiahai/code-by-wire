@@ -9,7 +9,28 @@ import {
   CONTEXT_WARN_PCT,
   CONTEXT_DANGER_PCT,
   STATE_META,
+  CODEX_MODEL_FAMILY_COLORS,
+  MODEL_FAMILY_COLORS,
+  MODEL_OTHER_COLOR,
+  modelColorOf,
 } from "../../src/renderer/src/ui/meta";
+
+describe("modelColorOf", () => {
+  it("keeps Claude families on their existing tokens", () => {
+    expect(modelColorOf("claude-opus-4-8")).toBe(MODEL_FAMILY_COLORS.opus);
+  });
+  it("matches specific Codex families before broader GPT strings", () => {
+    expect(modelColorOf("gpt-5.3-codex-mini")).toBe(
+      CODEX_MODEL_FAMILY_COLORS.mini,
+    );
+    expect(modelColorOf("gpt-5.3-codex")).toBe(CODEX_MODEL_FAMILY_COLORS.codex);
+    expect(modelColorOf("gpt-5.3")).toBe(CODEX_MODEL_FAMILY_COLORS.gpt);
+  });
+  it("keeps unknown models neutral", () => {
+    expect(modelColorOf(null)).toBe(MODEL_OTHER_COLOR);
+    expect(modelColorOf("other-provider-model")).toBe(MODEL_OTHER_COLOR);
+  });
+});
 
 describe("modelKnown — whether a rawless session's family can be vouched for", () => {
   it("vouches for a Managed Claude session (spawn pinned the picked alias)", () => {

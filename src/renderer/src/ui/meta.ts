@@ -127,12 +127,23 @@ export const MODEL_FAMILY_COLORS: Record<Family, string> = {
  *  white/mono, so identity color is reserved for the recognized families. */
 export const MODEL_OTHER_COLOR = "var(--color-data-1)";
 
+export const CODEX_MODEL_FAMILY_COLORS = {
+  codex: "var(--color-model-gpt-codex)",
+  gpt: "var(--color-model-gpt)",
+  mini: "var(--color-model-codex-mini)",
+} as const;
+
 /** The identity color for a raw model id: its family's fixed hue when recognized, else the neutral
  *  "other" tone. Drives the By-model bars, the daily stack-by-model, and the By-session model swatch. */
 export function modelColorOf(raw: string | null): string {
-  return raw && isKnownModelString(raw)
-    ? MODEL_FAMILY_COLORS[normalizeModelId(raw)]
-    : MODEL_OTHER_COLOR;
+  if (!raw) return MODEL_OTHER_COLOR;
+  if (isKnownModelString(raw))
+    return MODEL_FAMILY_COLORS[normalizeModelId(raw)];
+  const lower = raw.toLowerCase();
+  if (lower.includes("mini")) return CODEX_MODEL_FAMILY_COLORS.mini;
+  if (lower.includes("-codex")) return CODEX_MODEL_FAMILY_COLORS.codex;
+  if (lower.includes("gpt")) return CODEX_MODEL_FAMILY_COLORS.gpt;
+  return MODEL_OTHER_COLOR;
 }
 
 /** The contributions calendar's intensity ramp (#115), indexed by intensityLevel's 0..4 output: level 0 is

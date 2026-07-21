@@ -18,6 +18,7 @@ export const zh: Translations = {
       settings: "设置",
       system: "系统",
       appearance: "外观",
+      databases: "数据库",
       about: "关于",
     },
     appearance: {
@@ -101,26 +102,44 @@ export const zh: Translations = {
       refreshPlaceholder: "秒数（1–60），留空则仅事件触发",
       save: "保存",
     },
-    statsDb: {
-      title: "统计数据库",
-      stateChecking: "检测中",
-      backfilling: (done, total) => `回填中 · ${done}/${total}`,
-      mirrored: "镜像完成",
+    databases: {
+      title: "数据库",
+      lede: "从磁盘上的编码智能代理会话记录生成的本地镜像与索引。",
       location: "位置",
+      reveal: "在访达中显示",
       size: "大小",
-      ingested: "已收录",
-      ingestedValue: (turns, sessions) =>
-        `${turns} 轮对话 · ${sessions} 个会话`,
+      turns: "轮次",
+      sessions: "会话",
+      sessionsIndexed: "会话",
       history: "历史记录",
       since: (day) => `自 ${day} 起`,
-      dangerHeadline: "超出保留期限将不可恢复",
-      dangerBody:
-        "将根据磁盘上的会话记录重建。早于 Claude Code 清理窗口的历史记录将永久丢失。",
-      resetError: "重置失败，请重试。",
-      reset: "重置",
-      confirmTitle: "重置统计数据库？",
-      confirmBody:
-        "将清除已计算的统计数据，并根据磁盘上的会话记录重新构建。早于 Claude Code 记录保留期限的历史记录将永久丢失。",
+      tables: "数据表",
+      agentCounts: (total, claude, codex) =>
+        `共 ${total} · Claude Code ${claude} · Codex ${codex}`,
+      analytics: {
+        title: "分析数据库",
+        stateChecking: "检测中",
+        backfilling: (done, total) => `回填中 · ${done}/${total}`,
+        mirrored: "镜像完成",
+        turnsPurpose: "供统计页面使用的持久化、按智能代理区分的用量事件。",
+        processedFilesPurpose: "回填扫描使用的逐会话记录处理进度。",
+        worktreesPurpose: "用于项目分组的工作树与主检出目录映射。",
+        dangerHeadline: "超出保留期限将不可恢复",
+        dangerBody:
+          "将根据磁盘上的会话记录重建。早于 Claude Code 清理窗口的历史记录将永久丢失。",
+        resetError: "重置失败，请重试。",
+        reset: "重置",
+        confirmTitle: "重置分析数据库？",
+        confirmBody:
+          "将清除已计算的统计数据，并根据磁盘上的会话记录重新构建。早于 Claude Code 记录保留期限的历史记录将永久丢失。",
+      },
+      index: {
+        title: "会话索引",
+        stateChecking: "检测中",
+        live: "实时",
+        sourceTruth: "可重建缓存；磁盘上的会话记录才是数据源。",
+        sessionsPurpose: "供侧边栏与概览使用的当前会话摘要索引。",
+      },
     },
     update: {
       title: "软件更新",

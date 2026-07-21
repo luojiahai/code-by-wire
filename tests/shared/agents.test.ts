@@ -16,17 +16,26 @@ describe("AGENTS registry", () => {
   });
   it("claude has every capability; codex has transcript + telemetry + rate limits + resume", () => {
     expect(Object.values(AGENTS.claude.capabilities).every(Boolean)).toBe(true);
-    const { hasTranscript, hasTelemetry, hasRateLimits, canResume, ...rest } =
-      AGENTS.codex.capabilities;
+    const {
+      hasTranscript,
+      hasTelemetry,
+      hasRateLimits,
+      canResume,
+      hasStats,
+      ...rest
+    } = AGENTS.codex.capabilities;
     expect(hasTranscript).toBe(true);
     expect(hasTelemetry).toBe(true);
     expect(hasRateLimits).toBe(true);
     expect(canResume).toBe(true);
+    expect(hasStats).toBe(true);
     expect(Object.values(rest).some(Boolean)).toBe(false);
   });
-  it("only Claude has hasStatsDb — Codex has no stats database yet", () => {
-    expect(AGENTS.claude.capabilities.hasStatsDb).toBe(true);
-    expect(AGENTS.codex.capabilities.hasStatsDb).toBe(false);
+  it("both agents have Stats; only Claude has project/session breakdowns", () => {
+    expect(AGENTS.claude.capabilities.hasStats).toBe(true);
+    expect(AGENTS.codex.capabilities.hasStats).toBe(true);
+    expect(AGENTS.claude.capabilities.hasStatsBreakdowns).toBe(true);
+    expect(AGENTS.codex.capabilities.hasStatsBreakdowns).toBe(false);
   });
   it("labels and binaries are the branded/spawnable names", () => {
     expect(AGENTS.claude).toMatchObject({

@@ -2,6 +2,14 @@ import type { TokenSpeed } from "@shared/metrics";
 import type { ContextBreakdown } from "@shared/transcript";
 import type { ModelUsage, Usage } from "@shared/types";
 import { asRecord } from "./rollout";
+import {
+  ZERO_TOTALS,
+  addTotals,
+  deltaTotals,
+  readTokenUsage,
+  totalsToUsage,
+  type RawTotals,
+} from "./token-math";
 
 const num = (v: unknown): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -31,37 +39,6 @@ export interface RolloutTelemetry {
   tokenEvents: CodexTokenEvent[];
 }
 
-/** Codex counts cached as a SUBSET of input_tokens; our Usage shape keeps them disjoint. The two
- *  cached spellings cover current (cached_input_tokens) and legacy (cache_read_input_tokens) rollouts;
- *  cache_write_input_tokens exists only on codex ≥0.145 and defaults 0. */
-interface RawTotals {
-  input: number; // non-cached
-  cacheRead: number;
-  cacheWrite: number;
-  output: number;
-  total: number; // codex's own total_tokens — the context-occupancy basis
-}
-
-const ZERO_TOTALS: RawTotals = {
-  input: 0,
-  cacheRead: 0,
-  cacheWrite: 0,
-  output: 0,
-  total: 0,
-};
-
-function readTokenUsage(raw: Record<string, unknown>): RawTotals {
-  const cached =
-    num(raw.cached_input_tokens) || num(raw.cache_read_input_tokens);
-  return {
-    input: Math.max(0, num(raw.input_tokens) - cached),
-    cacheRead: cached,
-    cacheWrite: num(raw.cache_write_input_tokens),
-    output: num(raw.output_tokens),
-    total: num(raw.total_tokens),
-  };
-}
-
 /** The shared breakdown rule — transcript-events.ts uses this too, so the transcript's context split
  *  and the sidebar's liveContext can never disagree. */
 export function breakdownFromTokenUsage(
@@ -72,40 +49,6 @@ export function breakdownFromTokenUsage(
     input: t.input,
     cacheRead: t.cacheRead,
     cacheCreation: t.cacheWrite,
-  };
-}
-
-function toUsage(t: RawTotals): Usage {
-  return {
-    inputTokens: t.input,
-    outputTokens: t.output,
-    cacheReadTokens: t.cacheRead,
-    cacheCreationTokens: t.cacheWrite,
-    cacheCreation5mTokens: 0,
-    cacheCreation1hTokens: 0,
-  };
-}
-
-/** Element-wise cumulative delta, clamped ≥0 per field: a cumulative reset (fork/rollover) yields a
- *  zero delta rather than corrupting a bucket, and the final `usage` stays the last reported total. */
-function deltaTotals(prev: RawTotals, next: RawTotals): RawTotals {
-  const d = (a: number, b: number): number => Math.max(0, b - a);
-  return {
-    input: d(prev.input, next.input),
-    cacheRead: d(prev.cacheRead, next.cacheRead),
-    cacheWrite: d(prev.cacheWrite, next.cacheWrite),
-    output: d(prev.output, next.output),
-    total: d(prev.total, next.total),
-  };
-}
-
-function addTotals(a: RawTotals, b: RawTotals): RawTotals {
-  return {
-    input: a.input + b.input,
-    cacheRead: a.cacheRead + b.cacheRead,
-    cacheWrite: a.cacheWrite + b.cacheWrite,
-    output: a.output + b.output,
-    total: a.total + b.total,
   };
 }
 
@@ -180,10 +123,10 @@ export function scanRolloutTelemetry(jsonl: string): RolloutTelemetry {
   }
 
   return {
-    usage: toUsage(prev),
+    usage: totalsToUsage(prev),
     usageByModel: [...buckets.entries()].map(([m, t]) => ({
       modelRaw: m,
-      usage: toUsage(t),
+      usage: totalsToUsage(t),
     })),
     contextTokens,
     liveContext,

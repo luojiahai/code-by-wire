@@ -33,6 +33,7 @@ export const en = {
       settings: "Settings",
       system: "System",
       appearance: "Appearance",
+      databases: "Databases",
       about: "About",
     },
     appearance: {
@@ -122,29 +123,49 @@ export const en = {
       refreshPlaceholder: "seconds (1–60), empty for events only",
       save: "Save",
     },
-    statsDb: {
-      title: "Stats database",
-      stateChecking: "CHECKING",
-      backfilling: (done: number, total: number) =>
-        `BACKFILLING · ${done}/${total}`,
-      mirrored: "MIRRORED",
+    databases: {
+      title: "Databases",
+      lede: "Local mirrors and indexes derived from coding-agent transcripts on disk.",
       location: "Location",
+      reveal: "Reveal in Finder",
       size: "Size",
-      ingested: "Ingested",
-      ingestedValue: (turns: string, sessions: string) =>
-        `${turns} turns · ${sessions} sessions`,
+      turns: "Turns",
+      sessions: "Sessions",
+      sessionsIndexed: "Sessions",
       history: "History",
       since: (day: string) => `since ${day}`,
-      // English wording fixed by the design spec (2026-07-10) — do not reword; the zh.ts entries
-      // are real translations of them, not rewrites.
-      dangerHeadline: "IRREVERSIBLE BEYOND RETENTION",
-      dangerBody:
-        "Rebuilds from transcripts on disk. History older than Claude Code's cleanup window is lost for good.",
-      resetError: "Couldn't reset. Please try again.",
-      reset: "Reset",
-      confirmTitle: "Reset the stats database?",
-      confirmBody:
-        "Clears the computed stats and rebuilds them from the transcripts on disk. History older than Claude Code's transcript retention is lost for good.",
+      tables: "Tables",
+      agentCounts: (total: string, claude: string, codex: string) =>
+        `${total} total · Claude Code ${claude} · Codex ${codex}`,
+      analytics: {
+        title: "Analytics database",
+        stateChecking: "CHECKING",
+        backfilling: (done: number, total: number) =>
+          `BACKFILLING · ${done}/${total}`,
+        mirrored: "MIRRORED",
+        turnsPurpose: "Durable, agent-scoped usage events for Stats.",
+        processedFilesPurpose:
+          "Per-transcript scan high-water marks used by the backfill.",
+        worktreesPurpose:
+          "Persisted worktree-to-main-checkout mappings for project grouping.",
+        dangerHeadline: "IRREVERSIBLE BEYOND RETENTION",
+        dangerBody:
+          "Rebuilds from transcripts on disk. History older than Claude Code's cleanup window is lost for good.",
+        resetError: "Couldn't reset. Please try again.",
+        reset: "Reset",
+        confirmTitle: "Reset the analytics database?",
+        confirmBody:
+          "Clears the computed stats and rebuilds them from the transcripts on disk. History older than Claude Code's transcript retention is lost for good.",
+      },
+      index: {
+        title: "Session index",
+        stateChecking: "CHECKING",
+        live: "LIVE",
+        sourceTruth:
+          "Rebuildable cache; transcripts on disk are the source of truth.",
+        sessionsPurpose:
+          "Current indexed session summaries for the sidebar and overview.",
+      },
     },
     update: {
       title: "Software update",

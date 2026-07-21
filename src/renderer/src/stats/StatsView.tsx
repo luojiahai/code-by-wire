@@ -48,18 +48,12 @@ export function StatsView() {
   // Track what last drove the poll effect, so the snapshot blanks only on a range change — never
   // on a calendar-year change, which re-queries just the heatmap and would otherwise flash the whole view.
   const prevRangeRef = useRef(range);
-
-  // Stats capability isn't tracked in AgentCapabilities (only claude has an analytics pipeline);
-  // model it locally as "the agent with a stats source" until a hasStats flag earns its keep.
-  const hasStats = agent === "claude";
+  const prevAgentRef = useRef(agent);
+  const { hasStats, hasStatsBreakdowns } = AGENTS[agent].capabilities;
 
   useEffect(() => {
-    if (!hasStats) return; // no codex stats source yet — nothing to poll
-
-    let alive = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let inFlight = false;
-    tokenRef.current = undefined; // new range/year: force a full snapshot on the next poll
+    const agentChanged = prevAgentRef.current !== agent;
+    prevAgentRef.current = agent;
     // Blank the cards back to loading rather than show the prior range's totals under the newly-pressed
     // button — but ONLY when the range changed, never on a calendar-year change. The year is independent
     // of the page totals (it re-queries just the heatmap), so blanking everything would flash the whole
@@ -67,7 +61,13 @@ export function StatsView() {
     // would unmount the calendar and re-fire its scroll-to-newest effect, flashing away from the cell.
     const rangeChanged = prevRangeRef.current !== range;
     prevRangeRef.current = range;
-    if (rangeChanged && !isDayRange(range)) setSnap(null);
+    if (agentChanged || (rangeChanged && !isDayRange(range))) setSnap(null);
+    if (!hasStats) return;
+
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
+    tokenRef.current = undefined; // new agent/range/year: force a full snapshot on the next poll
 
     const schedule = (ms: number): void => {
       timer = setTimeout(tick, ms);
@@ -82,7 +82,7 @@ export function StatsView() {
       }
       inFlight = true;
       void window.api
-        .readStats(range, calendarYear ?? undefined, tokenRef.current)
+        .readStats(agent, range, calendarYear ?? undefined, tokenRef.current)
         .then((r) => {
           if (!alive) return;
           inFlight = false;
@@ -117,7 +117,7 @@ export function StatsView() {
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [agent, range, calendarYear]);
+  }, [agent, range, calendarYear, hasStats]);
 
   return (
     <OverlayScroll className="h-full min-w-0 flex-1 bg-ink-950 text-fg">
@@ -194,8 +194,12 @@ export function StatsView() {
                       byModel={snap.byModel}
                       range={range}
                     />
-                    <ProjectsCard rows={snap.byProject} />
-                    <SessionsCard rows={snap.bySession} />
+                    {hasStatsBreakdowns && (
+                      <>
+                        <ProjectsCard rows={snap.byProject} />
+                        <SessionsCard rows={snap.bySession} />
+                      </>
+                    )}
                   </>
                 )}
               </>

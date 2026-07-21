@@ -20,7 +20,7 @@ import {
   clearAnalytics,
   readWorktrees,
   upsertWorktree,
-  readDbCounts,
+  readAnalyticsDbCounts,
 } from "../../src/main/db/analytics";
 import { openTestDb } from "../helpers/sqlite";
 import { usage as mkUsage } from "../helpers/usage";
@@ -34,6 +34,7 @@ const turn = (
   return {
     messageId: "msg-1",
     sessionId: "sess-1",
+    agent: "claude",
     ts: 1000,
     modelRaw: "claude-opus-4-8",
     usage: mkUsage(usage),
@@ -45,14 +46,14 @@ const turn = (
 };
 
 describe("analytics store", () => {
-  it("migrates to schema v5 and is idempotent", () => {
+  it("migrates to schema v6 and is idempotent", () => {
     const db = openTestDb();
     migrateAnalytics(db);
     migrateAnalytics(db); // second call is a no-op, not an error
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(5);
+    ).toBe(6);
   });
 
   it("creates processed_files and round-trips a high-water mark", () => {
@@ -75,12 +76,63 @@ describe("analytics store", () => {
     migrateAnalytics(db);
     upsertTurns(db, [turn()]);
     upsertProcessedFile(db, "/a.jsonl", 1, 1);
-    migrateAnalytics(db); // already at v5 → migrate returns immediately; nothing is wiped
+    migrateAnalytics(db); // already at v6 → migrate returns immediately; nothing is wiped
     expect(readTotals(db).turns).toBe(1);
     expect(readProcessedFiles(db).get("/a.jsonl")).toEqual({
       mtime: 1,
       lines: 1,
     });
+  });
+
+  it("migrates v5 rows in place as Claude without clearing scan progress", () => {
+    const db = openTestDb();
+    db.exec(`
+      CREATE TABLE turns (
+        message_id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        ts INTEGER NOT NULL DEFAULT 0,
+        model_raw TEXT,
+        input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_creation_5m_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_creation_1h_tokens INTEGER NOT NULL DEFAULT 0,
+        cwd TEXT NOT NULL DEFAULT '',
+        project TEXT NOT NULL DEFAULT '',
+        branch TEXT
+      );
+      CREATE TABLE processed_files (
+        path TEXT PRIMARY KEY, mtime REAL NOT NULL, lines INTEGER NOT NULL
+      );
+      CREATE TABLE worktrees (
+        cwd TEXT PRIMARY KEY, repo_root TEXT NOT NULL, worktree_name TEXT NOT NULL
+      );
+      INSERT INTO turns (message_id, session_id, ts, input_tokens)
+      VALUES ('old', 'session', 1000, 7);
+      INSERT INTO processed_files VALUES ('/old.jsonl', 10, 4);
+      PRAGMA user_version = 5;
+    `);
+
+    migrateAnalytics(db);
+
+    expect(db.prepare("SELECT message_id, agent FROM turns").get()).toEqual({
+      message_id: "old",
+      agent: "claude",
+    });
+    expect(readProcessedFiles(db).get("/old.jsonl")).toEqual({
+      mtime: 10,
+      lines: 4,
+    });
+    expect(
+      (db.prepare("PRAGMA index_list(turns)").all() as { name: string }[]).some(
+        (index) => index.name === "turns_agent_ts",
+      ),
+    ).toBe(true);
+    expect(
+      (db.prepare("PRAGMA user_version").get() as { user_version: number })
+        .user_version,
+    ).toBe(6);
   });
 
   it("clears turns once on the v1 → v2 upgrade (id-less surrogate scheme changed)", () => {
@@ -107,13 +159,13 @@ describe("analytics store", () => {
       (db.prepare("SELECT COUNT(*) AS n FROM turns").get() as { n: number }).n,
     ).toBe(1);
 
-    migrateAnalytics(db); // 1 → 5: clears turns so the next scan rebuilds under the new surrogate scheme
+    migrateAnalytics(db); // 1 → 6: clears turns so the next scan rebuilds under the new surrogate scheme
     expect(readTotals(db).turns).toBe(0);
     expect(readProcessedFiles(db).size).toBe(0); // new table exists and is empty
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(5);
+    ).toBe(6);
   });
 
   it("only clears turns on the v1 → v2 step, never on another upgrade (no future-bump re-wipe)", () => {
@@ -137,12 +189,12 @@ describe("analytics store", () => {
        VALUES ('msg-1','sess-1',1000,'claude-opus-4-8',0,0,0,0,'/work/code-by-wire','code-by-wire','main')`,
     );
 
-    migrateAnalytics(db); // enters the block (0 < 5) but `from !== 1`, so turns survive
+    migrateAnalytics(db); // enters the block (0 < 6) but `from !== 1`, so turns survive
     expect(readTotals(db).turns).toBe(1);
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(5);
+    ).toBe(6);
   });
 
   it("returns zeroed totals for an empty store", () => {
@@ -437,7 +489,7 @@ describe("analytics store", () => {
     ]);
   });
 
-  it("v3 → v5 clears processed_files (v5 rescan) but does NOT re-run the v2 cache-split seed", () => {
+  it("v3 → v6 clears processed_files (v5 rescan) but does NOT re-run the v2 cache-split seed", () => {
     const db = openTestDb();
     migrateAnalytics(db); // current schema
     // A turn whose cache-creation total is un-split (5m = 1h = 0) — the exact shape the v2 seed backfills.
@@ -465,10 +517,10 @@ describe("analytics store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(5);
+    ).toBe(6);
   });
 
-  it("v2 → v5 still clears processed_files to backfill the cache split", () => {
+  it("v2 → v6 still clears processed_files to backfill the cache split", () => {
     const db = openTestDb();
     migrateAnalytics(db);
     upsertProcessedFile(db, "/a.jsonl", 111, 3);
@@ -477,7 +529,7 @@ describe("analytics store", () => {
     expect(readProcessedFiles(db).size).toBe(0);
   });
 
-  it("v4 → v5 clears processed_files (forced rescan) but preserves turns", () => {
+  it("v4 → v6 clears processed_files (forced rescan) but preserves turns", () => {
     const db = openTestDb();
     migrateAnalytics(db); // creates the current schema
     upsertTurns(db, [turn()]);
@@ -490,7 +542,7 @@ describe("analytics store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(5);
+    ).toBe(6);
   });
 });
 
@@ -1917,29 +1969,90 @@ describe("readRecords", () => {
   });
 });
 
-describe("readDbCounts", () => {
-  it("counts turns and distinct sessions and finds the earliest ts", () => {
+describe("readAnalyticsDbCounts", () => {
+  it("counts turns and sessions by agent and finds the earliest ts", () => {
     const db = openTestDb();
     migrateAnalytics(db);
     upsertTurns(db, [
       turn({ messageId: "a", sessionId: "s1", ts: 3000 }),
       turn({ messageId: "b", sessionId: "s1", ts: 1000 }),
-      turn({ messageId: "c", sessionId: "s2", ts: 2000 }),
+      turn({
+        messageId: "c",
+        sessionId: "s2",
+        agent: "codex",
+        ts: 2000,
+      }),
     ]);
-    expect(readDbCounts(db)).toEqual({
-      turns: 3,
-      sessions: 2,
+    expect(readAnalyticsDbCounts(db)).toEqual({
+      turns: { total: 3, byAgent: { claude: 2, codex: 1 } },
+      sessions: { total: 2, byAgent: { claude: 1, codex: 1 } },
       oldestTs: 1000,
+      processedFiles: 0,
+      worktrees: 0,
     });
   });
 
   it("serves zeros and a null oldestTs on an empty store", () => {
     const db = openTestDb();
     migrateAnalytics(db);
-    expect(readDbCounts(db)).toEqual({
-      turns: 0,
-      sessions: 0,
+    expect(readAnalyticsDbCounts(db)).toEqual({
+      turns: { total: 0, byAgent: { claude: 0, codex: 0 } },
+      sessions: { total: 0, byAgent: { claude: 0, codex: 0 } },
       oldestTs: null,
+      processedFiles: 0,
+      worktrees: 0,
+    });
+  });
+});
+
+describe("agent-scoped analytics readers", () => {
+  it("keeps every aggregate isolated by source agent", () => {
+    const db = openTestDb();
+    migrateAnalytics(db);
+    const claudeTs = new Date(2025, 4, 1, 12).getTime();
+    const codexTs = new Date(2026, 5, 2, 12).getTime();
+    upsertTurns(db, [
+      turn({
+        messageId: "claude",
+        sessionId: "shared",
+        agent: "claude",
+        ts: claudeTs,
+        modelRaw: "claude-opus-4-8",
+        usage: { inputTokens: 10 },
+      }),
+      turn({
+        messageId: "codex",
+        sessionId: "shared",
+        agent: "codex",
+        ts: codexTs,
+        modelRaw: "gpt-5.3-codex",
+        usage: { inputTokens: 20 },
+      }),
+    ]);
+
+    expect(readTotals(db, ALL_TIME, "claude")).toMatchObject({
+      turns: 1,
+      inputTokens: 10,
+    });
+    expect(readTotals(db, ALL_TIME, "codex")).toMatchObject({
+      turns: 1,
+      inputTokens: 20,
+    });
+    expect(hasAnyTurns(db, "codex")).toBe(true);
+    expect(readBreakdowns(db, ALL_TIME, "codex").byModel).toEqual([
+      expect.objectContaining({ modelRaw: "gpt-5.3-codex", totalTokens: 20 }),
+    ]);
+    expect(readDaily(db, ALL_TIME, "codex")).toEqual([
+      expect.objectContaining({ day: "2026-06-02", inputTokens: 20 }),
+    ]);
+    expect(readCalendar(db, ALL_TIME, "codex")).toEqual([
+      expect.objectContaining({ day: "2026-06-02", turns: 1 }),
+    ]);
+    expect(readCalendarYears(db, "claude")).toEqual([2025]);
+    expect(readCalendarYears(db, "codex")).toEqual([2026]);
+    expect(readRecords(db, ALL_TIME, codexTs, "codex")).toMatchObject({
+      activeDays: 1,
+      mostActiveDay: "2026-06-02",
     });
   });
 });

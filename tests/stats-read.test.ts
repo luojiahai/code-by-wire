@@ -75,6 +75,7 @@ describe("registerIpc stats:read", () => {
   ): StatsSnapshot => {
     const r = handlers.get(IPC.readStats)!(
       null,
+      "claude",
       range,
       calendarYear,
     ) as StatsRead;
@@ -119,6 +120,7 @@ describe("registerIpc stats:read", () => {
 
     const second = handlers.get(IPC.readStats)!(
       null,
+      "claude",
       undefined,
       undefined,
       first.token,
@@ -158,6 +160,7 @@ describe("registerIpc stats:read", () => {
 
     const r = handlers.get(IPC.readStats)!(
       null,
+      "claude",
       undefined,
       undefined,
       "stale:token:0/0",
@@ -214,6 +217,7 @@ describe("registerIpc stats:read", () => {
 
     const second = handlers.get(IPC.readStats)!(
       null,
+      "claude",
       undefined,
       undefined,
       first.token,
@@ -278,6 +282,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "seed",
         sessionId: "s",
+        agent: "claude",
         ts: 0,
         modelRaw: "claude-opus-4-8",
         usage: {
@@ -340,6 +345,74 @@ describe("registerIpc stats:read", () => {
     });
   });
 
+  it("scopes snapshots and calendar-year caches by the validated agent", () => {
+    const home = makeHome();
+    mkdirSync(join(home, "projects"), { recursive: true });
+    const analyticsDb = openTestDb();
+    migrateAnalytics(analyticsDb);
+    upsertTurns(analyticsDb, [
+      {
+        messageId: "c",
+        sessionId: "c",
+        agent: "claude",
+        ts: new Date(2025, 1, 1, 12).getTime(),
+        modelRaw: "claude-opus-4-8",
+        usage: {
+          inputTokens: 11,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+          cacheCreation5mTokens: 0,
+          cacheCreation1hTokens: 0,
+        },
+        cwd: "/c",
+        project: "c",
+      },
+      {
+        messageId: "x",
+        sessionId: "x",
+        agent: "codex",
+        ts: new Date(2026, 1, 1, 12).getTime(),
+        modelRaw: "gpt-5.3-codex",
+        usage: {
+          inputTokens: 22,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+          cacheCreation5mTokens: 0,
+          cacheCreation1hTokens: 0,
+        },
+        cwd: "/x",
+        project: "x",
+      },
+    ]);
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({
+      db,
+      provider,
+      analyticsDb,
+      claudeDir: home,
+      codexDir: home,
+    });
+
+    const codex = handlers.get(IPC.readStats)!(null, "codex") as StatsRead;
+    if (codex.status !== "changed") throw new Error("expected changed");
+    expect(codex.snapshot.totals).toMatchObject({ turns: 1, inputTokens: 22 });
+    expect(codex.snapshot.calendarYears).toEqual([2026]);
+
+    const fallback = handlers.get(IPC.readStats)!(
+      null,
+      "unknown-agent",
+    ) as StatsRead;
+    if (fallback.status !== "changed") throw new Error("expected changed");
+    expect(fallback.snapshot.totals).toMatchObject({
+      turns: 1,
+      inputTokens: 11,
+    });
+    expect(fallback.snapshot.calendarYears).toEqual([2025]);
+  });
+
   it("scopes the returned totals to the requested range", () => {
     const home = makeHome();
     mkdirSync(join(home, "projects"), { recursive: true }); // empty: the scan finds nothing, seeds survive
@@ -351,6 +424,7 @@ describe("registerIpc stats:read", () => {
     const seed = (id: string, ts: number) => ({
       messageId: id,
       sessionId: id,
+      agent: "claude" as const,
       ts,
       modelRaw: "claude-opus-4-8",
       usage: {
@@ -396,6 +470,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "recent",
         sessionId: "s1",
+        agent: "claude",
         ts: now - 60 * 60_000,
         modelRaw: "claude-opus-4-8",
         usage: {
@@ -413,6 +488,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "old",
         sessionId: "s2",
+        agent: "claude",
         ts: now - 100 * DAY,
         modelRaw: "claude-sonnet-4-6",
         usage: {
@@ -459,6 +535,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "recent",
         sessionId: "s1",
+        agent: "claude",
         ts: now - 60 * 60_000,
         modelRaw: "claude-opus-4-8",
         usage: {
@@ -477,6 +554,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "old",
         sessionId: "s2",
+        agent: "claude",
         ts: now - 100 * DAY,
         modelRaw: "claude-sonnet-4-6",
         usage: {
@@ -523,6 +601,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "recent",
         sessionId: "recent",
+        agent: "claude",
         ts: now - 60 * 60_000,
         modelRaw: "claude-opus-4-8",
         usage: {
@@ -540,6 +619,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "old",
         sessionId: "old",
+        agent: "claude",
         ts: now - 100 * DAY,
         modelRaw: "claude-sonnet-4-6",
         usage: {
@@ -584,6 +664,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "recent",
         sessionId: "s1",
+        agent: "claude",
         ts: noon(2026, 6, 14),
         modelRaw: "claude-opus-4-8",
         usage: {
@@ -600,6 +681,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "old",
         sessionId: "s2",
+        agent: "claude",
         ts: noon(2026, 1, 1),
         modelRaw: "claude-sonnet-4-6",
         usage: {
@@ -642,6 +724,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "y24",
         sessionId: "s",
+        agent: "claude",
         ts: noon(2024, 3, 2),
         modelRaw: "claude-opus-4-8",
         usage: {
@@ -658,6 +741,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "y26",
         sessionId: "s",
+        agent: "claude",
         ts: noon(2026, 6, 14),
         modelRaw: "claude-opus-4-8",
         usage: {
@@ -697,6 +781,7 @@ describe("registerIpc stats:read", () => {
     const seed = (id: string, ts: number, input: number) => ({
       messageId: id,
       sessionId: id,
+      agent: "claude" as const,
       ts,
       modelRaw: "claude-opus-4-8",
       usage: {
@@ -731,6 +816,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "seed",
         sessionId: "s",
+        agent: "claude",
         ts: 0,
         modelRaw: "claude-opus-4-8",
         usage: {
@@ -794,6 +880,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "m1",
         sessionId: "sess-known",
+        agent: "claude",
         ts: 1000,
         modelRaw: "claude-opus-4-8",
         usage: {
@@ -811,6 +898,7 @@ describe("registerIpc stats:read", () => {
       {
         messageId: "m2",
         sessionId: "sess-ghost",
+        agent: "claude",
         ts: 2000,
         modelRaw: "claude-opus-4-8",
         usage: {

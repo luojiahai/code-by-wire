@@ -43,10 +43,11 @@ export const IPC = {
   modelDefaults: "model:defaults",
   readStats: "stats:read",
   pumpStats: "stats:pump",
-  statsDbInfo: "stats:dbinfo",
+  dbInfo: "db:info",
   recheckCli: "cli:recheck",
   resetAnalytics: "analytics:reset",
   openExternal: "shell:openExternal",
+  revealPath: "shell:revealPath",
   openIn: "shell:openIn",
   clipboardWriteText: "clipboard:writeText",
   clipboardReadText: "clipboard:readText",
@@ -137,15 +138,32 @@ export type StatsRead =
   | { status: "changed"; token: string; snapshot: StatsSnapshot }
   | { status: "unchanged"; token: string };
 
-/** What the Settings "Stats database" card renders: where the durable analytics store lives, its size
- *  on disk, and what it holds. `oldestTs` is the earliest ingested turn (epoch ms), null when the
- *  store is empty — the History row's "no history yet" case. */
-export interface StatsDbInfo {
+/** Per-agent count split used by both cards in Settings → Databases. */
+export interface AgentCounts {
+  total: number;
+  byAgent: Record<AgentId, number>;
+}
+
+export interface AnalyticsDbInfo {
   path: string;
   sizeBytes: number;
-  turns: number;
-  sessions: number;
+  turns: AgentCounts;
+  sessions: AgentCounts;
   oldestTs: number | null;
+  processedFiles: number;
+  worktrees: number;
+}
+
+export interface IndexDbInfo {
+  path: string;
+  sizeBytes: number;
+  sessions: AgentCounts;
+}
+
+/** Both local SQLite stores shown by Settings → Databases. */
+export interface DbInfo {
+  analytics: AnalyticsDbInfo;
+  index: IndexDbInfo;
 }
 
 /** A target for the header's "Open in" dropdown. The renderer sends one of these plus the session id;
@@ -210,6 +228,7 @@ export interface IpcApi {
    *  last token as `since`; when nothing the snapshot depends on has moved, the result is `unchanged` and no
    *  snapshot is built. Polled while the Stats view is open; never rejects. */
   readStats(
+    agent: AgentId,
     range?: StatsRange,
     calendarYear?: number,
     since?: string,
@@ -219,10 +238,10 @@ export interface IpcApi {
    *  costs one readdir+stat walk. Polled for the app's lifetime by useStatsPump; never rejects (a
    *  scan failure or missing store serves a done progress, parking the pump at its idle cadence). */
   pumpStats(): Promise<ScanProgress>;
-  /** The Settings "Stats database" card's readout, assembled in main so the renderer gets one shape.
-   *  Polled at the warm cadence while the card is mounted. Resolves null when no store is wired or
+  /** Settings → Databases readout, assembled in main so the renderer gets one shape for both stores.
+   *  Polled at the warm cadence while the section is mounted. Resolves null when no store is wired or
    *  the read fails; never rejects. */
-  statsDbInfo(): Promise<StatsDbInfo | null>;
+  dbInfo(): Promise<DbInfo | null>;
   /** Force a fresh CLI status check for one agent (the footer's Re-check button). */
   recheckCli(agent: AgentId): Promise<CliStatus>;
   /** Drop the durable analytics store (turns + scan high-water marks) so the next stats poll rebuilds it
@@ -232,6 +251,8 @@ export interface IpcApi {
   /** Open an http(s) URL in the user's default browser (the Git cell's PR link). Non-http(s) URLs are
    *  ignored by the main handler. */
   openExternal(url: string): Promise<void>;
+  /** Reveal one of the app's database files in the OS file manager. */
+  revealPath(path: string): Promise<void>;
   /** Open the session's working directory in `target`. The path is resolved in the main process from the
    *  session id (registry → transcript), so this works for ended sessions too. Never rejects. */
   openIn(id: string, target: OpenInTarget): Promise<OpenInResult>;

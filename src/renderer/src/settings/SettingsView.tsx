@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import type { CliStatusByAgent } from "@shared/cli-status";
+import type { DbInfo } from "@shared/ipc";
 import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
 import { isUpdatePending } from "@shared/update";
 import { SoftwareUpdateCard, type UpdateControls } from "./SoftwareUpdateCard";
@@ -6,7 +8,8 @@ import { AppearanceCard } from "./AppearanceCard";
 import { CliCard } from "./CliCard";
 import { CodexCliCard } from "./CodexCliCard";
 import { StatuslineCard } from "./StatuslineCard";
-import { StatsDbCard } from "./StatsDbCard";
+import { AnalyticsDbCard } from "./AnalyticsDbCard";
+import { IndexDbCard } from "./IndexDbCard";
 import { AgentIcon } from "../ui/agent-icons";
 import { OverlayScroll } from "../ui/OverlayScroll";
 import { Icon } from "../ui/icons";
@@ -16,11 +19,12 @@ import { footerView } from "../ui/rail-footer";
 import { PageHeader, Card } from "../shell/page-primitives";
 import { useI18n } from "../i18n";
 
-export type SettingsSection = "system" | "appearance" | "about";
+export type SettingsSection = "system" | "appearance" | "databases" | "about";
 
 const NAV: { key: SettingsSection; icon: IconName }[] = [
   { key: "system", icon: "monitor" },
   { key: "appearance", icon: "palette" },
+  { key: "databases", icon: "database" },
   { key: "about", icon: "info" },
 ];
 
@@ -115,6 +119,7 @@ export function SettingsView({
               <AppearanceCard />
             </>
           )}
+          {section === "databases" && <DatabasesSection />}
           {section === "about" && <AboutSection update={update} />}
         </div>
       </OverlayScroll>
@@ -166,9 +171,45 @@ function SystemSection({
               onRecheck={() => onRecheck("codex")}
             />
           )}
-          {AGENTS[id].capabilities.hasStatsDb && <StatsDbCard />}
         </div>
       ))}
+    </>
+  );
+}
+
+function DatabasesSection() {
+  const { t } = useI18n();
+  const [info, setInfo] = useState<DbInfo | null>(null);
+  useEffect(() => {
+    let alive = true;
+    let inFlight = false;
+    async function tick(): Promise<void> {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const next = await window.api.dbInfo();
+        if (alive) setInfo(next);
+      } catch {
+        // Main never rejects; a torn bridge keeps the last good readout.
+      } finally {
+        inFlight = false;
+      }
+    }
+    void tick();
+    const timer = setInterval(() => void tick(), 1500);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, []);
+  return (
+    <>
+      <PageHeader
+        title={t.settings.databases.title}
+        lede={t.settings.databases.lede}
+      />
+      <AnalyticsDbCard info={info?.analytics ?? null} />
+      <IndexDbCard info={info?.index ?? null} />
     </>
   );
 }

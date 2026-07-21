@@ -43,6 +43,7 @@ const provider = {
 const turn = (over: Partial<AnalyticsTurn> = {}): AnalyticsTurn => ({
   messageId: "msg-1",
   sessionId: "sess-1",
+  agent: "claude",
   ts: 1000,
   modelRaw: "claude-opus-4-8",
   usage: {
@@ -117,6 +118,7 @@ describe("registerIpc analytics:reset", () => {
     // First read memoizes the year list against the max turns rowid (1 here).
     const before = readStats(
       null,
+      "claude",
       undefined,
       undefined,
       undefined,
@@ -133,7 +135,13 @@ describe("registerIpc analytics:reset", () => {
       turn({ messageId: "y2021", ts: tsInYear(2021) }),
     ]);
 
-    const after = readStats(null, undefined, undefined, undefined) as StatsRead;
+    const after = readStats(
+      null,
+      "claude",
+      undefined,
+      undefined,
+      undefined,
+    ) as StatsRead;
     if (after.status !== "changed") throw new Error("expected a snapshot");
     expect(after.snapshot.calendarYears).toEqual([2021]);
   });
