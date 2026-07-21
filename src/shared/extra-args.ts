@@ -26,7 +26,9 @@ export interface LaunchPreset {
 export type LaunchPresets = Record<AgentId, LaunchPreset[]>;
 
 export function emptyLaunchPresets(): LaunchPresets {
-  return Object.fromEntries(AGENT_IDS.map((id) => [id, []])) as LaunchPresets;
+  const out = {} as LaunchPresets;
+  for (const id of AGENT_IDS) out[id] = [];
+  return out;
 }
 
 /** Session-identity flags the app itself passes (or may pass on resume/fork) for claude. A user
