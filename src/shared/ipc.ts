@@ -26,6 +26,7 @@ import type { AgentId } from "./agents";
 import type { UpdateState } from "./update";
 import type { StatuslineStatus } from "./statusline-status";
 import type { Locale } from "./locale";
+import type { LaunchPresets } from "./extra-args";
 export { type UpdateState };
 export const IPC = {
   overview: "overview:get",
@@ -71,6 +72,8 @@ export const IPC = {
   statuslineRepair: "statusline:repair",
   caffeinateGet: "caffeinate:get",
   caffeinateSet: "caffeinate:set",
+  launchPresetsGet: "launchPresets:get",
+  launchPresetsSet: "launchPresets:set",
   /** PUSH: main -> renderer on every update-state transition. */
   updateState: "update:state",
 } as const;
@@ -245,6 +248,10 @@ export interface IpcApi {
   /** Persist (or clear) the durable pin mark for a session id, then return the fresh overview with
    *  pinnedAtMs stamped. Applied in overviewNow(), so overview() and refresh() carry it too. */
   setSessionPinned(id: string, pinned: boolean): Promise<OverviewData>;
+  /** Every saved launch-args preset, keyed by agent (the New-session preset picker). */
+  getLaunchPresets(): Promise<LaunchPresets>;
+  /** Replace the whole presets object — the renderer owns list edits and ships the result back. */
+  setLaunchPresets(presets: LaunchPresets): Promise<void>;
   setProjectPlacement(
     key: string,
     placement: ProjectPlacement,

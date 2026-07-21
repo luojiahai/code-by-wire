@@ -37,6 +37,8 @@ import { applyPinOverrides } from "@shared/pin-override";
 import type { SessionTitleStore } from "./session-titles";
 import type { SessionPinStore } from "./session-pins";
 import type { ProjectStateStore } from "./project-state";
+import type { LaunchPresetStore } from "./launch-presets";
+import { emptyLaunchPresets, type LaunchPresets } from "@shared/extra-args";
 import { getOverview, readSessionTitles } from "./db/store";
 import {
   readTotals,
@@ -114,6 +116,8 @@ export interface IpcDeps {
   sessionTitles?: SessionTitleStore;
   /** Durable pinned-session marks, stamped onto overview rows as pinnedAtMs. Defaults to no pins. */
   sessionPins?: SessionPinStore;
+  /** Durable launch-args presets for the New-session picker. Defaults to no presets. */
+  launchPresets?: LaunchPresetStore;
   /** Durable project-group placements, keyed by the sidebar's canonical project key. */
   projectState?: ProjectStateStore;
   /** The update controller. Defaults to an inert "unsupported" updater when not wired. */
@@ -159,6 +163,7 @@ export function registerIpc({
   cliStatus,
   sessionTitles,
   sessionPins,
+  launchPresets,
   projectState,
   updater,
   appSettings,
@@ -411,6 +416,19 @@ export function registerIpc({
       );
     }
     return overviewNow();
+  });
+  ipcMain.handle(
+    IPC.launchPresetsGet,
+    (): LaunchPresets => launchPresets?.read() ?? emptyLaunchPresets(),
+  );
+  ipcMain.handle(IPC.launchPresetsSet, (_e, presets: LaunchPresets): void => {
+    try {
+      launchPresets?.write(presets);
+    } catch (err) {
+      // Same contract as setSessionPinned: a failed write must not reject the renderer's
+      // save; log it and let the next save retry.
+      console.error("launchPresets persist failed", err);
+    }
   });
   ipcMain.handle(
     IPC.setProjectPlacement,

@@ -28,6 +28,9 @@ const api: AppApi = {
     ipcRenderer.invoke(IPC.renameSession, id, title),
   setSessionPinned: (id, pinned) =>
     ipcRenderer.invoke(IPC.setSessionPinned, id, pinned),
+  getLaunchPresets: () => ipcRenderer.invoke(IPC.launchPresetsGet),
+  setLaunchPresets: (presets) =>
+    ipcRenderer.invoke(IPC.launchPresetsSet, presets),
   setProjectPlacement: (key, placement) =>
     ipcRenderer.invoke(IPC.setProjectPlacement, key, placement),
   readTranscript: (id, sinceMtimeMs) =>

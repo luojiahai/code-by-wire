@@ -49,6 +49,7 @@ import { createSessionTitleStore } from "./session-titles";
 import { createSessionPinStore } from "./session-pins";
 import { createLaunchArgsStore } from "./launch-args";
 import type { LaunchArgsStore } from "./launch-args";
+import { createLaunchPresetStore } from "./launch-presets";
 import { createProjectStateStore } from "./project-state";
 import { createCliStatusController } from "./cli-check";
 import { createUpdater } from "./updater";
@@ -363,6 +364,9 @@ app
     const sessionPins = createSessionPinStore({
       dir: app.getPath("userData"),
     });
+    const launchPresets = createLaunchPresetStore({
+      dir: app.getPath("userData"),
+    });
     const projectState = createProjectStateStore({
       dir: app.getPath("userData"),
     });
@@ -444,6 +448,7 @@ app
       cliStatus,
       sessionTitles,
       sessionPins,
+      launchPresets,
       projectState,
       updater,
       appSettings,
