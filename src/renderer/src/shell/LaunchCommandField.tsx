@@ -147,13 +147,11 @@ export function LaunchCommandField({
       </div>
 
       <div
-        className={`mt-1.5 flex items-start gap-1.5 rounded-md border border-dashed px-2.5 py-2 font-mono text-aux ${
+        className={`mt-1.5 flex flex-col gap-1 rounded-md border border-dashed px-2.5 py-2 font-mono text-aux ${
           errorText ? "border-danger/60" : "border-ink-700"
         } bg-ink-925`}
       >
-        <span className="shrink-0 whitespace-nowrap text-fg-faint">
-          {prefix}
-        </span>
+        <span className="text-fg-faint">{prefix}</span>
         <textarea
           ref={argsRef}
           value={value}
@@ -166,7 +164,7 @@ export function LaunchCommandField({
           placeholder={t.shell.newSession.argsPlaceholder}
           spellCheck={false}
           rows={1}
-          className="min-w-0 flex-1 resize-none overflow-hidden bg-transparent outline-none placeholder:italic placeholder:text-fg-faint"
+          className="w-full resize-none overflow-hidden bg-transparent outline-none placeholder:italic placeholder:text-fg-faint"
         />
       </div>
 
