@@ -303,7 +303,7 @@ export const en = {
       heading: "Session",
       model: "Model",
       effort: "Effort",
-      git: "Git",
+      branch: "Branch",
       pr: "PR",
       lines: "Lines",
       clock: "Clock",

@@ -7,8 +7,8 @@ import { useI18n } from "../i18n";
 import { GitReadout } from "./GitReadout";
 
 /**
- * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Git (branch + dirty dot,
- * popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Lines (the
+ * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Branch (branch name + dirty
+ * dot, popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Lines (the
  * session's ± footprint from the capture), Clock, and Active (relative last-activity time) — each an
  * always-shown label/value row; `-` fills a row whose data hasn't landed.
  */
@@ -22,10 +22,9 @@ export function SessionPanel({
   pr?: PrInfo | null;
 }) {
   const { t } = useI18n();
-  const modelRaw = s.modelId ?? s.modelRaw;
   const model = modelLabel(
     s.model,
-    modelRaw,
+    s.modelId ?? s.modelRaw,
     s.modelDisplayName,
     // Not bare `management === "managed"`: a managed codex session has no spawn model to vouch for
     // (no --model flag exists), so its rawless family is only the Opus normalize fallback (#371).
@@ -43,14 +42,14 @@ export function SessionPanel({
     <PanelSection>
       <PanelHeading icon="id-card">{t.shell.sessionPanel.heading}</PanelHeading>
       <SessionRow label={t.shell.sessionPanel.model}>
-        <span className="min-w-0 break-all" title={model}>
+        <span className="min-w-0 wrap-anywhere" title={model}>
           {model}
         </span>
       </SessionRow>
       <SessionRow label={t.shell.sessionPanel.effort}>
         {s.effortLevel ?? "-"}
       </SessionRow>
-      <SessionRow label={t.shell.sessionPanel.git}>
+      <SessionRow label={t.shell.sessionPanel.branch}>
         <GitReadout session={s} git={git} />
       </SessionRow>
       <SessionRow label={t.shell.sessionPanel.pr}>

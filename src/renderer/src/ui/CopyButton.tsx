@@ -3,9 +3,10 @@ import { cx } from "./atoms";
 import { useCopyFlash } from "./use-copy-flash";
 import { useI18n } from "../i18n";
 
-/** A small icon button that copies `value` to the clipboard and flashes a check for ~1.2s. Used in the
- *  Git popover for the branch and the commit sha. `label` is the accessible name and resting tooltip
- *  (caller-supplied, already translated); only the transient "Copied" flash is owned here. */
+/** A small icon button that copies `value` to the clipboard and flashes a check for ~1.2s. Used beside
+ *  the Session panel's Branch readout and the Stats session-id column.
+ *  `label` is the accessible name and resting tooltip (caller-supplied, already translated); only the
+ *  transient "Copied" flash is owned here. */
 export function CopyButton({ value, label }: { value: string; label: string }) {
   const { t } = useI18n();
   const { copied, copy } = useCopyFlash(value);
