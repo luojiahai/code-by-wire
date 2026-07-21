@@ -5,12 +5,18 @@ import {
   type ModelDefaults,
 } from "@shared/models";
 import { AGENT_IDS, AGENTS, type AgentId } from "@shared/agents";
+import {
+  validateExtraArgs,
+  emptyLaunchPresets,
+  type LaunchPresets,
+} from "@shared/extra-args";
 import { FAMILY_LABEL } from "../ui/meta";
 import { Icon } from "../ui/icons";
 import { AgentIcon } from "../ui/agent-icons";
 import { CustomSelect } from "../ui/CustomSelect";
 import { useI18n } from "../i18n";
 import { PageHeader, Card } from "./page-primitives";
+import { LaunchCommandField } from "./LaunchCommandField";
 
 /**
  * The inline create-a-Managed-session form (design spec §5): the app's sole create-a-session surface,
@@ -30,6 +36,7 @@ export function NewSessionView({
     cwd: string,
     model: ModelSelection,
     agent: AgentId,
+    extraArgs: string,
   ) => void | Promise<void>;
   /** Per-agent spawn gate: an agent whose CLI check failed renders as a disabled option. */
   canSpawnFor: (agent: AgentId) => boolean;
@@ -50,6 +57,8 @@ export function NewSessionView({
   const [defaults, setDefaults] = useState<ModelDefaults | null>(null);
   const [internalBusy, setInternalBusy] = useState(false);
   const [error, setError] = useState<string | null>(initialError ?? null);
+  const [extraArgs, setExtraArgs] = useState("");
+  const [presets, setPresets] = useState<LaunchPresets>(emptyLaunchPresets());
   const busy = internalBusy || (externalBusy ?? false);
 
   // Fetch the configured model defaults once on mount, only for the picker's family labels and the
@@ -63,23 +72,60 @@ export function NewSessionView({
       });
   }, []);
 
+  useEffect(() => {
+    void window.api
+      .getLaunchPresets()
+      .then(setPresets)
+      .catch(() => {
+        /* keep empty presets; the picker just lists nothing */
+      });
+  }, []);
+
+  const argsCheck = validateExtraArgs(agent, extraArgs);
+  const argsError = argsCheck.ok
+    ? null
+    : argsCheck.kind === "reserved"
+      ? t.shell.newSession.reservedArg(argsCheck.token)
+      : t.shell.newSession.unbalancedQuote;
+
   async function pick() {
     const dir = await window.api.terminal.pickDirectory();
     if (dir) setCwd(dir);
   }
 
   async function create() {
-    if (!cwd || busy) return;
+    if (!cwd || busy || !argsCheck.ok) return;
     setInternalBusy(true);
     setError(null);
     try {
-      await onCreate(cwd, model, agent);
+      await onCreate(cwd, model, agent, extraArgs);
     } catch (e) {
       setInternalBusy(false);
       setError(
         e instanceof Error ? e.message : t.shell.newSession.failedToStart,
       );
     }
+  }
+
+  function savePreset(name: string, args: string): void {
+    const next: LaunchPresets = {
+      ...presets,
+      [agent]: [
+        ...presets[agent].filter((p) => p.name !== name),
+        { name, args },
+      ],
+    };
+    setPresets(next);
+    void window.api.setLaunchPresets(next).catch(() => {});
+  }
+
+  function deletePreset(name: string): void {
+    const next: LaunchPresets = {
+      ...presets,
+      [agent]: presets[agent].filter((p) => p.name !== name),
+    };
+    setPresets(next);
+    void window.api.setLaunchPresets(next).catch(() => {});
   }
 
   return (
@@ -170,11 +216,22 @@ export function NewSessionView({
                 </div>
               )}
 
+              <LaunchCommandField
+                agent={agent}
+                model={model}
+                value={extraArgs}
+                onChange={setExtraArgs}
+                errorText={argsError}
+                presets={presets[agent]}
+                onSavePreset={savePreset}
+                onDeletePreset={deletePreset}
+              />
+
               {error && <p className="text-aux text-danger">{error}</p>}
               <div className="flex justify-end">
                 <button
                   onClick={() => void create()}
-                  disabled={!cwd || busy}
+                  disabled={!cwd || busy || !argsCheck.ok}
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-body font-medium text-ink-950 ring-1 ring-primary/40 transition-colors enabled:hover:bg-primary-bright disabled:opacity-40"
                 >
                   <Icon name="plus" size={13} />

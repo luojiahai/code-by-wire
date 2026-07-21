@@ -249,6 +249,7 @@ export function App() {
     cwd: string,
     model: ModelSelection,
     agent: AgentId,
+    extraArgs = "",
   ): Promise<void> {
     const gate = spawnGateFor(cliStatus, agent);
     if (!gate.canSpawn)
@@ -263,6 +264,7 @@ export function App() {
         cwd,
         model,
         agent,
+        extraArgs,
         cols: 80,
         rows: 24,
       });
