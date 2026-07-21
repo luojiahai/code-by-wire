@@ -34,7 +34,7 @@ function RateRow({
   const { t } = useI18n();
   const pct = w ? clampPct(Math.round(w.usedPct)) : 0;
   return (
-    <div className={cx("flex items-center gap-2", !w && "opacity-40")}>
+    <div className={cx("flex items-center gap-1", !w && "opacity-40")}>
       <span className="w-7 shrink-0 text-xs text-(--ui-text-tertiary)">
         {w?.windowMinutes != null ? t.time.windowLabel(w.windowMinutes) : label}
       </span>
@@ -208,7 +208,7 @@ function ExtraRow({ extra }: { extra: ExtraUsage }) {
       ? `${(extra.used / 100).toFixed(2)}/${(extra.limit / 100).toFixed(2)} ${extra.currency ?? "USD"}`
       : undefined;
   return (
-    <div className="flex items-center gap-2" title={detail}>
+    <div className="flex items-center gap-1" title={detail}>
       <span className="w-7 shrink-0 text-xs text-(--ui-text-tertiary)">
         {t.dock.pressure.extra}
       </span>
