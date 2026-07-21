@@ -6,6 +6,40 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.43] - 2026-07-22
+
+### Added
+
+- New sessions can now append custom CLI args (e.g.
+  `--dangerously-skip-permissions`, `--settings <path>`) when spawning
+  Claude Code or Codex, plus named per-agent presets to reuse them; a
+  denylist blocks flags the app itself manages, enforced independently in
+  both the renderer and main. Custom args persist per session and are
+  re-applied on resume and inherited on fork.
+
+### Changed
+
+- The Session panel's Model and Git rows now wrap long values instead of
+  truncating them to an ellipsis, and the Git row gained a copy button for
+  the branch/sha.
+- Sidebar session status marks are now unified on a single 4-slot bar
+  shape across every state (working, waiting, idle, ended), varying only
+  in color, motion, and height — replacing the previous mix of sweeping
+  bars and mono characters.
+
+### Fixed
+
+- The transcript feed no longer jumps to the bottom on every new event; it
+  follows new events only while the reader is still parked at the bottom,
+  and lands there once on open (selecting a session, flipping Claude Code
+  ⇄ Transcript, drilling a subagent).
+- Resize sashes on every pane seam now match hermes' behavior: sashes are
+  no longer clipped to a ~2px strip by their pane's overflow, drag writes
+  are coalesced to one per frame, double-click resets a pane to its
+  default size, and seams no longer double-draw at sidebar and terminal
+  edges. The footer terminal's top edge is also no longer painted over by
+  the rail in row mode.
+
 ## [0.1.42] - 2026-07-20
 
 ### Fixed
@@ -1033,7 +1067,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.42...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.43...HEAD
+[0.1.43]: https://github.com/luojiahai/code-by-wire/compare/v0.1.42...v0.1.43
 [0.1.42]: https://github.com/luojiahai/code-by-wire/compare/v0.1.41...v0.1.42
 [0.1.41]: https://github.com/luojiahai/code-by-wire/compare/v0.1.40...v0.1.41
 [0.1.40]: https://github.com/luojiahai/code-by-wire/compare/v0.1.39...v0.1.40
