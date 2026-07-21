@@ -266,7 +266,6 @@ export const zh: Translations = {
     sessionPanel: {
       heading: "会话",
       model: "模型",
-      copyModel: "复制模型",
       effort: "推理强度",
       git: "Git",
       pr: "PR",

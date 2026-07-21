@@ -302,7 +302,6 @@ export const en = {
     sessionPanel: {
       heading: "Session",
       model: "Model",
-      copyModel: "Copy model",
       effort: "Effort",
       git: "Git",
       pr: "PR",
