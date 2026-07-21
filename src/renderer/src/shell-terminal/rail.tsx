@@ -26,22 +26,16 @@ interface MenuState {
 
 /** Thin icon "bookmark" strip on the pane's outer edge, shown whenever a terminal exists. Each
  *  square is a tab; close via the shell's `exit`, middle-click, or the context menu. */
-export function TerminalRail({ asRow }: { asRow: boolean }) {
+export function TerminalRail() {
   const { t } = useI18n();
   const terminals = useStore($terminals);
   const activeId = useStore($activeTerminalId);
   const [menu, setMenu] = useState<MenuState | null>(null);
 
   return (
-    // Side-specific border colors: the subtle quaternary left edge separates the rail from the
-    // terminal body; the row-mode top edge uses secondary to match the body column's seam border
-    // (see TerminalPaneChrome) into one continuous line against the metrics sidebar above.
-    <div
-      className={cx(
-        "group/rail relative z-40 flex h-full w-9 shrink-0 flex-col items-center border-l border-l-(--ui-stroke-quaternary) bg-(--ui-editor-surface-background)",
-        asRow && "border-t border-t-(--ui-stroke-secondary)",
-      )}
-    >
+    // The subtle quaternary left edge separates the rail from the terminal body. The row-mode
+    // top seam is the pane sash's full-bleed hairline (z-50, above this rail) — not a border here.
+    <div className="group/rail relative z-40 flex h-full w-9 shrink-0 flex-col items-center border-l border-l-(--ui-stroke-quaternary) bg-(--ui-editor-surface-background)">
       <ul
         aria-label={t.terminal.tabListAria}
         className="flex min-h-0 flex-1 flex-col items-center gap-0.5 self-stretch overflow-y-auto overflow-x-hidden overscroll-contain py-1 [scrollbar-width:none]"

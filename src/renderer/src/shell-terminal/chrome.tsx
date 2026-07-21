@@ -1,5 +1,4 @@
 import { useStore } from "@nanostores/react";
-import { cx } from "../ui/atoms";
 import { TerminalSlot } from "./persistent";
 import { TerminalRail } from "./rail";
 import { $terminals } from "./terminals";
@@ -9,24 +8,17 @@ import { $terminals } from "./terminals";
  *  own stacking. The rail shows whenever a terminal exists (even one), so every tab keeps its
  *  close affordance; closing the last one hides the pane.
  *
- *  `asRow` (the terminal docked as a row beneath the metrics sidebar): the seam against the metrics
- *  is drawn here, as a top border on BOTH the body column and the rail — siblings at the same y, so
- *  the line stays continuous and aligned across the full width. It can't live on an ancestor: the
- *  rail's opaque z-40 background paints over any ancestor border in the rail's column. */
-export function TerminalPaneChrome({ asRow }: { asRow: boolean }) {
+ *  Row-mode's top seam is NOT drawn here: the pane's resize sash paints a full-bleed hairline
+ *  above the rail's z-40 (see the terminal Pane's `divider` in App.tsx). */
+export function TerminalPaneChrome() {
   const terminals = useStore($terminals);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
-      <div
-        className={cx(
-          "relative flex min-h-0 min-w-0 flex-1 flex-col",
-          asRow && "border-t border-t-(--ui-stroke-secondary)",
-        )}
-      >
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <TerminalSlot />
       </div>
-      {terminals.length > 0 && <TerminalRail asRow={asRow} />}
+      {terminals.length > 0 && <TerminalRail />}
     </div>
   );
 }

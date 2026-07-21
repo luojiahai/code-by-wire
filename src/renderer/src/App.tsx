@@ -24,6 +24,7 @@ import { Workspace } from "./workspace/Workspace";
 import { useMetrics } from "./workspace/use-metrics";
 import { terminalStore } from "./terminal/terminal-store-instance";
 import { spawnGateFor } from "./ui/cli-gating";
+import { cx } from "./ui/atoms";
 import { Icon } from "./ui/icons";
 import { StatsView } from "./stats/StatsView";
 import { OVERVIEW_ID } from "./stats/sentinel";
@@ -559,7 +560,6 @@ export function App() {
           minWidth={LEFT_MIN_WIDTH}
           maxWidth={LEFT_MAX_WIDTH}
           resizable
-          divider
           hoverReveal
           forceCollapsed={narrow}
         >
@@ -597,15 +597,20 @@ export function App() {
           minHeight="8rem"
           maxHeight="80vh"
           resizable
+          divider
           disabled={!terminalOpen}
           bottomRow={terminalAsRow}
         >
-          {/* A persistent left border anchors the pane against the workspace, matching the metrics
-              sidebar (its resize sash alone reads as no edge until hovered). The row-mode top seam
-              (against the metrics above) is drawn inside the chrome — on the body column AND the tab
-              rail — not here: the rail's opaque z-40 background would paint over a wrapper-level
-              top border, leaving the seam notched short of the rail. */}
-          <div className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-l border-(--ui-stroke-secondary) bg-(--ui-editor-surface-background)">
+          {/* Seam ownership: in column mode the pane's divider hairline draws the left seam (no
+              border here). In row mode the sidebar pane has no divider — this border-l continues
+              the metrics sidebar's own border-l down the shared seam; the reaching sash above it
+              is the (invisible) drag layer only. */}
+          <div
+            className={cx(
+              "relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-editor-surface-background)",
+              terminalAsRow && "border-l border-(--ui-stroke-secondary)",
+            )}
+          >
             {/* As a full-height column the terminal reaches the top of the window, so it must clear
                 the titlebar band (the fixed sidebar-toggle clusters float there) — the same
                 --titlebar-height drag strip every other rail column reserves (see RightSidebar). As a
@@ -617,7 +622,7 @@ export function App() {
                 style={{ height: "var(--titlebar-height)" }}
               />
             )}
-            <TerminalPaneChrome asRow={terminalAsRow} />
+            <TerminalPaneChrome />
           </div>
         </Pane>
         <Pane
@@ -627,7 +632,6 @@ export function App() {
           minWidth={RIGHT_MIN_WIDTH}
           maxWidth={RIGHT_MAX_WIDTH}
           resizable
-          divider
           hoverReveal
           disabled={!hasSession}
           forceCollapsed={narrow}

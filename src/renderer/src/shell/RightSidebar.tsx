@@ -30,7 +30,7 @@ export function RightSidebar({
   const doc = useTranscript(session.id);
   const Panels = SIDEBAR_PANELS[session.agent];
   return (
-    <div className="flex h-full flex-col border-l border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) text-(--ui-text-tertiary) shadow-[inset_0.0625rem_0_0_color-mix(in_srgb,white_12%,transparent)]">
+    <div className="flex h-full flex-col border-l border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) text-(--ui-text-tertiary)">
       <div
         className="drag-region shrink-0 select-none"
         style={{ height: "var(--titlebar-height)" }}

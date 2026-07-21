@@ -16,6 +16,8 @@ import {
 import { cx } from "../../ui/atoms";
 import {
   $paneStates,
+  clearPaneHeightOverride,
+  clearPaneWidthOverride,
   ensurePaneRegistered,
   setPaneHeightOverride,
   setPaneWidthOverride,
@@ -25,6 +27,7 @@ import {
   type PaneShellContextValue,
   type PaneSlot,
 } from "./context";
+import { rafCoalesce } from "./raf-coalesce";
 import {
   DEFAULT_HEIGHT,
   DEFAULT_RESIZE_MIN_HEIGHT,
@@ -91,17 +94,19 @@ export interface PaneShellProps {
 }
 
 // Resize-sash geometry per axis: `x` is a vertical bar on the inner edge of a
-// column; `y` is a horizontal bar on the top edge of a bottom row.
+// column; `y` is a horizontal bar on the top edge of a bottom row. The 9px
+// `bar` hit area straddles the seam (hermes parity) and is only usable
+// because the grid item no longer clips (see the open-pane return below).
 const SASH = {
   x: {
     orientation: "vertical",
-    bar: "bottom-0 top-0 w-1 cursor-col-resize",
+    bar: "bottom-0 top-0 w-[9px] cursor-col-resize",
     line: "inset-y-0 left-1/2 w-px -translate-x-1/2",
     hover: "inset-y-0 left-1/2 w-1 -translate-x-1/2",
   },
   y: {
     orientation: "horizontal",
-    bar: "inset-x-0 top-0 h-1 -translate-y-1/2 cursor-row-resize",
+    bar: "inset-x-0 top-0 h-[9px] -translate-y-1/2 cursor-row-resize",
     line: "inset-x-0 top-1/2 h-px -translate-y-1/2",
     hover: "inset-x-0 top-1/2 h-1 -translate-y-1/2",
   },
@@ -196,13 +201,14 @@ export function PaneShell({ children, className, style }: PaneShellProps) {
       const { open, track } = trackForPane(pane, paneStates);
       tracks.push(track);
       cssVars[`--pane-${pane.id}-width`] = track;
-      const gridRow = open && paneSide === bottomRailSide ? "1 / 2" : "1 / -1";
+      const aboveBottomRow = open && paneSide === bottomRailSide;
       paneById.set(pane.id, {
         open,
         side: paneSide,
         gridColumn: `${column} / ${column + 1}`,
-        gridRow,
+        gridRow: aboveBottomRow ? "1 / 2" : "1 / -1",
         bottomRow: false,
+        aboveBottomRow,
       });
       column++;
     };
@@ -222,14 +228,20 @@ export function PaneShell({ children, className, style }: PaneShellProps) {
         gridColumn,
         gridRow: "2 / 3",
         bottomRow: true,
+        aboveBottomRow: false,
       });
     }
 
     // Always emit explicit rows so `grid-row: 1 / -1` (full-height) resolves
     // against a known last line. With a bottom row active there are two tracks;
     // otherwise a single 1fr track behaves exactly like a single-row grid.
-    const gridTemplateRows = activeBottomRow
-      ? `minmax(0,1fr) ${heightTrackForPane(activeBottomRow, paneStates)}`
+    const bottomRowTrack = activeBottomRow
+      ? heightTrackForPane(activeBottomRow, paneStates)
+      : null;
+    if (bottomRowTrack) cssVars["--pane-bottom-row-height"] = bottomRowTrack;
+
+    const gridTemplateRows = bottomRowTrack
+      ? `minmax(0,1fr) ${bottomRowTrack}`
       : "minmax(0,1fr)";
 
     return {
@@ -351,6 +363,7 @@ export function Pane({
   // rail → right, right rail → left); the bottom row grows up from its top edge.
   const startResize = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>, axis: "x" | "y") => {
+      if (event.button !== 0) return;
       const rect = paneRef.current?.getBoundingClientRect();
       const base = (axis === "x" ? rect?.width : rect?.height) ?? 0;
       if (!canResize || base <= 0) return;
@@ -369,20 +382,33 @@ export function Pane({
       document.body.style.cursor = axis === "x" ? "col-resize" : "row-resize";
       document.body.style.userSelect = "none";
 
+      // pointermove outpaces the display, and every override write reflows the
+      // grid AND refits xterm — coalesce to one write per frame (the final
+      // position commits in cleanup via finish()).
+      const resize = rafCoalesce<number>((next) => apply(id, next));
+
       const onMove = (e: PointerEvent) => {
         const next =
           base + ((axis === "x" ? e.clientX : e.clientY) - start) * dir;
-        apply(id, Math.round(Math.min(max, Math.max(min, next))));
+        resize.push(Math.round(Math.min(max, Math.max(min, next))));
       };
+      // releasePointerCapture fires lostpointercapture, which re-enters
+      // cleanup — the `done` latch makes that second entry a no-op.
+      let done = false;
       const cleanup = () => {
+        if (done) return;
+        done = true;
+        resize.finish();
         document.body.style.cursor = restoreCursor;
         document.body.style.userSelect = restoreSelect;
         handle.releasePointerCapture?.(pointerId);
+        handle.removeEventListener("lostpointercapture", cleanup);
         window.removeEventListener("pointermove", onMove, true);
         window.removeEventListener("pointerup", cleanup, true);
         window.removeEventListener("pointercancel", cleanup, true);
         window.removeEventListener("blur", cleanup);
       };
+      handle.addEventListener("lostpointercapture", cleanup);
       window.addEventListener("pointermove", onMove, true);
       window.addEventListener("pointerup", cleanup, true);
       window.addEventListener("pointercancel", cleanup, true);
@@ -424,6 +450,7 @@ export function Pane({
         ref={paneRef}
         style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow }}
       >
+        {/* z-30: under the rail (z-40) and sashes (z-50) — only the revealed PANEL below outranks them. */}
         <div
           aria-hidden="true"
           className="pointer-events-auto absolute inset-y-0 z-30 [-webkit-app-region:no-drag]"
@@ -438,7 +465,7 @@ export function Pane({
             instead of transitioning the transform across the viewport. */}
         <div
           className={cx(
-            "pointer-events-none absolute inset-y-0 z-30 overflow-hidden transition-transform delay-0",
+            "pointer-events-none absolute inset-y-0 z-[60] overflow-hidden transition-transform delay-0",
             offscreen,
             "group-hover/reveal:pointer-events-auto group-hover/reveal:translate-x-0 group-hover/reveal:delay-[var(--reveal-enter-delay)] group-hover/reveal:shadow-[var(--reveal-shadow)]",
             "group-data-[forced]/reveal:pointer-events-auto group-data-[forced]/reveal:translate-x-0 group-data-[forced]/reveal:delay-0 group-data-[forced]/reveal:shadow-[var(--reveal-shadow)]",
@@ -465,7 +492,7 @@ export function Pane({
     <div
       aria-hidden={!open}
       className={cx(
-        "relative min-h-0 min-w-0 overflow-hidden",
+        "relative min-h-0 min-w-0",
         !open && "pointer-events-none",
         className,
       )}
@@ -476,11 +503,14 @@ export function Pane({
       style={{ gridColumn: slot.gridColumn, gridRow: slot.gridRow }}
     >
       {canResize && (
+        // A column shrunk above an active bottom row shares its vertical seam with that row's
+        // leading edge — the sash reaches down across the row (the grid item no longer clips),
+        // hermes' one-sash-per-seam behavior. Inline `bottom` overrides the class's bottom-0.
         <div
           aria-label={`Resize ${id}`}
           aria-orientation={sash.orientation}
           className={cx(
-            "group absolute z-20 [-webkit-app-region:no-drag]",
+            "group absolute z-50 [-webkit-app-region:no-drag]",
             sash.bar,
             !isBottomRow &&
               (slot.side === "left"
@@ -488,19 +518,38 @@ export function Pane({
                 : "left-0 -translate-x-1/2"),
           )}
           onPointerDown={(e) => startResize(e, axis)}
+          onDoubleClick={() =>
+            axis === "x"
+              ? clearPaneWidthOverride(id)
+              : clearPaneHeightOverride(id)
+          }
           role="separator"
+          style={
+            slot.aboveBottomRow
+              ? { bottom: "calc(-1 * var(--pane-bottom-row-height, 0px))" }
+              : undefined
+          }
           tabIndex={0}
         >
-          {divider && <span className={cx("absolute bg-ink-800", sash.line)} />}
+          {divider && (
+            <span
+              className={cx("absolute bg-(--ui-stroke-secondary)", sash.line)}
+            />
+          )}
           <span
             className={cx(
-              "absolute bg-primary/40 opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100",
+              "absolute bg-(--ui-sash-hover-border) opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100",
               sash.hover,
             )}
           />
         </div>
       )}
-      {children}
+      {/* Clipping lives here, not on the grid item, so the seam-straddling sash
+          above escapes it. `relative` keeps this the containing block for the
+          pane's absolutely-positioned content (same box the grid item was). */}
+      <div className="relative h-full min-h-0 min-w-0 overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }

@@ -9,6 +9,9 @@ export interface PaneSlot {
   gridRow: string;
   /** True when this pane lays out as a horizontal row beneath its rail instead of a vertical column. */
   bottomRow: boolean;
+  /** True for an open column shrunk above an active bottom row (gridRow "1 / 2") — its resize
+   *  sash reaches down across that row so the shared vertical seam drags full-height. */
+  aboveBottomRow: boolean;
 }
 
 export interface PaneShellContextValue {

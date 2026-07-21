@@ -322,7 +322,7 @@ export function LeftSidebar({
 
   return (
     <>
-      <div className="flex h-full flex-col border-r border-sidebar-border bg-(--ui-sidebar-surface-background)">
+      <div className="flex h-full flex-col border-r border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background)">
         <div
           className="drag-region shrink-0 select-none"
           style={{ height: "var(--titlebar-height)" }}
