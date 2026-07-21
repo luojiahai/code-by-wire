@@ -31,6 +31,7 @@ import { useStatsPump } from "./stats/use-stats-pump";
 import { SettingsView, type SettingsSection } from "./settings/SettingsView";
 import { SETTINGS_ID } from "./settings/sentinel";
 import { useUpdate } from "./ui/use-update";
+import { cx } from "./ui/atoms";
 import { Pane, PaneMain, PaneShell } from "./shell/pane-shell";
 import { TitlebarControls } from "./shell/TitlebarControls";
 import { AppFooter } from "./shell/AppFooter";
@@ -597,15 +598,20 @@ export function App() {
           minHeight="8rem"
           maxHeight="80vh"
           resizable
+          divider
           disabled={!terminalOpen}
           bottomRow={terminalAsRow}
         >
-          {/* A persistent left border anchors the pane against the workspace, matching the metrics
-              sidebar (its resize sash alone reads as no edge until hovered). The row-mode top seam
-              (against the metrics above) is drawn inside the chrome — on the body column AND the tab
-              rail — not here: the rail's opaque z-40 background would paint over a wrapper-level
-              top border, leaving the seam notched short of the rail. */}
-          <div className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-l border-(--ui-stroke-secondary) bg-(--ui-editor-surface-background)">
+          {/* The resize-edge seam is the sash's own full-bleed hairline (`divider`):
+              the left edge as a column, the top edge as a row — drawn above the
+              rail's z-40, so it never notches. Only the row-mode LEADING edge has
+              no sash, so that seam against the workspace stays a border here. */}
+          <div
+            className={cx(
+              "relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-editor-surface-background)",
+              terminalAsRow && "border-l border-(--ui-stroke-secondary)",
+            )}
+          >
             {/* As a full-height column the terminal reaches the top of the window, so it must clear
                 the titlebar band (the fixed sidebar-toggle clusters float there) — the same
                 --titlebar-height drag strip every other rail column reserves (see RightSidebar). As a
@@ -617,7 +623,7 @@ export function App() {
                 style={{ height: "var(--titlebar-height)" }}
               />
             )}
-            <TerminalPaneChrome asRow={terminalAsRow} />
+            <TerminalPaneChrome />
           </div>
         </Pane>
         <Pane
