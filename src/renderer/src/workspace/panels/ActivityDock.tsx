@@ -159,9 +159,9 @@ export function ActivityDock({
         aria-label={t.dock.resizeAria}
         tabIndex={0}
         onPointerDown={startResize}
-        className="group absolute inset-x-0 top-0 z-20 h-1 -translate-y-1/2 cursor-row-resize [-webkit-app-region:no-drag]"
+        className="group absolute inset-x-0 top-0 z-20 h-[9px] -translate-y-1/2 cursor-row-resize [-webkit-app-region:no-drag]"
       >
-        <span className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-primary/40 opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
+        <span className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-(--ui-sash-hover-border) opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100" />
       </div>
       <DockTabBar
         tab={tab}
