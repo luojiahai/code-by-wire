@@ -1,6 +1,6 @@
 appId: io.github.wilsonwang0713.flightdeck
 productName: FlightDeck
-copyright: Copyright © 2026 wilsonwang0713
+copyright: Copyright © 2026 Yihhsuan Wang
 # Native modules are rebuilt explicitly via `pnpm rebuild:native`; don't let
 # electron-builder run its own (it misbehaves under pnpm).
 npmRebuild: false
