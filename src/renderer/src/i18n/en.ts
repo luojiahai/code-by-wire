@@ -500,7 +500,7 @@ export const en = {
       heading: "Pressure",
       info: "How much headroom is left: the current prompt's context fill over the window, then this session's rate-limit windows (% used, time to reset — the session's own numbers, filled from the account API where the session hasn't reported). Extra is the account's paid extra-usage credit. Bars warm to amber past 70% and redline past 85%.",
       noContext: "No context sampled yet.",
-      contextWindowUnit: "% context window",
+      contextUnit: "% context",
       extra: "Extra",
       // Fixed-width technical shorthand (a 28px/w-7 label column) — kept identical across locales so
       // the rate-limit rows don't overflow their gutter; S/O are the Sonnet/Opus initials.

@@ -140,7 +140,7 @@ export function PressurePanel({
             >
               {view.pct}
               <span className="text-xs text-fg-faint">
-                {t.dock.pressure.contextWindowUnit}
+                {t.dock.pressure.contextUnit}
               </span>
             </div>
             <div className="font-mono text-xs tabular-nums text-(--ui-text-tertiary)">

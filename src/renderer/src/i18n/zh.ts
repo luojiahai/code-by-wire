@@ -441,7 +441,7 @@ export const zh: Translations = {
       heading: "压力",
       info: "剩余多少余量：当前提示词的上下文占用超过窗口的比例，随后是本会话的速率限制窗口（已用百分比、重置倒计时——优先取会话自身的数据，会话未上报时用账户 API 数据补全）。Extra 为账户的付费额外用量额度。柱状条超过 70% 转琥珀色，超过 85% 转红色警戒。",
       noContext: "尚未采集到上下文数据。",
-      contextWindowUnit: "% 上下文窗口",
+      contextUnit: "% 上下文",
       extra: "Extra",
       windowFiveHour: "5h",
       windowSevenDay: "7d",
