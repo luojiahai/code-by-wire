@@ -1,16 +1,18 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { SessionState } from "@shared/types";
 import type { TranscriptEvent } from "@shared/transcript";
 import { useI18n } from "../i18n";
 import type { DocState } from "./use-transcript";
 import { EventItem, type OpenDetail } from "./events";
 import type { DispatchDrill } from "./drill-index";
+import { useStickToBottom } from "./use-stick-to-bottom";
 
 /**
- * The shared event feed: a bottom-sticky list of rendered transcript events. Both the Session
- * TranscriptView and the drilled Subagent view render it. The optional `footer` slot carries the
- * Session's Waiting banner (the Subagent view passes none).
- * Sticks to the bottom when new events arrive — a live, read-only feed.
+ * The shared event feed: a list of rendered transcript events. Both the Session TranscriptView and the
+ * drilled Subagent view render it, each inside its own OverlayScroll. The optional `footer` slot carries
+ * the Session's Waiting banner (the Subagent view passes none).
+ * Opening it lands at the bottom once; after that it follows growing content only while the reader is
+ * still parked there (see useStickToBottom).
  */
 export function TranscriptFeed({
   events,
@@ -23,15 +25,10 @@ export function TranscriptFeed({
   dispatchDrill?: DispatchDrill;
   onOpen?: (detail: OpenDetail) => void;
 }) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const countRef = useRef(0);
-  useEffect(() => {
-    if (events.length > countRef.current)
-      bottomRef.current?.scrollIntoView({ block: "end" });
-    countRef.current = events.length;
-  }, [events.length]);
+  const contentRef = useStickToBottom(events.length);
   return (
     <div
+      ref={contentRef}
       data-selectable-text="true"
       className="mx-auto max-w-5xl space-y-4 p-5"
     >
@@ -44,7 +41,6 @@ export function TranscriptFeed({
         />
       ))}
       {footer}
-      <div ref={bottomRef} />
     </div>
   );
 }
