@@ -1,11 +1,13 @@
 import type { Session } from "@shared/types";
 import type { GitInfo } from "@shared/metrics";
+import { CopyButton } from "../ui/CopyButton";
 import { useI18n } from "../i18n";
 
-/** The Session panel's Git readout, popover-free: the branch (or the short sha on a detached HEAD,
- *  or — before the glance lands — the session's recorded branch) and an amber dot when the tree is
- *  dirty. Ahead/behind sync counts and the old detail popover are intentionally omitted — the branch
- *  name is the signal, and the panel's Lines row already carries the ± footprint. */
+/** The Session panel's Branch readout, popover-free: the branch name (or — before the glance lands —
+ *  the session's recorded branch) and an amber dot when the tree is dirty. Branch-only by design: a
+ *  detached HEAD has no branch, so the row dashes rather than standing in a sha. Ahead/behind sync
+ *  counts and the old detail popover are intentionally omitted — the branch name is the signal, and
+ *  the panel's Lines row already carries the ± footprint. */
 export function GitReadout({
   session: s,
   git,
@@ -14,22 +16,29 @@ export function GitReadout({
   git?: GitInfo | null;
 }) {
   const { t } = useI18n();
-  const branch = git?.branch ?? null;
-  const sha = git?.sha ?? null;
+  // The session's recorded branch stands in only until the glance lands — never over it. A landed
+  // glance with no branch means a detached HEAD, and the row dashes rather than naming a branch the
+  // worktree has already left (which the copy button would then hand to the clipboard).
+  // `undefined` is the only "not landed yet" state — a null glance is a landed one that says the cwd
+  // isn't a work tree, and dashes like a detached HEAD rather than reviving the recorded branch.
+  const branch = (git === undefined ? s.branch : git?.branch) ?? null;
   const dirty = git?.dirty ?? false;
-  const headLabel = branch ?? sha ?? s.branch ?? null;
-  if (headLabel == null) return <span className="text-fg-muted">-</span>;
+  if (branch == null) return <span className="text-fg-muted">-</span>;
   return (
-    <span className="flex min-w-0 items-center gap-1.5 text-fg">
-      <span className="min-w-0 truncate" title={headLabel}>
-        {headLabel}
+    // items-start, not items-center: a wrapped branch keeps the dot and the copy button on its first
+    // line. The 16px-tall button matches the line box as-is; the 6px dot takes a 5px nudge to sit
+    // centered on it.
+    <span className="flex min-w-0 items-start gap-1.5 text-fg">
+      <span className="min-w-0 wrap-anywhere" title={branch}>
+        {branch}
       </span>
       {dirty && (
         <span
-          className="h-[6px] w-[6px] shrink-0 rounded-full bg-accent"
+          className="mt-[5px] h-[6px] w-[6px] shrink-0 rounded-full bg-accent"
           title={t.shell.gitReadout.uncommittedChanges}
         />
       )}
+      <CopyButton value={branch} label={t.shell.gitReadout.copyBranch} />
     </span>
   );
 }

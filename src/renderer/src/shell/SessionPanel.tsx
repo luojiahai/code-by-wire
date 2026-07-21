@@ -7,8 +7,8 @@ import { useI18n } from "../i18n";
 import { GitReadout } from "./GitReadout";
 
 /**
- * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Git (branch + dirty dot,
- * popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Lines (the
+ * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Branch (branch name + dirty
+ * dot, popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Lines (the
  * session's ± footprint from the capture), Clock, and Active (relative last-activity time) — each an
  * always-shown label/value row; `-` fills a row whose data hasn't landed.
  */
@@ -42,14 +42,14 @@ export function SessionPanel({
     <PanelSection>
       <PanelHeading icon="id-card">{t.shell.sessionPanel.heading}</PanelHeading>
       <SessionRow label={t.shell.sessionPanel.model}>
-        <span className="min-w-0 truncate" title={model}>
+        <span className="min-w-0 wrap-anywhere" title={model}>
           {model}
         </span>
       </SessionRow>
       <SessionRow label={t.shell.sessionPanel.effort}>
         {s.effortLevel ?? "-"}
       </SessionRow>
-      <SessionRow label={t.shell.sessionPanel.git}>
+      <SessionRow label={t.shell.sessionPanel.branch}>
         <GitReadout session={s} git={git} />
       </SessionRow>
       <SessionRow label={t.shell.sessionPanel.pr}>
@@ -105,7 +105,12 @@ export function SessionPanel({
 }
 
 /** One session row: a plain-case label on the left, a mono value cluster on the right.
- *  Plain case — uppercase is reserved for section headers. */
+ *  Plain case — uppercase is reserved for section headers.
+ *
+ *  Baseline-aligned, not centered: a wrapping value (Model, Branch) would otherwise pull the label
+ *  down to the middle of the block. `py-[3px]` stands in for the old `min-h-[1.375rem]` — a
+ *  single-line row keeps the same 22px height (16px line + 6px), and a wrapped one holds its first
+ *  line at that same offset instead of growing symmetrically around the label. */
 function SessionRow({
   label,
   children,
@@ -114,7 +119,7 @@ function SessionRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[1.375rem] items-center justify-between gap-3">
+    <div className="flex items-baseline justify-between gap-3 py-[3px]">
       <span className="shrink-0 text-xs text-(--ui-text-tertiary)">
         {label}
       </span>
