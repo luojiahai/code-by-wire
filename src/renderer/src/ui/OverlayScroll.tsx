@@ -1,5 +1,7 @@
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -17,6 +19,20 @@ const HIDE_DELAY = 500;
 const BAR_SIZE = 10;
 
 type Axis = "x" | "y";
+
+/** The scrolling element itself, handed down to descendants that need to drive or measure it (the
+ *  transcript feed's stick-to-bottom). Null outside any OverlayScroll. */
+const ScrollAreaContext = createContext<HTMLDivElement | null>(null);
+
+/**
+ * The nearest enclosing OverlayScroll's scrolling element — null on the very first render and outside any
+ * OverlayScroll. It's published as state, not a ref, deliberately: React attaches a host ref only after
+ * the layout effects of the subtree *below* it have run, so a descendant reading a ref would see null
+ * exactly on mount. State re-renders the subtree the moment the element exists — depend on it in effects.
+ */
+export function useScrollArea(): HTMLDivElement | null {
+  return useContext(ScrollAreaContext);
+}
 
 /** When both axes overflow (axis="both"), each track is shortened by the other bar's thickness so the
  *  thumbs never overlap in the bottom-right corner (VSCode's corner reservation). */
@@ -57,6 +73,12 @@ export function OverlayScroll({
   children: ReactNode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // The same element as scrollRef, mirrored into state for ScrollAreaContext (see useScrollArea).
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const attachScroll = useCallback((el: HTMLDivElement | null) => {
+    scrollRef.current = el;
+    setScrollEl(el);
+  }, []);
   const thumbYRef = useRef<HTMLDivElement>(null);
   const thumbXRef = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -250,7 +272,7 @@ export function OverlayScroll({
       onPointerLeave={onPointerLeave}
     >
       <div
-        ref={scrollRef}
+        ref={attachScroll}
         onScroll={onScroll}
         className={cx(
           "h-full overflow-y-auto overlay-scroll-area",
@@ -258,7 +280,9 @@ export function OverlayScroll({
           contentClassName,
         )}
       >
-        {children}
+        <ScrollAreaContext.Provider value={scrollEl}>
+          {children}
+        </ScrollAreaContext.Provider>
       </div>
       <div
         ref={thumbYRef}
