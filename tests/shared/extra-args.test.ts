@@ -14,8 +14,9 @@ describe("validateExtraArgs — tokenizer", () => {
     });
   });
   it("splits on runs of whitespace", () => {
-    expect(validateExtraArgs("claude", "--verbose  --output-format\tjson"))
-      .toEqual({ ok: true, tokens: ["--verbose", "--output-format", "json"] });
+    expect(
+      validateExtraArgs("claude", "--verbose  --output-format\tjson"),
+    ).toEqual({ ok: true, tokens: ["--verbose", "--output-format", "json"] });
   });
   it("double quotes group a spaced value into one token", () => {
     expect(
@@ -23,18 +24,20 @@ describe("validateExtraArgs — tokenizer", () => {
     ).toEqual({ ok: true, tokens: ["--settings", "/Users/me/My Dir/s.json"] });
   });
   it("single quotes work too and can embed double quotes", () => {
-    expect(validateExtraArgs("claude", `--append-system-prompt 'say "hi"'`))
-      .toEqual({ ok: true, tokens: ["--append-system-prompt", 'say "hi"'] });
+    expect(
+      validateExtraArgs("claude", `--append-system-prompt 'say "hi"'`),
+    ).toEqual({ ok: true, tokens: ["--append-system-prompt", 'say "hi"'] });
   });
-  it("a quoted span can sit mid-token (--flag=\"a b\")", () => {
+  it('a quoted span can sit mid-token (--flag="a b")', () => {
     expect(validateExtraArgs("claude", '--settings="a b/s.json"')).toEqual({
       ok: true,
       tokens: ["--settings=a b/s.json"],
     });
   });
   it("backslash is a literal character (Windows paths survive)", () => {
-    expect(validateExtraArgs("claude", '--settings C:\\Users\\me\\s.json'))
-      .toEqual({ ok: true, tokens: ["--settings", "C:\\Users\\me\\s.json"] });
+    expect(
+      validateExtraArgs("claude", "--settings C:\\Users\\me\\s.json"),
+    ).toEqual({ ok: true, tokens: ["--settings", "C:\\Users\\me\\s.json"] });
   });
   it("an empty quoted pair is an empty token", () => {
     expect(validateExtraArgs("claude", '--flag ""')).toEqual({
@@ -76,7 +79,10 @@ describe("validateExtraArgs — claude denylist", () => {
   });
   it("allows --model and --dangerously-skip-permissions", () => {
     expect(
-      validateExtraArgs("claude", "--model opus --dangerously-skip-permissions"),
+      validateExtraArgs(
+        "claude",
+        "--model opus --dangerously-skip-permissions",
+      ),
     ).toEqual({
       ok: true,
       tokens: ["--model", "opus", "--dangerously-skip-permissions"],
@@ -113,7 +119,9 @@ describe("extraArgsErrorMessage", () => {
     ).toContain("--resume");
   });
   it("describes the unbalanced quote", () => {
-    expect(extraArgsErrorMessage({ kind: "unbalanced-quote" })).toMatch(/quote/i);
+    expect(extraArgsErrorMessage({ kind: "unbalanced-quote" })).toMatch(
+      /quote/i,
+    );
   });
 });
 
