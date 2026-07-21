@@ -55,7 +55,11 @@ import {
 import { TerminalPaneChrome } from "./shell-terminal/chrome";
 import { PersistentTerminal } from "./shell-terminal/persistent";
 import { installTerminalKeybind } from "./shell-terminal/keybinds";
-import { $activeSessionCwd, $terminalTakeover } from "./shell-terminal/store";
+import {
+  $activeSessionCwd,
+  $terminalVisible,
+  setTerminalAllowed,
+} from "./shell-terminal/store";
 
 /** The middle column's sentinel for the inline new-session view (design spec §5), alongside
  *  `OVERVIEW_ID`/`SETTINGS_ID`: not a real session id (real ids come from `newSessionId()`, which
@@ -451,7 +455,9 @@ export function App() {
   const narrow = useMediaQuery(NARROW_VIEWPORT_QUERY);
   const leftOpen = useStore($paneOpen(CBW_LEFT_PANE_ID));
   const rightOpen = useStore($paneOpen(CBW_RIGHT_PANE_ID));
-  const terminalOpen = useStore($terminalTakeover);
+  // Effective visibility, not the raw preference: the terminal is a session-workspace surface, so
+  // it stays suppressed (and its footer button disabled) on every other route.
+  const terminalOpen = useStore($terminalVisible);
   // Hermes' railColumnOpen gate, cbw-translated: the terminal drops to a row inside the right
   // rail only when the metrics sidebar is actually docked as a column (open, session selected,
   // not narrow-collapsed to a hover-reveal overlay).
@@ -489,6 +495,12 @@ export function App() {
   useEffect(() => {
     $activeSessionCwd.set(selected?.cwd);
   }, [selected?.cwd]);
+
+  // The terminal is allowed exactly where a session workspace is rendered — `hasSession` is already
+  // false for Overview, Settings, New session and the empty state, so it needs no route predicate
+  // of its own. The user's toggle preference is left untouched, so returning to a session restores
+  // the terminal (and its live shells) as it was.
+  useEffect(() => setTerminalAllowed(hasSession), [hasSession]);
 
   useEffect(() => installTerminalKeybind(), []);
 

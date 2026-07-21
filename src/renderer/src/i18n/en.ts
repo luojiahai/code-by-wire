@@ -298,6 +298,7 @@ export const en = {
       caffeinate: "Caffeinate",
       showTerminal: "Show terminal",
       hideTerminal: "Hide terminal",
+      terminalUnavailable: "Terminal is only available in a session",
       terminal: "Terminal",
     },
     titlebar: {

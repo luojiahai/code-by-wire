@@ -4,7 +4,8 @@ import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { useI18n } from "../i18n";
 import {
-  $terminalTakeover,
+  $terminalAllowed,
+  $terminalVisible,
   setTerminalTakeover,
 } from "../shell-terminal/store";
 
@@ -12,7 +13,11 @@ import {
  *  items. The wordmark is prefixed with the literal ░▒▓█ mark — no SVG glyph or gradient chip. */
 export function AppFooter({ version }: { version: string | null }) {
   const { t } = useI18n();
-  const terminalOpen = useStore($terminalTakeover);
+  // The terminal is a session-workspace surface: off-route it's suppressed and this button goes
+  // inert, so it reads the effective visibility for its pressed state and the route gate for
+  // enablement.
+  const terminalOpen = useStore($terminalVisible);
+  const terminalAllowed = useStore($terminalAllowed);
   // Main owns the keep-awake state (a live powerSaveBlocker); the button renders whatever the last
   // IPC response said. Fetched on mount so a reloaded renderer stays in sync with main.
   const [caffeinated, setCaffeinated] = useState(false);
@@ -25,6 +30,11 @@ export function AppFooter({ version }: { version: string | null }) {
       cancelled = true;
     };
   }, []);
+  const terminalLabel = !terminalAllowed
+    ? t.shell.footer.terminalUnavailable
+    : terminalOpen
+      ? t.shell.footer.hideTerminal
+      : t.shell.footer.showTerminal;
   return (
     <footer className="no-drag flex h-5 shrink-0 items-stretch justify-between gap-2 border-t border-(--ui-stroke-tertiary) bg-(--ui-sidebar-surface-background) px-1 py-0 text-(--ui-text-tertiary)">
       <div className="flex items-stretch">
@@ -64,23 +74,18 @@ export function AppFooter({ version }: { version: string | null }) {
         </button>
         <button
           type="button"
-          title={
-            terminalOpen
-              ? t.shell.footer.hideTerminal
-              : t.shell.footer.showTerminal
-          }
-          aria-label={
-            terminalOpen
-              ? t.shell.footer.hideTerminal
-              : t.shell.footer.showTerminal
-          }
+          title={terminalLabel}
+          aria-label={terminalLabel}
           aria-pressed={terminalOpen}
+          disabled={!terminalAllowed}
           onClick={() => setTerminalTakeover(!terminalOpen)}
           className={cx(
             "inline-flex h-full items-center gap-1 rounded-none px-1.5 text-[0.6875rem]",
-            terminalOpen
-              ? "bg-(--chrome-action-hover) text-fg"
-              : "hover:text-fg",
+            !terminalAllowed
+              ? "cursor-default opacity-50"
+              : terminalOpen
+                ? "bg-(--chrome-action-hover) text-fg"
+                : "hover:text-fg",
           )}
         >
           <Icon name="square-terminal" size={12} />

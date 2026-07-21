@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   $activeSessionCwd,
+  $terminalAllowed,
   $terminalTakeover,
+  $terminalVisible,
+  setTerminalAllowed,
   setTerminalTakeover,
 } from "../../src/renderer/src/shell-terminal/store";
 import {
@@ -24,7 +27,40 @@ beforeEach(() => {
   $terminals.set([]);
   $activeTerminalId.set(null);
   setTerminalTakeover(false);
+  setTerminalAllowed(true);
   $activeSessionCwd.set(undefined);
+});
+
+describe("$terminalVisible", () => {
+  it("shows only when the preference is on AND the route allows it", () => {
+    const table: [boolean, boolean, boolean][] = [
+      [false, false, false],
+      [false, true, false],
+      [true, false, false],
+      [true, true, true],
+    ];
+    for (const [active, allowed, visible] of table) {
+      setTerminalTakeover(active);
+      setTerminalAllowed(allowed);
+      expect($terminalVisible.get()).toBe(visible);
+    }
+  });
+
+  it("restores an open terminal when the route allows it again", () => {
+    setTerminalTakeover(true);
+    setTerminalAllowed(false); // user navigates to Stats/Settings/New session
+    expect($terminalVisible.get()).toBe(false);
+    expect($terminalTakeover.get()).toBe(true); // the preference is untouched…
+    setTerminalAllowed(true); // …so returning to a session brings it back
+    expect($terminalVisible.get()).toBe(true);
+  });
+
+  it("never persists the route gate over the user's preference", () => {
+    setTerminalTakeover(true);
+    setTerminalAllowed(false);
+    expect(window.localStorage.getItem("cbw.terminalTakeover")).toBe("true");
+    expect($terminalAllowed.get()).toBe(false);
+  });
 });
 
 describe("createTerminal", () => {

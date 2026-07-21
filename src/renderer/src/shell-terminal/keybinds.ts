@@ -1,4 +1,8 @@
-import { $terminalTakeover, setTerminalTakeover } from "./store";
+import {
+  $terminalAllowed,
+  $terminalTakeover,
+  setTerminalTakeover,
+} from "./store";
 
 /** Ctrl+` toggles the terminal — literal Ctrl on every platform (⌘` is macOS-reserved), matching
  *  VS Code/Cursor/Zed and hermes. Capture-phase so the toggle wins over a focused xterm (which
@@ -14,6 +18,9 @@ export function installTerminalKeybind(): () => void {
     ) {
       return;
     }
+    // Off-route (Stats, Settings, New session, empty state) the terminal can't show, so leave the
+    // keystroke alone rather than swallowing it into a no-op.
+    if (!$terminalAllowed.get()) return;
     e.preventDefault();
     e.stopPropagation();
     setTerminalTakeover(!$terminalTakeover.get());

@@ -7,7 +7,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { $terminalTakeover } from "./store";
+import { $terminalVisible } from "./store";
 import { ensureTerminal } from "./terminals";
 import { TerminalWorkspace } from "./workspace";
 
@@ -53,7 +53,9 @@ const sameRect = (a: Rect | null, b: Rect): boolean =>
 
 export function PersistentTerminal() {
   const slot = useStore($slot);
-  const terminalTakeover = useStore($terminalTakeover);
+  // Effective visibility (preference ∧ route-allowed), so a blocked route never boots a shell into
+  // a collapsed pane — the same 0×0 first-mount hazard the deferral below guards against.
+  const terminalVisible = useStore($terminalVisible);
   const [rect, setRect] = useState<Rect | null>(null);
   const [ready, setReady] = useState(false);
   // VS Code parity: once the pane has ever been opened, keep the terminals mounted — and their
@@ -62,11 +64,11 @@ export function PersistentTerminal() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (terminalTakeover && ready) {
+    if (terminalVisible && ready) {
       setMounted(true);
       ensureTerminal();
     }
-  }, [terminalTakeover, ready]);
+  }, [terminalVisible, ready]);
 
   useLayoutEffect(() => {
     if (!slot) {
@@ -78,7 +80,7 @@ export function PersistentTerminal() {
     // this gate a user who never opens the terminal would pay a 60fps getBoundingClientRect layout
     // loop for the whole session. Once mounted, keep chasing even while hidden (shells stay alive),
     // matching the mount-latch design — `mounted` never un-latches, so the loop persists.
-    if (!terminalTakeover && !mounted) {
+    if (!terminalVisible && !mounted) {
       return;
     }
     let prev: Rect | null = null;
@@ -108,7 +110,7 @@ export function PersistentTerminal() {
     };
     tick();
     return () => cancelAnimationFrame(frame);
-  }, [slot, terminalTakeover, mounted]);
+  }, [slot, terminalVisible, mounted]);
 
   const visible = Boolean(rect && rect.width > 0 && rect.height > 0);
 

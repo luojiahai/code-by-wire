@@ -261,6 +261,7 @@ export const zh: Translations = {
       caffeinate: "保持唤醒",
       showTerminal: "显示终端",
       hideTerminal: "隐藏终端",
+      terminalUnavailable: "终端仅在会话中可用",
       terminal: "终端",
     },
     titlebar: {
