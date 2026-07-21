@@ -452,7 +452,7 @@ export function Pane({
       >
         <div
           aria-hidden="true"
-          className="pointer-events-auto absolute inset-y-0 z-30 [-webkit-app-region:no-drag]"
+          className="pointer-events-auto absolute inset-y-0 z-[60] [-webkit-app-region:no-drag]"
           data-pane-reveal-trigger=""
           style={{
             [edge]: HOVER_REVEAL_EDGE_GUTTER,
@@ -464,7 +464,7 @@ export function Pane({
             instead of transitioning the transform across the viewport. */}
         <div
           className={cx(
-            "pointer-events-none absolute inset-y-0 z-30 overflow-hidden transition-transform delay-0",
+            "pointer-events-none absolute inset-y-0 z-[60] overflow-hidden transition-transform delay-0",
             offscreen,
             "group-hover/reveal:pointer-events-auto group-hover/reveal:translate-x-0 group-hover/reveal:delay-[var(--reveal-enter-delay)] group-hover/reveal:shadow-[var(--reveal-shadow)]",
             "group-data-[forced]/reveal:pointer-events-auto group-data-[forced]/reveal:translate-x-0 group-data-[forced]/reveal:delay-0 group-data-[forced]/reveal:shadow-[var(--reveal-shadow)]",
