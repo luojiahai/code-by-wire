@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
 import {
   type DailyBucket,
   type StatsByModel,
@@ -22,6 +22,13 @@ import { Grid } from "../ui/bklit/charts/grid";
 import { XAxis } from "../ui/bklit/charts/x-axis";
 import { YAxis } from "../ui/bklit/charts/y-axis";
 import { ChartTooltip } from "../ui/bklit/charts/tooltip";
+import { RingChart } from "../ui/bklit/charts/ring-chart";
+import { Ring } from "../ui/bklit/charts/ring";
+import { RingCenter } from "../ui/bklit/charts/ring-center";
+import {
+  chartCenterLabelClassName,
+  chartCenterValueClassName,
+} from "../ui/bklit/charts/chart-center-typography";
 
 /** The Map key for the null ("Unknown") model — a single space can't be a real model id. */
 const NULL_MODEL_KEY = " ";
@@ -51,7 +58,17 @@ export function ModelsCard({
         {hasChart && (
           <TokensPerDay daily={daily} byModel={byModel} range={range} />
         )}
-        {hasList && <ByModelList rows={byModel} spaced={hasChart} />}
+        {hasList && (
+          // The share ring and the breakdown list read as one unit: the ring's slices and the list's
+          // swatches carry the same identity colors, so the list doubles as the ring's legend. Side by
+          // side on the roomy desktop card; stacked (ring centered on top) once the window narrows.
+          <div
+            className={`flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:gap-8 ${hasChart ? "mt-6" : ""}`}
+          >
+            <ModelShareRing rows={byModel} />
+            <ByModelList rows={byModel} className="w-full flex-1" />
+          </div>
+        )}
       </CardRegion>
     </StatsCard>
   );
@@ -197,18 +214,79 @@ function TokensPerDay({
 }
 
 /**
+ * The model-share ring: a Bklit RingChart rendered as concentric arcs — one ring per model, each filled to
+ * that model's share of the window's total tokens (value = its tokens, maxValue = the total), in the
+ * model's identity color (modelColorOf — the same hue as its ByModelList swatch), with the total token
+ * count animating in the center. Sits beside the breakdown list, which is its legend.
+ *
+ * Theming: the unfilled track reads `var(--border)`, a token this app doesn't define (its Bklit bridge
+ * stops short of it), so the wrapper bridges `--border` to the theme-aware hairline `--color-ink-800` —
+ * the very track the rate-limit gauges use — scoped to this subtree. Slice colors route through the same
+ * --color-model-* variables as the swatches, so the ring follows the light (monochrome) and dark (jewel)
+ * branches automatically. Fixed 168px (the LiveLine-style inline-height override isn't needed — RingChart
+ * takes a real `size` prop).
+ */
+function ModelShareRing({ rows }: { rows: StatsByModel[] }) {
+  const total = rows.reduce((s, r) => s + r.totalTokens, 0);
+  const models = rows
+    .filter((r) => r.totalTokens > 0)
+    .sort(
+      (a, b) =>
+        b.totalTokens - a.totalTokens ||
+        (a.modelRaw ?? "").localeCompare(b.modelRaw ?? ""),
+    );
+  if (total <= 0 || models.length === 0) return null;
+
+  const data = models.map((r) => ({
+    label: r.modelRaw ?? "Unknown",
+    value: r.totalTokens,
+    maxValue: total,
+    color: modelColorOf(r.modelRaw),
+  }));
+
+  return (
+    <div
+      className="shrink-0"
+      style={{ "--border": "var(--color-ink-800)" } as CSSProperties}
+    >
+      <RingChart
+        data={data}
+        size={168}
+        strokeWidth={10}
+        ringGap={6}
+        baseInnerRadius={46}
+      >
+        {data.map((d, i) => (
+          <Ring key={d.label} index={i} />
+        ))}
+        <RingCenter
+          defaultLabel="Tokens"
+          formatOptions={{
+            notation: "compact",
+            compactDisplay: "short",
+            maximumFractionDigits: 1,
+          }}
+          valueClassName={`${chartCenterValueClassName} text-fg`}
+          labelClassName={`${chartCenterLabelClassName} text-fg-faint`}
+        />
+      </RingChart>
+    </div>
+  );
+}
+
+/**
  * The per-model breakdown (#111, redesigned): a two-column list — swatch, mono raw id, share % of the
- * window's total tokens, and a dimmed In/Out line of fresh input/output figures. It sits directly under
- * the daily chart in the same "Tokens per day" region, so its swatches double as the chart's color key
- * (there is no separate legend). Every model is listed (the model set is small, no cap needed). `spaced`
- * adds top margin when it follows the chart.
+ * window's total tokens, and a dimmed In/Out line of fresh input/output figures. It sits beside the share
+ * ring in the same "Tokens per day" region, so its swatches double as the ring's color key (there is no
+ * separate legend). Every model is listed (the model set is small, no cap needed). `className` carries the
+ * flex sizing from the ring/list row.
  */
 function ByModelList({
   rows,
-  spaced,
+  className = "",
 }: {
   rows: StatsByModel[];
-  spaced: boolean;
+  className?: string;
 }) {
   const total = rows.reduce((s, r) => s + r.totalTokens, 0);
   const ranked = rows
@@ -220,7 +298,7 @@ function ByModelList({
     );
   return (
     <div
-      className={`grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 ${spaced ? "mt-6" : ""}`}
+      className={`grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 ${className}`}
     >
       {/* NUL sentinel key: a real raw id can never collide with the null "Unknown" bucket. */}
       {ranked.map((r) => (
