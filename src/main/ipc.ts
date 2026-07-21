@@ -7,7 +7,7 @@ import {
   type StatsRead,
   type OpenInTarget,
   type UpdateState,
-  type StatsDbInfo,
+  type DbInfo,
 } from "@shared/ipc";
 import { normalizeLocale, type Locale } from "@shared/locale";
 import type { Session } from "@shared/types";
@@ -39,7 +39,7 @@ import type { SessionPinStore } from "./session-pins";
 import type { ProjectStateStore } from "./project-state";
 import type { LaunchPresetStore } from "./launch-presets";
 import { emptyLaunchPresets, type LaunchPresets } from "@shared/extra-args";
-import { getOverview, readSessionTitles } from "./db/store";
+import { getOverview, readIndexDbCounts, readSessionTitles } from "./db/store";
 import {
   readTotals,
   readBreakdowns,
@@ -53,7 +53,7 @@ import {
   clearAnalytics,
   readWorktrees,
   upsertWorktree,
-  readDbCounts,
+  readAnalyticsDbCounts,
 } from "./db/analytics";
 import { createWorktreeMap } from "./git/worktrees";
 import {
@@ -63,6 +63,7 @@ import {
   type ScanTarget,
   type WalkCache,
 } from "./analytics/scan";
+import { collectCodexScanTargets, scanCodexStep } from "./analytics/codex-scan";
 import type {
   StatsTotals,
   StatsRecords,
@@ -106,9 +107,13 @@ export interface IpcDeps {
   analyticsDb?: SqliteDb;
   /** The Claude config dir, so stats:read can run a full transcript scan before aggregating. */
   claudeDir?: string;
+  /** The Codex config dir containing sessions/YYYY/MM/DD rollout files. */
+  codexDir?: string;
   /** Where the analytics store lives on disk (userData/analytics.db), for the Settings card's
    *  location/size readout. Optional like analyticsDb — dev harnesses may wire neither. */
   analyticsDbPath?: string;
+  /** Where the rebuildable live-session index lives (userData/index.db). */
+  indexDbPath?: string;
   /** The cached CLI-status controller. Defaults to a no-op that always returns null. */
   cliStatus?: CliStatusController;
   /** Durable user-chosen title overrides, applied over the live overlay so a rename wins over the
@@ -159,7 +164,9 @@ export function registerIpc({
   beforeSync,
   analyticsDb,
   claudeDir,
+  codexDir,
   analyticsDbPath,
+  indexDbPath,
   cliStatus,
   sessionTitles,
   sessionPins,
@@ -491,6 +498,13 @@ export function registerIpc({
   ipcMain.handle(IPC.openExternal, (_e, url: string) => {
     if (isHttpUrl(url)) void shell.openExternal(url);
   });
+  ipcMain.handle(IPC.revealPath, (_e, path: unknown) => {
+    if (
+      typeof path === "string" &&
+      (path === analyticsDbPath || path === indexDbPath)
+    )
+      shell.showItemInFolder(path);
+  });
   ipcMain.handle(IPC.openIn, (_e, id: string, target: OpenInTarget) =>
     openInTarget(
       {
@@ -563,9 +577,13 @@ export function registerIpc({
     filesDone: 0,
     done: true,
   });
-  const safeTotals = (adb: SqliteDb, win: StatsWindow): StatsTotals => {
+  const safeTotals = (
+    adb: SqliteDb,
+    win: StatsWindow,
+    agent: AgentId,
+  ): StatsTotals => {
     try {
-      return readTotals(adb, win);
+      return readTotals(adb, win, agent);
     } catch (err) {
       console.error("stats read failed; serving zeros", err);
       return emptyTotals();
@@ -575,17 +593,18 @@ export function registerIpc({
     adb: SqliteDb,
     win: StatsWindow,
     nowMs: number,
+    agent: AgentId,
   ): StatsRecords => {
     try {
-      return readRecords(adb, win, nowMs);
+      return readRecords(adb, win, nowMs, agent);
     } catch (err) {
       console.error("stats records read failed; serving zeros", err);
       return emptyRecords();
     }
   };
-  const safeHasAnyTurns = (adb: SqliteDb): boolean => {
+  const safeHasAnyTurns = (adb: SqliteDb, agent: AgentId): boolean => {
     try {
-      return hasAnyTurns(adb);
+      return hasAnyTurns(adb, agent);
     } catch (err) {
       console.error(
         "stats hasAnyTurns check failed; treating store as empty",
@@ -596,9 +615,13 @@ export function registerIpc({
   };
   // All three breakdowns from one finest-grain scan; on any read error serve empty breakdowns so a bad row
   // never sinks the whole snapshot (matching safeTotals' "serve zeros" posture).
-  const safeBreakdowns = (adb: SqliteDb, win: StatsWindow): StatsBreakdowns => {
+  const safeBreakdowns = (
+    adb: SqliteDb,
+    win: StatsWindow,
+    agent: AgentId,
+  ): StatsBreakdowns => {
     try {
-      return readBreakdowns(adb, win);
+      return readBreakdowns(adb, win, agent);
     } catch (err) {
       console.error("stats breakdown read failed; serving none", err);
       return emptyBreakdowns();
@@ -633,9 +656,13 @@ export function registerIpc({
   };
   // The daily time-series, range-scoped; on a read error serve an empty series so a bad row never sinks
   // the snapshot (matching safeTotals/safeBreakdowns' "serve a safe default" posture).
-  const safeDaily = (adb: SqliteDb, win: StatsWindow): DailyBucket[] => {
+  const safeDaily = (
+    adb: SqliteDb,
+    win: StatsWindow,
+    agent: AgentId,
+  ): DailyBucket[] => {
     try {
-      return readDaily(adb, win);
+      return readDaily(adb, win, agent);
     } catch (err) {
       console.error("stats daily read failed; serving none", err);
       return [];
@@ -645,9 +672,13 @@ export function registerIpc({
   // of the page range. On a read error serve an empty series/list so a bad row never sinks the snapshot
   // (same "serve a safe default" posture as safeDaily/safeBreakdowns). A CalendarWindow's sinceMs/untilMs are
   // always set, so it satisfies readCalendar's StatsWindow structurally — pass it straight through.
-  const safeCalendar = (adb: SqliteDb, win: CalendarWindow): CalendarDay[] => {
+  const safeCalendar = (
+    adb: SqliteDb,
+    win: CalendarWindow,
+    agent: AgentId,
+  ): CalendarDay[] => {
     try {
-      return readCalendar(adb, win);
+      return readCalendar(adb, win, agent);
     } catch (err) {
       console.error("stats calendar read failed; serving none", err);
       return [];
@@ -656,14 +687,16 @@ export function registerIpc({
   // readCalendarYears is a full-table strftime scan, but its result only changes when a turn lands in a
   // not-yet-seen year — all but never within a session. Memoize it against the max turns rowid (a cheap O(1)
   // insert signal) so the gentle poll reuses the cached list instead of rescanning the whole table each tick.
-  let yearsCache: { rowid: number; years: number[] } | null = null;
-  const safeCalendarYears = (adb: SqliteDb): number[] => {
+  const yearsCache: Partial<
+    Record<AgentId, { rowid: number; years: number[] }>
+  > = {};
+  const safeCalendarYears = (adb: SqliteDb, agent: AgentId): number[] => {
     try {
       const rowid = turnsMaxRowid(adb);
-      if (!yearsCache || yearsCache.rowid !== rowid) {
-        yearsCache = { rowid, years: readCalendarYears(adb) };
+      if (!yearsCache[agent] || yearsCache[agent]?.rowid !== rowid) {
+        yearsCache[agent] = { rowid, years: readCalendarYears(adb, agent) };
       }
-      return yearsCache.years;
+      return yearsCache[agent]?.years ?? [];
     } catch (err) {
       console.error("stats calendar years read failed; serving none", err);
       return [];
@@ -673,38 +706,52 @@ export function registerIpc({
   // below WARM_POLL_MS (1500ms), so a warm poll always re-walks fresh and catches other sessions promptly;
   // only a rapid burst reuses the list. Lives here, not in scanStep, so scanStep stays a pure function.
   const WALK_TTL_MS = 500;
-  let walkCache: WalkCache | null = null;
+  const walkCaches: Record<AgentId, WalkCache | null> = {
+    claude: null,
+    codex: null,
+  };
   // Returns the (briefly-cached) target walk plus whether this call did a real disk walk. `fresh` lets the
   // handler avoid settling `done` off a stale cache hit: a session that appeared during a backfill burst is
   // absent from a cached list, so the cached set would drain to done=true while real work remains.
   const scanTargets = (
+    agent: AgentId,
     now: number,
   ): { targets: ScanTarget[]; fresh: boolean } => {
-    if (!claudeDir) return { targets: [], fresh: true };
-    const fresh = !walkCache || now - walkCache.atMs >= WALK_TTL_MS;
-    walkCache = freshTargets(walkCache, now, WALK_TTL_MS, () =>
-      collectScanTargets(claudeDir),
+    const dir = agent === "claude" ? claudeDir : codexDir;
+    if (!dir) return { targets: [], fresh: true };
+    const cache = walkCaches[agent];
+    const fresh = !cache || now - cache.atMs >= WALK_TTL_MS;
+    walkCaches[agent] = freshTargets(cache, now, WALK_TTL_MS, () =>
+      agent === "claude"
+        ? collectScanTargets(dir)
+        : collectCodexScanTargets(dir),
     );
-    return { targets: walkCache.targets, fresh };
+    return { targets: walkCaches[agent]?.targets ?? [], fresh };
   };
   // One bounded scan step against the (briefly cached) target walk — the shared engine behind
   // stats:read and stats:pump. When a step settles `done` off a cached (possibly stale) walk, re-walk
   // fresh once and re-step, so a file created during a backfill burst is ingested before the caller
   // drops to its gentle cadence. Serves a done progress (wrote:false) when no store/dir is wired or
   // the step throws, so pollers idle instead of spinning on a persistent failure.
-  const runScanStep = (now: number): ScanProgress & { wrote: boolean } => {
-    if (!analyticsDb || !claudeDir) return { ...doneProgress(), wrote: false };
+  const runScanStep = (
+    agent: AgentId,
+    now: number,
+  ): ScanProgress & { wrote: boolean } => {
+    const dir = agent === "claude" ? claudeDir : codexDir;
+    if (!analyticsDb || !dir) return { ...doneProgress(), wrote: false };
     try {
-      const walk = scanTargets(now);
-      let step = scanStep(analyticsDb, claudeDir, undefined, walk.targets);
+      const walk = scanTargets(agent, now);
+      let step =
+        agent === "claude"
+          ? scanStep(analyticsDb, dir, undefined, walk.targets)
+          : scanCodexStep(analyticsDb, dir, undefined, walk.targets);
       if (step.done && !walk.fresh) {
-        walkCache = null;
-        const restep = scanStep(
-          analyticsDb,
-          claudeDir,
-          undefined,
-          scanTargets(now).targets,
-        );
+        walkCaches[agent] = null;
+        const targets = scanTargets(agent, now).targets;
+        const restep =
+          agent === "claude"
+            ? scanStep(analyticsDb, dir, undefined, targets)
+            : scanCodexStep(analyticsDb, dir, undefined, targets);
         step = { ...restep, wrote: step.wrote || restep.wrote };
       }
       return step;
@@ -721,11 +768,12 @@ export function registerIpc({
   // snapshot instead of sticking.
   const tokenFor = (
     adb: SqliteDb,
+    agent: AgentId,
     now: number,
     progress: ScanProgress,
   ): string => {
     try {
-      return `${turnsMaxRowid(adb)}:${localDayKey(now)}:${progress.filesDone}/${progress.filesTotal}`;
+      return `${agent}:${turnsMaxRowid(adb)}:${localDayKey(now)}:${progress.filesDone}/${progress.filesTotal}`;
     } catch (err) {
       console.error("stats token read failed; forcing a full snapshot", err);
       return "";
@@ -735,11 +783,13 @@ export function registerIpc({
     IPC.readStats,
     (
       _e,
+      rawAgent?: unknown,
       range?: StatsRange,
       calendarYear?: number,
       since?: string,
     ): StatsRead => {
       const now = Date.now();
+      const agent = agentOrDefault(rawAgent);
       // The page window scopes totals/breakdowns/daily; a missing range falls back to all-time (#110). The
       // calendar window is resolved separately (#115), independent of `range`.
       const win = rangeWindow(range ?? "all", now);
@@ -747,7 +797,7 @@ export function registerIpc({
 
       // No durable store wired in: a constant per-day token, so repeated polls read unchanged after the first.
       if (!analyticsDb) {
-        const token = `empty:${localDayKey(now)}`;
+        const token = `empty:${agent}:${localDayKey(now)}`;
         return since === token
           ? { status: "unchanged", token }
           : { status: "changed", token, snapshot: emptySnapshot() };
@@ -755,25 +805,25 @@ export function registerIpc({
 
       // One bounded scan step (runScanStep absorbs a missing store/dir and scan errors into a done
       // progress, so this poll serves last-known totals instead of rejecting).
-      const { wrote, ...progress } = runScanStep(now);
+      const { wrote, ...progress } = runScanStep(agent, now);
 
       // Skip every aggregate only when the token matches AND the backfill is caught up AND this step wrote
       // nothing: an in-progress backfill must keep re-rendering (its progress moves), and an in-place turn
       // update keeps the rowid but still changes the totals, so `wrote` forces a fresh snapshot.
-      const token = tokenFor(analyticsDb, now, progress);
+      const token = tokenFor(analyticsDb, agent, now, progress);
       if (since === token && token !== "" && progress.done && !wrote)
         return { status: "unchanged", token };
 
-      const breakdowns = safeBreakdowns(analyticsDb, win);
+      const breakdowns = safeBreakdowns(analyticsDb, win, agent);
       return {
         status: "changed",
         token,
         snapshot: {
-          totals: safeTotals(analyticsDb, win),
-          records: safeRecords(analyticsDb, win, now),
+          totals: safeTotals(analyticsDb, win, agent),
+          records: safeRecords(analyticsDb, win, now, agent),
           progress,
-          hasAnyTurns: safeHasAnyTurns(analyticsDb),
-          daily: safeDaily(analyticsDb, win),
+          hasAnyTurns: safeHasAnyTurns(analyticsDb, agent),
+          daily: safeDaily(analyticsDb, win, agent),
           ...breakdowns,
           bySession: withSessionTitles(
             breakdowns.bySession,
@@ -781,10 +831,10 @@ export function registerIpc({
             sessionTitles?.read() ?? {},
             safeLiveNames(),
           ),
-          calendar: safeCalendar(analyticsDb, cal),
+          calendar: safeCalendar(analyticsDb, cal, agent),
           calendarStart: cal.startDay,
           calendarEnd: cal.endDay,
-          calendarYears: safeCalendarYears(analyticsDb),
+          calendarYears: safeCalendarYears(analyticsDb, agent),
         },
       };
     },
@@ -795,11 +845,12 @@ export function registerIpc({
   // opens — before Claude Code's cleanupPeriodDays deletes them from disk. Progress only: no
   // aggregates are built. Never rejects.
   ipcMain.handle(IPC.pumpStats, (): ScanProgress => {
-    const step = runScanStep(Date.now());
+    const now = Date.now();
+    const steps = AGENT_IDS.map((agent) => runScanStep(agent, now));
     return {
-      filesTotal: step.filesTotal,
-      filesDone: step.filesDone,
-      done: step.done,
+      filesTotal: steps.reduce((sum, step) => sum + step.filesTotal, 0),
+      filesDone: steps.reduce((sum, step) => sum + step.filesDone, 0),
+      done: steps.every((step) => step.done),
     };
   });
 
@@ -815,7 +866,7 @@ export function registerIpc({
       // signal yearsCache memoizes against is no longer monotonic across this clear. Drop the cache so a
       // single-step rebuild that lands back on the same max rowid recomputes the year list instead of
       // serving the pre-reset one.
-      yearsCache = null;
+      for (const agent of AGENT_IDS) delete yearsCache[agent];
       return { ok: true };
     } catch (err) {
       console.error("analytics reset failed", err);
@@ -823,19 +874,26 @@ export function registerIpc({
     }
   });
 
-  // The Settings "Stats database" card's readout (spec 2026-07-10): one shape assembled here —
-  // location, on-disk size, and what the store holds. Never rejects: a missing store/path or a
-  // failed stat/read resolves null and the card renders its unavailable state.
-  ipcMain.handle(IPC.statsDbInfo, (): StatsDbInfo | null => {
-    if (!analyticsDb || !analyticsDbPath) return null;
+  // Settings → Databases: one shape for both stores — paths, on-disk sizes, and live row counts.
+  // Never rejects: a missing store/path or a failed stat/read resolves null and the cards render
+  // their unavailable state.
+  ipcMain.handle(IPC.dbInfo, (): DbInfo | null => {
+    if (!analyticsDb || !analyticsDbPath || !indexDbPath) return null;
     try {
       return {
-        path: analyticsDbPath,
-        sizeBytes: statSync(analyticsDbPath).size,
-        ...readDbCounts(analyticsDb),
+        analytics: {
+          path: analyticsDbPath,
+          sizeBytes: statSync(analyticsDbPath).size,
+          ...readAnalyticsDbCounts(analyticsDb),
+        },
+        index: {
+          path: indexDbPath,
+          sizeBytes: statSync(indexDbPath).size,
+          ...readIndexDbCounts(db),
+        },
       };
     } catch (err) {
-      console.error("stats db info read failed; serving none", err);
+      console.error("database info read failed; serving none", err);
       return null;
     }
   });

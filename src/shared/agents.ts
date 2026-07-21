@@ -31,8 +31,10 @@ export interface AgentCapabilities {
   hasTelemetry: boolean;
   /** The new-session form offers a model picker (spawn takes a --model flag). */
   hasModelPicker: boolean;
-  /** The Settings → System page shows the Stats database card for this agent. */
-  hasStatsDb: boolean;
+  /** The Stats page has an analytics source for this agent. */
+  hasStats: boolean;
+  /** The Stats page can show project and session breakdown cards for this agent. */
+  hasStatsBreakdowns: boolean;
 }
 
 export interface AgentDescriptor {
@@ -54,7 +56,8 @@ const ALL = {
   hasActivity: true,
   hasTelemetry: true,
   hasModelPicker: true,
-  hasStatsDb: true,
+  hasStats: true,
+  hasStatsBreakdowns: true,
 } as const satisfies AgentCapabilities;
 
 const NONE = {
@@ -67,7 +70,8 @@ const NONE = {
   hasActivity: false,
   hasTelemetry: false,
   hasModelPicker: false,
-  hasStatsDb: false,
+  hasStats: false,
+  hasStatsBreakdowns: false,
 } as const satisfies AgentCapabilities;
 
 export const AGENTS: Record<AgentId, AgentDescriptor> = {
@@ -90,6 +94,7 @@ export const AGENTS: Record<AgentId, AgentDescriptor> = {
       hasTelemetry: true,
       hasRateLimits: true,
       canResume: true,
+      hasStats: true,
     },
   },
 };

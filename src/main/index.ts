@@ -179,7 +179,8 @@ app
     } catch (err) {
       console.error("could not apply the pre-Tahoe Dock icon", err);
     }
-    const db = openDb(join(app.getPath("userData"), "index.db"));
+    const indexDbPath = join(app.getPath("userData"), "index.db");
+    const db = openDb(indexDbPath);
     migrate(db); // bring the index schema up to date before the first sync
     // The durable, non-pruned analytics store (#107). A separate file with its own user_version, so a
     // live-index schema bump (which DROPs and rebuilds index.db) never touches all-time history. It's
@@ -444,7 +445,9 @@ app
       beforeSync: reconcile,
       analyticsDb,
       analyticsDbPath,
+      indexDbPath,
       claudeDir,
+      codexDir,
       cliStatus,
       sessionTitles,
       sessionPins,

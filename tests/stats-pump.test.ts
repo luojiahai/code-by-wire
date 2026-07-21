@@ -18,7 +18,11 @@ vi.mock("electron", () => ({
 }));
 
 import { registerIpc } from "../src/main/ipc";
-import { migrateAnalytics, hasAnyTurns } from "../src/main/db/analytics";
+import {
+  migrateAnalytics,
+  hasAnyTurns,
+  readTotals,
+} from "../src/main/db/analytics";
 import { openTestDb } from "./helpers/sqlite";
 import { tempHomes } from "./helpers/temp-home";
 
@@ -90,6 +94,75 @@ describe("registerIpc stats:pump", () => {
     expect(progress.done).toBe(true);
     expect(progress.filesTotal).toBe(1);
     expect(hasAnyTurns(analyticsDb)).toBe(true);
+  });
+
+  it("steps Claude and Codex sources and combines their progress", () => {
+    const claudeHome = makeHome();
+    const claudeProject = join(claudeHome, "projects", "-work-proj");
+    mkdirSync(claudeProject, { recursive: true });
+    writeFileSync(
+      join(claudeProject, "sess-1.jsonl"),
+      JSON.stringify({
+        type: "assistant",
+        cwd: "/work/proj",
+        message: {
+          role: "assistant",
+          id: "m1",
+          model: "claude-opus-4-8",
+          usage: {
+            input_tokens: 10,
+            output_tokens: 0,
+            cache_read_input_tokens: 0,
+            cache_creation_input_tokens: 0,
+          },
+        },
+      }) + "\n",
+    );
+    const codexHome = makeHome();
+    const codexDay = join(codexHome, "sessions", "2026", "07", "22");
+    mkdirSync(codexDay, { recursive: true });
+    const id = "11111111-2222-3333-4444-555555555555";
+    writeFileSync(
+      join(codexDay, `rollout-2026-07-22T09-00-00-${id}.jsonl`),
+      [
+        JSON.stringify({
+          type: "session_meta",
+          payload: { id, cwd: "/work/proj" },
+        }),
+        JSON.stringify({
+          type: "turn_context",
+          payload: { model: "gpt-5.3-codex" },
+        }),
+        JSON.stringify({
+          timestamp: "2026-07-22T09:00:10.000Z",
+          type: "event_msg",
+          payload: {
+            type: "token_count",
+            info: {
+              total_token_usage: {
+                input_tokens: 20,
+                cached_input_tokens: 0,
+                output_tokens: 2,
+                total_tokens: 22,
+              },
+            },
+          },
+        }),
+      ].join("\n") + "\n",
+    );
+    const analyticsDb = openTestDb();
+    migrateAnalytics(analyticsDb);
+    registerIpc({
+      db: openTestDb(),
+      provider,
+      analyticsDb,
+      claudeDir: claudeHome,
+      codexDir: codexHome,
+    });
+
+    expect(pump()).toEqual({ filesTotal: 2, filesDone: 2, done: true });
+    expect(readTotals(analyticsDb, undefined, "claude").turns).toBe(1);
+    expect(readTotals(analyticsDb, undefined, "codex").turns).toBe(1);
   });
 
   it("absorbs a scan failure into a done progress instead of rejecting", () => {

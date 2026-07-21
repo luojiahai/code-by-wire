@@ -23,6 +23,7 @@ export type IconName =
   | "coffee"
   | "coins"
   | "copy"
+  | "database"
   | "ellipsis"
   | "eye"
   | "eye-off"

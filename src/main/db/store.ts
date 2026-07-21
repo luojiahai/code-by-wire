@@ -4,9 +4,9 @@ import {
   normalizeModelId,
   parseContextWindowSize,
 } from "@shared/models";
-import type { IndexOverview } from "@shared/ipc";
+import type { AgentCounts, IndexOverview } from "@shared/ipc";
 import { isResumable } from "@shared/resumable";
-import { agentOrDefault, type AgentId } from "@shared/agents";
+import { AGENT_IDS, agentOrDefault, type AgentId } from "@shared/agents";
 import { transaction, type SqliteDb } from "./driver";
 
 /** Bump when the schema changes OR when summarize's math changes and cached rows must rebuild —
@@ -323,6 +323,23 @@ export function getSessionAgent(db: SqliteDb, id: string): AgentId | null {
     | { agent: string }
     | undefined;
   return r ? agentOrDefault(r.agent) : null;
+}
+
+/** Per-agent row counts for Settings → Databases. Unknown legacy values retain Claude semantics. */
+export function readIndexDbCounts(db: SqliteDb): { sessions: AgentCounts } {
+  const rows = db
+    .prepare("SELECT agent, COUNT(*) AS sessions FROM sessions GROUP BY agent")
+    .all() as { agent: string; sessions: number }[];
+  const byAgent = Object.fromEntries(
+    AGENT_IDS.map((agent) => [agent, 0]),
+  ) as Record<AgentId, number>;
+  for (const row of rows) byAgent[agentOrDefault(row.agent)] += row.sessions;
+  return {
+    sessions: {
+      total: AGENT_IDS.reduce((sum, agent) => sum + byAgent[agent], 0),
+      byAgent,
+    },
+  };
 }
 
 /** Drop every row whose id isn't in `keepIds` — sessions that aged out of the window and aren't live.
