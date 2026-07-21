@@ -498,9 +498,10 @@ body {
   animation: pulse-soft 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
-/* The Waiting glyph's breathing (halo's successor for the character-glyph encoding). Opacity
-   floors at .45 — unlike pulse-soft's .28, waiting is the one state blocked on the user, so it
-   must stay legible at the bottom of the cycle. */
+/* The Waiting mark's breathing. Applied to the whole four-bar wrapper (not per bar), so all four
+   slots fade in unison — that unison is what distinguishes it from working's traveling sweep.
+   Opacity floors at .45 — unlike pulse-soft's .28, waiting is the one state blocked on the user,
+   so it must stay legible at the bottom of the cycle. */
 @keyframes glyph-breathe {
   0%,
   100% {
@@ -514,9 +515,10 @@ body {
   animation: glyph-breathe 1.8s ease-in-out infinite;
 }
 
-/* The Working glyph's 4 sweeping bars (session-glyph.ts's WORKING_BAR_*): each bar runs this same
-   keyframe on its own clock, offset by a staggered animation-delay, so the brightness peak appears
-   to travel left-to-right then right-to-left forever — no shared JS ticker needed. */
+/* The Working state's sweeping bars (session-glyph.ts's BAR_MARK + BAR_SWEEP_DELAYS_MS): each bar
+   runs this same keyframe on its own clock, offset by a staggered animation-delay, so the
+   brightness peak appears to travel left-to-right then right-to-left forever — no shared JS ticker
+   needed. Working is the only state that sweeps. */
 @keyframes bar-sweep {
   0% {
     opacity: 0.22;

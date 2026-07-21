@@ -1,10 +1,5 @@
 import type { Management, SessionState } from "@shared/types";
-import {
-  GLYPH,
-  glyphTitle,
-  WORKING_BAR_DELAYS_MS,
-  WORKING_BAR_TONE,
-} from "./session-glyph";
+import { BAR_MARK, BAR_SWEEP_DELAYS_MS, glyphTitle } from "./session-glyph";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -18,32 +13,39 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 export const focusRing = "";
 export const focusRingInset = "";
 
-/** The working glyph: 4 bars sweeping left-to-right-to-left (pure CSS, animate-bar-sweep in
- *  index.css — no shared ticker, each bar just runs the same keyframe on its own clock, offset by
- *  WORKING_BAR_DELAYS_MS). Sized to fit the row's 14px (size-3.5) grid cell alongside the other
- *  three states' single characters. */
-function WorkingBars() {
+/** The four-slot state mark (BAR_MARK, session-glyph.ts): pure CSS, no shared ticker. `sweep`
+ *  animates each bar on its own clock via a staggered delay (the traveling peak); `animate` sits on
+ *  the wrapper instead, so all four slots move together. The wrapper's fixed 11px height keeps
+ *  every state on the same baseline inside the row's 14px (size-3.5) grid cell — ended's squeezed
+ *  1px segments centre in it, so a state change causes no jitter. */
+function StateBars({ mark }: { mark: (typeof BAR_MARK)[SessionState] }) {
   return (
-    <span className="flex h-[11px] items-center justify-center gap-px">
-      {WORKING_BAR_DELAYS_MS.map((delayMs) => (
+    <span
+      className={cx(
+        "flex h-[11px] items-center justify-center gap-px",
+        mark.animate,
+        mark.dim,
+      )}
+    >
+      {BAR_SWEEP_DELAYS_MS.map((delayMs) => (
         <span
           key={delayMs}
           className={cx(
-            "h-2.5 w-0.5 rounded-[0.5px] animate-bar-sweep motion-reduce:animate-none",
-            WORKING_BAR_TONE,
+            "w-0.5 rounded-[0.5px]",
+            mark.height,
+            mark.tone,
+            mark.sweep && "animate-bar-sweep motion-reduce:animate-none",
           )}
-          style={{ animationDelay: `${delayMs}ms` }}
+          style={mark.sweep ? { animationDelay: `${delayMs}ms` } : undefined}
         />
       ))}
     </span>
   );
 }
 
-/** The session status glyph (2026-07-17 spec §4, working redesigned same day): working renders as
- *  WorkingBars (4 sweeping bars); the other three states render a mono character from the GLYPH
- *  table, color as the second signal. management is spoken only in the tooltip. font-mono keeps
- *  the three character states visually uniform (same aesthetic, no horizontal jitter across a
- *  waiting/idle/ended transition). Renders inside the rows' 14px (size-3.5) grid cell. */
+/** The session status glyph (2026-07-17 spec §4, unified on the bar mark 2026-07-21): every state
+ *  is the same four-slot mark, differing only by color, motion, and height — see BAR_MARK.
+ *  management is spoken only in the tooltip. */
 export function Lamp({
   state,
   management,
@@ -51,25 +53,9 @@ export function Lamp({
   state: SessionState;
   management: Management;
 }) {
-  const title = glyphTitle(state, management);
-  if (state === "working") {
-    return (
-      <span title={title}>
-        <WorkingBars />
-      </span>
-    );
-  }
-  const glyph = GLYPH[state];
   return (
-    <span
-      title={title}
-      className={cx(
-        "font-mono text-[0.75rem] font-semibold leading-none",
-        glyph.tone,
-        glyph.animate,
-      )}
-    >
-      {glyph.char}
+    <span title={glyphTitle(state, management)}>
+      <StateBars mark={BAR_MARK[state]} />
     </span>
   );
 }
