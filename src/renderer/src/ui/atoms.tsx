@@ -45,7 +45,10 @@ function StateBars({ mark }: { mark: (typeof BAR_MARK)[SessionState] }) {
 
 /** The session status glyph (2026-07-17 spec §4, unified on the bar mark 2026-07-21): every state
  *  is the same four-slot mark, differing only by color, motion, and height — see BAR_MARK.
- *  management is spoken only in the tooltip. */
+ *  management is spoken only in the tooltip. The mark carries no text content, so the state would
+ *  otherwise reach assistive tech through nothing but color and motion — role/aria-label put it
+ *  back in the accessibility tree (a bare `title` on a non-interactive span is not a reliable
+ *  accessible name). */
 export function Lamp({
   state,
   management,
@@ -53,8 +56,9 @@ export function Lamp({
   state: SessionState;
   management: Management;
 }) {
+  const title = glyphTitle(state, management);
   return (
-    <span title={glyphTitle(state, management)}>
+    <span title={title} role="img" aria-label={title}>
       <StateBars mark={BAR_MARK[state]} />
     </span>
   );

@@ -27,7 +27,10 @@ export const BAR_MARK: Record<
     animate: "animate-glyph-breathe motion-reduce:animate-none",
   },
   idle: { tone: "bg-idle", height: "h-2.5", dim: "opacity-55" },
-  ended: { tone: "bg-ink-700", height: "h-px" },
+  // ink-600, not ink-700: at 1px tall the bars have almost no mass, and the light theme's
+  // ink-700 (#c4c4c8) sits ~1.1:1 against the #f5f5f5 sidebar. ink-600 is the ladder's
+  // designated "Ended state, dim glyphs" step in both themes.
+  ended: { tone: "bg-ink-600", height: "h-px" },
 };
 
 /** The working mark's stagger: each bar runs the same animate-bar-sweep keyframe (index.css) on its

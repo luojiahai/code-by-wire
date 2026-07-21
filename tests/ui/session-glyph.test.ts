@@ -31,7 +31,7 @@ describe("BAR_MARK — every session state is the same four-slot mark", () => {
     expect(BAR_MARK.idle.animate).toBeUndefined();
   });
   it("ended is the same bars squeezed flat to a dim dash", () => {
-    expect(BAR_MARK.ended).toEqual({ tone: "bg-ink-700", height: "h-px" });
+    expect(BAR_MARK.ended).toEqual({ tone: "bg-ink-600", height: "h-px" });
     expect(BAR_MARK.ended.sweep).toBeUndefined();
     expect(BAR_MARK.ended.animate).toBeUndefined();
   });
