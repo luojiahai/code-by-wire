@@ -19,7 +19,9 @@ export function GitReadout({
   // The session's recorded branch stands in only until the glance lands — never over it. A landed
   // glance with no branch means a detached HEAD, and the row dashes rather than naming a branch the
   // worktree has already left (which the copy button would then hand to the clipboard).
-  const branch = git ? git.branch : (s.branch ?? null);
+  // `undefined` is the only "not landed yet" state — a null glance is a landed one that says the cwd
+  // isn't a work tree, and dashes like a detached HEAD rather than reviving the recorded branch.
+  const branch = (git === undefined ? s.branch : git?.branch) ?? null;
   const dirty = git?.dirty ?? false;
   if (branch == null) return <span className="text-fg-muted">-</span>;
   return (
