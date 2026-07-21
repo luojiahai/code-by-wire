@@ -22,6 +22,11 @@ import {
   type ForkResult,
   type ReattachSnapshot,
 } from "@shared/terminal";
+import {
+  validateExtraArgs,
+  extraArgsErrorMessage,
+  resolveStoredExtraArgs,
+} from "@shared/extra-args";
 import { hydrate } from "../db/store";
 import { projectFromCwd } from "../project-name";
 import type { ManagedRegistry } from "../managed-registry";
@@ -29,6 +34,7 @@ import { createTerminalManager } from "./manager";
 import { createPtyProcess } from "./pty-process";
 import { createRecorder } from "./recorder";
 import { gateResume, gateFork, type ResumeTarget } from "./resume-gate";
+import type { LaunchArgsStore } from "../launch-args";
 
 /** Resolve symlinks in the spawn cwd before recording it in the managed registry. The codex
  *  rollout-claim correlation (provider/codex/claim.ts) matches on this value against the cwd
@@ -97,6 +103,7 @@ export function registerTerminalIpc({
   agentOf,
   env,
   posixShell,
+  launchArgs,
 }: {
   window: BrowserWindow;
   managed: ManagedRegistry;
@@ -114,6 +121,9 @@ export function registerTerminalIpc({
     isExecutable: (p: string) => boolean;
     findOnPath: (name: string, env: NodeJS.ProcessEnv) => string | null;
   };
+  /** Durable per-session custom launch args: written at spawn, read back for resume/fork so the
+   *  args survive the whole session lifecycle. Optional — tests that don't care omit it. */
+  launchArgs?: LaunchArgsStore;
 }): { rename: (from: string, to: string) => void } {
   const manager = createTerminalManager({
     send: (id, data, offset) => {
@@ -139,15 +149,36 @@ export function registerTerminalIpc({
     posixShell,
   });
 
+  // A launch-args write failure must not abort the spawn/fork itself — the pty the user is waiting
+  // on still starts, it just won't have a saved entry to re-apply on a later resume. Mirrors the
+  // swallow-and-log contract setSessionPinned/setLaunchPresets use for the same class of failure.
+  function persistLaunchArgs(id: string, raw: string): void {
+    try {
+      launchArgs?.set(id, raw); // trims; empty clears — so a re-used id can't inherit stale args
+    } catch (err) {
+      console.error(
+        "launchArgs persist failed; session starts without a saved entry",
+        err,
+      );
+    }
+  }
+
   // The renderer mints the id and stands up its terminal BEFORE calling spawn, so the very first pty
   // bytes land on a live handle (no dropped output, no leaked flow-control credit). We spawn against
   // the id it sends and echo back the optimistic draft for that id.
   ipcMain.handle(TERMINAL.spawn, (_e, req: SpawnRequest): Session => {
+    // Validate in MAIN even though the renderer pre-checked: this is the trust boundary, and the
+    // reserved flags guard the pty↔Transcript correlation (a smuggled --session-id would break it).
+    const raw = req.extraArgs ?? "";
+    const check = validateExtraArgs(req.agent, raw);
+    if (!check.ok) throw new Error(extraArgsErrorMessage(check));
+    persistLaunchArgs(req.id, raw);
     manager.spawn({
       id: req.id,
       cwd: req.cwd,
       model: req.model,
       agent: req.agent,
+      extraArgs: check.tokens,
       cols: req.cols,
       rows: req.rows,
     });
@@ -160,11 +191,13 @@ export function registerTerminalIpc({
   ipcMain.handle(TERMINAL.resume, (_e, req: ResumeRequest): ResumeResult => {
     const d = gateResume(agentOf(req.id), resolveResumeTarget(req.id));
     if (!d.ok) return { ok: false, reason: d.reason };
+    const stored = launchArgs?.get(req.id) ?? "";
     manager.resume({
       id: req.id,
       cwd: d.cwd,
       agent: d.agent,
       claimedRollout: d.claimedRollout,
+      extraArgs: resolveStoredExtraArgs(d.agent, stored),
       cols: req.cols,
       rows: req.rows,
     });
@@ -181,11 +214,14 @@ export function registerTerminalIpc({
       resolveResumeTarget(req.sourceId),
     );
     if (!d.ok) return { ok: false, reason: "unresolvable" };
+    const stored = launchArgs?.get(req.sourceId) ?? "";
+    if (stored) persistLaunchArgs(req.newId, stored);
     manager.fork({
       id: req.newId,
       sourceId: req.sourceId,
       model: req.model,
       cwd: d.cwd,
+      extraArgs: resolveStoredExtraArgs("claude", stored),
       cols: req.cols,
       rows: req.rows,
     });

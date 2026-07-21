@@ -70,6 +70,9 @@ export interface SpawnRequest {
   model: ModelSelection;
   /** Which agent to spawn. `model` is Claude-only and documented-ignored for any other agent. */
   agent: AgentId;
+  /** Raw custom launch-args string as typed (tokenized + validated in MAIN — the renderer's live
+   *  check is UX only, never the enforcement). Omitted/empty means today's exact spawn. */
+  extraArgs?: string;
   /** Initial terminal size; the renderer's first fit corrects it. */
   cols: number;
   rows: number;

@@ -38,6 +38,9 @@ export interface SpawnRequest {
   model: ModelSelection;
   /** Which agent to spawn. `model` is Claude-only and documented-ignored for any other agent. */
   agent: AgentId;
+  /** Validated user launch args (already tokenized + denylist-checked in the IPC layer), appended
+   *  after the app-managed argv. Omitted/empty means today's exact spawn. */
+  extraArgs?: string[];
   cols: number;
   rows: number;
 }
@@ -51,6 +54,9 @@ export interface ResumeSpawn {
    *  claim matcher never sees this pty as pending. An old rollout is outside the matcher's recent
    *  candidate window, so an unbound resume pty could mis-claim a fresh same-cwd rollout. */
   claimedRollout?: string;
+  /** Validated user launch args (already tokenized + denylist-checked in the IPC layer), appended
+   *  after the app-managed argv. Omitted/empty means today's exact spawn. */
+  extraArgs?: string[];
   cols: number;
   rows: number;
 }
@@ -67,6 +73,9 @@ export interface ForkSpawn {
    *  picked alias the pre-first-turn fork would display the default fallback instead of the source's. */
   model: Family;
   cwd: string;
+  /** Validated user launch args (already tokenized + denylist-checked in the IPC layer), appended
+   *  after the app-managed argv. Omitted/empty means today's exact spawn. */
+  extraArgs?: string[];
   cols: number;
   rows: number;
 }
@@ -281,7 +290,12 @@ export function createTerminalManager(
     start(
       req.id,
       toSpawnForm(
-        buildSpawnCommand({ agent: req.agent, id: req.id, model: req.model }),
+        buildSpawnCommand({
+          agent: req.agent,
+          id: req.id,
+          model: req.model,
+          extraArgs: req.extraArgs,
+        }),
         platform,
         platform === "win32" ? undefined : posixShellDeps(),
       ),
@@ -301,7 +315,11 @@ export function createTerminalManager(
     start(
       req.id,
       toSpawnForm(
-        buildResumeCommand({ agent: req.agent, id: req.id }),
+        buildResumeCommand({
+          agent: req.agent,
+          id: req.id,
+          extraArgs: req.extraArgs,
+        }),
         platform,
         platform === "win32" ? undefined : posixShellDeps(),
       ),
@@ -324,7 +342,11 @@ export function createTerminalManager(
     start(
       req.id,
       toSpawnForm(
-        buildForkCommand({ sourceId: req.sourceId, newId: req.id }),
+        buildForkCommand({
+          sourceId: req.sourceId,
+          newId: req.id,
+          extraArgs: req.extraArgs,
+        }),
         platform,
         platform === "win32" ? undefined : posixShellDeps(),
       ),
