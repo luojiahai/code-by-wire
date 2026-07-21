@@ -500,7 +500,12 @@ export function App() {
   // false for Overview, Settings, New session and the empty state, so it needs no route predicate
   // of its own. The user's toggle preference is left untouched, so returning to a session restores
   // the terminal (and its live shells) as it was.
-  useEffect(() => setTerminalAllowed(hasSession), [hasSession]);
+  // The cleanup matters on remount (HMR, or any second mount of App): the atom is module-global, so
+  // without it the old tree's `true` would survive into the new tree's first paint.
+  useEffect(() => {
+    setTerminalAllowed(hasSession);
+    return () => setTerminalAllowed(false);
+  }, [hasSession]);
 
   useEffect(() => installTerminalKeybind(), []);
 

@@ -37,8 +37,12 @@ export const setTerminalTakeover = (active: boolean): void =>
  *
  *  Routing suppresses via THIS atom and never writes $terminalTakeover: clearing the preference
  *  would persist the off state, so a visit to Settings would silently cost the user their open
- *  terminal on the way back. */
-export const $terminalAllowed = atom(true);
+ *  terminal on the way back.
+ *
+ *  Starts false — the App effect is the only thing that ever enables it, and effects run after the
+ *  first paint. A `true` default would flash the whole terminal column open for a frame whenever
+ *  the app cold-starts (or hot-reloads) onto a non-session route with the preference persisted on. */
+export const $terminalAllowed = atom(false);
 
 export const setTerminalAllowed = (allowed: boolean): void =>
   $terminalAllowed.set(allowed);
