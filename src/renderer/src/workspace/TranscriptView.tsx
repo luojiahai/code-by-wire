@@ -11,8 +11,8 @@ import { useStickToBottom } from "./use-stick-to-bottom";
  * The shared event feed: a list of rendered transcript events. Both the Session TranscriptView and the
  * drilled Subagent view render it, each inside its own OverlayScroll. The optional `footer` slot carries
  * the Session's Waiting banner (the Subagent view passes none).
- * Opening it lands at the bottom once; after that it follows new events only while the reader is still
- * parked there (see useStickToBottom).
+ * Opening it lands at the bottom once; after that it follows growing content only while the reader is
+ * still parked there (see useStickToBottom).
  */
 export function TranscriptFeed({
   events,
@@ -25,9 +25,10 @@ export function TranscriptFeed({
   dispatchDrill?: DispatchDrill;
   onOpen?: (detail: OpenDetail) => void;
 }) {
-  useStickToBottom(events.length);
+  const contentRef = useStickToBottom(events.length);
   return (
     <div
+      ref={contentRef}
       data-selectable-text="true"
       className="mx-auto max-w-5xl space-y-4 p-5"
     >
