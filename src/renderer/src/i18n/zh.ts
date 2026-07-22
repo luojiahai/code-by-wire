@@ -298,7 +298,6 @@ export const zh: Translations = {
       effort: "推理强度",
       branch: "分支",
       pr: "拉取请求",
-      lines: "行数",
       clock: "时长",
       compactions: "压缩次数",
       active: "活跃",

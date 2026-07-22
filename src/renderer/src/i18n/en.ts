@@ -337,7 +337,6 @@ export const en = {
       effort: "Effort",
       branch: "Branch",
       pr: "PR",
-      lines: "Lines",
       clock: "Clock",
       compactions: "Compactions",
       active: "Active",
