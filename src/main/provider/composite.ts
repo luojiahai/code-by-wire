@@ -34,5 +34,6 @@ export function createCompositeProvider(
     readMetrics: (id, since) => by(id).readMetrics(id, since),
     resolveResumeTarget: (id) => by(id).resolveResumeTarget(id),
     resolveSessionCwd: (id) => by(id).resolveSessionCwd(id),
+    resolveTranscriptPath: (id) => by(id).resolveTranscriptPath(id),
   };
 }

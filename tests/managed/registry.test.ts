@@ -123,6 +123,16 @@ describe("createManagedRegistry", () => {
     expect(r.cwdOf("b")).toBe("/b");
     expect(r.entriesFor("claude")).toEqual([{ id: "a", pid: 1 }]);
     expect(r.codexEntries()).toEqual([{ id: "b", cwd: "/b", spawnedAtMs: 2 }]);
+    expect(r.entryOf("b")).toEqual({
+      pid: 2,
+      agent: "codex",
+      cwd: "/b",
+      spawnedAtMs: 2,
+      claimedRollout: undefined,
+    });
+    const snapshot = r.entryOf("b")!;
+    snapshot.cwd = "/changed";
+    expect(r.cwdOf("b")).toBe("/b");
   });
 
   it("claim marks the rollout taken and survives rename", () => {

@@ -64,6 +64,7 @@ import {
 } from "./terminal/shell-path";
 import { HEADER_HEIGHT_PX, MAC_TRAFFIC_LIGHT_POSITION } from "@shared/chrome";
 import { IPC } from "@shared/ipc";
+import { logError, logWarn } from "./log-buffer";
 
 // Pin the whole app to the sRGB color profile. Without this, the packaged build inherits the
 // display's profile (Display P3 on modern Macs) and Chromium stretches our sRGB-authored palette
@@ -179,7 +180,11 @@ app
     try {
       applyLegacyDockIconIfNeeded(app);
     } catch (err) {
-      console.error("could not apply the pre-Tahoe Dock icon", err);
+      logError(
+        "dock-icon-apply-failed",
+        "could not apply the pre-Tahoe Dock icon",
+        err,
+      );
     }
     const indexDbPath = join(app.getPath("userData"), "index.db");
     const db = openDb(indexDbPath);
@@ -195,7 +200,11 @@ app
       analyticsDb = openDb(analyticsDbPath);
       migrateAnalytics(analyticsDb);
     } catch (err) {
-      console.error("analytics store unavailable; stats will show zeros", err);
+      logError(
+        "analytics-store-unavailable",
+        "analytics store unavailable; stats will show zeros",
+        err,
+      );
       analyticsDb = undefined;
     }
     // The registry of app-spawned ids, shared by reference: the terminal IPC writes it on spawn, the
@@ -281,7 +290,8 @@ app
     // nothing usable. PATH and CLAUDE_CONFIG_DIR then fall back to the well-known dirs / ~/.claude, so a
     // `claude` installed somewhere exotic won't be found. Say so once rather than degrading silently.
     if (app.isPackaged && shellEnv === null) {
-      console.warn(
+      logWarn(
+        "login-shell-environment-recovery-failed",
         "could not recover the login-shell environment (slow shell startup or a wedged rc file); " +
           "falling back to well-known dirs for PATH. If sessions can't find `claude`, speed up your " +
           "shell startup or check its config.",
@@ -313,14 +323,16 @@ app
       try {
         const result = settingsManager.install();
         if (result.healed) {
-          console.warn(
+          logWarn(
+            "statusline-install-desynced",
             "statusLine install was desynced (missing record or externally stripped entry); " +
               "recovered the original command and reinstalled",
           );
         }
       } catch (err) {
         statuslineLaunchFault = (err as Error).message;
-        console.error(
+        logError(
+          "statusline-install-failed",
           "statusLine install failed; live rate limits and cost will be unavailable",
           err,
         );
@@ -384,7 +396,11 @@ app
     setTimeout(() => {
       for (const agent of AGENT_IDS) {
         void cliStatus.recheck(agent).catch((err: unknown) => {
-          console.error(`initial CLI status check failed for ${agent}`, err);
+          logError(
+            "initial-cli-status-check-failed",
+            `initial CLI status check failed for ${agent}`,
+            err,
+          );
         });
       }
     }, 0);
@@ -459,6 +475,7 @@ app
       claudeDir,
       codexDir,
       cliStatus,
+      managed,
       sessionTitles,
       sessionPins,
       launchPresets,
@@ -488,7 +505,8 @@ app
     } catch (err) {
       // A failed sync must not cost the user a window. Open with an empty list;
       // a manual Refresh retries, and surfacing the error in the UI is a later issue.
-      console.error(
+      logError(
+        "initial-session-sync-failed",
         "initial session sync failed; opening the window anyway",
         err,
       );
@@ -496,7 +514,7 @@ app
   })
   .catch((err) => {
     // Last resort: never let a startup throw vanish as a silent unhandled rejection.
-    console.error("failed to start the app", err);
+    logError("app-start-failed", "failed to start the app", err);
   });
 
 app.on("window-all-closed", () => {

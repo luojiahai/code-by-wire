@@ -41,6 +41,9 @@ export interface SessionMenuController {
   pos: { left: number; top: number } | null;
   editing: boolean;
   openEdit: () => void;
+  diagnosticOpen: boolean;
+  openDiagnostic: () => void;
+  closeDiagnostic: () => void;
   /** Whether the session is currently pinned (drives the Pin/Unpin item's label and icon). */
   pinned: boolean;
   /** Toggle the pin and close the menu. */
@@ -81,6 +84,7 @@ export function useSessionMenu(
   const { onRename } = callbacks;
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
   const [draft, setDraft] = useState(session.title);
   const [openInBusy, setOpenInBusy] = useState(false);
   const [openInError, setOpenInError] = useState<string | null>(null);
@@ -202,6 +206,11 @@ export function useSessionMenu(
     editingRef.current = true;
     setEditing(true);
   }
+
+  function openDiagnostic(): void {
+    setOpen(false);
+    setDiagnosticOpen(true);
+  }
   useEffect(() => {
     if (editing) {
       inputRef.current?.focus();
@@ -290,6 +299,9 @@ export function useSessionMenu(
     pos,
     editing,
     openEdit,
+    diagnosticOpen,
+    openDiagnostic,
+    closeDiagnostic: () => setDiagnosticOpen(false),
     pinned,
     togglePin,
     renameField: {

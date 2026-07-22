@@ -228,6 +228,7 @@ export const zh: Translations = {
       pin: "置顶",
       unpin: "取消置顶",
       copySessionId: "复制 ID",
+      diagnosticReport: "诊断",
       rename: "重命名",
       resume: "恢复",
       resuming: "恢复中…",
@@ -575,6 +576,18 @@ export const zh: Translations = {
     outputBox: {
       reading: "正在读取输出…",
       unavailable: "无可用输出",
+    },
+    diagnostic: {
+      title: "诊断报告",
+      privacy: "仅包含元数据 — 不含消息、代码、文件内容或原始错误消息。",
+      loading: "正在生成报告…",
+      loadError: "无法生成此报告。",
+      retry: "重试",
+      download: "下载",
+      saving: "正在保存…",
+      saved: "已保存",
+      copyError: "无法复制报告。",
+      saveError: "无法保存报告。",
     },
   },
   time: {

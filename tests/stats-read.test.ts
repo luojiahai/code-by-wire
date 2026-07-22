@@ -64,6 +64,7 @@ const provider: Provider = {
   readMetrics: () => ({ status: "absent" }),
   resolveResumeTarget: () => null,
   resolveSessionCwd: () => null,
+  resolveTranscriptPath: () => null,
   getToolResult: () => ({ found: false }),
 };
 

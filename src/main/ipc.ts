@@ -1,6 +1,15 @@
-import { ipcMain, shell, clipboard, nativeTheme } from "electron";
-import { homedir } from "node:os";
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  nativeTheme,
+  shell,
+} from "electron";
+import { cpus, freemem, homedir, release, totalmem } from "node:os";
 import { statSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import {
   IPC,
   type OverviewData,
@@ -88,6 +97,20 @@ import { syncSessions } from "./sync";
 import { isHttpUrl } from "./open-external";
 import { openInTarget } from "./open-in";
 import { isDirectory } from "./fs-dir";
+import { logError } from "./log-buffer";
+import { recentLogs } from "./log-buffer";
+import {
+  diagnosticFileName,
+  gatherDiagnostics,
+  renderDiagnosticReport,
+} from "./diagnostic-report";
+import { saveDiagnosticReport } from "./diagnostic-save";
+import type {
+  DiagnosticReportResult,
+  SaveDiagnosticReportResult,
+} from "@shared/diagnostic-report";
+import type { ManagedRegistry } from "./managed-registry";
+import { AGENT_PROBES } from "./cli-status";
 
 export interface IpcDeps {
   db: SqliteDb;
@@ -122,6 +145,8 @@ export interface IpcDeps {
   indexDbPath?: string;
   /** The cached CLI-status controller. Defaults to a no-op that always returns null. */
   cliStatus?: CliStatusController;
+  /** Live app-owned processes, for the managed-process section of a report. */
+  managed?: ManagedRegistry;
   /** Durable user-chosen title overrides, applied over the live overlay so a rename wins over the
    *  derived title and Claude's live session_name. Defaults to no overrides. */
   sessionTitles?: SessionTitleStore;
@@ -176,6 +201,7 @@ export function registerIpc({
   analyticsDbPath,
   indexDbPath,
   cliStatus,
+  managed,
   sessionTitles,
   sessionPins,
   launchPresets,
@@ -226,7 +252,11 @@ export function registerIpc({
       beforeSync?.();
     } catch (err) {
       // A reconcile failure must not cost the session list.
-      console.error("pre-sync reconcile failed; continuing with sync", err);
+      logError(
+        "pre-sync-reconcile-failed",
+        "pre-sync reconcile failed; continuing with sync",
+        err,
+      );
     }
     syncSessions(db, provider);
     if (!refreshSessionMetadata) return;
@@ -235,7 +265,8 @@ export function registerIpc({
       if (!changed) return;
     } catch (err) {
       // Metadata is optional enrichment. Keep the rows from the first pass and retry next poll.
-      console.error(
+      logError(
+        "session-metadata-refresh-failed",
         "session metadata refresh failed; keeping synced rows",
         err,
       );
@@ -414,7 +445,11 @@ export function registerIpc({
     } catch (err) {
       // A failed refresh (e.g. ~/.claude briefly unreadable) must not reject to the renderer or
       // drop the list. Serve the last-known rows and let the next Refresh retry, like launch does.
-      console.error("refresh sync failed; serving last-known rows", err);
+      logError(
+        "refresh-sync-failed",
+        "refresh sync failed; serving last-known rows",
+        err,
+      );
     }
     return overviewNow();
   });
@@ -427,7 +462,8 @@ export function registerIpc({
         try {
           native = await nativeSessionRename(id, trimmed || null);
         } catch (err) {
-          console.error(
+          logError(
+            "native-session-rename-failed",
             "native session rename failed; saving local override",
             err,
           );
@@ -439,7 +475,8 @@ export function registerIpc({
         // A failed write (e.g. userData unwritable) must not reject to the renderer, which fires this
         // fire-and-forget; log it and serve the unchanged overview so the next rename retries — the same
         // resilience the refresh handler gives a failed sync.
-        console.error(
+        logError(
+          "session-rename-persist-failed",
           "renameSession persist failed; serving unchanged rows",
           err,
         );
@@ -450,7 +487,8 @@ export function registerIpc({
           // the index, overview, and analytics title map all reflect the rename immediately.
           await sync();
         } catch (err) {
-          console.error(
+          logError(
+            "native-rename-sync-failed",
             "native rename sync failed; serving last-known rows",
             err,
           );
@@ -465,7 +503,8 @@ export function registerIpc({
     } catch (err) {
       // Same contract as renameSession: a failed write must not reject the renderer's
       // fire-and-forget toggle; log and serve the unchanged overview so the next attempt retries.
-      console.error(
+      logError(
+        "session-pin-persist-failed",
         "setSessionPinned persist failed; serving unchanged rows",
         err,
       );
@@ -482,21 +521,29 @@ export function registerIpc({
     } catch (err) {
       // Same contract as setSessionPinned: a failed write must not reject the renderer's
       // save; log it and let the next save retry.
-      console.error("launchPresets persist failed", err);
+      logError(
+        "launch-presets-persist-failed",
+        "launchPresets persist failed",
+        err,
+      );
     }
   });
   ipcMain.handle(
     IPC.setProjectPlacement,
     (_e, key: string, placement: "pinned" | "hidden" | "ordinary") => {
       if (!key.trim()) {
-        console.error("setProjectPlacement rejected empty project key");
+        logError(
+          "project-placement-empty-key",
+          "setProjectPlacement rejected empty project key",
+        );
         return overviewNow();
       }
       try {
         if (["pinned", "hidden", "ordinary"].includes(placement))
           projectState?.setPlacement(key, placement);
       } catch (err) {
-        console.error(
+        logError(
+          "project-placement-persist-failed",
           "setProjectPlacement persist failed; serving unchanged overview",
           err,
         );
@@ -563,6 +610,80 @@ export function registerIpc({
       id,
       target,
     ),
+  );
+  ipcMain.handle(
+    IPC.diagnosticReport,
+    async (_e, id: unknown): Promise<DiagnosticReportResult> => {
+      if (typeof id !== "string") return { ok: false, error: "not-found" };
+      try {
+        const data = await gatherDiagnostics(id, {
+          findSession: (sessionId) =>
+            overviewNow().sessions.find((session) => session.id === sessionId),
+          cliStatus: (agent) => cli.get(agent),
+          configDir: (agent) =>
+            (agent === "claude" ? claudeDir : codexDir) ?? "unknown",
+          versionFloor: (agent) => AGENT_PROBES[agent].floor,
+          resolveTranscriptPath: (sessionId) =>
+            provider.resolveTranscriptPath(sessionId),
+          resolveSessionCwd: (sessionId) =>
+            provider.resolveSessionCwd(sessionId),
+          managedEntry: (sessionId) => managed?.entryOf(sessionId),
+          appVersion: () => app.getVersion(),
+          appMetrics: () => app.getAppMetrics(),
+          delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+          now: Date.now,
+          homeDir: homedir,
+          cpuInfo: cpus,
+          totalMemory: totalmem,
+          freeMemory: freemem,
+          osRelease: release,
+          appUptimeSeconds: () => process.uptime(),
+          processMemory: () => process.memoryUsage(),
+          processVersions: () => ({
+            electron: process.versions.electron ?? "unknown",
+            chrome: process.versions.chrome ?? "unknown",
+            node: process.versions.node,
+          }),
+          platform: process.platform,
+          arch: process.arch,
+          recentLogs,
+        });
+        if (!data) return { ok: false, error: "not-found" };
+        return {
+          ok: true,
+          fileName: diagnosticFileName(data),
+          markdown: renderDiagnosticReport(data),
+        };
+      } catch (err) {
+        logError(
+          "diagnostic-report-generate-failed",
+          "diagnostic report generation failed",
+          err,
+        );
+        return { ok: false, error: "generate-failed" };
+      }
+    },
+  );
+  ipcMain.handle(
+    IPC.saveDiagnosticReport,
+    async (_e, request: unknown): Promise<SaveDiagnosticReportResult> => {
+      const value =
+        request && typeof request === "object"
+          ? (request as { fileName?: unknown; markdown?: unknown })
+          : {};
+      return saveDiagnosticReport(
+        { fileName: value.fileName, markdown: value.markdown },
+        {
+          showSaveDialog: async (options) => {
+            const window = BrowserWindow.getAllWindows()[0];
+            return window
+              ? dialog.showSaveDialog(window, options)
+              : dialog.showSaveDialog(options);
+          },
+          write: (path, markdown) => writeFile(path, markdown, "utf8"),
+        },
+      );
+    },
   );
   ipcMain.handle(IPC.clipboardWriteText, (_e, text: string) => {
     clipboard.writeText(text);
@@ -633,7 +754,7 @@ export function registerIpc({
     try {
       return readTotals(adb, win, agent);
     } catch (err) {
-      console.error("stats read failed; serving zeros", err);
+      logError("stats-read-failed", "stats read failed; serving zeros", err);
       return emptyTotals();
     }
   };
@@ -646,7 +767,11 @@ export function registerIpc({
     try {
       return readRecords(adb, win, nowMs, agent);
     } catch (err) {
-      console.error("stats records read failed; serving zeros", err);
+      logError(
+        "stats-records-read-failed",
+        "stats records read failed; serving zeros",
+        err,
+      );
       return emptyRecords();
     }
   };
@@ -654,7 +779,8 @@ export function registerIpc({
     try {
       return hasAnyTurns(adb, agent);
     } catch (err) {
-      console.error(
+      logError(
+        "stats-has-turns-read-failed",
         "stats hasAnyTurns check failed; treating store as empty",
         err,
       );
@@ -671,7 +797,11 @@ export function registerIpc({
     try {
       return readBreakdowns(adb, win, agent);
     } catch (err) {
-      console.error("stats breakdown read failed; serving none", err);
+      logError(
+        "stats-breakdown-read-failed",
+        "stats breakdown read failed; serving none",
+        err,
+      );
       return emptyBreakdowns();
     }
   };
@@ -681,7 +811,8 @@ export function registerIpc({
     try {
       return readSessionTitles(db);
     } catch (err) {
-      console.error(
+      logError(
+        "stats-session-title-read-failed",
         "stats session-title read failed; using project names",
         err,
       );
@@ -698,7 +829,11 @@ export function registerIpc({
         if (s.sessionName) out[id] = s.sessionName;
       return out;
     } catch (err) {
-      console.error("stats live-name read failed; using index titles", err);
+      logError(
+        "stats-live-name-read-failed",
+        "stats live-name read failed; using index titles",
+        err,
+      );
       return {};
     }
   };
@@ -712,7 +847,11 @@ export function registerIpc({
     try {
       return readDaily(adb, win, agent);
     } catch (err) {
-      console.error("stats daily read failed; serving none", err);
+      logError(
+        "stats-daily-read-failed",
+        "stats daily read failed; serving none",
+        err,
+      );
       return [];
     }
   };
@@ -728,7 +867,11 @@ export function registerIpc({
     try {
       return readCalendar(adb, win, agent);
     } catch (err) {
-      console.error("stats calendar read failed; serving none", err);
+      logError(
+        "stats-calendar-read-failed",
+        "stats calendar read failed; serving none",
+        err,
+      );
       return [];
     }
   };
@@ -746,7 +889,11 @@ export function registerIpc({
       }
       return yearsCache[agent]?.years ?? [];
     } catch (err) {
-      console.error("stats calendar years read failed; serving none", err);
+      logError(
+        "stats-calendar-years-read-failed",
+        "stats calendar years read failed; serving none",
+        err,
+      );
       return [];
     }
   };
@@ -804,7 +951,11 @@ export function registerIpc({
       }
       return step;
     } catch (err) {
-      console.error("stats scan step failed; serving done progress", err);
+      logError(
+        "stats-scan-step-failed",
+        "stats scan step failed; serving done progress",
+        err,
+      );
       return { ...doneProgress(), wrote: false };
     }
   };
@@ -823,7 +974,11 @@ export function registerIpc({
     try {
       return `${agent}:${turnsMaxRowid(adb)}:${localDayKey(now)}:${progress.filesDone}/${progress.filesTotal}`;
     } catch (err) {
-      console.error("stats token read failed; forcing a full snapshot", err);
+      logError(
+        "stats-token-read-failed",
+        "stats token read failed; forcing a full snapshot",
+        err,
+      );
       return "";
     }
   };
@@ -917,7 +1072,7 @@ export function registerIpc({
       for (const agent of AGENT_IDS) delete yearsCache[agent];
       return { ok: true };
     } catch (err) {
-      console.error("analytics reset failed", err);
+      logError("analytics-reset-failed", "analytics reset failed", err);
       return { ok: false };
     }
   });
@@ -941,7 +1096,11 @@ export function registerIpc({
         },
       };
     } catch (err) {
-      console.error("database info read failed; serving none", err);
+      logError(
+        "database-info-read-failed",
+        "database info read failed; serving none",
+        err,
+      );
       return null;
     }
   });

@@ -70,6 +70,13 @@ describe("ClaudeProvider.readTranscript", () => {
       status: "absent",
     });
   });
+
+  it("resolves the same transcript path for diagnostics without exposing it through IPC", () => {
+    expect(
+      provider.resolveTranscriptPath("aaaa1111-1111-1111-1111-111111111111"),
+    ).toMatch(/aaaa1111-1111-1111-1111-111111111111\.jsonl$/);
+    expect(provider.resolveTranscriptPath("no-such-session")).toBeNull();
+  });
 });
 
 describe("ClaudeProvider managed labelling", () => {

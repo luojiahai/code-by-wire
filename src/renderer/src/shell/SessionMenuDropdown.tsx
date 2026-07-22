@@ -5,6 +5,7 @@ import { Icon, type IconName } from "../ui/icons";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { useI18n } from "../i18n";
 import { MENU_WIDTH, type SessionMenuController } from "./use-session-menu";
+import { DiagnosticReportModal } from "./DiagnosticReportModal";
 
 /** The portaled dropdown body shared by every session-menu trigger: seven always-rendered action rows
  *  (only `disabled`/`title` vary — the design's "never hide an action, dim the unavailable ones with a
@@ -24,6 +25,9 @@ export function SessionMenuDropdown({
     menuRef,
     closeMenu,
     openEdit,
+    diagnosticOpen,
+    openDiagnostic,
+    closeDiagnostic,
     pinned,
     togglePin,
     items,
@@ -73,6 +77,11 @@ export function SessionMenuDropdown({
                   void window.api.clipboardWriteText(session.id);
                   closeMenu();
                 }}
+              />
+              <MenuItem
+                icon="activity"
+                label={t.shell.sessionMenu.diagnosticReport}
+                onClick={openDiagnostic}
               />
               <MenuItem
                 icon="pencil"
@@ -177,6 +186,12 @@ export function SessionMenuDropdown({
           tone="danger"
           onConfirm={end.confirmYes}
           onCancel={end.confirmNo}
+        />
+      )}
+      {diagnosticOpen && (
+        <DiagnosticReportModal
+          sessionId={session.id}
+          onClose={closeDiagnostic}
         />
       )}
     </>

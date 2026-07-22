@@ -27,6 +27,10 @@ import type { UpdateState } from "./update";
 import type { StatuslineStatus } from "./statusline-status";
 import type { Locale } from "./locale";
 import type { LaunchPresets } from "./extra-args";
+import type {
+  DiagnosticReportResult,
+  SaveDiagnosticReportResult,
+} from "./diagnostic-report";
 export { type UpdateState };
 export const IPC = {
   overview: "overview:get",
@@ -49,6 +53,8 @@ export const IPC = {
   openExternal: "shell:openExternal",
   revealPath: "shell:revealPath",
   openIn: "shell:openIn",
+  diagnosticReport: "session:diagnosticReport",
+  saveDiagnosticReport: "session:saveDiagnosticReport",
   clipboardWriteText: "clipboard:writeText",
   clipboardReadText: "clipboard:readText",
   renameSession: "session:rename",
@@ -256,6 +262,13 @@ export interface IpcApi {
   /** Open the session's working directory in `target`. The path is resolved in the main process from the
    *  session id (registry → transcript), so this works for ended sessions too. Never rejects. */
   openIn(id: string, target: OpenInTarget): Promise<OpenInResult>;
+  /** Build a public-safe Markdown diagnostic report for one indexed session. */
+  diagnosticReport(id: string): Promise<DiagnosticReportResult>;
+  /** Save the exact previewed Markdown through a native picker; no destination path crosses in. */
+  saveDiagnosticReport(
+    fileName: string,
+    markdown: string,
+  ): Promise<SaveDiagnosticReportResult>;
   /** Copy text to the system clipboard (the Git popover's branch / commit copy buttons). */
   clipboardWriteText(text: string): Promise<void>;
   /** Read text from the system clipboard (terminal paste — main-process clipboard for the same

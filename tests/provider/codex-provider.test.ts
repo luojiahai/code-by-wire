@@ -30,11 +30,12 @@ function homeWithOneRollout(): { home: string; path: string } {
 
 describe("createCodexProvider", () => {
   it("lists a candidate per rollout, tagged agent codex, with the head cwd", () => {
-    const { home } = homeWithOneRollout();
+    const { home, path } = homeWithOneRollout();
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
     const [c] = p.listCandidates();
     expect(c).toMatchObject({ id: ID, agent: "codex", cwd: "/Users/me/proj" });
     expect(c.transcriptMtimeMs).toBeGreaterThan(0);
+    expect(p.resolveTranscriptPath(ID)).toBe(path);
   });
 
   it("observed + fresh mtime → working; observed + stale → ended", () => {

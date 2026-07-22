@@ -42,6 +42,10 @@ function fake(agent: "claude" | "codex", calls: string[]): Provider {
       calls.push(`cwd:${agent}:${id}`);
       return null;
     },
+    resolveTranscriptPath: (id) => {
+      calls.push(`path:${agent}:${id}`);
+      return null;
+    },
   };
 }
 
@@ -65,7 +69,9 @@ describe("createCompositeProvider", () => {
     );
     p.readTranscript("codex-9");
     p.resolveSessionCwd("someone");
+    p.resolveTranscriptPath("codex-10");
     expect(calls).toContain("readTranscript:codex:codex-9");
     expect(calls).toContain("cwd:claude:someone");
+    expect(calls).toContain("path:codex:codex-10");
   });
 });
