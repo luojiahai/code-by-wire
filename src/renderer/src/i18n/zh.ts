@@ -207,6 +207,13 @@ export const zh: Translations = {
     sessionRow: {
       openSession: (title) => `打开 ${title}`,
       sessionActions: "会话操作",
+      expandSubagents: (count) => `展开 ${count} 个子代理`,
+      collapseSubagents: (count) => `折叠 ${count} 个子代理`,
+      subagentCount: (count, active) =>
+        active > 0
+          ? `${count} 个直接子代理 · 组内 ${active} 个活跃`
+          : `${count} 个直接子代理`,
+      detachedSubagent: "已脱离的子代理",
       branchTooltip: (branch) => `分支：${branch}`,
       state: {
         working: "进行中",

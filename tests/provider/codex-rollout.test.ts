@@ -46,6 +46,54 @@ describe("parseRolloutHead", () => {
     expect(head.cwd).toBe("/w");
     expect(head.title).toBeNull();
   });
+  it("reads direct parent metadata for review and other subagent rollouts", () => {
+    const meta = JSON.stringify({
+      type: "session_meta",
+      payload: {
+        id: "child",
+        cwd: "/w",
+        timestamp: "2026-07-18T09:00:00Z",
+        thread_source: "subagent",
+        source: { subagent: "review" },
+        parent_thread_id: "parent",
+      },
+    });
+    expect(parseRolloutHead(meta)).toMatchObject({
+      threadKind: "subagent",
+      parentSessionId: "parent",
+    });
+  });
+  it("falls back to thread_spawn's parent and retains detached subagent identity", () => {
+    const spawned = JSON.stringify({
+      type: "session_meta",
+      payload: {
+        id: "child",
+        cwd: "/w",
+        source: {
+          subagent: {
+            thread_spawn: { parent_thread_id: "parent", depth: 1 },
+          },
+        },
+      },
+    });
+    expect(parseRolloutHead(spawned)).toMatchObject({
+      threadKind: "subagent",
+      parentSessionId: "parent",
+    });
+    const detached = JSON.stringify({
+      type: "session_meta",
+      payload: {
+        id: "detached",
+        cwd: "/w",
+        thread_source: "subagent",
+        source: { subagent: { other: "guardian" } },
+      },
+    });
+    expect(parseRolloutHead(detached)).toMatchObject({
+      threadKind: "subagent",
+    });
+    expect(parseRolloutHead(detached).parentSessionId).toBeUndefined();
+  });
   it("skips machine-context user texts (leading <) and malformed lines", () => {
     const ctx =
       '{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>…</environment_context>"}]}}';

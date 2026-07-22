@@ -50,7 +50,7 @@ describe("store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(13);
+    ).toBe(14);
   });
 
   it("round-trips a snapshot, coercing missing branch and the awaitingUser flag", () => {
@@ -159,6 +159,26 @@ describe("store", () => {
     expect(getPersisted(db)[0].modelRaw).toBe(
       "global.anthropic.claude-opus-4-7",
     );
+  });
+
+  it("round-trips Codex subagent relationship metadata", () => {
+    const db = openTestDb();
+    migrate(db);
+    const relationship = snap({
+      id: "child",
+      agent: "codex",
+      threadKind: "subagent",
+      parentSessionId: "parent",
+    });
+    upsertSessions(db, [relationship]);
+    expect(getPersisted(db)[0]).toMatchObject({
+      threadKind: "subagent",
+      parentSessionId: "parent",
+    });
+    expect(getSessions(db)[0]).toMatchObject({
+      threadKind: "subagent",
+      parentSessionId: "parent",
+    });
   });
 
   it("reads modelRaw as undefined when the column is null", () => {

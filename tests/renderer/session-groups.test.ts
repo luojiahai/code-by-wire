@@ -118,6 +118,22 @@ describe("groupSessionsByProject", () => {
     expect(g.label).toBe("repo");
     expect(g.cwd).toBe("/w/repo");
   });
+
+  it("groups a subagent with its root session instead of its own cwd", () => {
+    const parent = mk({ id: "parent", project: "root", cwd: "/w/root" });
+    const child = mk({
+      id: "child",
+      project: "child",
+      cwd: "/w/child",
+      threadKind: "subagent",
+      parentSessionId: "parent",
+    });
+    const [group] = groupSessionsByProject([parent, child]);
+    expect(group.key).toBe("/w/root");
+    expect(group.sessions.map((session) => session.id)).toEqual(
+      expect.arrayContaining(["parent", "child"]),
+    );
+  });
 });
 
 describe("parentHint", () => {

@@ -76,6 +76,38 @@ describe("createCodexProvider", () => {
     expect(s.createdMs).toBe(Date.parse("2026-07-18T10:30:01.000Z"));
   });
 
+  it("carries subagent relationships from discovery through summarize and restate", () => {
+    const { home, path } = homeWithOneRollout();
+    const meta = JSON.stringify({
+      timestamp: "2026-07-18T10:30:01.000Z",
+      type: "session_meta",
+      payload: {
+        id: ID,
+        timestamp: "2026-07-18T10:30:01.000Z",
+        cwd: "/Users/me/proj",
+        thread_source: "subagent",
+        source: { subagent: "review" },
+        parent_thread_id: "parent-id",
+      },
+    });
+    writeFileSync(path, [meta, USER].join("\n"));
+    const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
+    const candidate = p.listCandidates()[0];
+    expect(candidate).toMatchObject({
+      threadKind: "subagent",
+      parentSessionId: "parent-id",
+    });
+    const summarized = p.summarize(candidate);
+    expect(summarized).toMatchObject({
+      threadKind: "subagent",
+      parentSessionId: "parent-id",
+    });
+    expect(p.restate(candidate, summarized)).toMatchObject({
+      threadKind: "subagent",
+      parentSessionId: "parent-id",
+    });
+  });
+
   it("prefers native name then preview, and refreshes the title while restating an unchanged rollout", () => {
     const { home } = homeWithOneRollout();
     let metadata = { name: null as string | null, preview: "Native preview" };

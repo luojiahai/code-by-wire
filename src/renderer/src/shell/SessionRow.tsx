@@ -3,7 +3,6 @@ import type { Session } from "@shared/types";
 import { cx, Lamp } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { AgentIcon } from "../ui/agent-icons";
-import { AGENTS } from "@shared/agents";
 import { useI18n } from "../i18n";
 import { useSessionMenu } from "./use-session-menu";
 import { SessionMenuDropdown } from "./SessionMenuDropdown";
@@ -15,11 +14,10 @@ import { SessionMenuDropdown } from "./SessionMenuDropdown";
  * `SessionMenu.tsx` for the header's own trigger over the same hook. Renaming swaps this row's
  * select-button for a plain (non-button) container so the inline `<input>` never nests inside a
  * `<button>`, which HTML disallows. The relative-time stamp and context-% chip live in the right
- * sidebar's Session panel; the only extra here is the dimmed worktree hint on sessions that merged
- * into their repo's folder (2026-07-09 worktree-merge spec). On reveal (hover, keyboard focus
- * inside the row, or an open menu) the hint hides and the row gains right padding instead of the
- * trigger being masked over it, so right-aligned content vacates rather than getting painted under
- * the button.
+ * sidebar's Session panel; the only extra here is the dimmed worktree hint on leaf sessions that
+ * merged into their repo's folder (2026-07-09 worktree-merge spec). Trailing controls appear in
+ * this order: subagent count, disclosure, then agent/actions. Actions replace the agent in its slot
+ * while revealed, keeping every other element stationary.
  */
 export function SessionRow({
   session,
@@ -32,6 +30,11 @@ export function SessionRow({
   onRename,
   onTogglePin,
   showAgentIcon = true,
+  depth = 0,
+  childCount = 0,
+  activeDescendantCount = 0,
+  childrenExpanded = false,
+  onToggleChildren,
 }: {
   session: Session;
   selected: boolean;
@@ -43,6 +46,11 @@ export function SessionRow({
   onRename: (id: string, title: string | null) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
   showAgentIcon?: boolean;
+  depth?: number;
+  childCount?: number;
+  activeDescendantCount?: number;
+  childrenExpanded?: boolean;
+  onToggleChildren?: () => void;
 }) {
   const { t } = useI18n();
   const menu = useSessionMenu(session, canSpawn, {
@@ -52,10 +60,17 @@ export function SessionRow({
     onRename,
     onTogglePin,
   });
+  const hasChildren = childCount > 0 && onToggleChildren !== undefined;
+  const cappedDepth = Math.min(depth, 2);
+  const rowStyle =
+    cappedDepth > 0 ? { marginLeft: `${cappedDepth * 12}px` } : undefined;
 
   if (menu.editing) {
     return (
-      <div className="flex min-h-[1.625rem] min-w-0 items-center gap-1.5 rounded-md py-0.5 pl-2 pr-2">
+      <div
+        style={rowStyle}
+        className="flex min-h-[1.625rem] min-w-0 items-center gap-1.5 rounded-md py-0.5 pl-2 pr-2"
+      >
         <span className="grid size-3.5 shrink-0 place-items-center">
           <Lamp state={session.state} management={session.management} />
         </span>
@@ -73,15 +88,42 @@ export function SessionRow({
     );
   }
 
-  // The trigger reveals on hover, keyboard focus inside the row, or while its menu is open. The
-  // same `revealed` condition hides the worktree hint and pads the row's right edge, so the
-  // content underneath vacates instead of being masked — overlap is structurally impossible and
-  // the old fade gradient (with its corner-seam artifact) is gone. group-has-[:focus-visible]
-  // (not group-focus-within) so a plain click doesn't leave the row stuck revealed.
+  // The action trigger reveals on hover, keyboard focus inside the row, or while its menu is open.
+  // Actions replace the agent in the same slot, keeping the disclosure and content stationary.
+  // group-has-[:focus-visible] (not group-focus-within) means a plain click does not leave the row
+  // stuck revealed.
   const reveal =
-    "group-hover:opacity-100 group-has-[:focus-visible]:opacity-100";
+    "group-hover:pointer-events-auto group-hover:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100";
+  const trailingPadding = hasChildren
+    ? showAgentIcon
+      ? "pr-12"
+      : "pr-7 group-hover:pr-12 group-has-[:focus-visible]:pr-12"
+    : showAgentIcon
+      ? "pr-7"
+      : "pr-2 group-hover:pr-7 group-has-[:focus-visible]:pr-7";
+  const openTrailingPadding = hasChildren ? "pr-12" : "pr-7";
+  const disclosurePosition = showAgentIcon
+    ? "right-6"
+    : menu.open
+      ? "right-6"
+      : "right-1 group-hover:right-6 group-has-[:focus-visible]:right-6";
+  const agentVisibility = menu.open
+    ? "opacity-0"
+    : "opacity-100 group-hover:opacity-0 group-has-[:focus-visible]:opacity-0";
   return (
-    <div className="group relative">
+    <div
+      style={rowStyle}
+      className={cx(
+        "group relative",
+        selected && "rounded-md bg-(--ui-row-active-background)",
+      )}
+    >
+      {depth > 0 && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -left-1.5 top-0 h-1/2 w-2 border-b border-l border-(--ui-stroke-tertiary)"
+        />
+      )}
       <button
         type="button"
         onClick={onSelect}
@@ -92,12 +134,9 @@ export function SessionRow({
         aria-pressed={selected}
         aria-label={t.shell.sessionRow.openSession(session.title)}
         className={cx(
-          "flex min-h-[1.625rem] w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 pr-2 text-left transition-colors duration-100 ease-out hover:transition-none",
-          "group-hover:pr-7 group-has-[:focus-visible]:pr-7",
-          menu.open && "pr-7",
-          selected
-            ? "bg-(--ui-row-active-background)"
-            : "hover:bg-(--ui-row-hover-background)",
+          "flex min-h-[1.625rem] w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 text-left transition-colors duration-100 ease-out hover:transition-none",
+          menu.open ? openTrailingPadding : trailingPadding,
+          !selected && "hover:bg-(--ui-row-hover-background)",
         )}
       >
         <span className="grid size-3.5 shrink-0 place-items-center">
@@ -112,7 +151,29 @@ export function SessionRow({
         >
           {session.title}
         </span>
-        {session.worktree && (
+        {hasChildren && (
+          <span
+            className={cx(
+              "shrink-0 text-[0.68rem] tabular-nums text-(--ui-text-quaternary)",
+              activeDescendantCount > 0 && "text-primary",
+            )}
+            title={t.shell.sessionRow.subagentCount(
+              childCount,
+              activeDescendantCount,
+            )}
+          >
+            {childCount}
+          </span>
+        )}
+        {!hasChildren && session.threadKind === "subagent" && depth === 0 && (
+          <span
+            className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)"
+            title={t.shell.sessionRow.detachedSubagent}
+          >
+            <Icon name="bot" size={11} />
+          </span>
+        )}
+        {!hasChildren && session.worktree && (
           <span
             className={cx(
               "flex min-w-0 shrink-[2] items-center gap-1 text-[0.72rem] leading-none text-(--ui-text-quaternary)",
@@ -124,15 +185,46 @@ export function SessionRow({
             <span className="truncate">{session.worktree.name}</span>
           </span>
         )}
-        {showAgentIcon && (
-          <span
-            className="grid size-3.5 shrink-0 place-items-center"
-            title={AGENTS[session.agent].label}
-          >
-            <AgentIcon agent={session.agent} size={13} />
-          </span>
-        )}
       </button>
+      {hasChildren && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleChildren();
+          }}
+          aria-expanded={childrenExpanded}
+          aria-label={
+            childrenExpanded
+              ? t.shell.sessionRow.collapseSubagents(childCount)
+              : t.shell.sessionRow.expandSubagents(childCount)
+          }
+          className={cx(
+            "absolute top-1/2 grid size-5 -translate-y-1/2 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) transition-[right] duration-100 hover:bg-(--ui-control-hover-background) hover:text-fg",
+            disclosurePosition,
+          )}
+        >
+          <Icon
+            name="chevron-right"
+            size={13}
+            className={cx(
+              "transition-transform",
+              childrenExpanded && "rotate-90",
+            )}
+          />
+        </button>
+      )}
+      {showAgentIcon && (
+        <span
+          aria-hidden
+          className={cx(
+            "pointer-events-none absolute right-1 top-1/2 grid size-5 -translate-y-1/2 place-items-center transition-opacity duration-100",
+            agentVisibility,
+          )}
+        >
+          <AgentIcon agent={session.agent} size={13} />
+        </span>
+      )}
       <div
         ref={menu.rootRef}
         className="absolute right-1 top-1/2 -translate-y-1/2"
@@ -144,10 +236,10 @@ export function SessionRow({
           aria-expanded={menu.open}
           aria-haspopup="menu"
           className={cx(
-            "grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:opacity-100",
+            "pointer-events-none grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:pointer-events-auto focus-visible:opacity-100",
             reveal,
             menu.open &&
-              "opacity-100 bg-(--ui-control-active-background) text-fg",
+              "pointer-events-auto opacity-100 bg-(--ui-control-active-background) text-fg",
           )}
         >
           <Icon name="ellipsis" size={13} />

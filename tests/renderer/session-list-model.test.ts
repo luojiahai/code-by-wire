@@ -5,6 +5,7 @@ import {
   filterActive,
   filterGroupsActive,
   groupSessionsByProject,
+  sessionForest,
   pinnedSessions,
   filterGroups,
   partitionProjectGroups,
@@ -169,6 +170,155 @@ describe("session list model", () => {
         .every((s) => s.state !== "ended" && s.agent === "claude"),
     ).toBe(true);
     expect(filtered.find((g) => g.key === "/b")!.sessions).toEqual([]);
+  });
+
+  it("searching or active-filtering a child retains its ancestor context", () => {
+    const parent = mk({
+      id: "parent",
+      title: "Main task",
+      cwd: "/a",
+      state: "ended",
+    });
+    const child = mk({
+      id: "child",
+      title: "Needle worker",
+      cwd: "/a",
+      state: "working",
+      threadKind: "subagent",
+      parentSessionId: "parent",
+    });
+    const groups = groupSessionsByProject([parent, child]);
+    expect(
+      filterGroups(
+        groups,
+        { visibility: "all", showAgentIcons: true, agent: "all" },
+        "needle",
+      )[0].sessions.map((session) => session.id),
+    ).toEqual(["child", "parent"]);
+    expect(
+      filterGroupsActive(groups)[0].sessions.map((session) => session.id),
+    ).toEqual(["child", "parent"]);
+  });
+
+  it("orders search results by matching sessions, not unrelated project activity", () => {
+    const oldMatch = mk({
+      id: "old-match",
+      title: "Needle from before",
+      cwd: "/old",
+      lastActivityMs: 100,
+    });
+    const recentNonmatch = mk({
+      id: "recent-nonmatch",
+      title: "Unrelated recent work",
+      cwd: "/old",
+      lastActivityMs: 1_000,
+    });
+    const newMatch = mk({
+      id: "new-match",
+      title: "Newer needle",
+      cwd: "/new",
+      lastActivityMs: 500,
+    });
+
+    const groups = filterGroups(
+      groupSessionsByProject([oldMatch, recentNonmatch, newMatch]),
+      { visibility: "all", showAgentIcons: true, agent: "all" },
+      "needle",
+    );
+
+    expect(groups.map((group) => group.key)).toEqual(["/new", "/old"]);
+    expect(groups[1].sessions.map((session) => session.id)).toEqual([
+      "old-match",
+    ]);
+  });
+
+  it("builds a sorted forest and degrades missing parents and cycles to roots", () => {
+    const parent = mk({ id: "parent", createdMs: 1 });
+    const child = mk({
+      id: "child",
+      createdMs: 2,
+      threadKind: "subagent",
+      parentSessionId: "parent",
+      state: "working",
+    });
+    const grandchild = mk({
+      id: "grandchild",
+      threadKind: "subagent",
+      parentSessionId: "child",
+      state: "ended",
+    });
+    const orphan = mk({
+      id: "orphan",
+      threadKind: "subagent",
+      parentSessionId: "missing",
+    });
+    const cycleA = mk({ id: "cycle-a", parentSessionId: "cycle-b" });
+    const cycleB = mk({ id: "cycle-b", parentSessionId: "cycle-a" });
+    const forest = sessionForest([
+      parent,
+      child,
+      grandchild,
+      orphan,
+      cycleA,
+      cycleB,
+    ]);
+    const parentNode = forest.find((node) => node.session.id === "parent")!;
+    expect(parentNode.children[0].session.id).toBe("child");
+    expect(parentNode.children[0].children[0].session.id).toBe("grandchild");
+    expect(parentNode.descendantCount).toBe(2);
+    expect(parentNode.activeDescendantCount).toBe(1);
+    expect(forest.map((node) => node.session.id)).toEqual(
+      expect.arrayContaining(["orphan", "cycle-a", "cycle-b"]),
+    );
+  });
+
+  it("sorts families by aggregate descendant liveness and activity", () => {
+    const staleRoot = mk({
+      id: "stale-root",
+      state: "ended",
+      createdMs: 1,
+      lastActivityMs: 1,
+    });
+    const activeChild = mk({
+      id: "active-child",
+      parentSessionId: "stale-root",
+      state: "working",
+      createdMs: 400,
+      lastActivityMs: 400,
+    });
+    const liveRoot = mk({
+      id: "live-root",
+      state: "idle",
+      createdMs: 300,
+      lastActivityMs: 300,
+    });
+    const endedFamily = mk({
+      id: "ended-family",
+      state: "ended",
+      lastActivityMs: 10,
+    });
+    const endedChild = mk({
+      id: "ended-child",
+      parentSessionId: "ended-family",
+      state: "ended",
+      lastActivityMs: 200,
+    });
+    const endedRoot = mk({
+      id: "ended-root",
+      state: "ended",
+      lastActivityMs: 100,
+    });
+
+    expect(
+      sessionForest([
+        staleRoot,
+        activeChild,
+        liveRoot,
+        endedFamily,
+        endedChild,
+        endedRoot,
+      ]).map((node) => node.session.id),
+    ).toEqual(["stale-root", "live-root", "ended-family", "ended-root"]);
   });
 
   it("partitionProjectGroups sorts pins newest-first and preserves other order", () => {
