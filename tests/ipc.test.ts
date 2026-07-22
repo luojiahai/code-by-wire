@@ -70,23 +70,25 @@ const provider = (listCandidates: Provider["listCandidates"]): Provider => ({
 });
 
 describe("registerIpc refresh", () => {
-  it("awaits async pre-sync work before enumerating candidates", async () => {
+  it("syncs rows before awaiting optional metadata, then restates them", async () => {
     const db = openTestDb();
     migrate(db);
-    let ready = false;
-    registerIpc({
+    let resolveMetadata!: () => void;
+    const metadata = new Promise<boolean>((resolve) => {
+      resolveMetadata = () => resolve(true);
+    });
+    const listCandidates = vi.fn(() => []);
+    const { sync } = registerIpc({
       db,
-      provider: provider(() => {
-        expect(ready).toBe(true);
-        return [];
-      }),
-      beforeSync: async () => {
-        await Promise.resolve();
-        ready = true;
-      },
+      provider: provider(listCandidates),
+      refreshSessionMetadata: () => metadata,
     });
 
-    await handlers.get(IPC.refresh)!();
+    const pending = sync();
+    expect(listCandidates).toHaveBeenCalledTimes(1);
+    resolveMetadata();
+    await pending;
+    expect(listCandidates).toHaveBeenCalledTimes(2);
   });
 
   it("serves the last-known rows when a sync throws, instead of rejecting to the renderer", async () => {
@@ -472,6 +474,24 @@ describe("registerIpc renameSession", () => {
     expect(nativeSessionRename).toHaveBeenCalledWith("seed", "Native name");
     expect(titles).toEqual({});
     expect(o.sessions.find((s) => s.id === "seed")?.title).toBe("Native name");
+  });
+
+  it("clears a provider-native name as well as the local override", async () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [seed]);
+    const titles: Record<string, string> = { seed: "Old local name" };
+    const nativeSessionRename = vi.fn(() => Promise.resolve(true));
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      sessionTitles: fakeStore(titles),
+      nativeSessionRename,
+    });
+
+    await handlers.get(IPC.renameSession)!({}, "seed", null);
+    expect(nativeSessionRename).toHaveBeenCalledWith("seed", null);
+    expect(titles).toEqual({});
   });
 
   it("falls back to a local override when the provider-native rename is unavailable", async () => {

@@ -445,10 +445,8 @@ app
       statusLine,
       accountEmail,
       modelDefaults,
-      beforeSync: async () => {
-        reconcile();
-        await codexThreadMetadata.refresh();
-      },
+      beforeSync: reconcile,
+      refreshSessionMetadata: () => codexThreadMetadata.refresh(),
       nativeSessionRename: (id, title) =>
         agentOf(id) === "codex"
           ? codexThreadMetadata.setName(id, title)

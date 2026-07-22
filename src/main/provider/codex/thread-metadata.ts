@@ -13,8 +13,8 @@ export interface CodexThreadMetadata {
 
 export interface CodexThreadMetadataService {
   read(id: string): CodexThreadMetadata | null;
-  refresh(): Promise<void>;
-  setName(id: string, name: string): Promise<boolean>;
+  refresh(): Promise<boolean>;
+  setName(id: string, name: string | null): Promise<boolean>;
 }
 
 export interface CodexThreadMetadataDeps extends AppServerDeps {
@@ -23,6 +23,7 @@ export interface CodexThreadMetadataDeps extends AppServerDeps {
 
 export const CODEX_THREAD_METADATA_TTL_MS = 15_000;
 export const CODEX_THREAD_METADATA_FAILURE_TTL_MS = 300_000;
+export const CODEX_THREAD_PREVIEW_TITLE_LEN = 120;
 
 const THREAD_SOURCE_KINDS = [
   "cli",
@@ -96,22 +97,29 @@ export function createCodexThreadMetadataService(
   const now = deps.now ?? (() => Date.now());
   let data = new Map<string, CodexThreadMetadata>();
   let nextAttemptAt = 0;
-  let inflight: Promise<void> | null = null;
+  let inflight: Promise<boolean> | null = null;
+  let generation = 0;
 
-  const fetch = async (): Promise<void> => {
+  const fetch = async (): Promise<boolean> => {
+    const fetchGeneration = generation;
     const result = await withCodexAppServer(fetchAllThreadMetadata, deps);
+    // A rename may finish after thread/list captured its snapshot. In that case the mutation is
+    // authoritative and also owns nextAttemptAt; discard the stale refresh wholesale.
+    if (fetchGeneration !== generation) return false;
     if (result !== null) {
       data = result;
       nextAttemptAt = now() + CODEX_THREAD_METADATA_TTL_MS;
+      return true;
     } else {
       nextAttemptAt = now() + CODEX_THREAD_METADATA_FAILURE_TTL_MS;
+      return false;
     }
   };
 
   return {
     read: (id) => data.get(id) ?? null,
     refresh() {
-      if (now() < nextAttemptAt) return Promise.resolve();
+      if (now() < nextAttemptAt) return Promise.resolve(false);
       if (!inflight) {
         inflight = fetch().finally(() => {
           inflight = null;
@@ -120,7 +128,14 @@ export function createCodexThreadMetadataService(
       return inflight;
     },
     async setName(id, name) {
-      const trimmed = name.trim().slice(0, MAX_SESSION_TITLE_LEN);
+      const previous = data.get(id);
+      // Codex rejects empty native names. Clearing therefore writes the stable preview while the
+      // local cache records no explicit name, restoring the provider's normal derived-title path.
+      const requested =
+        name ??
+        previous?.preview.slice(0, CODEX_THREAD_PREVIEW_TITLE_LEN) ??
+        "";
+      const trimmed = requested.trim().slice(0, MAX_SESSION_TITLE_LEN);
       if (!trimmed) return false;
       const succeeded = await withCodexAppServer(async (client) => {
         await client.request("thread/name/set", {
@@ -130,8 +145,12 @@ export function createCodexThreadMetadataService(
         return true;
       }, deps);
       if (succeeded !== true) return false;
-      const previous = data.get(id);
-      data.set(id, { name: trimmed, preview: previous?.preview ?? "" });
+      generation++;
+      const current = data.get(id);
+      data.set(id, {
+        name: name === null ? null : trimmed,
+        preview: current?.preview ?? previous?.preview ?? "",
+      });
       nextAttemptAt = now() + CODEX_THREAD_METADATA_TTL_MS;
       return true;
     },

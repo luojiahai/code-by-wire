@@ -159,4 +159,80 @@ describe("createCodexThreadMetadataService", () => {
       requests.find((request) => request.method === "thread/name/set")?.params,
     ).toEqual({ threadId: "a", name: "Better title" });
   });
+
+  it("clears a native name by restoring the preview title", async () => {
+    const requests: RpcMessage[] = [];
+    const spawnFn: AppServerSpawn = () =>
+      scriptedChild((message, emit) => {
+        requests.push(message);
+        if (message.method === "initialize") emit({});
+        else if (message.method === "thread/list")
+          emit({
+            data: [{ id: "a", name: "Custom", preview: "Original prompt" }],
+            nextCursor: null,
+          });
+        else if (message.method === "thread/name/set") emit({});
+      });
+    const service = createCodexThreadMetadataService({
+      spawnFn,
+      platform: "win32",
+      now: () => 1_000,
+    });
+    await service.refresh();
+
+    expect(await service.setName("a", null)).toBe(true);
+    expect(service.read("a")).toEqual({
+      name: null,
+      preview: "Original prompt",
+    });
+    expect(
+      requests.find((request) => request.method === "thread/name/set")?.params,
+    ).toEqual({ threadId: "a", name: "Original prompt" });
+  });
+
+  it("discards a stale refresh that finishes after a native rename", async () => {
+    let now = 1_000;
+    let attempt = 0;
+    let releaseStale!: () => void;
+    let staleRequestedResolve!: () => void;
+    const staleRequested = new Promise<void>((resolve) => {
+      staleRequestedResolve = resolve;
+    });
+    const spawnFn: AppServerSpawn = () => {
+      const currentAttempt = ++attempt;
+      return scriptedChild((message, emit) => {
+        if (message.method === "initialize") emit({});
+        else if (message.method === "thread/list") {
+          const oldSnapshot = {
+            data: [{ id: "a", name: "Old name", preview: "Original prompt" }],
+            nextCursor: null,
+          };
+          if (currentAttempt === 2) {
+            releaseStale = () => emit(oldSnapshot);
+            staleRequestedResolve();
+          } else {
+            emit(oldSnapshot);
+          }
+        } else if (message.method === "thread/name/set") emit({});
+      });
+    };
+    const service = createCodexThreadMetadataService({
+      spawnFn,
+      platform: "win32",
+      now: () => now,
+    });
+    await service.refresh();
+    now += 15_001;
+
+    const staleRefresh = service.refresh();
+    await staleRequested;
+    expect(await service.setName("a", "New name")).toBe(true);
+    releaseStale();
+    await staleRefresh;
+
+    expect(service.read("a")).toEqual({
+      name: "New name",
+      preview: "Original prompt",
+    });
+  });
 });

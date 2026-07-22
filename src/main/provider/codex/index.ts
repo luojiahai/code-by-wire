@@ -26,7 +26,10 @@ import { SPEED_WINDOW_MS } from "../claude/transcript-speed";
 import { readGit } from "../../git/read-git";
 import { readPr } from "../../git/read-pr";
 import { MAX_SESSION_TITLE_LEN } from "@shared/title-override";
-import type { CodexThreadMetadata } from "./thread-metadata";
+import {
+  CODEX_THREAD_PREVIEW_TITLE_LEN,
+  type CodexThreadMetadata,
+} from "./thread-metadata";
 
 /** A rollout touched within this window is "codex is producing output right now". Managed rows
  *  older than it are idle (pty alive, codex at its prompt); observed rows older than it read
@@ -157,7 +160,7 @@ export function createCodexProvider(
     const nativeName = native?.name?.trim();
     if (nativeName) return nativeName.slice(0, MAX_SESSION_TITLE_LEN);
     const preview = native?.preview.trim();
-    if (preview) return preview.slice(0, 120);
+    if (preview) return preview.slice(0, CODEX_THREAD_PREVIEW_TITLE_LEN);
     return rolloutTitle ?? fallback;
   };
 

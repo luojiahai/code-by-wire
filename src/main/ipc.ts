@@ -101,10 +101,13 @@ export interface IpcDeps {
   modelDefaults?: () => ModelDefaults;
   /** Runs at the start of every sync, before discovery. Used to follow `/clear` rotations so the
    *  provider labels a rotated session correctly on the same tick. Its failure must not block the sync. */
-  beforeSync?: () => void | Promise<void>;
+  beforeSync?: () => void;
+  /** Optional metadata enrichment. Discovery runs before this is awaited so a slow external service
+   * cannot leave the index empty; a successful refresh is followed by a second pass. */
+  refreshSessionMetadata?: () => Promise<boolean>;
   /** Attempts a provider-native rename. False means unsupported or failed, and the durable local
    * override remains the compatibility fallback. */
-  nativeSessionRename?: (id: string, title: string) => Promise<boolean>;
+  nativeSessionRename?: (id: string, title: string | null) => Promise<boolean>;
   /** The durable analytics store. When absent, stats:read serves zeros. Separate from `db` (the live
    *  index): a different file with its own lifecycle (#107). */
   analyticsDb?: SqliteDb;
@@ -165,6 +168,7 @@ export function registerIpc({
   accountEmail,
   modelDefaults,
   beforeSync,
+  refreshSessionMetadata,
   nativeSessionRename,
   analyticsDb,
   claudeDir,
@@ -219,10 +223,23 @@ export function registerIpc({
 
   const sync = async (): Promise<void> => {
     try {
-      await beforeSync?.();
+      beforeSync?.();
     } catch (err) {
-      // A reconcile/metadata failure must not cost the session list.
-      console.error("pre-sync refresh failed; continuing with sync", err);
+      // A reconcile failure must not cost the session list.
+      console.error("pre-sync reconcile failed; continuing with sync", err);
+    }
+    syncSessions(db, provider);
+    if (!refreshSessionMetadata) return;
+    try {
+      const changed = await refreshSessionMetadata();
+      if (!changed) return;
+    } catch (err) {
+      // Metadata is optional enrichment. Keep the rows from the first pass and retry next poll.
+      console.error(
+        "session metadata refresh failed; keeping synced rows",
+        err,
+      );
+      return;
     }
     syncSessions(db, provider);
   };
@@ -406,9 +423,9 @@ export function registerIpc({
     async (_e, id: string, title: string | null) => {
       const trimmed = title?.trim() ?? "";
       let native = false;
-      if (trimmed && nativeSessionRename) {
+      if (nativeSessionRename) {
         try {
-          native = await nativeSessionRename(id, trimmed);
+          native = await nativeSessionRename(id, trimmed || null);
         } catch (err) {
           console.error(
             "native session rename failed; saving local override",
