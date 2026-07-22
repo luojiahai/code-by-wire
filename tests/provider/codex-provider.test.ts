@@ -76,6 +76,25 @@ describe("createCodexProvider", () => {
     expect(s.createdMs).toBe(Date.parse("2026-07-18T10:30:01.000Z"));
   });
 
+  it("prefers native name then preview, and refreshes the title while restating an unchanged rollout", () => {
+    const { home } = homeWithOneRollout();
+    let metadata = { name: null as string | null, preview: "Native preview" };
+    const p = createCodexProvider({
+      codexDir: home,
+      now: () => Date.now(),
+      threadMetadata: { read: (id) => (id === ID ? metadata : null) },
+    });
+    const candidate = p.listCandidates()[0];
+    const previewed = p.summarize(candidate);
+    expect(previewed.title).toBe("Native preview");
+
+    metadata = { ...metadata, name: "Native /rename" };
+    expect(p.restate(candidate, previewed).title).toBe("Native /rename");
+
+    metadata = { name: null, preview: "" };
+    expect(p.restate(candidate, previewed).title).toBe("add dark mode");
+  });
+
   it("a stale rollout claimed by a live pty still surfaces as a candidate", () => {
     const { home, path } = homeWithOneRollout();
     const now = Date.now();

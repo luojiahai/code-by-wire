@@ -78,15 +78,21 @@ export interface RolloutHead {
 export const asRecord = (v: unknown): Record<string, unknown> | null =>
   v !== null && typeof v === "object" ? (v as Record<string, unknown>) : null;
 
-/** First human user text in a parsed line's payload, if this line is a user message. Titles
- *  starting with "<" are machine context (environment_context and friends), not a prompt. */
+/** First human user text in a parsed line's payload, if this line is a user message. Codex records
+ * environment packets and discovered AGENTS.md instructions as user-role context before the real
+ * prompt, so both known machine-context forms must be skipped. */
 function userText(payload: Record<string, unknown>): string | null {
   if (payload.type !== "message" || payload.role !== "user") return null;
   const content = Array.isArray(payload.content) ? payload.content : [];
   for (const part of content) {
     const p = asRecord(part);
     const text = p && typeof p.text === "string" ? p.text.trim() : "";
-    if (text && !text.startsWith("<")) return text.slice(0, 120);
+    if (
+      text &&
+      !text.startsWith("<") &&
+      !text.startsWith("# AGENTS.md instructions for ")
+    )
+      return text.slice(0, 120);
   }
   return null;
 }

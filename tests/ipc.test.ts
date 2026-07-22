@@ -70,7 +70,26 @@ const provider = (listCandidates: Provider["listCandidates"]): Provider => ({
 });
 
 describe("registerIpc refresh", () => {
-  it("serves the last-known rows when a sync throws, instead of rejecting to the renderer", () => {
+  it("awaits async pre-sync work before enumerating candidates", async () => {
+    const db = openTestDb();
+    migrate(db);
+    let ready = false;
+    registerIpc({
+      db,
+      provider: provider(() => {
+        expect(ready).toBe(true);
+        return [];
+      }),
+      beforeSync: async () => {
+        await Promise.resolve();
+        ready = true;
+      },
+    });
+
+    await handlers.get(IPC.refresh)!();
+  });
+
+  it("serves the last-known rows when a sync throws, instead of rejecting to the renderer", async () => {
     const db = openTestDb();
     migrate(db);
     upsertSessions(db, [seed]);
@@ -82,11 +101,8 @@ describe("registerIpc refresh", () => {
     });
 
     const refresh = handlers.get(IPC.refresh)!;
-    let result: OverviewData | undefined;
-    expect(() => {
-      result = refresh() as OverviewData;
-    }).not.toThrow();
-    expect(result?.sessions.map((s) => s.id)).toEqual(["seed"]);
+    const result = (await refresh()) as OverviewData;
+    expect(result.sessions.map((s) => s.id)).toEqual(["seed"]);
   });
 
   it("attaches worktree identity from the persisted map, even when the directory is gone", async () => {
@@ -367,7 +383,7 @@ describe("registerIpc renameSession", () => {
     },
   });
 
-  it("persists the override via the store and applies it to the overview", () => {
+  it("persists the override via the store and applies it to the overview", async () => {
     const db = openTestDb();
     migrate(db);
     upsertSessions(db, [seed]); // title 'Seeded'
@@ -378,11 +394,11 @@ describe("registerIpc renameSession", () => {
       sessionTitles: fakeStore(titles),
     });
 
-    const o = handlers.get(IPC.renameSession)!(
+    const o = (await handlers.get(IPC.renameSession)!(
       {},
       "seed",
       "  My Name  ",
-    ) as OverviewData;
+    )) as OverviewData;
     expect(titles).toEqual({ seed: "My Name" });
     expect(o.sessions.find((s) => s.id === "seed")!.title).toBe("My Name");
   });
@@ -403,7 +419,7 @@ describe("registerIpc renameSession", () => {
     expect(o.sessions.find((s) => s.id === "seed")!.title).toBe("MyName");
   });
 
-  it("clears the override on an empty title, reverting to the derived title", () => {
+  it("clears the override on an empty title, reverting to the derived title", async () => {
     const db = openTestDb();
     migrate(db);
     upsertSessions(db, [seed]); // title 'Seeded'
@@ -413,9 +429,70 @@ describe("registerIpc renameSession", () => {
       provider: provider(() => []),
       sessionTitles: fakeStore(titles),
     });
-    const o = handlers.get(IPC.renameSession)!({}, "seed", "") as OverviewData;
+    const o = (await handlers.get(IPC.renameSession)!(
+      {},
+      "seed",
+      "",
+    )) as OverviewData;
     expect(titles).toEqual({});
     expect(o.sessions.find((s) => s.id === "seed")!.title).toBe("Seeded");
+  });
+
+  it("uses a successful native rename, clears a stale local override, and restates the index immediately", async () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [seed]);
+    const titles: Record<string, string> = { seed: "Old local name" };
+    const p = provider(() => [
+      {
+        id: "seed",
+        agent: "claude",
+        alive: false,
+        cwd: "/w/p",
+        transcriptMtimeMs: 0,
+      },
+    ]);
+    p.restate = (_candidate, previous) => ({
+      ...previous,
+      title: "Native name",
+    });
+    const nativeSessionRename = vi.fn(() => Promise.resolve(true));
+    registerIpc({
+      db,
+      provider: p,
+      sessionTitles: fakeStore(titles),
+      nativeSessionRename,
+    });
+
+    const o = (await handlers.get(IPC.renameSession)!(
+      {},
+      "seed",
+      "Native name",
+    )) as OverviewData;
+    expect(nativeSessionRename).toHaveBeenCalledWith("seed", "Native name");
+    expect(titles).toEqual({});
+    expect(o.sessions.find((s) => s.id === "seed")?.title).toBe("Native name");
+  });
+
+  it("falls back to a local override when the provider-native rename is unavailable", async () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [seed]);
+    const titles: Record<string, string> = {};
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      sessionTitles: fakeStore(titles),
+      nativeSessionRename: () => Promise.resolve(false),
+    });
+
+    const o = (await handlers.get(IPC.renameSession)!(
+      {},
+      "seed",
+      "Local",
+    )) as OverviewData;
+    expect(titles).toEqual({ seed: "Local" });
+    expect(o.sessions.find((s) => s.id === "seed")?.title).toBe("Local");
   });
 
   it("applies no overrides when no sessionTitles dep is provided", () => {

@@ -17,6 +17,7 @@ import { migrateAnalytics } from "./db/analytics";
 import { createClaudeProvider } from "./provider/claude";
 import { createCodexProvider } from "./provider/codex";
 import { createCodexLimitsService } from "./provider/codex/limits";
+import { createCodexThreadMetadataService } from "./provider/codex/thread-metadata";
 import { resolveCodexDir } from "./provider/codex/config";
 import { listRollouts, readRolloutHead } from "./provider/codex/rollout";
 import { applyClaims } from "./provider/codex/claim";
@@ -170,7 +171,7 @@ function createWindow(
 
 app
   .whenReady()
-  .then(() => {
+  .then(async () => {
     // Purely cosmetic (pre-Tahoe Dock icon shape); a failure here must never cost the user a window,
     // and this runs before openWindow() below so an unguarded throw would be worse than the guarded
     // calls further down that at least run after the window is up.
@@ -339,10 +340,12 @@ app
       codexDir,
       fetchFn: net.fetch.bind(net),
     });
+    const codexThreadMetadata = createCodexThreadMetadataService();
     const codexProvider = createCodexProvider({
       codexDir,
       recentWindowMs,
       limits: codexLimits,
+      threadMetadata: codexThreadMetadata,
       managed: {
         has: (id) => managed.agentOf(id) === "codex",
         cwdOf: (id) => managed.cwdOf(id),
@@ -442,7 +445,14 @@ app
       statusLine,
       accountEmail,
       modelDefaults,
-      beforeSync: reconcile,
+      beforeSync: async () => {
+        reconcile();
+        await codexThreadMetadata.refresh();
+      },
+      nativeSessionRename: (id, title) =>
+        agentOf(id) === "codex"
+          ? codexThreadMetadata.setName(id, title)
+          : Promise.resolve(false),
       analyticsDb,
       analyticsDbPath,
       indexDbPath,
@@ -474,7 +484,7 @@ app
     }
 
     try {
-      sync(); // incremental parse of ~/.claude → SQLite; the window's first overview() is served right after
+      await sync(); // incremental parse of ~/.claude → SQLite; the window's first overview() is served right after
     } catch (err) {
       // A failed sync must not cost the user a window. Open with an empty list;
       // a manual Refresh retries, and surfacing the error in the UI is a later issue.

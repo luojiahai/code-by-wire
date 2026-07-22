@@ -25,6 +25,8 @@ import { metricsToken } from "../metrics-token";
 import { SPEED_WINDOW_MS } from "../claude/transcript-speed";
 import { readGit } from "../../git/read-git";
 import { readPr } from "../../git/read-pr";
+import { MAX_SESSION_TITLE_LEN } from "@shared/title-override";
+import type { CodexThreadMetadata } from "./thread-metadata";
 
 /** A rollout touched within this window is "codex is producing output right now". Managed rows
  *  older than it are idle (pty alive, codex at its prompt); observed rows older than it read
@@ -59,6 +61,8 @@ export interface CodexProviderDeps {
   };
   /** Account-scoped rate limits (limits.ts service). Optional so existing tests build without it. */
   limits?: { read(): RateLimitWindows | null };
+  /** Stable App Server thread metadata. Optional for older Codex versions and focused tests. */
+  threadMetadata?: { read(id: string): CodexThreadMetadata | null };
 }
 
 const ZERO_USAGE: Usage = {
@@ -144,6 +148,19 @@ export function createCodexProvider(
   const managedCodexEntries = (): ManagedCodexPtyLike[] =>
     deps.managed?.codexEntries?.() ?? [];
 
+  const titleFor = (
+    id: string,
+    rolloutTitle: string | null | undefined,
+    fallback: string,
+  ): string => {
+    const native = deps.threadMetadata?.read(id);
+    const nativeName = native?.name?.trim();
+    if (nativeName) return nativeName.slice(0, MAX_SESSION_TITLE_LEN);
+    const preview = native?.preview.trim();
+    if (preview) return preview.slice(0, 120);
+    return rolloutTitle ?? fallback;
+  };
+
   const candidates = (): SessionCandidate[] => {
     const cutoff = now() - recentWindowMs;
     const out: SessionCandidate[] = [];
@@ -197,7 +214,7 @@ export function createCodexProvider(
     return {
       id: c.id,
       agent: "codex",
-      title: head?.title ?? fallbackName,
+      title: titleFor(c.id, head?.title, fallbackName),
       project: fallbackName,
       cwd: c.cwd,
       branch: undefined,
@@ -225,13 +242,19 @@ export function createCodexProvider(
     id: "codex",
     listCandidates: candidates,
     summarize: summarizeCandidate,
-    restate: (c, prev) => ({
-      ...prev,
-      management: managed.has(c.id) ? "managed" : "observed",
-      state: deriveSessionState(
-        signalsFor(c.transcriptMtimeMs, managed.has(c.id)),
-      ),
-    }),
+    restate: (c, prev) => {
+      const rolloutTitle = c.transcriptPath
+        ? headFor(c.transcriptPath, c.transcriptMtimeMs)?.title
+        : null;
+      return {
+        ...prev,
+        title: titleFor(c.id, rolloutTitle, prev.project),
+        management: managed.has(c.id) ? "managed" : "observed",
+        state: deriveSessionState(
+          signalsFor(c.transcriptMtimeMs, managed.has(c.id)),
+        ),
+      };
+    },
     readTranscript: (id, sinceMtimeMs) => {
       const path = rolloutPathFor(id);
       if (!path) return { status: "absent" };

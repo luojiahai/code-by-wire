@@ -101,7 +101,10 @@ export interface IpcDeps {
   modelDefaults?: () => ModelDefaults;
   /** Runs at the start of every sync, before discovery. Used to follow `/clear` rotations so the
    *  provider labels a rotated session correctly on the same tick. Its failure must not block the sync. */
-  beforeSync?: () => void;
+  beforeSync?: () => void | Promise<void>;
+  /** Attempts a provider-native rename. False means unsupported or failed, and the durable local
+   * override remains the compatibility fallback. */
+  nativeSessionRename?: (id: string, title: string) => Promise<boolean>;
   /** The durable analytics store. When absent, stats:read serves zeros. Separate from `db` (the live
    *  index): a different file with its own lifecycle (#107). */
   analyticsDb?: SqliteDb;
@@ -162,6 +165,7 @@ export function registerIpc({
   accountEmail,
   modelDefaults,
   beforeSync,
+  nativeSessionRename,
   analyticsDb,
   claudeDir,
   codexDir,
@@ -179,7 +183,7 @@ export function registerIpc({
   caffeinate,
   usage,
   sessionOverlays,
-}: IpcDeps): { sync: () => void } {
+}: IpcDeps): { sync: () => Promise<void> } {
   const reader: StatusLineReader = statusLine ?? { read: () => [] };
   const readEmail = accountEmail ?? ((): string | null => null);
   const readDefaults =
@@ -213,12 +217,12 @@ export function registerIpc({
     set: () => false,
   };
 
-  const sync = (): void => {
+  const sync = async (): Promise<void> => {
     try {
-      beforeSync?.();
+      await beforeSync?.();
     } catch (err) {
-      // A reconcile failure (e.g. ~/.claude briefly unreadable) must not cost the session list.
-      console.error("rotation reconcile failed; continuing with sync", err);
+      // A reconcile/metadata failure must not cost the session list.
+      console.error("pre-sync refresh failed; continuing with sync", err);
     }
     syncSessions(db, provider);
   };
@@ -387,9 +391,9 @@ export function registerIpc({
   });
 
   ipcMain.handle(IPC.overview, () => overviewNow());
-  ipcMain.handle(IPC.refresh, () => {
+  ipcMain.handle(IPC.refresh, async () => {
     try {
-      sync();
+      await sync();
     } catch (err) {
       // A failed refresh (e.g. ~/.claude briefly unreadable) must not reject to the renderer or
       // drop the list. Serve the last-known rows and let the next Refresh retry, like launch does.
@@ -397,20 +401,47 @@ export function registerIpc({
     }
     return overviewNow();
   });
-  ipcMain.handle(IPC.renameSession, (_e, id: string, title: string | null) => {
-    try {
-      sessionTitles?.set(id, title);
-    } catch (err) {
-      // A failed write (e.g. userData unwritable) must not reject to the renderer, which fires this
-      // fire-and-forget; log it and serve the unchanged overview so the next rename retries — the same
-      // resilience the refresh handler gives a failed sync.
-      console.error(
-        "renameSession persist failed; serving unchanged rows",
-        err,
-      );
-    }
-    return overviewNow();
-  });
+  ipcMain.handle(
+    IPC.renameSession,
+    async (_e, id: string, title: string | null) => {
+      const trimmed = title?.trim() ?? "";
+      let native = false;
+      if (trimmed && nativeSessionRename) {
+        try {
+          native = await nativeSessionRename(id, trimmed);
+        } catch (err) {
+          console.error(
+            "native session rename failed; saving local override",
+            err,
+          );
+        }
+      }
+      try {
+        sessionTitles?.set(id, native ? null : title);
+      } catch (err) {
+        // A failed write (e.g. userData unwritable) must not reject to the renderer, which fires this
+        // fire-and-forget; log it and serve the unchanged overview so the next rename retries — the same
+        // resilience the refresh handler gives a failed sync.
+        console.error(
+          "renameSession persist failed; serving unchanged rows",
+          err,
+        );
+      }
+      if (native) {
+        try {
+          // The native metadata cache has already been updated. Restate unchanged rollouts now so
+          // the index, overview, and analytics title map all reflect the rename immediately.
+          await sync();
+        } catch (err) {
+          console.error(
+            "native rename sync failed; serving last-known rows",
+            err,
+          );
+        }
+      }
+      return overviewNow();
+    },
+  );
   ipcMain.handle(IPC.setSessionPinned, (_e, id: string, pinned: boolean) => {
     try {
       sessionPins?.set(id, pinned);
