@@ -97,7 +97,7 @@ interface Row {
 function parseUsageByModel(json: string | null): ModelUsage[] {
   if (!json) return [];
   try {
-    const v = JSON.parse(json);
+    const v: unknown = JSON.parse(json);
     return Array.isArray(v) ? (v as ModelUsage[]) : [];
   } catch {
     return [];
