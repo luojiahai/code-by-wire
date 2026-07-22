@@ -98,6 +98,7 @@ export function useSessionMenu(
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const diagnosticReturnFocusRef = useRef<HTMLElement | null>(null);
   // Set for the lifetime of one Esc-cancel so the blur it triggers doesn't also save.
   const cancelledRef = useRef(false);
   // Synchronous mirror of `editing` so the unmount flush below can tell a still-pending edit from one a
@@ -208,9 +209,18 @@ export function useSessionMenu(
   }
 
   function openDiagnostic(): void {
+    diagnosticReturnFocusRef.current =
+      rootRef.current?.querySelector<HTMLElement>("button") ?? null;
     setOpen(false);
     setDiagnosticOpen(true);
   }
+  useEffect(() => {
+    if (diagnosticOpen) return;
+    const target = diagnosticReturnFocusRef.current;
+    if (!target) return;
+    diagnosticReturnFocusRef.current = null;
+    target.focus();
+  }, [diagnosticOpen]);
   useEffect(() => {
     if (editing) {
       inputRef.current?.focus();

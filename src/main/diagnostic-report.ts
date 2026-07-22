@@ -437,7 +437,9 @@ const escapeRegex = (value: string): string =>
  *  case-insensitive and recognizes either slash style so reports remain safe across CI platforms. */
 export function redactHome(value: string, homeDir: string): string {
   if (!homeDir) return value;
-  const windows = /^[A-Za-z]:[\\/]/.test(homeDir);
+  const windows =
+    /^[A-Za-z]:[\\/]/.test(homeDir) ||
+    /^[\\/]{2}[^\\/]+[\\/][^\\/]+/.test(homeDir);
   const variants = new Set([
     homeDir.replace(/[\\/]+$/, ""),
     homeDir.replace(/\\/g, "/").replace(/\/+$/, ""),

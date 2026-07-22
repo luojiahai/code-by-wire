@@ -190,6 +190,15 @@ describe("redactHome", () => {
       ),
     ).toBe("~\\one ~/two C:\\Users\\Alice2\\three");
   });
+
+  it("redacts UNC home paths case-insensitively", () => {
+    expect(
+      redactHome(
+        "//server/users/alice/one \\\\SERVER\\USERS\\ALICE\\two //Server/Users/Alice2/three",
+        "//Server/Users/Alice",
+      ),
+    ).toBe("~/one ~\\two //Server/Users/Alice2/three");
+  });
 });
 
 describe("scanTranscriptFile", () => {
