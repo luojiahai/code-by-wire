@@ -97,26 +97,40 @@ export function filterGroups(
   query = "",
 ): SessionGroup[] {
   const normalizedQuery = query.trim().toLowerCase();
-  return groups
-    .filter(
-      (group) =>
-        !normalizedQuery ||
-        group.sessions.some((session) =>
-          sessionMatchesQuery(session, normalizedQuery),
+  const matchingGroups = groups.filter(
+    (group) =>
+      !normalizedQuery ||
+      group.sessions.some((session) =>
+        sessionMatchesQuery(session, normalizedQuery),
+      ),
+  );
+  if (normalizedQuery) {
+    const latestMatchByGroup = new Map(
+      matchingGroups.map((group) => [
+        group.key,
+        Math.max(
+          ...group.sessions
+            .filter((session) => sessionMatchesQuery(session, normalizedQuery))
+            .map((session) => session.lastActivityMs),
         ),
-    )
-    .map((group) => ({
-      ...group,
-      sessions: filterSessionsWithAncestors(group.sessions, (session) => {
-        const matchesQuery =
-          !normalizedQuery || sessionMatchesQuery(session, normalizedQuery);
-        return (
-          matchesQuery &&
-          (preferences.visibility === "all" || session.state !== "ended") &&
-          (preferences.agent === "all" || session.agent === preferences.agent)
-        );
-      }),
-    }));
+      ]),
+    );
+    matchingGroups.sort(
+      (a, b) => latestMatchByGroup.get(b.key)! - latestMatchByGroup.get(a.key)!,
+    );
+  }
+  return matchingGroups.map((group) => ({
+    ...group,
+    sessions: filterSessionsWithAncestors(group.sessions, (session) => {
+      const matchesQuery =
+        !normalizedQuery || sessionMatchesQuery(session, normalizedQuery);
+      return (
+        matchesQuery &&
+        (preferences.visibility === "all" || session.state !== "ended") &&
+        (preferences.agent === "all" || session.agent === preferences.agent)
+      );
+    }),
+  }));
 }
 
 function filterSessionsWithAncestors(

@@ -200,6 +200,38 @@ describe("session list model", () => {
     ).toEqual(["child", "parent"]);
   });
 
+  it("orders search results by matching sessions, not unrelated project activity", () => {
+    const oldMatch = mk({
+      id: "old-match",
+      title: "Needle from before",
+      cwd: "/old",
+      lastActivityMs: 100,
+    });
+    const recentNonmatch = mk({
+      id: "recent-nonmatch",
+      title: "Unrelated recent work",
+      cwd: "/old",
+      lastActivityMs: 1_000,
+    });
+    const newMatch = mk({
+      id: "new-match",
+      title: "Newer needle",
+      cwd: "/new",
+      lastActivityMs: 500,
+    });
+
+    const groups = filterGroups(
+      groupSessionsByProject([oldMatch, recentNonmatch, newMatch]),
+      { visibility: "all", showAgentIcons: true, agent: "all" },
+      "needle",
+    );
+
+    expect(groups.map((group) => group.key)).toEqual(["/new", "/old"]);
+    expect(groups[1].sessions.map((session) => session.id)).toEqual([
+      "old-match",
+    ]);
+  });
+
   it("builds a sorted forest and degrades missing parents and cycles to roots", () => {
     const parent = mk({ id: "parent", createdMs: 1 });
     const child = mk({
