@@ -35,6 +35,7 @@ import { createPtyProcess } from "./pty-process";
 import { createRecorder } from "./recorder";
 import { gateResume, gateFork, type ResumeTarget } from "./resume-gate";
 import type { LaunchArgsStore } from "../launch-args";
+import { logError } from "../log-buffer";
 
 /** Resolve symlinks in the spawn cwd before recording it in the managed registry. The codex
  *  rollout-claim correlation (provider/codex/claim.ts) matches on this value against the cwd
@@ -156,7 +157,8 @@ export function registerTerminalIpc({
     try {
       launchArgs?.set(id, raw); // trims; empty clears — so a re-used id can't inherit stale args
     } catch (err) {
-      console.error(
+      logError(
+        "launch-args-persist-failed",
         "launchArgs persist failed; session starts without a saved entry",
         err,
       );

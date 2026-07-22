@@ -41,6 +41,9 @@ export interface SessionMenuController {
   pos: { left: number; top: number } | null;
   editing: boolean;
   openEdit: () => void;
+  diagnosticOpen: boolean;
+  openDiagnostic: () => void;
+  closeDiagnostic: () => void;
   /** Whether the session is currently pinned (drives the Pin/Unpin item's label and icon). */
   pinned: boolean;
   /** Toggle the pin and close the menu. */
@@ -81,6 +84,7 @@ export function useSessionMenu(
   const { onRename } = callbacks;
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
   const [draft, setDraft] = useState(session.title);
   const [openInBusy, setOpenInBusy] = useState(false);
   const [openInError, setOpenInError] = useState<string | null>(null);
@@ -94,6 +98,7 @@ export function useSessionMenu(
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const diagnosticReturnFocusRef = useRef<HTMLElement | null>(null);
   // Set for the lifetime of one Esc-cancel so the blur it triggers doesn't also save.
   const cancelledRef = useRef(false);
   // Synchronous mirror of `editing` so the unmount flush below can tell a still-pending edit from one a
@@ -202,6 +207,20 @@ export function useSessionMenu(
     editingRef.current = true;
     setEditing(true);
   }
+
+  function openDiagnostic(): void {
+    diagnosticReturnFocusRef.current =
+      rootRef.current?.querySelector<HTMLElement>("button") ?? null;
+    setOpen(false);
+    setDiagnosticOpen(true);
+  }
+  useEffect(() => {
+    if (diagnosticOpen) return;
+    const target = diagnosticReturnFocusRef.current;
+    if (!target) return;
+    diagnosticReturnFocusRef.current = null;
+    target.focus();
+  }, [diagnosticOpen]);
   useEffect(() => {
     if (editing) {
       inputRef.current?.focus();
@@ -290,6 +309,9 @@ export function useSessionMenu(
     pos,
     editing,
     openEdit,
+    diagnosticOpen,
+    openDiagnostic,
+    closeDiagnostic: () => setDiagnosticOpen(false),
     pinned,
     togglePin,
     renameField: {

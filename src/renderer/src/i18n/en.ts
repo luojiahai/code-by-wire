@@ -262,6 +262,7 @@ export const en = {
       pin: "Pin",
       unpin: "Unpin",
       copySessionId: "Copy ID",
+      diagnosticReport: "Diagnostic",
       rename: "Rename",
       resume: "Resume",
       resuming: "Resuming…",
@@ -656,6 +657,19 @@ export const en = {
     outputBox: {
       reading: "Reading output…",
       unavailable: "No output available",
+    },
+    diagnostic: {
+      title: "Diagnostic report",
+      privacy:
+        "Metadata only — no messages, code, file contents, or raw error messages.",
+      loading: "Generating report…",
+      loadError: "Couldn't generate this report.",
+      retry: "Retry",
+      download: "Download",
+      saving: "Saving…",
+      saved: "Saved",
+      copyError: "Couldn't copy the report.",
+      saveError: "Couldn't save the report.",
     },
   },
   /** Wordy time/rate formatting (relative times, durations, month dates). English

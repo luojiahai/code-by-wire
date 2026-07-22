@@ -72,6 +72,7 @@ function fakeProvider(candidates: SessionCandidate[]): {
       readMetrics: () => ({ status: "absent" }),
       resolveResumeTarget: () => null,
       resolveSessionCwd: () => null,
+      resolveTranscriptPath: () => null,
       getToolResult: () => ({ found: false }),
     },
     summarize,

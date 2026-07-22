@@ -24,6 +24,10 @@ export interface ManagedCodexPty {
   claimedRollout?: string;
 }
 
+export interface ManagedEntrySnapshot extends ManagedEntryInfo {
+  pid: number;
+}
+
 /**
  * The set of session ids THIS app run spawned and controls — the single authority for whether a
  * discovered session is Managed. The provider consults `has` when labelling; the terminal manager
@@ -51,6 +55,8 @@ export interface ManagedRegistry {
   cwdOf(id: string): string | undefined;
   /** The rollout path claimed for `id`, or undefined if none has been bound yet. */
   claimedRolloutOf(id: string): string | undefined;
+  /** A copied, report-safe snapshot of one live managed entry. */
+  entryOf(id: string): ManagedEntrySnapshot | undefined;
   /** Every managed id paired with its pty pid, all agents. */
   entries(): ManagedPty[];
   /** Same, one agent — /clear rotation detection consumes entriesFor("claude") ONLY: a stale
@@ -85,6 +91,16 @@ export function createManagedRegistry(): ManagedRegistry {
     agentOf: (id) => byId.get(id)?.info.agent,
     cwdOf: (id) => byId.get(id)?.info.cwd,
     claimedRolloutOf: (id) => byId.get(id)?.claimedRollout,
+    entryOf: (id) => {
+      const entry = byId.get(id);
+      return entry
+        ? {
+            ...entry.info,
+            pid: entry.pid,
+            claimedRollout: entry.claimedRollout,
+          }
+        : undefined;
+    },
     entries: () => [...byId].map(([id, { pid }]) => ({ id, pid })),
     entriesFor: (agent) =>
       [...byId]

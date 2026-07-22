@@ -10,10 +10,18 @@ import { createCaffeinate } from "../src/main/caffeinate";
 import { createAppSettingsStore } from "../src/main/app-settings";
 
 // Capture the handlers registerIpc registers, without a real Electron ipcMain.
-const { handlers } = vi.hoisted(() => ({
+const { handlers, getAppMetrics, showSaveDialog } = vi.hoisted(() => ({
   handlers: new Map<string, (...a: unknown[]) => unknown>(),
+  getAppMetrics: vi.fn(() => []),
+  showSaveDialog: vi.fn(() => Promise.resolve({ canceled: true })),
 }));
 vi.mock("electron", () => ({
+  app: {
+    getVersion: () => "test-version",
+    getAppMetrics,
+  },
+  BrowserWindow: { getAllWindows: () => [] },
+  dialog: { showSaveDialog },
   ipcMain: {
     handle: (channel: string, fn: (...a: unknown[]) => unknown) =>
       handlers.set(channel, fn),
@@ -66,6 +74,7 @@ const provider = (listCandidates: Provider["listCandidates"]): Provider => ({
   readMetrics: () => ({ status: "absent" }),
   resolveResumeTarget: () => null,
   resolveSessionCwd: () => null,
+  resolveTranscriptPath: () => null,
   getToolResult: () => ({ found: false }),
 });
 
@@ -899,5 +908,59 @@ describe("registerIpc statuslineGetStatus watch population", () => {
       watchedSessions: number;
     };
     expect(status.watchedSessions).toBe(1);
+  });
+});
+
+describe("registerIpc diagnostic report", () => {
+  it("generates metadata-only markdown for an indexed session", async () => {
+    vi.useFakeTimers();
+    try {
+      getAppMetrics.mockClear();
+      const db = openTestDb();
+      migrate(db);
+      upsertSessions(db, [{ ...seed, title: "SECRET_SESSION_TITLE" }]);
+      registerIpc({ db, provider: provider(() => []) });
+      const pending = handlers.get(IPC.diagnosticReport)!({}, "seed");
+      await vi.advanceTimersByTimeAsync(150);
+      const result = (await pending) as {
+        ok: boolean;
+        fileName?: string;
+        markdown?: string;
+      };
+      expect(result.ok).toBe(true);
+      expect(result.fileName).toMatch(
+        /^code-by-wire-diagnostic-claude-seed-\d{8}\.md$/,
+      );
+      expect(result.markdown).toContain("## Transcript scan");
+      expect(result.markdown).not.toContain("SECRET_SESSION_TITLE");
+      expect(getAppMetrics).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns not-found for an unknown session", async () => {
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider: provider(() => []) });
+    await expect(
+      handlers.get(IPC.diagnosticReport)!({}, "missing"),
+    ).resolves.toEqual({ ok: false, error: "not-found" });
+  });
+
+  it("treats canceling the native save dialog as success", async () => {
+    showSaveDialog.mockResolvedValueOnce({ canceled: true });
+    const db = openTestDb();
+    migrate(db);
+    registerIpc({ db, provider: provider(() => []) });
+    await expect(
+      handlers.get(IPC.saveDiagnosticReport)!(
+        {},
+        {
+          fileName: "report.md",
+          markdown: "# report",
+        },
+      ),
+    ).resolves.toEqual({ ok: true, status: "canceled" });
   });
 });

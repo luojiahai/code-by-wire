@@ -62,6 +62,7 @@ export type IconName =
   | "square-code"
   | "square-dashed-mouse-pointer"
   | "square-terminal"
+  | "stethoscope"
   | "sun"
   | "terminal"
   | "timer"

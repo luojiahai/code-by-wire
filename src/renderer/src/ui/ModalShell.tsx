@@ -4,6 +4,7 @@ import {
   type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { cx } from "./atoms";
 
 /** Shared chrome for the app's modals: a dimmed overlay, a viewport-contained focusable panel,
@@ -63,9 +64,9 @@ export function ModalShell({
     }
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
       onClick={closeDisabled ? undefined : onClose}
     >
       <div
@@ -86,6 +87,7 @@ export function ModalShell({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

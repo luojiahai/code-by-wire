@@ -370,6 +370,7 @@ export function createCodexProvider(
       }
       return managed.cwdOf?.(id) ?? null;
     },
+    resolveTranscriptPath: (id) => rolloutPathFor(id),
     // The codex analog of the claude statusline overlay: attach the non-persisted telemetry fields
     // (liveContext, real window, TUI-formula contextPct, account rate limits) at overview time.
     // liveContext is load-bearing — the renderer's contextView only honors a provided pct when a

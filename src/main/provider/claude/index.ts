@@ -235,6 +235,7 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
     resolveResumeTarget: (id) =>
       resolveResumeTarget({ claudeDir, isPidAlive, id }),
     resolveSessionCwd: (id) => resolveSessionCwd({ claudeDir, id }),
+    resolveTranscriptPath: (id) => resolveTranscript(id)?.path ?? null,
     readTranscript: (id, sinceMtimeMs) => {
       try {
         const resolved = resolveTranscript(id);

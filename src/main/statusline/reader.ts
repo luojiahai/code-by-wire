@@ -5,6 +5,7 @@ import type { StatusLineReader, StatusLineSample } from "@shared/statusline";
 import { CAPTURE_STALE_MS } from "@shared/statusline";
 import { usageBreakdown } from "../provider/claude/transcript-row";
 import { resolveClaudeDir } from "../claude-config";
+import { logError } from "../log-buffer";
 
 export interface StatusLineReaderDeps {
   /** Claude config dir; defaults via resolveClaudeDir. Tests inject a temp dir. */
@@ -155,7 +156,11 @@ export function createStatusLineReader(
         // An absent dir (nothing installed / no captures yet) is the normal "no live data" case. A real
         // read failure (EACCES/EIO) isn't that, and shouldn't masquerade as it silently — surface it.
         if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-          console.error(`statusLine reader: cannot read ${dir}`, err);
+          logError(
+            "statusline-capture-read-failed",
+            `statusLine reader: cannot read ${dir}`,
+            err,
+          );
         }
         return [];
       }

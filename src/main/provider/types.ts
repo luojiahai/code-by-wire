@@ -81,4 +81,7 @@ export interface Provider {
    *  Cheaper than resolveResumeTarget: no liveness probe, and a targeted transcript lookup rather than a
    *  full index. Null when no cwd resolves. */
   resolveSessionCwd(id: string): string | null;
+  /** Resolve the provider's JSONL source for diagnostics (Claude transcript or Codex rollout).
+   *  The path never crosses IPC; main uses it for stat/count-only scanning. */
+  resolveTranscriptPath(id: string): string | null;
 }
