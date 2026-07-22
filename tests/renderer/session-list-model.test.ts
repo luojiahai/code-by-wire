@@ -240,6 +240,55 @@ describe("session list model", () => {
     );
   });
 
+  it("sorts families by aggregate descendant liveness and activity", () => {
+    const staleRoot = mk({
+      id: "stale-root",
+      state: "ended",
+      createdMs: 1,
+      lastActivityMs: 1,
+    });
+    const activeChild = mk({
+      id: "active-child",
+      parentSessionId: "stale-root",
+      state: "working",
+      createdMs: 400,
+      lastActivityMs: 400,
+    });
+    const liveRoot = mk({
+      id: "live-root",
+      state: "idle",
+      createdMs: 300,
+      lastActivityMs: 300,
+    });
+    const endedFamily = mk({
+      id: "ended-family",
+      state: "ended",
+      lastActivityMs: 10,
+    });
+    const endedChild = mk({
+      id: "ended-child",
+      parentSessionId: "ended-family",
+      state: "ended",
+      lastActivityMs: 200,
+    });
+    const endedRoot = mk({
+      id: "ended-root",
+      state: "ended",
+      lastActivityMs: 100,
+    });
+
+    expect(
+      sessionForest([
+        staleRoot,
+        activeChild,
+        liveRoot,
+        endedFamily,
+        endedChild,
+        endedRoot,
+      ]).map((node) => node.session.id),
+    ).toEqual(["stale-root", "live-root", "ended-family", "ended-root"]);
+  });
+
   it("partitionProjectGroups sorts pins newest-first and preserves other order", () => {
     const groups = groupSessionsByProject([
       mk({ id: "a", cwd: "/a", lastActivityMs: 300 }),

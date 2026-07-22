@@ -179,6 +179,10 @@ export function sessionForest(sessions: Session[]): SessionTreeNode[] {
   const byId = new Map(sessions.map((session) => [session.id, session]));
   const childrenById = new Map<string, Session[]>();
   const roots: Session[] = [];
+  const sortKeys = new WeakMap<
+    SessionTreeNode,
+    { activeCreatedMs?: number; lastActivityMs: number }
+  >();
 
   for (const session of sessions) {
     const parent = session.parentSessionId
@@ -193,10 +197,21 @@ export function sessionForest(sessions: Session[]): SessionTreeNode[] {
     else childrenById.set(parent.id, [session]);
   }
 
+  const compareNodes = (a: SessionTreeNode, b: SessionTreeNode): number => {
+    const aKeys = sortKeys.get(a)!;
+    const bKeys = sortKeys.get(b)!;
+    const aActive = aKeys.activeCreatedMs !== undefined;
+    const bActive = bKeys.activeCreatedMs !== undefined;
+    if (aActive !== bActive) return aActive ? -1 : 1;
+    if (aActive && bActive) {
+      return bKeys.activeCreatedMs! - aKeys.activeCreatedMs!;
+    }
+    return bKeys.lastActivityMs - aKeys.lastActivityMs;
+  };
+
   const build = (session: Session): SessionTreeNode => {
-    const children = sortSessions(childrenById.get(session.id) ?? []).map(
-      build,
-    );
+    const children = (childrenById.get(session.id) ?? []).map(build);
+    children.sort(compareNodes);
     const descendantCount = children.reduce(
       (total, child) => total + 1 + child.descendantCount,
       0,
@@ -208,15 +223,31 @@ export function sessionForest(sessions: Session[]): SessionTreeNode[] {
         child.activeDescendantCount,
       0,
     );
-    return {
+    const node = {
       session,
       children,
       descendantCount,
       activeDescendantCount,
     };
+    let activeCreatedMs =
+      session.state === "ended" ? undefined : session.createdMs;
+    let lastActivityMs = session.lastActivityMs;
+    for (const child of children) {
+      const childKeys = sortKeys.get(child)!;
+      if (
+        childKeys.activeCreatedMs !== undefined &&
+        (activeCreatedMs === undefined ||
+          childKeys.activeCreatedMs > activeCreatedMs)
+      ) {
+        activeCreatedMs = childKeys.activeCreatedMs;
+      }
+      lastActivityMs = Math.max(lastActivityMs, childKeys.lastActivityMs);
+    }
+    sortKeys.set(node, { activeCreatedMs, lastActivityMs });
+    return node;
   };
 
-  return sortSessions(roots).map(build);
+  return roots.map(build).sort(compareNodes);
 }
 
 export function partitionProjectGroups(
