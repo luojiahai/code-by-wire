@@ -41,7 +41,7 @@ describe("nested session rows", () => {
       '"opacity-100 group-hover:opacity-0 group-has-[:focus-visible]:opacity-0"',
     );
     expect(row).toContain("const disclosurePosition = showAgentIcon");
-    expect(row).toContain('? "right-6"\n    : menu.open');
+    expect(row).toMatch(/\? "right-6"\r?\n {4}: menu\.open/);
     expect(row).toContain(
       '"pointer-events-none grid size-5 cursor-pointer place-items-center',
     );
