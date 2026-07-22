@@ -16,8 +16,8 @@ import { SessionMenuDropdown } from "./SessionMenuDropdown";
  * `<button>`, which HTML disallows. The relative-time stamp and context-% chip live in the right
  * sidebar's Session panel; the only extra here is the dimmed worktree hint on leaf sessions that
  * merged into their repo's folder (2026-07-09 worktree-merge spec). Trailing controls appear in
- * this order: subagent count, disclosure, agent, then actions. The actions slot is only reserved
- * while revealed.
+ * this order: subagent count, disclosure, then agent/actions. Actions replace the agent in its slot
+ * while revealed, keeping every other element stationary.
  */
 export function SessionRow({
   session,
@@ -89,35 +89,27 @@ export function SessionRow({
   }
 
   // The action trigger reveals on hover, keyboard focus inside the row, or while its menu is open.
-  // The disclosure and agent shift left to create the actions slot only while it is visible, so
-  // the hidden trigger consumes no row width. group-has-[:focus-visible] (not group-focus-within)
-  // means a plain click does not leave the row stuck revealed.
+  // Actions replace the agent in the same slot, keeping the disclosure and content stationary.
+  // group-has-[:focus-visible] (not group-focus-within) means a plain click does not leave the row
+  // stuck revealed.
   const reveal =
     "group-hover:pointer-events-auto group-hover:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100";
   const trailingPadding = hasChildren
     ? showAgentIcon
-      ? "pr-12 group-hover:pr-[4.25rem] group-has-[:focus-visible]:pr-[4.25rem]"
+      ? "pr-12"
       : "pr-7 group-hover:pr-12 group-has-[:focus-visible]:pr-12"
     : showAgentIcon
-      ? "pr-7 group-hover:pr-12 group-has-[:focus-visible]:pr-12"
+      ? "pr-7"
       : "pr-2 group-hover:pr-7 group-has-[:focus-visible]:pr-7";
-  const openTrailingPadding = hasChildren
-    ? showAgentIcon
-      ? "pr-[4.25rem]"
-      : "pr-12"
-    : showAgentIcon
-      ? "pr-12"
-      : "pr-7";
-  const disclosurePosition = menu.open
-    ? showAgentIcon
-      ? "right-[44px]"
-      : "right-6"
-    : showAgentIcon
-      ? "right-6 group-hover:right-[44px] group-has-[:focus-visible]:right-[44px]"
-      : "right-1 group-hover:right-6 group-has-[:focus-visible]:right-6";
-  const agentPosition = menu.open
+  const openTrailingPadding = hasChildren ? "pr-12" : "pr-7";
+  const disclosurePosition = showAgentIcon
     ? "right-6"
-    : "right-1 group-hover:right-6 group-has-[:focus-visible]:right-6";
+    : menu.open
+      ? "right-6"
+      : "right-1 group-hover:right-6 group-has-[:focus-visible]:right-6";
+  const agentVisibility = menu.open
+    ? "opacity-0"
+    : "opacity-100 group-hover:opacity-0 group-has-[:focus-visible]:opacity-0";
   return (
     <div
       style={rowStyle}
@@ -226,8 +218,8 @@ export function SessionRow({
         <span
           aria-hidden
           className={cx(
-            "pointer-events-none absolute top-1/2 grid size-5 -translate-y-1/2 place-items-center transition-[right] duration-100",
-            agentPosition,
+            "pointer-events-none absolute right-1 top-1/2 grid size-5 -translate-y-1/2 place-items-center transition-opacity duration-100",
+            agentVisibility,
           )}
         >
           <AgentIcon agent={session.agent} size={13} />

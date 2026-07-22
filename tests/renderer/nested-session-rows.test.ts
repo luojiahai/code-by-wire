@@ -21,7 +21,7 @@ describe("nested session rows", () => {
     expect(row).toContain("expandSubagents(childCount)");
   });
 
-  it("orders count, disclosure, agent, and actions in separate trailing slots", () => {
+  it("keeps disclosure stationary while actions replace the agent", () => {
     const count = row.indexOf("{childCount}");
     const disclosure = row.indexOf("aria-expanded={childrenExpanded}");
     const agent = row.indexOf("<AgentIcon", disclosure);
@@ -31,13 +31,17 @@ describe("nested session rows", () => {
     expect(count).toBeLessThan(disclosure);
     expect(disclosure).toBeLessThan(agent);
     expect(agent).toBeLessThan(actions);
-    expect(row).toContain('"pointer-events-none absolute top-1/2 grid size-5');
+    expect(row).toContain(
+      '"pointer-events-none absolute right-1 top-1/2 grid size-5',
+    );
     expect(row).toContain(
       'className="absolute right-1 top-1/2 -translate-y-1/2"',
     );
     expect(row).toContain(
-      '"right-1 group-hover:right-6 group-has-[:focus-visible]:right-6"',
+      '"opacity-100 group-hover:opacity-0 group-has-[:focus-visible]:opacity-0"',
     );
+    expect(row).toContain("const disclosurePosition = showAgentIcon");
+    expect(row).toContain('? "right-6"\n    : menu.open');
     expect(row).toContain(
       '"pointer-events-none grid size-5 cursor-pointer place-items-center',
     );
