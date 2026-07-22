@@ -214,6 +214,12 @@ export const zh: Translations = {
           ? `${count} 个直接子代理 · 组内 ${active} 个活跃`
           : `${count} 个直接子代理`,
       detachedSubagent: "已脱离的子代理",
+      threadKind: {
+        subagent: "子代理",
+        review: "审查",
+        guardian: "守护",
+        compact: "压缩",
+      },
       branchTooltip: (branch) => `分支：${branch}`,
       state: {
         working: "进行中",

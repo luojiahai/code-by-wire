@@ -245,6 +245,12 @@ export const en = {
           ? `${count} direct ${count === 1 ? "subagent" : "subagents"} · ${active} active in this group`
           : `${count} direct ${count === 1 ? "subagent" : "subagents"}`,
       detachedSubagent: "Detached subagent",
+      threadKind: {
+        subagent: "Subagent",
+        review: "Review",
+        guardian: "Guardian",
+        compact: "Compact",
+      },
       // Pinned-row worktree hint: the real checked-out branch, shown only when it differs from
       // the worktree directory name (they're independent fields and can diverge).
       branchTooltip: (branch: string) => `Branch: ${branch}`,

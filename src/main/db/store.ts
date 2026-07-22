@@ -110,6 +110,18 @@ function parseUsageByModel(json: string | null): ModelUsage[] {
   }
 }
 
+function parseThreadKind(value: string | null): PersistedSession["threadKind"] {
+  switch (value) {
+    case "subagent":
+    case "review":
+    case "guardian":
+    case "compact":
+      return value;
+    default:
+      return undefined;
+  }
+}
+
 function rowToPersisted(r: Row): PersistedSession {
   return {
     id: r.id,
@@ -120,7 +132,7 @@ function rowToPersisted(r: Row): PersistedSession {
     state: r.state as PersistedSession["state"],
     management: r.management as PersistedSession["management"],
     agent: agentOrDefault(r.agent),
-    threadKind: r.thread_kind === "subagent" ? "subagent" : undefined,
+    threadKind: parseThreadKind(r.thread_kind),
     parentSessionId: r.parent_session_id ?? undefined,
     model: normalizeModelId(r.model),
     modelRaw: r.model_raw ?? undefined,

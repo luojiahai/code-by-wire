@@ -161,24 +161,32 @@ describe("store", () => {
     );
   });
 
-  it("round-trips Codex subagent relationship metadata", () => {
+  it("round-trips every Codex thread kind", () => {
     const db = openTestDb();
     migrate(db);
-    const relationship = snap({
-      id: "child",
-      agent: "codex",
-      threadKind: "subagent",
-      parentSessionId: "parent",
-    });
-    upsertSessions(db, [relationship]);
-    expect(getPersisted(db)[0]).toMatchObject({
-      threadKind: "subagent",
-      parentSessionId: "parent",
-    });
-    expect(getSessions(db)[0]).toMatchObject({
-      threadKind: "subagent",
-      parentSessionId: "parent",
-    });
+    const kinds = ["subagent", "review", "guardian", "compact"] as const;
+    upsertSessions(
+      db,
+      kinds.map((threadKind, index) =>
+        snap({
+          id: `child-${index}`,
+          agent: "codex",
+          threadKind,
+          parentSessionId: "parent",
+          lastActivityMs: index,
+        }),
+      ),
+    );
+    const freshestFirst = [...kinds].reverse();
+    expect(getPersisted(db).map(({ threadKind }) => threadKind)).toEqual(
+      freshestFirst,
+    );
+    expect(getSessions(db).map(({ threadKind }) => threadKind)).toEqual(
+      freshestFirst,
+    );
+    expect(
+      getSessions(db).every((session) => session.parentSessionId === "parent"),
+    ).toBe(true);
   });
 
   it("reads modelRaw as undefined when the column is null", () => {

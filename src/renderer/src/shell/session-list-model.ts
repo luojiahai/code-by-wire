@@ -68,6 +68,15 @@ export interface SessionTreeNode {
   activeDescendantCount: number;
 }
 
+/** Resolve one family's disclosure state. Families start collapsed and only an explicit chevron
+ * action changes that state; search and selection do not implicitly open the tree. */
+export function isSessionFamilyCollapsed(
+  hasChildren: boolean,
+  collapsedOverride: boolean | undefined,
+): boolean {
+  return hasChildren && (collapsedOverride ?? true);
+}
+
 /** The PINNED section's selection (2026-07-17 pinned-sessions spec): pinned sessions only, newest
  *  pin first. Composes AFTER filterSessions (search narrows pins too); the active-only filter is
  *  never applied here — pins are explicit favorites, so ended pins stay visible. */

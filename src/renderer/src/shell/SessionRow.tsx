@@ -16,8 +16,8 @@ import { SessionMenuDropdown } from "./SessionMenuDropdown";
  * `<button>`, which HTML disallows. The relative-time stamp and context-% chip live in the right
  * sidebar's Session panel; the only extra here is the dimmed worktree hint on leaf sessions that
  * merged into their repo's folder (2026-07-09 worktree-merge spec). Trailing controls appear in
- * this order: subagent count, disclosure, then agent/actions. Actions replace the agent in its slot
- * while revealed, keeping every other element stationary.
+ * this order: subagent count, disclosure, then role/agent/actions. Actions replace the role badge
+ * or agent in its slot while revealed, keeping every other element stationary.
  */
 export function SessionRow({
   session,
@@ -31,7 +31,7 @@ export function SessionRow({
   onTogglePin,
   showAgentIcon = true,
   depth = 0,
-  childCount = 0,
+  descendantCount = 0,
   activeDescendantCount = 0,
   childrenExpanded = false,
   onToggleChildren,
@@ -47,7 +47,7 @@ export function SessionRow({
   onTogglePin: (id: string, pinned: boolean) => void;
   showAgentIcon?: boolean;
   depth?: number;
-  childCount?: number;
+  descendantCount?: number;
   activeDescendantCount?: number;
   childrenExpanded?: boolean;
   onToggleChildren?: () => void;
@@ -60,7 +60,7 @@ export function SessionRow({
     onRename,
     onTogglePin,
   });
-  const hasChildren = childCount > 0 && onToggleChildren !== undefined;
+  const hasChildren = descendantCount > 0 && onToggleChildren !== undefined;
   const cappedDepth = Math.min(depth, 2);
   const rowStyle =
     cappedDepth > 0 ? { marginLeft: `${cappedDepth * 12}px` } : undefined;
@@ -89,33 +89,24 @@ export function SessionRow({
   }
 
   // The action trigger reveals on hover, keyboard focus inside the row, or while its menu is open.
-  // Actions replace the agent in the same slot, keeping the disclosure and content stationary.
+  // Actions replace the role badge or agent in the same slot, keeping the disclosure stationary.
   // group-has-[:focus-visible] (not group-focus-within) means a plain click does not leave the row
   // stuck revealed.
   const reveal =
     "group-hover:pointer-events-auto group-hover:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100";
-  const trailingPadding = hasChildren
-    ? showAgentIcon
-      ? "pr-12"
-      : "pr-7 group-hover:pr-12 group-has-[:focus-visible]:pr-12"
-    : showAgentIcon
-      ? "pr-7"
-      : "pr-2 group-hover:pr-7 group-has-[:focus-visible]:pr-7";
-  const openTrailingPadding = hasChildren ? "pr-12" : "pr-7";
-  const disclosurePosition = showAgentIcon
-    ? "right-6"
-    : menu.open
-      ? "right-6"
-      : "right-1 group-hover:right-6 group-has-[:focus-visible]:right-6";
-  const agentVisibility = menu.open
+  const trailingContentVisibility = menu.open
     ? "opacity-0"
     : "opacity-100 group-hover:opacity-0 group-has-[:focus-visible]:opacity-0";
+  const threadKindLabel = session.threadKind
+    ? t.shell.sessionRow.threadKind[session.threadKind]
+    : null;
   return (
     <div
       style={rowStyle}
       className={cx(
-        "group relative",
+        "group relative flex min-h-[1.625rem] min-w-0 items-center gap-1 rounded-md transition-colors duration-100 ease-out hover:transition-none",
         selected && "rounded-md bg-(--ui-row-active-background)",
+        !selected && "hover:bg-(--ui-row-hover-background)",
       )}
     >
       {depth > 0 && (
@@ -134,9 +125,7 @@ export function SessionRow({
         aria-pressed={selected}
         aria-label={t.shell.sessionRow.openSession(session.title)}
         className={cx(
-          "flex min-h-[1.625rem] w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 text-left transition-colors duration-100 ease-out hover:transition-none",
-          menu.open ? openTrailingPadding : trailingPadding,
-          !selected && "hover:bg-(--ui-row-hover-background)",
+          "flex min-h-[1.625rem] min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md py-0.5 pl-2 text-left",
         )}
       >
         <span className="grid size-3.5 shrink-0 place-items-center">
@@ -158,19 +147,11 @@ export function SessionRow({
               activeDescendantCount > 0 && "text-primary",
             )}
             title={t.shell.sessionRow.subagentCount(
-              childCount,
+              descendantCount,
               activeDescendantCount,
             )}
           >
-            {childCount}
-          </span>
-        )}
-        {!hasChildren && session.threadKind === "subagent" && depth === 0 && (
-          <span
-            className="grid size-3.5 shrink-0 place-items-center text-(--ui-text-quaternary)"
-            title={t.shell.sessionRow.detachedSubagent}
-          >
-            <Icon name="bot" size={11} />
+            {descendantCount}
           </span>
         )}
         {!hasChildren && session.worktree && (
@@ -196,13 +177,10 @@ export function SessionRow({
           aria-expanded={childrenExpanded}
           aria-label={
             childrenExpanded
-              ? t.shell.sessionRow.collapseSubagents(childCount)
-              : t.shell.sessionRow.expandSubagents(childCount)
+              ? t.shell.sessionRow.collapseSubagents(descendantCount)
+              : t.shell.sessionRow.expandSubagents(descendantCount)
           }
-          className={cx(
-            "absolute top-1/2 grid size-5 -translate-y-1/2 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) transition-[right] duration-100 hover:bg-(--ui-control-hover-background) hover:text-fg",
-            disclosurePosition,
-          )}
+          className="grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg"
         >
           <Icon
             name="chevron-right"
@@ -214,21 +192,36 @@ export function SessionRow({
           />
         </button>
       )}
-      {showAgentIcon && (
-        <span
-          aria-hidden
-          className={cx(
-            "pointer-events-none absolute right-1 top-1/2 grid size-5 -translate-y-1/2 place-items-center transition-opacity duration-100",
-            agentVisibility,
-          )}
-        >
-          <AgentIcon agent={session.agent} size={13} />
-        </span>
-      )}
       <div
         ref={menu.rootRef}
-        className="absolute right-1 top-1/2 -translate-y-1/2"
+        className={cx(
+          "relative mr-1 flex h-5 shrink-0 items-center justify-end",
+          !threadKindLabel && "w-5",
+        )}
       >
+        {threadKindLabel ? (
+          <span
+            className={cx(
+              "shrink-0 rounded-sm bg-(--ui-control-active-background) px-1 py-0.5 text-[0.625rem] leading-none text-(--ui-text-quaternary) transition-opacity duration-100",
+              trailingContentVisibility,
+            )}
+            title={threadKindLabel}
+          >
+            {threadKindLabel}
+          </span>
+        ) : (
+          showAgentIcon && (
+            <span
+              aria-hidden
+              className={cx(
+                "pointer-events-none grid size-5 place-items-center transition-opacity duration-100",
+                trailingContentVisibility,
+              )}
+            >
+              <AgentIcon agent={session.agent} size={13} />
+            </span>
+          )
+        )}
         <button
           type="button"
           onClick={() => menu.toggleMenu()}
@@ -236,7 +229,7 @@ export function SessionRow({
           aria-expanded={menu.open}
           aria-haspopup="menu"
           className={cx(
-            "pointer-events-none grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:pointer-events-auto focus-visible:opacity-100",
+            "pointer-events-none absolute right-0 top-0 grid size-5 cursor-pointer place-items-center rounded-sm text-(--ui-text-quaternary) opacity-0 transition-opacity duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-fg focus-visible:pointer-events-auto focus-visible:opacity-100",
             reveal,
             menu.open &&
               "pointer-events-auto opacity-100 bg-(--ui-control-active-background) text-fg",

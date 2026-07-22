@@ -59,7 +59,7 @@ describe("parseRolloutHead", () => {
       },
     });
     expect(parseRolloutHead(meta)).toMatchObject({
-      threadKind: "subagent",
+      threadKind: "review",
       parentSessionId: "parent",
     });
   });
@@ -90,9 +90,42 @@ describe("parseRolloutHead", () => {
       },
     });
     expect(parseRolloutHead(detached)).toMatchObject({
-      threadKind: "subagent",
+      threadKind: "guardian",
     });
     expect(parseRolloutHead(detached).parentSessionId).toBeUndefined();
+  });
+  it("classifies compact helper rollouts", () => {
+    const meta = JSON.stringify({
+      type: "session_meta",
+      payload: {
+        id: "compact-child",
+        cwd: "/w",
+        source: { subagent: "compact" },
+        parent_thread_id: "parent",
+      },
+    });
+    expect(parseRolloutHead(meta)).toMatchObject({
+      threadKind: "compact",
+      parentSessionId: "parent",
+    });
+  });
+  it("falls back to thread_spawn when a direct parent is blank or self-referential", () => {
+    const meta = (directParent: string) =>
+      JSON.stringify({
+        type: "session_meta",
+        payload: {
+          id: "child",
+          cwd: "/w",
+          parent_thread_id: directParent,
+          source: {
+            subagent: {
+              thread_spawn: { parent_thread_id: "parent", depth: 1 },
+            },
+          },
+        },
+      });
+    expect(parseRolloutHead(meta("")).parentSessionId).toBe("parent");
+    expect(parseRolloutHead(meta("child")).parentSessionId).toBe("parent");
   });
   it("skips machine-context user texts (leading <) and malformed lines", () => {
     const ctx =
@@ -136,6 +169,15 @@ describe("listRollouts / readRolloutHead", () => {
       "rollout-2026-07-18T10-30-01-11111111-2222-3333-4444-555555555555.jsonl";
     writeFileSync(join(day, name), [META, USER_MSG].join("\n"));
     writeFileSync(join(day, "notes.txt"), "ignore me");
+    const archived = join(home, "archived_sessions");
+    mkdirSync(archived, { recursive: true });
+    writeFileSync(
+      join(
+        archived,
+        "rollout-2026-07-18T10-30-02-22222222-2222-2222-2222-222222222222.jsonl",
+      ),
+      META,
+    );
     const files = listRollouts(home);
     expect(files).toHaveLength(1);
     expect(files[0].id).toBe("11111111-2222-3333-4444-555555555555");

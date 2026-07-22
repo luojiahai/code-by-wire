@@ -5,6 +5,7 @@ import {
   filterActive,
   filterGroupsActive,
   groupSessionsByProject,
+  isSessionFamilyCollapsed,
   sessionForest,
   pinnedSessions,
   filterGroups,
@@ -270,6 +271,13 @@ describe("session list model", () => {
     expect(forest.map((node) => node.session.id)).toEqual(
       expect.arrayContaining(["orphan", "cycle-a", "cycle-b"]),
     );
+  });
+
+  it("collapses families by default and changes state only through an explicit override", () => {
+    expect(isSessionFamilyCollapsed(true, undefined)).toBe(true);
+    expect(isSessionFamilyCollapsed(true, false)).toBe(false);
+    expect(isSessionFamilyCollapsed(true, true)).toBe(true);
+    expect(isSessionFamilyCollapsed(false, true)).toBe(false);
   });
 
   it("sorts families by aggregate descendant liveness and activity", () => {
