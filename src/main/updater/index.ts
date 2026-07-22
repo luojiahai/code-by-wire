@@ -37,6 +37,9 @@ export function createUpdater(deps: {
     state = nextUpdateState(state, ev);
     deps.send(state);
   };
+  // Read through a function after awaits: updater event listeners mutate `state` while the promise is
+  // pending, which TypeScript's local control-flow narrowing cannot otherwise observe.
+  const checkIsInFlight = (): boolean => state.phase.kind === "checking";
 
   if (deps.isPackaged) {
     autoUpdater.autoDownload = false;
@@ -48,6 +51,7 @@ export function createUpdater(deps: {
         type: "available",
         version: info.version,
         releaseDate: info.releaseDate,
+        at: Date.now(),
       }),
     );
     autoUpdater.on("update-not-available", () =>
@@ -78,7 +82,11 @@ export function createUpdater(deps: {
       try {
         await autoUpdater.checkForUpdates();
       } catch (err) {
-        apply({ type: "error", message: friendlyError(err) });
+        // electron-updater emits `error` before rejecting. Usually the listener above already applied
+        // it; only fall back here if no terminal event moved the state on. In particular, applying the
+        // same error twice would replace an available phase restored from checking.prior.
+        if (checkIsInFlight())
+          apply({ type: "error", message: friendlyError(err) });
       }
       return state;
     },

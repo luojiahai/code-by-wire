@@ -1,14 +1,17 @@
 import type { ReactNode } from "react";
-import type { UpdateState } from "@shared/update";
+import type { AvailableUpdatePhase, UpdateState } from "@shared/update";
 import { Icon } from "../ui/icons";
 import { cx } from "../ui/atoms";
 import { useI18n } from "../i18n";
 
-/** Everything the card needs from App: the live state, the auto-check toggle value, and the actions. */
+/** The live update state and actions shared by App, Settings, and the About card. */
 export interface UpdateControls {
   state: UpdateState;
   autoCheck: boolean;
+  /** False only while the persisted preference is still loading. */
+  autoCheckReady: boolean;
   check: () => void;
+  maybeAutoCheck: () => void;
   download: () => void;
   install: () => void;
   setAutoCheck: (enabled: boolean) => void;
@@ -83,6 +86,44 @@ function StatusRow({ update }: { update: UpdateControls }) {
   let action: ReactNode = null;
   let extra: ReactNode = null;
 
+  const showAvailable = (
+    available: AvailableUpdatePhase,
+    rechecking: boolean,
+  ): void => {
+    tone = "warn";
+    headline = t.settings.update.available;
+    version = available.version;
+    detail = available.releaseDate
+      ? t.settings.update.onVersionReleased(
+          state.currentVersion,
+          available.releaseDate.slice(0, 10),
+        )
+      : t.settings.update.onVersion(state.currentVersion);
+    extra = (
+      <button
+        type="button"
+        onClick={() => void window.api.openExternal(available.notesUrl)}
+        className="mt-1.5 inline-flex items-center gap-1 text-meta text-primary transition-colors hover:text-primary-bright"
+      >
+        {t.settings.update.releaseNotes}
+        <Icon name="arrow-up-right" size={11} />
+      </button>
+    );
+    action = (
+      <>
+        <GhostIconButton
+          label={t.settings.update.check}
+          onClick={update.check}
+          disabled={rechecking}
+          spinning={rechecking}
+        />
+        <SolidButton onClick={update.download} disabled={rechecking}>
+          {t.settings.update.download}
+        </SolidButton>
+      </>
+    );
+  };
+
   switch (p.kind) {
     case "idle":
       headline = t.settings.update.upToDate;
@@ -104,6 +145,10 @@ function StatusRow({ update }: { update: UpdateControls }) {
       );
       break;
     case "checking":
+      if (p.prior) {
+        showAvailable(p.prior, true);
+        break;
+      }
       headline = t.settings.update.checking;
       detail = `v${state.currentVersion}`;
       action = (
@@ -113,30 +158,7 @@ function StatusRow({ update }: { update: UpdateControls }) {
       );
       break;
     case "available":
-      tone = "warn";
-      headline = t.settings.update.available;
-      version = p.version;
-      detail = p.releaseDate
-        ? t.settings.update.onVersionReleased(
-            state.currentVersion,
-            p.releaseDate.slice(0, 10),
-          )
-        : t.settings.update.onVersion(state.currentVersion);
-      extra = (
-        <button
-          type="button"
-          onClick={() => void window.api.openExternal(p.notesUrl)}
-          className="mt-1.5 inline-flex items-center gap-1 text-meta text-primary transition-colors hover:text-primary-bright"
-        >
-          {t.settings.update.releaseNotes}
-          <Icon name="arrow-up-right" size={11} />
-        </button>
-      );
-      action = (
-        <SolidButton onClick={update.download}>
-          {t.settings.update.download}
-        </SolidButton>
-      );
+      showAvailable(p, false);
       break;
     case "downloading":
       tone = "warn";
@@ -202,8 +224,39 @@ function StatusRow({ update }: { update: UpdateControls }) {
         <div className="mt-0.5 text-meta text-fg-muted">{detail}</div>
         {extra}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && (
+        <div className="flex shrink-0 items-center gap-2">{action}</div>
+      )}
     </div>
+  );
+}
+
+function GhostIconButton({
+  label,
+  onClick,
+  disabled,
+  spinning,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  spinning?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-ink-700 text-fg-muted transition-colors hover:border-ink-600 hover:text-fg disabled:opacity-40"
+    >
+      <Icon
+        name={spinning ? "loader-circle" : "rotate-ccw"}
+        size={13}
+        className={spinning ? "animate-spin" : undefined}
+      />
+    </button>
   );
 }
 
@@ -231,15 +284,18 @@ function GhostButton({
 function SolidButton({
   children,
   onClick,
+  disabled,
 }: {
   children: ReactNode;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center rounded-md border border-ink-600 bg-ink-800 px-3 py-1 text-aux text-fg transition-colors hover:bg-ink-700"
+      disabled={disabled}
+      className="inline-flex items-center rounded-md border border-ink-600 bg-ink-800 px-3 py-1 text-aux text-fg transition-colors hover:bg-ink-700 disabled:opacity-40"
     >
       {children}
     </button>

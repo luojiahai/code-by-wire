@@ -143,8 +143,8 @@ export const zh: Translations = {
     },
     update: {
       title: "软件更新",
-      autoCheckLabel: "启动时检查更新",
-      autoCheckDesc: "每次启动应用时检查新版本",
+      autoCheckLabel: "自动检查更新",
+      autoCheckDesc: "启动应用和打开“关于”时检查新版本",
       upToDate: "已是最新",
       check: "检查更新",
       checking: "正在检查更新…",

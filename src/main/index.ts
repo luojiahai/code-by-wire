@@ -466,7 +466,11 @@ app
     // never blocks first paint (mirrors the setTimeout'd CLI check). No recurring timer — see the
     // "renderer polls; no main timers" invariant; this fires once per launch.
     if (app.isPackaged && (appSettings.read().autoCheckUpdates ?? true)) {
-      setTimeout(() => void updater.check(), 3000);
+      setTimeout(() => {
+        // Opening About during this delay may already have checked. Keep the launch path one-shot
+        // instead of issuing a second automatic request immediately afterward.
+        if (updater.getState().phase.kind === "idle") void updater.check();
+      }, 3000);
     }
 
     try {
