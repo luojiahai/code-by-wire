@@ -242,8 +242,8 @@ export const en = {
         `Collapse ${count} ${count === 1 ? "subagent" : "subagents"}`,
       subagentCount: (count: number, active: number) =>
         active > 0
-          ? `${count} direct ${count === 1 ? "subagent" : "subagents"} · ${active} active in this group`
-          : `${count} direct ${count === 1 ? "subagent" : "subagents"}`,
+          ? `${count} ${count === 1 ? "subagent" : "subagents"} in this group · ${active} active`
+          : `${count} ${count === 1 ? "subagent" : "subagents"} in this group`,
       detachedSubagent: "Detached subagent",
       threadKind: {
         subagent: "Subagent",
