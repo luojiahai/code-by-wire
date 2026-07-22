@@ -6,6 +6,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.44] - 2026-07-22
+
+### Added
+
+- Stats now covers Codex sessions with analytics parity to Claude Code, and
+  Settings gained a new Databases section (Analytics DB and Index DB cards,
+  plus a table browser) replacing the old single Stats DB card.
+- Codex subagent sessions now nest under their parent session in the
+  sidebar, like Claude Code subagents, sorted by their most recent
+  descendant activity; nested rows keep their hover controls stationary
+  while scrolling, and search results preserve project order.
+- Codex sessions now display their native CLI-assigned titles instead of a
+  locally generated one.
+- The session menu gained a "Diagnostic report" action that saves recent
+  logs and environment details to a file for troubleshooting.
+
+### Changed
+
+- Settings' update card gained a manual recheck button that works even
+  while an update is already known available or downloading, without
+  losing the existing update info while the recheck runs.
+- The Session panel's Lines row (the ± diff footprint) was removed.
+
+### Fixed
+
+- The Stats calendar now resets to the current year when switching agents
+  instead of carrying over a year with no data for the new agent.
+- The footer terminal's scrollbar now relayouts on host resize and stays
+  aligned with the panel edge instead of drifting out of place.
+- PR lookups (the Session panel's PR row) now resolve `gh` reliably in the
+  packaged macOS app, which previously could fail to find a
+  Homebrew-installed `gh` under launchd's minimal PATH.
+
 ## [0.1.43] - 2026-07-22
 
 ### Added
@@ -1067,7 +1100,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.43...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.44...HEAD
+[0.1.44]: https://github.com/luojiahai/code-by-wire/compare/v0.1.43...v0.1.44
 [0.1.43]: https://github.com/luojiahai/code-by-wire/compare/v0.1.42...v0.1.43
 [0.1.42]: https://github.com/luojiahai/code-by-wire/compare/v0.1.41...v0.1.42
 [0.1.41]: https://github.com/luojiahai/code-by-wire/compare/v0.1.40...v0.1.41
