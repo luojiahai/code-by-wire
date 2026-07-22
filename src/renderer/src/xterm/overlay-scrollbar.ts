@@ -39,10 +39,15 @@ export function attachOverlayScrollbar(
 
   // Size and place the thumb from the viewport's live scroll geometry. Returns whether there's overflow.
   const layout = (): boolean => {
+    // xterm floors its row count, so the viewport can be slightly shorter than the host. Use the
+    // full host as the visual track so the thumb reaches the panel edges; the viewport still owns
+    // the actual scroll range and overflow calculation.
+    const trackHeight = parent.clientHeight;
     const m = thumbMetrics(
       viewport.scrollTop,
       viewport.scrollHeight,
       viewport.clientHeight,
+      trackHeight,
     );
     if (!m.overflow) {
       thumb.dataset.visible = "false";
@@ -96,6 +101,7 @@ export function attachOverlayScrollbar(
       viewport.scrollTop,
       viewport.scrollHeight,
       viewport.clientHeight,
+      parent.clientHeight,
     ).top;
     dragThumbH = thumb.offsetHeight;
   };
@@ -106,6 +112,7 @@ export function attachOverlayScrollbar(
       dragThumbH,
       viewport.scrollHeight,
       viewport.clientHeight,
+      parent.clientHeight,
     );
     // setting scrollTop fires onScroll, which lays out the thumb and keeps it revealed.
   };
