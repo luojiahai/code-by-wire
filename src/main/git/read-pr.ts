@@ -20,17 +20,38 @@ interface Entry {
 
 const cache = new Map<string, Entry>();
 
+// A packaged macOS app inherits launchd's minimal PATH, which cannot resolve a Homebrew-installed
+// `gh`. The composition root recovers the user's login-shell PATH once at startup and supplies it
+// here; dev and non-macOS builds leave this null and keep their inherited environment unchanged.
+let correctedPath: string | null = null;
+
+/** Build the gh child environment. GH_HOST must not pin work repos to a personal host, while a
+ *  recovered PATH lets Finder-launched macOS builds resolve the same gh binary as the user's shell. */
+export function prCommandEnv(
+  base: NodeJS.ProcessEnv,
+  path: string | null,
+): NodeJS.ProcessEnv {
+  const env = { ...base };
+  delete env.GH_HOST;
+  if (path) env.PATH = path;
+  return env;
+}
+
+/** Supply the packaged app's recovered login-shell PATH before providers begin polling. */
+export function configurePrPath(path: string | null): void {
+  correctedPath = path;
+}
+
 /** Default runner: `gh pr view --json url,number,title,state,reviewDecision` in `cwd`, with GH_HOST
- *  stripped so gh auto-detects the host from the repo's remote (the work-vs-personal fix). No shell;
- *  resolves null on any error. */
+ *  stripped so gh auto-detects the host from the repo's remote (the work-vs-personal fix), and the
+ *  packaged app's recovered PATH so Homebrew gh remains resolvable. No shell; resolves null on any
+ *  error. */
 function defaultRun(cwd: string): Promise<string | null> {
   return new Promise((resolve) => {
-    const env = { ...process.env };
-    delete env.GH_HOST;
     execFile(
       "gh",
       ["pr", "view", "--json", "url,number,title,state,reviewDecision"],
-      { cwd, env, timeout: 8000 },
+      { cwd, env: prCommandEnv(process.env, correctedPath), timeout: 8000 },
       (err, stdout) => resolve(err ? null : stdout),
     );
   });

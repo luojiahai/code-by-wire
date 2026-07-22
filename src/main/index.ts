@@ -56,6 +56,7 @@ import { createCliStatusController } from "./cli-check";
 import { createUpdater } from "./updater";
 import { createUsageService } from "./usage/fetch";
 import { createTokenReader } from "./usage/credentials";
+import { configurePrPath } from "./git/read-pr";
 import {
   probeShellEnv,
   resolveShellPath,
@@ -290,9 +291,9 @@ app
     // claudeDir feeds the settings/transcript readers below (settingsManager, statusLine, provider) —
     // where THIS APP reads Claude Code's own data from, independent of how sessions are spawned.
     const claudeDir = resolveClaudeDir(undefined, recoveredConfigDir);
-    // correctedPath feeds only the footer terminal's env (shellTermEnv above); Managed sessions no
-    // longer need it — they spawn through the user's own login shell, which resolves PATH for itself
-    // (see command.ts's toSpawnForm).
+    // correctedPath feeds the footer terminal's env (shellTermEnv above) and the background gh PR
+    // lookup. Managed sessions no longer need it — they spawn through the user's own login shell,
+    // which resolves PATH for itself (see command.ts's toSpawnForm).
     const correctedPath = shouldCorrectPath(process.platform, app.isPackaged)
       ? resolveShellPath({
           platform: process.platform,
@@ -302,6 +303,7 @@ app
           probe: () => shellEnv?.path ?? null,
         })
       : null;
+    configurePrPath(correctedPath);
     // Wrap the user's statusLine so live cost/context and account rate limits flow to the app.
     // Idempotent and reversible; a failure must never cost the user a window. Gated on the user's
     // durable preference — a Settings-page Disable must survive relaunch, not silently re-install.
