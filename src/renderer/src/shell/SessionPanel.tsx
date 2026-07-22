@@ -8,9 +8,9 @@ import { GitReadout } from "./GitReadout";
 
 /**
  * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Branch (branch name + dirty
- * dot, popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Lines (the
- * session's ± footprint from the capture), Clock, and Active (relative last-activity time) — each an
- * always-shown label/value row; `-` fills a row whose data hasn't landed.
+ * dot, popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Clock,
+ * and Active (relative last-activity time) — each an always-shown label/value row; `-` fills a row
+ * whose data hasn't landed.
  */
 export function SessionPanel({
   session: s,
@@ -32,7 +32,6 @@ export function SessionPanel({
   );
   const clock =
     s.sessionClockMs != null ? t.time.duration(s.sessionClockMs) : null;
-  const hasLines = s.linesAdded != null || s.linesRemoved != null;
   const prView = s.pr ?? pr ?? null;
   const prStatusRaw = (s.pr?.reviewState ?? pr?.reviewDecision) || pr?.state;
   const prStatus = prStatusRaw
@@ -66,16 +65,6 @@ export function SessionPanel({
             {prStatus && (
               <span className="text-(--ui-text-quaternary)">{prStatus}</span>
             )}
-          </>
-        ) : (
-          "-"
-        )}
-      </SessionRow>
-      <SessionRow label={t.shell.sessionPanel.lines}>
-        {hasLines ? (
-          <>
-            <span className="text-(--ui-green)">+{s.linesAdded ?? 0}</span>
-            <span className="text-(--ui-red)">−{s.linesRemoved ?? 0}</span>
           </>
         ) : (
           "-"

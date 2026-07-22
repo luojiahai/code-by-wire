@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   readPr,
+  prCommandEnv,
   _setPrRunner,
   _resetPrCache,
 } from "../../src/main/git/read-pr";
@@ -12,6 +13,18 @@ beforeEach(() => {
 });
 
 describe("readPr", () => {
+  it("uses the recovered PATH for gh without leaking a pinned GH_HOST", () => {
+    expect(
+      prCommandEnv(
+        { PATH: "/usr/bin", GH_HOST: "personal.example", KEEP: "yes" },
+        "/opt/homebrew/bin:/usr/bin",
+      ),
+    ).toEqual({ PATH: "/opt/homebrew/bin:/usr/bin", KEEP: "yes" });
+    expect(prCommandEnv({ PATH: "/usr/bin" }, null)).toEqual({
+      PATH: "/usr/bin",
+    });
+  });
+
   it("returns null for a missing cwd or branch", () => {
     expect(readPr("", "main")).toBeNull();
     expect(readPr("/repo", null)).toBeNull();
