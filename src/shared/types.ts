@@ -6,6 +6,9 @@ export type { Family, ModelSelection };
 
 export type SessionState = "working" | "waiting" | "idle" | "ended";
 export type Management = "managed" | "observed";
+/** A non-root Codex agent thread. Root sessions omit this optional marker for backwards compatibility
+ *  with providers and cached rows that predate session relationships. */
+export type SessionThreadKind = "subagent";
 
 export interface Usage {
   inputTokens: number;
@@ -146,6 +149,10 @@ export interface Session {
   /** Which coding agent owns this session. Drives labels/icons directly and every behavior gate
    *  indirectly (via AGENTS[agent].capabilities — surfaces never branch on the id itself). */
   agent: AgentId;
+  /** Codex agent threads carry this marker even when their parent rollout is outside the index. */
+  threadKind?: SessionThreadKind;
+  /** The Codex parent thread id, when session_meta recorded one. */
+  parentSessionId?: string;
   /** Whether this session can be resumed — Resume (`claude --resume`) and Fork (`--fork-session`) both
    *  read its transcript. An optimistic draft (a just-spawned or just-forked session, before its first
    *  turn) has none yet, so those actions are offered only when this is true — else the CLI dies on
@@ -233,6 +240,10 @@ export interface PersistedSession {
   /** Which coding agent owns this session. Drives labels/icons directly and every behavior gate
    *  indirectly (via AGENTS[agent].capabilities — surfaces never branch on the id itself). */
   agent: AgentId;
+  /** See Session.threadKind. */
+  threadKind?: SessionThreadKind;
+  /** See Session.parentSessionId. */
+  parentSessionId?: string;
   model: Family;
   /** The raw transcript model string for this session (see Session.modelRaw). */
   modelRaw?: string;
@@ -279,6 +290,9 @@ export interface SessionCandidate {
   /** Which coding agent owns this session. Drives labels/icons directly and every behavior gate
    *  indirectly (via AGENTS[agent].capabilities — surfaces never branch on the id itself). */
   agent: AgentId;
+  /** Cheap relationship metadata decoded with the rollout head. */
+  threadKind?: SessionThreadKind;
+  parentSessionId?: string;
   /** Absolute path to the transcript file, if one exists. */
   transcriptPath?: string;
   /** Current transcript mtime (ms); 0 when there is no transcript. */

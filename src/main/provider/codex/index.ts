@@ -179,6 +179,8 @@ export function createCodexProvider(
       out.push({
         id: r.id,
         agent: "codex",
+        threadKind: head.threadKind,
+        parentSessionId: head.parentSessionId,
         alive: sig.alive,
         status: sig.status,
         cwd: head.cwd,
@@ -217,6 +219,8 @@ export function createCodexProvider(
     return {
       id: c.id,
       agent: "codex",
+      threadKind: c.threadKind,
+      parentSessionId: c.parentSessionId,
       title: titleFor(c.id, head?.title, fallbackName),
       project: fallbackName,
       cwd: c.cwd,
@@ -251,6 +255,8 @@ export function createCodexProvider(
         : null;
       return {
         ...prev,
+        threadKind: c.threadKind,
+        parentSessionId: c.parentSessionId,
         title: titleFor(c.id, rolloutTitle, prev.project),
         management: managed.has(c.id) ? "managed" : "observed",
         state: deriveSessionState(

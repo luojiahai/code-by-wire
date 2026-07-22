@@ -14,8 +14,9 @@ import { transaction, type SqliteDb } from "./driver";
  *  cached under first-entry-wins undercounted subagent output). `migrate` rebuilds the index (a
  *  disposable cache) to match — v10 adds effort_level (A6 transcript scan) — v11 adds the A9
  *  compaction columns — v12 adds the agent column (codex support) — v13 rebuilds Codex rows after
- *  correcting injected AGENTS.md text that older title derivation mistook for a user prompt. */
-const SCHEMA_VERSION = 13;
+ *  correcting injected AGENTS.md text that older title derivation mistook for a user prompt — v14
+ *  persists Codex parent/subagent thread relationships for sidebar nesting. */
+const SCHEMA_VERSION = 14;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -40,6 +41,8 @@ export function migrate(db: SqliteDb): void {
         state TEXT NOT NULL,
         management TEXT NOT NULL,
         agent TEXT NOT NULL DEFAULT 'claude',
+        thread_kind TEXT,
+        parent_session_id TEXT,
         model TEXT NOT NULL,
         model_raw TEXT,
         last_activity_ms INTEGER NOT NULL,
@@ -72,6 +75,8 @@ interface Row {
   state: string;
   management: string;
   agent: string;
+  thread_kind: string | null;
+  parent_session_id: string | null;
   model: string;
   model_raw: string | null;
   last_activity_ms: number;
@@ -115,6 +120,8 @@ function rowToPersisted(r: Row): PersistedSession {
     state: r.state as PersistedSession["state"],
     management: r.management as PersistedSession["management"],
     agent: agentOrDefault(r.agent),
+    threadKind: r.thread_kind === "subagent" ? "subagent" : undefined,
+    parentSessionId: r.parent_session_id ?? undefined,
     model: normalizeModelId(r.model),
     modelRaw: r.model_raw ?? undefined,
     lastActivityMs: r.last_activity_ms,
@@ -180,6 +187,8 @@ export function hydrate(p: PersistedSession): Session {
     state: p.state,
     management: p.management,
     agent: p.agent,
+    threadKind: p.threadKind,
+    parentSessionId: p.parentSessionId,
     resumable: isResumable(p.transcriptMtimeMs),
     model: p.model,
     modelRaw: p.modelRaw,
@@ -198,11 +207,11 @@ export function hydrate(p: PersistedSession): Session {
 
 const UPSERT = `
   INSERT INTO sessions
-    (id, title, project, cwd, branch, state, management, agent, model, model_raw, last_activity_ms, created_ms, awaiting_user, transcript_mtime_ms,
+    (id, title, project, cwd, branch, state, management, agent, thread_kind, parent_session_id, model, model_raw, last_activity_ms, created_ms, awaiting_user, transcript_mtime_ms,
      input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, usage_by_model, context_tokens, effort_level,
      compaction_count, compaction_reclaimed_tokens)
   VALUES
-    (@id, @title, @project, @cwd, @branch, @state, @management, @agent, @model, @model_raw, @last_activity_ms, @created_ms, @awaiting_user, @transcript_mtime_ms,
+    (@id, @title, @project, @cwd, @branch, @state, @management, @agent, @thread_kind, @parent_session_id, @model, @model_raw, @last_activity_ms, @created_ms, @awaiting_user, @transcript_mtime_ms,
      @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @usage_by_model, @context_tokens, @effort_level,
      @compaction_count, @compaction_reclaimed_tokens)
   ON CONFLICT(id) DO UPDATE SET
@@ -213,6 +222,8 @@ const UPSERT = `
     state = excluded.state,
     management = excluded.management,
     agent = excluded.agent,
+    thread_kind = excluded.thread_kind,
+    parent_session_id = excluded.parent_session_id,
     model = excluded.model,
     model_raw = excluded.model_raw,
     last_activity_ms = excluded.last_activity_ms,
@@ -257,6 +268,8 @@ export function upsertSessions(
         state: s.state,
         management: s.management,
         agent: s.agent,
+        thread_kind: s.threadKind ?? null,
+        parent_session_id: s.parentSessionId ?? null,
         model: s.model,
         model_raw: s.modelRaw ?? null,
         last_activity_ms: s.lastActivityMs,

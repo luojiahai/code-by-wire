@@ -236,6 +236,15 @@ export const en = {
     sessionRow: {
       openSession: (title: string) => `Open ${title}`,
       sessionActions: "Session actions",
+      expandSubagents: (count: number) =>
+        `Expand ${count} ${count === 1 ? "subagent" : "subagents"}`,
+      collapseSubagents: (count: number) =>
+        `Collapse ${count} ${count === 1 ? "subagent" : "subagents"}`,
+      subagentCount: (count: number, active: number) =>
+        active > 0
+          ? `${count} direct ${count === 1 ? "subagent" : "subagents"} · ${active} active in this group`
+          : `${count} direct ${count === 1 ? "subagent" : "subagents"}`,
+      detachedSubagent: "Detached subagent",
       // Pinned-row worktree hint: the real checked-out branch, shown only when it differs from
       // the worktree directory name (they're independent fields and can diverge).
       branchTooltip: (branch: string) => `Branch: ${branch}`,

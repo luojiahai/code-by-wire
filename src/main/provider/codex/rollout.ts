@@ -73,10 +73,36 @@ export interface RolloutHead {
   cwd: string;
   timestampMs: number | null;
   title: string | null;
+  /** Present for Codex agent-thread rollouts, including detached ones whose parent is unavailable. */
+  threadKind?: "subagent";
+  parentSessionId?: string;
 }
 
 export const asRecord = (v: unknown): Record<string, unknown> | null =>
   v !== null && typeof v === "object" ? (v as Record<string, unknown>) : null;
+
+function threadRelationship(
+  meta: Record<string, unknown>,
+): Pick<RolloutHead, "threadKind" | "parentSessionId"> {
+  const source = meta.source;
+  const sourceRecord = asRecord(source);
+  const subagent = sourceRecord ? sourceRecord.subagent : undefined;
+  const subagentRecord = asRecord(subagent);
+  const spawn = subagentRecord ? asRecord(subagentRecord.thread_spawn) : null;
+  const rawParent = meta.parent_thread_id ?? spawn?.parent_thread_id;
+  const parentSessionId =
+    typeof rawParent === "string" &&
+    rawParent.trim() !== "" &&
+    rawParent !== meta.id
+      ? rawParent
+      : undefined;
+  const isSubagent =
+    meta.thread_source === "subagent" ||
+    source === "subagent" ||
+    subagent !== undefined ||
+    parentSessionId !== undefined;
+  return isSubagent ? { threadKind: "subagent", parentSessionId } : {};
+}
 
 /** First human user text in a parsed line's payload, if this line is a user message. Codex records
  * environment packets and discovered AGENTS.md instructions as user-role context before the real
@@ -133,6 +159,7 @@ export function parseRolloutHead(text: string): RolloutHead {
     if (head.id === null && meta) {
       head.id = meta.id as string;
       head.cwd = meta.cwd as string;
+      Object.assign(head, threadRelationship(meta));
       const ts =
         typeof meta.timestamp === "string" ? Date.parse(meta.timestamp) : NaN;
       head.timestampMs = Number.isFinite(ts) ? ts : null;

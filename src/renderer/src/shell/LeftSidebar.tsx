@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "@shared/types";
 import type { ProjectPlacement, ProjectState } from "@shared/ipc";
@@ -13,8 +19,10 @@ import {
   groupSessionsByProject,
   partitionProjectGroups,
   projectGroupsForCollapse,
+  sessionForest,
   toggleProjectGroups,
   pinnedSessions,
+  type SessionTreeNode,
 } from "./session-list-model";
 import { SessionRow } from "./SessionRow";
 import { PinnedSessionRow } from "./PinnedSessionRow";
@@ -88,6 +96,11 @@ export function LeftSidebar({
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  // Explicit per-parent overrides only. With no override, inactive families default collapsed and
+  // families containing live work default expanded; selection/search force the relevant path open.
+  const [collapsedFamilies, setCollapsedFamilies] = useState<
+    ReadonlyMap<string, boolean>
+  >(new Map());
   const [hiddenCollapsed, setHiddenCollapsed] = useState(true);
   // Folders expanded by a direct click, as opposed to the expand-all button: only these show the
   // per-folder "No active sessions." line when the active filter empties them (2026-07-17 spec §3
@@ -106,11 +119,10 @@ export function LeftSidebar({
     preferences.visibility === "active" || preferences.agent !== "all";
   const searched = filterSessions(sessions, query);
   const pinned = pinnedSessions(searched);
-  // Search decides which folders exist; the active filter then narrows rows INSIDE the groups so
-  // a folder with only ended sessions still renders (2026-07-17 spec §3). Grouping before the
-  // filter also keeps folder order derived from all matched sessions — toggling never reshuffles.
-  const allGroups = groupSessionsByProject(searched, homeDir);
-  const groups = filterGroups(allGroups, preferences);
+  // Build families before project grouping so a child follows its root even if its own rollout cwd
+  // differs. filterGroups applies search + preferences together and retains ancestor context.
+  const allGroups = groupSessionsByProject(sessions, homeDir);
+  const groups = filterGroups(allGroups, preferences, query);
   const {
     pinned: pinnedProjects,
     others: otherProjects,
@@ -249,6 +261,58 @@ export function LeftSidebar({
   // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn.
   const anySpawnable = AGENT_IDS.some((a) => canSpawnFor(a));
 
+  const containsSession = (node: SessionTreeNode, id: string): boolean =>
+    node.session.id === id ||
+    node.children.some((child) => containsSession(child, id));
+
+  const renderSessionNode = (
+    node: SessionTreeNode,
+    depth: number,
+  ): ReactNode => {
+    const hasSelectedDescendant =
+      selectedId !== null &&
+      node.children.some((child) => containsSession(child, selectedId));
+    const forcedExpanded = query.trim() !== "" || hasSelectedDescendant;
+    const collapsedByDefault = node.activeDescendantCount === 0;
+    const familyCollapsed =
+      node.children.length > 0 &&
+      !forcedExpanded &&
+      (collapsedFamilies.get(node.session.id) ?? collapsedByDefault);
+    return (
+      <div key={node.session.id}>
+        <SessionRow
+          session={node.session}
+          selected={node.session.id === selectedId}
+          onSelect={() => onSelect(node.session.id)}
+          canSpawn={canSpawnFor(node.session.agent)}
+          onResume={onResume}
+          onFork={onFork}
+          onEnd={onEnd}
+          onRename={onRename}
+          onTogglePin={onTogglePin}
+          showAgentIcon={preferences.showAgentIcons}
+          depth={depth}
+          childCount={node.children.length}
+          activeDescendantCount={node.activeDescendantCount}
+          childrenExpanded={!familyCollapsed}
+          onToggleChildren={
+            node.children.length > 0
+              ? () => {
+                  setCollapsedFamilies((current) => {
+                    const next = new Map(current);
+                    next.set(node.session.id, !familyCollapsed);
+                    return next;
+                  });
+                }
+              : undefined
+          }
+        />
+        {!familyCollapsed &&
+          node.children.map((child) => renderSessionNode(child, depth + 1))}
+      </div>
+    );
+  };
+
   const renderProjectGroup = (
     g: (typeof groups)[number],
     placement: ProjectPlacement,
@@ -299,21 +363,9 @@ export function LeftSidebar({
             )
           ) : (
             <div className="flex flex-col gap-px pb-1">
-              {g.sessions.map((s) => (
-                <SessionRow
-                  key={s.id}
-                  session={s}
-                  selected={s.id === selectedId}
-                  onSelect={() => onSelect(s.id)}
-                  canSpawn={canSpawnFor(s.agent)}
-                  onResume={onResume}
-                  onFork={onFork}
-                  onEnd={onEnd}
-                  onRename={onRename}
-                  onTogglePin={onTogglePin}
-                  showAgentIcon={preferences.showAgentIcons}
-                />
-              ))}
+              {sessionForest(g.sessions).map((node) =>
+                renderSessionNode(node, 0),
+              )}
             </div>
           ))}
       </div>

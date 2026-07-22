@@ -20,11 +20,17 @@ export function sortSessions(sessions: Session[]): Session[] {
 export function filterSessions(sessions: Session[], query: string): Session[] {
   const q = query.trim().toLowerCase();
   if (!q) return sessions;
-  return sessions.filter(
-    (s) =>
-      s.title.toLowerCase().includes(q) ||
-      (s.project ?? "").toLowerCase().includes(q) ||
-      (s.worktree?.repoLabel ?? "").toLowerCase().includes(q),
+  return sessions.filter((s) => sessionMatchesQuery(s, q));
+}
+
+function sessionMatchesQuery(
+  session: Session,
+  normalizedQuery: string,
+): boolean {
+  return (
+    session.title.toLowerCase().includes(normalizedQuery) ||
+    (session.project ?? "").toLowerCase().includes(normalizedQuery) ||
+    (session.worktree?.repoLabel ?? "").toLowerCase().includes(normalizedQuery)
   );
 }
 
@@ -54,6 +60,14 @@ export type SessionGroup = {
   sessions: Session[];
 };
 
+export interface SessionTreeNode {
+  session: Session;
+  children: SessionTreeNode[];
+  /** All nested descendants, used for collapsed-family activity affordances. */
+  descendantCount: number;
+  activeDescendantCount: number;
+}
+
 /** The PINNED section's selection (2026-07-17 pinned-sessions spec): pinned sessions only, newest
  *  pin first. Composes AFTER filterSessions (search narrows pins too); the active-only filter is
  *  never applied here — pins are explicit favorites, so ended pins stay visible. */
@@ -68,21 +82,141 @@ export function pinnedSessions(sessions: Session[]): Session[] {
  *  ordering derives from all (search-matched) sessions and toggling the filter never reshuffles
  *  folders; a group can come back empty, which the sidebar renders as a bare folder header. */
 export function filterGroupsActive(groups: SessionGroup[]): SessionGroup[] {
-  return groups.map((g) => ({ ...g, sessions: filterActive(g.sessions) }));
+  return groups.map((g) => ({
+    ...g,
+    sessions: filterSessionsWithAncestors(
+      g.sessions,
+      (session) => session.state !== "ended",
+    ),
+  }));
 }
 
 export function filterGroups(
   groups: SessionGroup[],
   preferences: SessionsListPreferences,
+  query = "",
 ): SessionGroup[] {
-  return groups.map((group) => ({
-    ...group,
-    sessions: group.sessions.filter(
-      (session) =>
-        (preferences.visibility === "all" || session.state !== "ended") &&
-        (preferences.agent === "all" || session.agent === preferences.agent),
-    ),
-  }));
+  const normalizedQuery = query.trim().toLowerCase();
+  return groups
+    .filter(
+      (group) =>
+        !normalizedQuery ||
+        group.sessions.some((session) =>
+          sessionMatchesQuery(session, normalizedQuery),
+        ),
+    )
+    .map((group) => ({
+      ...group,
+      sessions: filterSessionsWithAncestors(group.sessions, (session) => {
+        const matchesQuery =
+          !normalizedQuery || sessionMatchesQuery(session, normalizedQuery);
+        return (
+          matchesQuery &&
+          (preferences.visibility === "all" || session.state !== "ended") &&
+          (preferences.agent === "all" || session.agent === preferences.agent)
+        );
+      }),
+    }));
+}
+
+function filterSessionsWithAncestors(
+  sessions: Session[],
+  predicate: (session: Session) => boolean,
+): Session[] {
+  const byId = new Map(sessions.map((session) => [session.id, session]));
+  const included = new Set<string>();
+  for (const session of sessions) {
+    if (!predicate(session)) continue;
+    let current: Session | undefined = session;
+    const visited = new Set<string>();
+    while (current && !visited.has(current.id)) {
+      visited.add(current.id);
+      included.add(current.id);
+      current = current.parentSessionId
+        ? byId.get(current.parentSessionId)
+        : undefined;
+    }
+  }
+  return sessions.filter((session) => included.has(session.id));
+}
+
+function relationshipRoot(
+  session: Session,
+  byId: ReadonlyMap<string, Session>,
+): Session {
+  let current = session;
+  const visited = new Set([session.id]);
+  while (current.parentSessionId) {
+    const parent = byId.get(current.parentSessionId);
+    if (!parent) return current;
+    if (visited.has(parent.id)) return session;
+    visited.add(parent.id);
+    current = parent;
+  }
+  return current;
+}
+
+function wouldCreateCycle(
+  child: Session,
+  parent: Session,
+  byId: ReadonlyMap<string, Session>,
+): boolean {
+  let current: Session | undefined = parent;
+  const visited = new Set<string>();
+  while (current && !visited.has(current.id)) {
+    if (current.id === child.id) return true;
+    visited.add(current.id);
+    current = current.parentSessionId
+      ? byId.get(current.parentSessionId)
+      : undefined;
+  }
+  return false;
+}
+
+/** Reconstruct a display forest from the indexed Codex parent ids. Malformed cycles and missing
+ * parents degrade to roots, so transcript corruption can never hide a selectable session. */
+export function sessionForest(sessions: Session[]): SessionTreeNode[] {
+  const byId = new Map(sessions.map((session) => [session.id, session]));
+  const childrenById = new Map<string, Session[]>();
+  const roots: Session[] = [];
+
+  for (const session of sessions) {
+    const parent = session.parentSessionId
+      ? byId.get(session.parentSessionId)
+      : undefined;
+    if (!parent || wouldCreateCycle(session, parent, byId)) {
+      roots.push(session);
+      continue;
+    }
+    const children = childrenById.get(parent.id);
+    if (children) children.push(session);
+    else childrenById.set(parent.id, [session]);
+  }
+
+  const build = (session: Session): SessionTreeNode => {
+    const children = sortSessions(childrenById.get(session.id) ?? []).map(
+      build,
+    );
+    const descendantCount = children.reduce(
+      (total, child) => total + 1 + child.descendantCount,
+      0,
+    );
+    const activeDescendantCount = children.reduce(
+      (total, child) =>
+        total +
+        (child.session.state === "ended" ? 0 : 1) +
+        child.activeDescendantCount,
+      0,
+    );
+    return {
+      session,
+      children,
+      descendantCount,
+      activeDescendantCount,
+    };
+  };
+
+  return sortSessions(roots).map(build);
 }
 
 export function partitionProjectGroups(
@@ -164,16 +298,21 @@ export function groupSessionsByProject(
   sessions: Session[],
   homeDir = "",
 ): SessionGroup[] {
+  const byId = new Map(sessions.map((session) => [session.id, session]));
   const buckets = new Map<
     string,
     { cwd?: string; label: string; sessions: Session[] }
   >();
   for (const s of sessions) {
+    const groupingSession = relationshipRoot(s, byId);
     // A worktree session groups under its main checkout: root as the key (and the quick-add cwd),
     // repo name as the label. A main-checkout session in the same repo produces the identical
     // bucket values, so merge order doesn't matter.
-    const cwd = s.worktree?.repoRoot ?? (s.cwd || undefined);
-    const label = s.worktree?.repoLabel ?? (s.project || ungroupedLabel());
+    const cwd =
+      groupingSession.worktree?.repoRoot ?? (groupingSession.cwd || undefined);
+    const label =
+      groupingSession.worktree?.repoLabel ??
+      (groupingSession.project || ungroupedLabel());
     const key = cwd ?? label;
     const bucket = buckets.get(key);
     if (bucket) bucket.sessions.push(s);
