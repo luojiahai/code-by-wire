@@ -51,6 +51,12 @@ export function StatsView() {
   const prevAgentRef = useRef(agent);
   const { hasStats, hasStatsBreakdowns } = AGENTS[agent].capabilities;
 
+  const selectAgent = (nextAgent: AgentId): void => {
+    if (nextAgent === agent) return;
+    setAgent(nextAgent);
+    setCalendarYear(null);
+  };
+
   useEffect(() => {
     const agentChanged = prevAgentRef.current !== agent;
     prevAgentRef.current = agent;
@@ -126,7 +132,7 @@ export function StatsView() {
           <CustomSelect
             ariaLabel={t.stats.agentLabel}
             value={agent}
-            onChange={setAgent}
+            onChange={selectAgent}
             options={AGENT_IDS.map((id) => ({
               value: id,
               label: AGENTS[id].label,
