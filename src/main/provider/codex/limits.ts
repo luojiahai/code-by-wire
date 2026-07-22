@@ -1,11 +1,11 @@
-import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RateLimit, RateLimitWindows } from "@shared/types";
-import { toSpawnForm } from "../../terminal/command";
-import { isExecutableFile, findOnPath } from "../../terminal/shell-command";
 import { createTtlFetch, type TtlFetch } from "../../util/ttl-fetch";
 import { asRecord } from "./rollout";
+import { withCodexAppServer, type AppServerSpawn } from "./app-server";
+
+export type { AppServerChild, AppServerSpawn } from "./app-server";
 
 /** First present-and-non-null value among the given keys — the snake/camel tolerance helper. */
 const pick = (
@@ -217,33 +217,6 @@ export function codexUsageUrl(codexDir: string): string {
     : `${base}/api/codex/usage`;
 }
 
-export const APP_SERVER_INIT_TIMEOUT_MS = 8_000;
-export const APP_SERVER_REQUEST_TIMEOUT_MS = 3_000;
-
-/** The narrow child surface fetchAppServerLimits drives — ProbeChild (cli-check.ts) plus stdin.
- *  Method syntax so both the real ChildProcess and a loose test fake satisfy it. */
-export interface AppServerChild {
-  stdin: { write(data: string): void; end(): void } | null;
-  stdout: {
-    setEncoding(enc: string): void;
-    on(ev: "data", cb: (d: string) => void): void;
-  } | null;
-  on(ev: "error", cb: (err: Error) => void): void;
-  on(ev: "close", cb: (code: number | null) => void): void;
-  kill(): boolean | void;
-}
-
-export type AppServerSpawn = (
-  file: string,
-  args: string[],
-  opts: { detached: boolean; stdio: ["pipe", "pipe", "ignore"] },
-) => AppServerChild;
-
-const realAppServerSpawn: AppServerSpawn = (file, args, opts) =>
-  spawn(file, args, opts);
-
-const APP_SERVER_ARGS = ["-s", "read-only", "-a", "untrusted", "app-server"];
-
 /**
  * The rate-limit fallback: spawn `codex app-server` (read-only, untrusted sandbox), speak
  * newline-delimited JSON-RPC — initialize, initialized, account/rateLimits/read — then terminate
@@ -257,99 +230,15 @@ export function fetchAppServerLimits(deps: {
   platform?: NodeJS.Platform;
   now?: () => number;
 }): Promise<RateLimitWindows | null> {
-  const spawnFn = deps.spawnFn ?? realAppServerSpawn;
-  const platform = deps.platform ?? process.platform;
   const now = deps.now ?? ((): number => Date.now());
-  return new Promise((resolve) => {
-    let child: AppServerChild;
-    try {
-      const { file, args } = toSpawnForm(
-        { file: "codex", args: APP_SERVER_ARGS },
-        platform,
-        platform === "win32"
-          ? undefined
-          : {
-              env: process.env,
-              isExecutable: isExecutableFile,
-              findOnPath: (name) => findOnPath(name, process.env),
-            },
-      );
-      child = spawnFn(file, args, {
-        detached: platform !== "win32",
-        stdio: ["pipe", "pipe", "ignore"],
-      });
-    } catch {
-      resolve(null);
-      return;
-    }
-    let settled = false;
-    let timer: NodeJS.Timeout | null = null;
-    const settle = (value: RateLimitWindows | null): void => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      try {
-        child.kill();
-      } catch {
-        // already dead
-      }
-      resolve(value);
-    };
-    const arm = (ms: number): void => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => settle(null), ms);
-    };
-    const send = (msg: Record<string, unknown>): void => {
-      try {
-        child.stdin?.write(JSON.stringify({ jsonrpc: "2.0", ...msg }) + "\n");
-      } catch {
-        settle(null);
-      }
-    };
-
-    const INIT_ID = 1;
-    const READ_ID = 2;
-    let buffer = "";
-    child.stdout?.setEncoding("utf8");
-    child.stdout?.on("data", (d: string) => {
-      buffer += d;
-      let nl: number;
-      while ((nl = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, nl).trim();
-        buffer = buffer.slice(nl + 1);
-        if (!line) continue;
-        let row: Record<string, unknown> | null;
-        try {
-          row = asRecord(JSON.parse(line));
-        } catch {
-          continue; // non-JSON chatter on stdout
-        }
-        if (!row) continue;
-        if (row.id === INIT_ID) {
-          send({ method: "initialized" });
-          send({ id: READ_ID, method: "account/rateLimits/read" });
-          arm(APP_SERVER_REQUEST_TIMEOUT_MS);
-        } else if (row.id === READ_ID) {
-          settle(parseAppServerRateLimits(row.result, now()));
-        }
-      }
-    });
-    child.on("error", () => settle(null));
-    child.on("close", () => settle(null));
-
-    arm(APP_SERVER_INIT_TIMEOUT_MS);
-    send({
-      id: INIT_ID,
-      method: "initialize",
-      params: {
-        clientInfo: {
-          name: "code-by-wire",
-          title: "code by wire",
-          version: "0",
-        },
-      },
-    });
-  });
+  return withCodexAppServer(
+    async (client) =>
+      parseAppServerRateLimits(
+        await client.request("account/rateLimits/read"),
+        now(),
+      ),
+    deps,
+  );
 }
 
 export const CODEX_LIMITS_TTL_MS = 60_000;

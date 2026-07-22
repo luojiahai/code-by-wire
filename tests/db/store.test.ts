@@ -50,7 +50,7 @@ describe("store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(12);
+    ).toBe(13);
   });
 
   it("round-trips a snapshot, coercing missing branch and the awaitingUser flag", () => {

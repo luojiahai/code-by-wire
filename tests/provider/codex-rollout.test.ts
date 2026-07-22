@@ -52,6 +52,23 @@ describe("parseRolloutHead", () => {
     const head = parseRolloutHead([META, "not json", ctx, USER_MSG].join("\n"));
     expect(head.title).toBe("fix the flaky parser test");
   });
+  it("skips injected AGENTS.md instructions before the real user prompt", () => {
+    const agents = JSON.stringify({
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: "# AGENTS.md instructions for /workspace\n\n<INSTRUCTIONS>\nUse pnpm\n</INSTRUCTIONS>",
+          },
+        ],
+      },
+    });
+    const head = parseRolloutHead([META, agents, USER_MSG].join("\n"));
+    expect(head.title).toBe("fix the flaky parser test");
+  });
   it("returns an all-null head for unusable text instead of throwing", () => {
     expect(parseRolloutHead("")).toEqual({
       id: null,
