@@ -79,7 +79,7 @@ export function SessionMenuDropdown({
                 }}
               />
               <MenuItem
-                icon="activity"
+                icon="stethoscope"
                 label={t.shell.sessionMenu.diagnosticReport}
                 onClick={openDiagnostic}
               />
