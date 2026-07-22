@@ -169,8 +169,8 @@ export const en = {
     },
     update: {
       title: "Software update",
-      autoCheckLabel: "Check for updates on launch",
-      autoCheckDesc: "Look for a new version each time the app starts",
+      autoCheckLabel: "Automatically check for updates",
+      autoCheckDesc: "Check on launch and when you open About",
       upToDate: "Up to date",
       check: "Check for updates",
       checking: "Checking for updates…",

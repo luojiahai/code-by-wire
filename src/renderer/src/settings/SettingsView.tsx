@@ -216,6 +216,12 @@ function DatabasesSection() {
 
 function AboutSection({ update }: { update?: UpdateControls }) {
   const { t } = useI18n();
+  const autoCheckReady = update?.autoCheckReady;
+  const maybeAutoCheck = update?.maybeAutoCheck;
+  useEffect(() => {
+    if (autoCheckReady) maybeAutoCheck?.();
+  }, [autoCheckReady, maybeAutoCheck]);
+
   return (
     <>
       <PageHeader title={t.settings.about.title} />

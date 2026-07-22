@@ -1,19 +1,24 @@
 /** The repo whose GitHub releases electron-updater reads; used to build the release-notes link. */
 const RELEASES_BASE = "https://github.com/luojiahai/code-by-wire/releases/tag";
 
+/** A release newer than the running app, including everything needed to keep rendering it while a
+ *  re-check is in flight. Named separately so `checking.prior` does not make UpdatePhase recursive. */
+export interface AvailableUpdatePhase {
+  kind: "available";
+  version: string;
+  releaseDate?: string;
+  notesUrl: string;
+  checkedAt: number;
+}
+
 /** The update lifecycle, as a discriminated union the renderer renders directly.
  *  `unsupported` is the dev/unpacked state (electron-updater can't run unpacked). */
 export type UpdatePhase =
   | { kind: "unsupported" }
   | { kind: "idle" }
-  | { kind: "checking" }
+  | { kind: "checking"; prior?: AvailableUpdatePhase }
   | { kind: "upToDate"; checkedAt: number }
-  | {
-      kind: "available";
-      version: string;
-      releaseDate?: string;
-      notesUrl: string;
-    }
+  | AvailableUpdatePhase
   | {
       kind: "downloading";
       version: string;
@@ -30,12 +35,15 @@ export interface UpdateState {
   phase: UpdatePhase;
 }
 
+/** About-open checks are intentionally sparse: a GitHub update check may use several requests. */
+export const UPDATE_AUTO_CHECK_THROTTLE_MS = 5 * 60 * 1000;
+
 /** Events the main-process controller feeds the reducer, translated from electron-updater's emitter.
  *  Electron-free so the reducer stays pure and testable. Timestamps are stamped by the controller
  *  (never read inside the reducer), so tests can pin them. */
 export type UpdaterEvent =
   | { type: "checking" }
-  | { type: "available"; version: string; releaseDate?: string }
+  | { type: "available"; version: string; releaseDate?: string; at: number }
   | { type: "not-available"; at: number }
   | { type: "progress"; percent: number; transferred: number; total: number }
   | { type: "downloaded"; version: string }
@@ -52,9 +60,42 @@ export function releaseNotesUrl(version: string): string {
 export function isUpdatePending(phase: UpdatePhase): boolean {
   return (
     phase.kind === "available" ||
+    (phase.kind === "checking" && phase.prior !== undefined) ||
     phase.kind === "downloading" ||
     phase.kind === "downloaded"
   );
+}
+
+/** Pure policy for the automatic check when Settings -> About opens. Manual checks bypass it. */
+export function shouldAutoCheck(
+  state: UpdateState,
+  autoCheck: boolean | null,
+  lastCheckAt: number | null,
+  now: number,
+): boolean {
+  if (autoCheck !== true) return false;
+  const completedAt =
+    state.phase.kind === "upToDate" || state.phase.kind === "available"
+      ? state.phase.checkedAt
+      : null;
+  const throttleAt = Math.max(
+    lastCheckAt ?? -Infinity,
+    completedAt ?? -Infinity,
+  );
+  if (now - throttleAt < UPDATE_AUTO_CHECK_THROTTLE_MS) return false;
+
+  switch (state.phase.kind) {
+    case "idle":
+    case "upToDate":
+    case "available":
+    case "error":
+      return true;
+    case "unsupported":
+    case "checking":
+    case "downloading":
+    case "downloaded":
+      return false;
+  }
 }
 
 /** State before any check: `unsupported` in dev (electron-updater can't run unpacked), else `idle`. */
@@ -93,7 +134,13 @@ export function nextUpdateState(
     case "checking":
       // A check firing mid-download (shouldn't happen) must not wipe progress.
       if (prev.phase.kind === "downloading") return prev;
-      return { ...base, phase: { kind: "checking" } };
+      return {
+        ...base,
+        phase: {
+          kind: "checking",
+          prior: prev.phase.kind === "available" ? prev.phase : undefined,
+        },
+      };
     case "available":
       return {
         ...base,
@@ -102,6 +149,7 @@ export function nextUpdateState(
           version: ev.version,
           releaseDate: ev.releaseDate,
           notesUrl: releaseNotesUrl(ev.version),
+          checkedAt: ev.at,
         },
       };
     case "not-available":
@@ -120,6 +168,8 @@ export function nextUpdateState(
     case "downloaded":
       return { ...base, phase: { kind: "downloaded", version: ev.version } };
     case "error":
+      if (prev.phase.kind === "checking" && prev.phase.prior)
+        return { ...base, phase: prev.phase.prior };
       return { ...base, phase: { kind: "error", message: ev.message } };
   }
 }
