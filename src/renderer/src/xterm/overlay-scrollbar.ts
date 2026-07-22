@@ -143,7 +143,8 @@ export function attachOverlayScrollbar(
   // cases without firing a DOM 'scroll' event. onRender fires on EVERY repaint (cursor blink, spinner,
   // in-place redraws), so gate the relayout on the buffer line count — a cheap JS read — to skip the layout
   // reflow on frames where scrollHeight can't have changed. Scroll-position changes are already caught by
-  // the 'scroll' listener; resizes by onResize.
+  // the 'scroll' listener. Observe the host separately because xterm only emits onResize when its discrete
+  // row/column count changes, while the visual track uses the host's continuous pixel height.
   let lastBufferLength = -1;
   const relayoutOnGrowth = () => {
     const length = term.buffer.active.length;
@@ -153,6 +154,8 @@ export function attachOverlayScrollbar(
   };
   const render = term.onRender(relayoutOnGrowth);
   const resize = term.onResize(() => layout());
+  const hostResize = new ResizeObserver(() => layout());
+  hostResize.observe(parent);
   layout();
 
   return () => {
@@ -161,6 +164,7 @@ export function attachOverlayScrollbar(
     parent.removeEventListener("pointerleave", onPointerLeave);
     render.dispose();
     resize.dispose();
+    hostResize.disconnect();
     clearHide();
     thumb.remove();
   };
