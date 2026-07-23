@@ -7,17 +7,11 @@ export interface TokenSpeed {
   totalTps: number;
 }
 
-/** The local git glance for a session's working directory. Field-level null = "not applicable". */
+/** The local git glance for a session's working directory: the branch (null on detached HEAD) and
+ *  the `origin` remote as a browsable https URL (the gate for the PR lookup), or null when there is
+ *  no origin or it can't be normalized. Field-level null = "not applicable". */
 export interface GitInfo {
   branch: string | null;
-  insertions: number;
-  deletions: number;
-  ahead: number | null;
-  behind: number | null;
-  sha: string | null;
-  dirty: boolean;
-  /** The `origin` remote as a browsable https URL (the Git popover's Repository link), or null when there
-   *  is no origin or it can't be normalized. */
   remoteUrl: string | null;
 }
 
@@ -27,11 +21,6 @@ export interface PrInfo {
   url: string;
   /** gh `--json title` — the PR row's tooltip. Absent when gh omitted it. */
   title?: string;
-  /** gh state: OPEN | CLOSED | MERGED. Raw — the renderer formats. */
-  state?: string;
-  /** gh reviewDecision: APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | "" — the closest gh
-   *  analogue of the capture's review_state; the capture (fresher) still wins per-session. */
-  reviewDecision?: string;
 }
 
 /** The expensive, per-selected-session metrics, computed lazily off the main thread of the overview. Any

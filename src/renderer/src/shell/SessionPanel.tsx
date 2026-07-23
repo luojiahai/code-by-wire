@@ -7,8 +7,8 @@ import { useI18n } from "../i18n";
 import { GitReadout } from "./GitReadout";
 
 /**
- * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Branch (branch name + dirty
- * dot, popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Clock,
+ * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Branch (branch name,
+ * popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Clock,
  * and Active (relative last-activity time) — each an always-shown label/value row; `-` fills a row
  * whose data hasn't landed.
  */
@@ -33,10 +33,6 @@ export function SessionPanel({
   const clock =
     s.sessionClockMs != null ? t.time.duration(s.sessionClockMs) : null;
   const prView = s.pr ?? pr ?? null;
-  const prStatusRaw = (s.pr?.reviewState ?? pr?.reviewDecision) || pr?.state;
-  const prStatus = prStatusRaw
-    ? t.shell.sessionPanel.prStatus(prStatusRaw)
-    : null;
   return (
     <PanelSection>
       <PanelHeading icon="id-card">{t.shell.sessionPanel.heading}</PanelHeading>
@@ -53,19 +49,14 @@ export function SessionPanel({
       </SessionRow>
       <SessionRow label={t.shell.sessionPanel.pr}>
         {prView ? (
-          <>
-            <button
-              type="button"
-              onClick={() => void window.api.openExternal(prView.url)}
-              className="cursor-pointer text-fg hover:underline"
-              title={pr?.title ?? prView.url}
-            >
-              #{prView.number}
-            </button>
-            {prStatus && (
-              <span className="text-(--ui-text-quaternary)">{prStatus}</span>
-            )}
-          </>
+          <button
+            type="button"
+            onClick={() => void window.api.openExternal(prView.url)}
+            className="cursor-pointer text-fg hover:underline"
+            title={pr?.title ?? prView.url}
+          >
+            #{prView.number}
+          </button>
         ) : (
           "-"
         )}

@@ -117,7 +117,7 @@ describe("readPr", () => {
     expect(readPr("/repo", "main", now)).toBeNull(); // rejection cached null
   });
 
-  it("A8: parses title/state/reviewDecision and requests them from gh", async () => {
+  it("parses the title and drops fields the panel no longer renders", async () => {
     _setPrRunner((cwd) => {
       void cwd;
       return Promise.resolve(
@@ -125,7 +125,7 @@ describe("readPr", () => {
           number: 7,
           url: "https://github.com/x/y/pull/7",
           title: "Fix it",
-          state: "OPEN",
+          state: "OPEN", // stale gh output tolerated: parsed shape omits it
           reviewDecision: "APPROVED",
         }),
       );
@@ -138,8 +138,6 @@ describe("readPr", () => {
       number: 7,
       url: "https://github.com/x/y/pull/7",
       title: "Fix it",
-      state: "OPEN",
-      reviewDecision: "APPROVED",
     });
   });
 
