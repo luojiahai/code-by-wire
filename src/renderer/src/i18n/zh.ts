@@ -297,7 +297,6 @@ export const zh: Translations = {
       hideRightPanel: "隐藏右侧面板",
     },
     gitReadout: {
-      uncommittedChanges: "有未提交的更改",
       copyBranch: "复制分支",
     },
     sessionPanel: {
@@ -310,19 +309,6 @@ export const zh: Translations = {
       compactions: "压缩次数",
       active: "活跃",
       tokensReclaimed: (tokens) => `已回收 ${tokens} 个词元`,
-      prStatus: (raw) => {
-        const key = raw.toLowerCase().replace(/_/g, " ");
-        const known: Record<string, string> = {
-          pending: "待处理",
-          approved: "已批准",
-          "changes requested": "需修改",
-          "review required": "待审查",
-          open: "开放",
-          closed: "已关闭",
-          merged: "已合并",
-        };
-        return known[key] ?? key;
-      },
     },
     sessionList: {
       ungrouped: "（无项目）",
