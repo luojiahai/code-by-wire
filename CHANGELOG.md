@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.45] - 2026-07-23
+
+### Changed
+
+- The Session panel's Branch and PR rows are now plain identity rows: the
+  branch's dirty dot and the PR's review-decision word are gone, leaving
+  just the branch name (with a copy button) and the `#number` link. Behind
+  the scenes, git/gh polling for the panel dropped from ~7 spawns to 2 per
+  refresh.
+
+### Fixed
+
+- Codex session roles (Subagent, Review, Guardian, Compact) and parent
+  relationships, including the legacy nested thread-spawn fallback, are now
+  preserved correctly, and session families render collapsed by default
+  with chevron disclosure and descendant counts.
+
 ## [0.1.44] - 2026-07-22
 
 ### Added
@@ -1100,7 +1117,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.44...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.45...HEAD
+[0.1.45]: https://github.com/luojiahai/code-by-wire/compare/v0.1.44...v0.1.45
 [0.1.44]: https://github.com/luojiahai/code-by-wire/compare/v0.1.43...v0.1.44
 [0.1.43]: https://github.com/luojiahai/code-by-wire/compare/v0.1.42...v0.1.43
 [0.1.42]: https://github.com/luojiahai/code-by-wire/compare/v0.1.41...v0.1.42
