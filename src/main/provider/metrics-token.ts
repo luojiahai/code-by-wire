@@ -17,12 +17,10 @@ function gitTokenStr(git: GitInfo | null): string {
   return git ? `${git.branch}:${git.remoteUrl}` : "nogit";
 }
 
-/** The PR portion of the metrics change token: the PR number plus the fields the SessionPanel PR row
- *  renders. Folded in so a background `gh` fetch that changes only the review state still re-renders. */
+/** The PR portion of the metrics change token: the PR number plus the title the SessionPanel PR row
+ *  tooltips. Folded in so a background `gh` fetch that changes only the title still re-renders. */
 function prTokenStr(pr: PrInfo | null): string {
-  return pr
-    ? `pr:${pr.number}:${pr.state ?? ""}:${pr.reviewDecision ?? ""}:${pr.title ?? ""}`
-    : "nopr";
+  return pr ? `pr:${pr.number}:${pr.title ?? ""}` : "nopr";
 }
 
 /** The lazy metric sources folded into the change token. Agents without a voice/remote concept pass null. */
