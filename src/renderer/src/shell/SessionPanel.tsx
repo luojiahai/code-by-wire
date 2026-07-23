@@ -7,7 +7,8 @@ import { useI18n } from "../i18n";
 import { GitReadout } from "./GitReadout";
 
 /**
- * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Branch (branch name, popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Clock,
+ * The cockpit's identity footer (cockpit spec §Session): Model, Effort, Branch (branch name,
+ * popover-free), PR (the #number link — the capture's pr wins over the gh-polled one), Clock,
  * and Active (relative last-activity time) — each an always-shown label/value row; `-` fills a row
  * whose data hasn't landed.
  */

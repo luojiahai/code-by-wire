@@ -95,8 +95,8 @@ function resolveGitDir(cwd: string): string | null {
   return joinGitDir(cwd, gitDir);
 }
 
-/** Cheap freshness token with no spawn: HEAD's mtime. A commit/checkout moves it immediately; a
- *  remote add/set-url touches nothing we stat, so the TTL is the backstop for that. */
+/** Cheap freshness token with no spawn: HEAD's mtime. A checkout/branch switch moves it immediately;
+ *  a commit or a remote add/set-url touches nothing we stat, so the TTL is the backstop for those. */
 function mtimeToken(gitDir: string): string {
   try {
     return String(statSync(join(gitDir, "HEAD")).mtimeMs);
@@ -105,7 +105,8 @@ function mtimeToken(gitDir: string): string {
   }
 }
 
-/** Read the local git glance for `cwd`. null when `cwd` isn't a work tree. Cached per cwd on HEAD's mtime plus a 5s TTL, so a steady metrics poll forks git only on a branch change or once per TTL. */
+/** Read the local git glance for `cwd`. null when `cwd` isn't a work tree. Cached per cwd on HEAD's
+ *  mtime plus a 5s TTL, so a steady metrics poll forks git only on a branch change or once per TTL. */
 export function readGit(cwd: string): GitInfo | null {
   const now = Date.now();
   const hit = cache.get(cwd);
