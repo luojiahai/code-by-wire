@@ -276,7 +276,11 @@ describe("createStatusLineReader — apiDurationMs and pr", () => {
     });
     writeCapture(home, "sid-nostate", {
       session_id: "sid-nostate",
-      pr: { number: 9, url: "https://example.com/pull/9", review_state: "pending" }, // ignored
+      pr: {
+        number: 9,
+        url: "https://example.com/pull/9",
+        review_state: "pending",
+      }, // ignored
     });
     const byId = new Map(
       open(home)
