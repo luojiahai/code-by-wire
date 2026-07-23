@@ -286,7 +286,7 @@ describe("overlaySessions — cockpit fields", () => {
       sample({
         costUsd: 170.37,
         apiDurationMs: 3_852_000,
-        pr: { number: 252, url: "https://x/pull/252", reviewState: "pending" },
+        pr: { number: 252, url: "https://x/pull/252" },
       }),
     ]);
     const [out] = overlaySessions([session()], byId);
@@ -295,7 +295,6 @@ describe("overlaySessions — cockpit fields", () => {
     expect(out.pr).toEqual({
       number: 252,
       url: "https://x/pull/252",
-      reviewState: "pending",
     });
   });
 
