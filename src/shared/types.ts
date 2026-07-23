@@ -333,13 +333,11 @@ export interface ExtraUsage {
   currency?: string;
 }
 
-/** The session's pull request as the statusLine capture reports it (`pr` block). `reviewState` is
- *  the raw review_state string ("pending" / "approved" / "changes_requested" / anything newer), or
- *  null when the capture omitted it. Fresher than the gh-polled PrInfo and carries state. */
+/** The session's pull request as the statusLine capture reports it (`pr` block). Fresher than the
+ *  gh-polled PrInfo, so it wins per-session. */
 export interface SessionPr {
   number: number;
   url: string;
-  reviewState: string | null;
 }
 
 /** The app-wide account, derived from the freshest statusLine captures. Billing mode is decided in

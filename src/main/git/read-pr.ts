@@ -42,7 +42,7 @@ export function configurePrPath(path: string | null): void {
   correctedPath = path;
 }
 
-/** Default runner: `gh pr view --json url,number,title,state,reviewDecision` in `cwd`, with GH_HOST
+/** Default runner: `gh pr view --json url,number,title` in `cwd`, with GH_HOST
  *  stripped so gh auto-detects the host from the repo's remote (the work-vs-personal fix), and the
  *  packaged app's recovered PATH so Homebrew gh remains resolvable. No shell; resolves null on any
  *  error. */
@@ -50,7 +50,7 @@ function defaultRun(cwd: string): Promise<string | null> {
   return new Promise((resolve) => {
     execFile(
       "gh",
-      ["pr", "view", "--json", "url,number,title,state,reviewDecision"],
+      ["pr", "view", "--json", "url,number,title"],
       { cwd, env: prCommandEnv(process.env, correctedPath), timeout: 8000 },
       (err, stdout) => resolve(err ? null : stdout),
     );
@@ -59,7 +59,7 @@ function defaultRun(cwd: string): Promise<string | null> {
 
 let runner: Runner = defaultRun;
 
-/** Parse `gh pr view --json url,number,title,state,reviewDecision` stdout into a PrInfo, or null when
+/** Parse `gh pr view --json url,number,title` stdout into a PrInfo, or null when
  *  absent/malformed. */
 function parsePr(out: string | null): PrInfo | null {
   if (!out) return null;
@@ -75,14 +75,9 @@ function parsePr(out: string | null): PrInfo | null {
         number: number;
         url: string;
         title?: unknown;
-        state?: unknown;
-        reviewDecision?: unknown;
       };
       const pr: PrInfo = { number: o.number, url: o.url };
       if (typeof o.title === "string" && o.title) pr.title = o.title;
-      if (typeof o.state === "string" && o.state) pr.state = o.state;
-      if (typeof o.reviewDecision === "string" && o.reviewDecision)
-        pr.reviewDecision = o.reviewDecision;
       return pr;
     }
   } catch {

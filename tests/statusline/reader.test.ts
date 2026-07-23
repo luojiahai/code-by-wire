@@ -250,7 +250,6 @@ describe("createStatusLineReader — apiDurationMs and pr", () => {
       pr: {
         number: 252,
         url: "https://github.com/luojiahai/code-by-wire/pull/252",
-        review_state: "pending",
       },
     });
     const [s] = open(home).read();
@@ -258,7 +257,6 @@ describe("createStatusLineReader — apiDurationMs and pr", () => {
     expect(s.pr).toEqual({
       number: 252,
       url: "https://github.com/luojiahai/code-by-wire/pull/252",
-      reviewState: "pending",
     });
   });
 
@@ -270,7 +268,7 @@ describe("createStatusLineReader — apiDurationMs and pr", () => {
     expect(s.pr).toBeNull();
   });
 
-  it("drops a pr block missing number or url; review_state alone is optional", () => {
+  it("drops a pr block missing number or url; review_state is ignored", () => {
     const home = makeHome();
     writeCapture(home, "sid-badpr", {
       session_id: "sid-badpr",
@@ -278,7 +276,11 @@ describe("createStatusLineReader — apiDurationMs and pr", () => {
     });
     writeCapture(home, "sid-nostate", {
       session_id: "sid-nostate",
-      pr: { number: 9, url: "https://example.com/pull/9" }, // no review_state — fine
+      pr: {
+        number: 9,
+        url: "https://example.com/pull/9",
+        review_state: "pending",
+      }, // ignored
     });
     const byId = new Map(
       open(home)
@@ -289,7 +291,6 @@ describe("createStatusLineReader — apiDurationMs and pr", () => {
     expect(byId.get("sid-nostate")?.pr).toEqual({
       number: 9,
       url: "https://example.com/pull/9",
-      reviewState: null,
     });
   });
 

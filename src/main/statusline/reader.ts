@@ -83,14 +83,7 @@ function parseSample(
     const prNumber = num(p.number);
     const prUrl = typeof p.url === "string" && p.url.length > 0 ? p.url : null;
     if (prNumber !== null && prUrl !== null) {
-      pr = {
-        number: prNumber,
-        url: prUrl,
-        reviewState:
-          typeof p.review_state === "string" && p.review_state.length > 0
-            ? p.review_state
-            : null,
-      };
+      pr = { number: prNumber, url: prUrl };
     }
   }
 

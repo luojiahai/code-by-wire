@@ -248,9 +248,9 @@ describe("provider.readMetrics", () => {
     );
     utimesSync(projFile, FIXED, FIXED);
 
-    // Stage a file: .git/index mtime moves, so the git portion of the token moves and forces a rebuild.
-    writeFileSync(join(repo, "b.txt"), "hello\n");
-    git(repo, "add", "b.txt");
+    // Switch branches: .git/HEAD's mtime moves and the branch changes, so the git portion of the
+    // token moves and forces a rebuild.
+    git(repo, "checkout", "-q", "-b", "feature");
 
     const second = provider.readMetrics(id, first.mtimeMs);
     expect(second.status).toBe("changed"); // git moved → token moved

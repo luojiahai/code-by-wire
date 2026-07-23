@@ -76,34 +76,6 @@ describe("catalog number formatters", () => {
     expect(zh.numbers.tokensAxis(250_000_000)).toBe("2.5亿");
   });
 });
-
-describe("catalog PR status", () => {
-  it("en normalizes case and underscores, no translation", () => {
-    expect(en.shell.sessionPanel.prStatus("OPEN")).toBe("open");
-    expect(en.shell.sessionPanel.prStatus("CHANGES_REQUESTED")).toBe(
-      "changes requested",
-    );
-  });
-
-  it("zh translates every known gh/capture value", () => {
-    expect(zh.shell.sessionPanel.prStatus("pending")).toBe("待处理");
-    expect(zh.shell.sessionPanel.prStatus("APPROVED")).toBe("已批准");
-    expect(zh.shell.sessionPanel.prStatus("CHANGES_REQUESTED")).toBe("需修改");
-    expect(zh.shell.sessionPanel.prStatus("REVIEW_REQUIRED")).toBe("待审查");
-    expect(zh.shell.sessionPanel.prStatus("OPEN")).toBe("开放");
-    expect(zh.shell.sessionPanel.prStatus("CLOSED")).toBe("已关闭");
-    expect(zh.shell.sessionPanel.prStatus("MERGED")).toBe("已合并");
-  });
-
-  it("zh falls back to the normalized raw string for an unrecognized value", () => {
-    // Guards against a future gh/capture value the lookup table doesn't know yet —
-    // must degrade to readable English, never throw or show "undefined".
-    expect(zh.shell.sessionPanel.prStatus("SOMETHING_NEW")).toBe(
-      "something new",
-    );
-  });
-});
-
 describe("catalog session-row subagent counts", () => {
   it("describes the recursive family count in both locales", () => {
     expect(en.shell.sessionRow.subagentCount(2, 1)).toBe(
