@@ -31,44 +31,33 @@ describe("readGit", () => {
     expect(readGit(makeHome())).toBeNull();
   });
 
-  it("reports branch, clean status, and a short sha on a fresh repo", () => {
+  it("reports the branch and a null remote on a fresh repo", () => {
     const dir = initRepo();
-    const g = readGit(dir)!;
-    expect(g.branch).toBe("main");
-    expect(g.dirty).toBe(false);
-    expect(g.insertions).toBe(0);
-    expect(g.deletions).toBe(0);
-    expect(g.sha).toMatch(/^[0-9a-f]{7,}$/);
-    expect(g.ahead).toBeNull(); // no upstream
-    expect(g.behind).toBeNull();
+    expect(readGit(dir)).toEqual({ branch: "main", remoteUrl: null });
   });
 
-  it("falls back to a null branch (sha still populated) on detached HEAD", () => {
+  it("falls back to a null branch on detached HEAD", () => {
     const dir = initRepo();
     const sha = execFileSync("git", ["rev-parse", "HEAD"], {
       cwd: dir,
       encoding: "utf8",
     }).trim();
     git(dir, "checkout", "-q", "--detach", sha);
-    const g = readGit(dir)!;
-    expect(g.branch).toBeNull();
-    expect(g.sha).toMatch(/^[0-9a-f]{7,}$/);
+    expect(readGit(dir)!.branch).toBeNull();
   });
 
-  it("counts working-tree insertions/deletions and flips to dirty", () => {
+  it("reflects a checkout immediately (HEAD mtime moves the token)", () => {
     const dir = initRepo();
-    writeFileSync(join(dir, "a.txt"), "one\ntwo\nthree\n"); // +2 lines
-    const g = readGit(dir)!;
-    expect(g.dirty).toBe(true);
-    expect(g.insertions).toBe(2);
-    expect(g.deletions).toBe(0);
+    expect(readGit(dir)!.branch).toBe("main");
+    git(dir, "checkout", "-q", "-b", "feature");
+    expect(readGit(dir)!.branch).toBe("feature");
   });
 
-  it("serves a cached glance within the TTL after an unstaged edit (HEAD/index unmoved)", () => {
+  it("serves a cached glance within the TTL when HEAD is unmoved", () => {
     const dir = initRepo();
-    expect(readGit(dir)!.dirty).toBe(false);
-    writeFileSync(join(dir, "a.txt"), "one\ntwo\n"); // unstaged edit; doesn't touch .git/HEAD or .git/index
-    expect(readGit(dir)!.dirty).toBe(false); // cached: HEAD/index mtime unchanged, within the 5s TTL
+    expect(readGit(dir)!.remoteUrl).toBeNull();
+    git(dir, "remote", "add", "origin", "git@github.com:o/r.git"); // doesn't touch .git/HEAD
+    expect(readGit(dir)!.remoteUrl).toBeNull(); // cached: HEAD mtime unchanged, within the 5s TTL
   });
 
   it("normalizes the origin remote to a browsable https url", () => {

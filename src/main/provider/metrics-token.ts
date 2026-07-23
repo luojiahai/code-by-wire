@@ -14,9 +14,7 @@ function hashToken(s: string): number {
 /** The git portion of the metrics change token: a compact string of the state that should re-trigger a
  *  recompute, or 'nogit' when the cwd isn't a repo. */
 function gitTokenStr(git: GitInfo | null): string {
-  return git
-    ? `${git.sha}:${git.insertions}:${git.deletions}:${git.dirty}:${git.ahead}:${git.behind}`
-    : "nogit";
+  return git ? `${git.branch}:${git.remoteUrl}` : "nogit";
 }
 
 /** The PR portion of the metrics change token: the PR number plus the fields the SessionPanel PR row

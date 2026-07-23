@@ -4,8 +4,8 @@ import { isAbsolute, join } from "node:path";
 import type { GitInfo } from "@shared/metrics";
 
 const TTL_MS = 5000;
-// Per cwd: the resolved .git dir (null = not a work tree), the HEAD/index mtime token the value was
-// computed at, the value, and a TTL backstop. Caching gitDir lets a steady poll stat HEAD/index instead
+// Per cwd: the resolved .git dir (null = not a work tree), the HEAD mtime token the value was
+// computed at, the value, and a TTL backstop. Caching gitDir lets a steady poll stat HEAD instead
 // of forking `git rev-parse` every time; the null verdict is cached the same way so a repo-less cwd is
 // re-probed at most once per TTL rather than once per poll.
 const cache = new Map<
@@ -30,20 +30,6 @@ function git(cwd: string, args: string[]): string | null {
   } catch {
     return null;
   }
-}
-
-/** Sum insertions/deletions from a `git diff --shortstat` line. Absent numbers are 0. */
-function parseShortstat(out: string | null): {
-  insertions: number;
-  deletions: number;
-} {
-  if (!out) return { insertions: 0, deletions: 0 };
-  const ins = /(\d+) insertion/.exec(out);
-  const del = /(\d+) deletion/.exec(out);
-  return {
-    insertions: ins ? Number(ins[1]) : 0,
-    deletions: del ? Number(del[1]) : 0,
-  };
 }
 
 /** A minimal slice of `node:path` — the host module by default, or `path.win32`/`path.posix` for
@@ -109,21 +95,17 @@ function resolveGitDir(cwd: string): string | null {
   return joinGitDir(cwd, gitDir);
 }
 
-/** Cheap freshness token with no spawn: the mtimes of HEAD and index. A commit/checkout/stage moves one
- *  immediately; an unstaged working-tree edit touches neither, so the TTL is the backstop for that. */
+/** Cheap freshness token with no spawn: HEAD's mtime. A commit/checkout moves it immediately; a
+ *  remote add/set-url touches nothing we stat, so the TTL is the backstop for that. */
 function mtimeToken(gitDir: string): string {
-  const m = (p: string): number => {
-    try {
-      return statSync(join(gitDir, p)).mtimeMs;
-    } catch {
-      return 0;
-    }
-  };
-  return `${m("HEAD")}:${m("index")}`;
+  try {
+    return String(statSync(join(gitDir, "HEAD")).mtimeMs);
+  } catch {
+    return "0";
+  }
 }
 
-/** Read the local git glance for `cwd`. null when `cwd` isn't a work tree. Cached per cwd on the
- *  HEAD/index mtimes plus a 5s TTL, so a steady metrics poll forks git only on a change or once per TTL. */
+/** Read the local git glance for `cwd`. null when `cwd` isn't a work tree. Cached per cwd on HEAD's mtime plus a 5s TTL, so a steady metrics poll forks git only on a branch change or once per TTL. */
 export function readGit(cwd: string): GitInfo | null {
   const now = Date.now();
   const hit = cache.get(cwd);
@@ -144,49 +126,19 @@ export function readGit(cwd: string): GitInfo | null {
     return null;
   }
 
-  // Within the TTL and HEAD/index unmoved → serve the cached glance with no detail spawns.
+  // Within the TTL and HEAD unmoved → serve the cached glance with no detail spawns.
   const token = mtimeToken(gitDir);
   if (fresh && hit.token === token) return hit.value;
 
-  // Recompute: a moved token, or the TTL expired (the unstaged-edit backstop).
-  // A10: ccstatusline runs symbolic-ref, which ERRORS on detached HEAD (→ a null branch, which the
-  // Session panel's Branch row renders as a dash) — result-identical to the old rev-parse + "HEAD"
-  // check, switched for literal parity. Cache keying, GIT_OPTIONAL_LOCKS=0, and every other field
-  // are untouched.
+  // Recompute: a moved token, or the TTL expired (the remote-change backstop).
+  // symbolic-ref ERRORS on detached HEAD → a null branch, which the Session panel's Branch row
+  // renders as a dash.
   const branchRaw = git(cwd, ["symbolic-ref", "--short", "HEAD"]);
   const branch = branchRaw || null;
-  const sha = git(cwd, ["rev-parse", "--short", "HEAD"]);
-  const unstaged = parseShortstat(git(cwd, ["diff", "--shortstat"]));
-  const staged = parseShortstat(git(cwd, ["diff", "--cached", "--shortstat"]));
-  const porcelain = git(cwd, ["status", "--porcelain"]);
-  const ab = git(cwd, [
-    "rev-list",
-    "--left-right",
-    "--count",
-    "HEAD...@{upstream}",
-  ]);
-  let ahead: number | null = null;
-  let behind: number | null = null;
-  if (ab) {
-    const [a, b] = ab.split(/\s+/).map((n) => Number(n));
-    if (Number.isFinite(a) && Number.isFinite(b)) {
-      ahead = a;
-      behind = b;
-    }
-  }
   const remoteUrl = normalizeRemoteUrl(
     git(cwd, ["remote", "get-url", "origin"]),
   );
-  const value: GitInfo = {
-    branch,
-    insertions: unstaged.insertions + staged.insertions,
-    deletions: unstaged.deletions + staged.deletions,
-    ahead,
-    behind,
-    sha: sha || null,
-    dirty: porcelain !== null && porcelain.length > 0,
-    remoteUrl,
-  };
+  const value: GitInfo = { branch, remoteUrl };
   cache.set(cwd, { gitDir, token, expiry: now + TTL_MS, value });
   return value;
 }
