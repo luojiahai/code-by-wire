@@ -19,6 +19,7 @@ import {
   groupSessionsByProject,
   partitionProjectGroups,
   projectGroupsForCollapse,
+  isSessionFamilyCollapsed,
   sessionForest,
   toggleProjectGroups,
   pinnedSessions,
@@ -96,8 +97,8 @@ export function LeftSidebar({
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  // Explicit per-parent overrides only. With no override, inactive families default collapsed and
-  // families containing live work default expanded; selection/search force the relevant path open.
+  // Explicit per-parent overrides only. Families default collapsed and expand only from their
+  // chevron; search and selection never change disclosure state implicitly.
   const [collapsedFamilies, setCollapsedFamilies] = useState<
     ReadonlyMap<string, boolean>
   >(new Map());
@@ -261,23 +262,14 @@ export function LeftSidebar({
   // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn.
   const anySpawnable = AGENT_IDS.some((a) => canSpawnFor(a));
 
-  const containsSession = (node: SessionTreeNode, id: string): boolean =>
-    node.session.id === id ||
-    node.children.some((child) => containsSession(child, id));
-
   const renderSessionNode = (
     node: SessionTreeNode,
     depth: number,
   ): ReactNode => {
-    const hasSelectedDescendant =
-      selectedId !== null &&
-      node.children.some((child) => containsSession(child, selectedId));
-    const forcedExpanded = query.trim() !== "" || hasSelectedDescendant;
-    const collapsedByDefault = node.activeDescendantCount === 0;
-    const familyCollapsed =
-      node.children.length > 0 &&
-      !forcedExpanded &&
-      (collapsedFamilies.get(node.session.id) ?? collapsedByDefault);
+    const familyCollapsed = isSessionFamilyCollapsed(
+      node.children.length > 0,
+      collapsedFamilies.get(node.session.id),
+    );
     return (
       <div key={node.session.id}>
         <SessionRow
@@ -290,9 +282,9 @@ export function LeftSidebar({
           onEnd={onEnd}
           onRename={onRename}
           onTogglePin={onTogglePin}
-          showAgentIcon={preferences.showAgentIcons}
+          showAgentIcon={depth === 0 && preferences.showAgentIcons}
           depth={depth}
-          childCount={node.children.length}
+          descendantCount={node.descendantCount}
           activeDescendantCount={node.activeDescendantCount}
           childrenExpanded={!familyCollapsed}
           onToggleChildren={

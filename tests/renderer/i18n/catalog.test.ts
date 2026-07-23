@@ -76,3 +76,17 @@ describe("catalog number formatters", () => {
     expect(zh.numbers.tokensAxis(250_000_000)).toBe("2.5亿");
   });
 });
+describe("catalog session-row subagent counts", () => {
+  it("describes the recursive family count in both locales", () => {
+    expect(en.shell.sessionRow.subagentCount(2, 1)).toBe(
+      "2 subagents in this group · 1 active",
+    );
+    expect(en.shell.sessionRow.subagentCount(1, 0)).toBe(
+      "1 subagent in this group",
+    );
+    expect(zh.shell.sessionRow.subagentCount(2, 1)).toBe(
+      "组内 2 个子代理 · 1 个活跃",
+    );
+    expect(zh.shell.sessionRow.subagentCount(1, 0)).toBe("组内 1 个子代理");
+  });
+});

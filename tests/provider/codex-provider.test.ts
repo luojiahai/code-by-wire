@@ -95,18 +95,105 @@ describe("createCodexProvider", () => {
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
     const candidate = p.listCandidates()[0];
     expect(candidate).toMatchObject({
-      threadKind: "subagent",
+      threadKind: "review",
       parentSessionId: "parent-id",
     });
     const summarized = p.summarize(candidate);
     expect(summarized).toMatchObject({
-      threadKind: "subagent",
+      threadKind: "review",
       parentSessionId: "parent-id",
     });
     expect(p.restate(candidate, summarized)).toMatchObject({
-      threadKind: "subagent",
+      threadKind: "review",
       parentSessionId: "parent-id",
     });
+  });
+
+  it("discovers user, guardian, review, and spawned-agent rollouts without filtering", () => {
+    const home = mkdtempSync(join(tmpdir(), "codexp-kinds-"));
+    const day = join(home, "sessions", "2026", "07", "18");
+    mkdirSync(day, { recursive: true });
+    const rootId = "10000000-0000-0000-0000-000000000001";
+    const fixtures = [
+      {
+        id: rootId,
+        second: "01",
+        expectedKind: undefined,
+        thread_source: "user",
+        source: "cli",
+      },
+      {
+        id: "20000000-0000-0000-0000-000000000002",
+        second: "02",
+        expectedKind: "guardian",
+        thread_source: "subagent",
+        source: { subagent: { other: "guardian" } },
+        parent_thread_id: rootId,
+      },
+      {
+        id: "30000000-0000-0000-0000-000000000003",
+        second: "03",
+        expectedKind: "review",
+        thread_source: "subagent",
+        source: { subagent: "review" },
+        parent_thread_id: rootId,
+      },
+      {
+        id: "40000000-0000-0000-0000-000000000004",
+        second: "04",
+        expectedKind: "subagent",
+        thread_source: "subagent",
+        source: {
+          subagent: {
+            thread_spawn: { parent_thread_id: rootId, depth: 1 },
+          },
+        },
+      },
+      {
+        id: "50000000-0000-0000-0000-000000000005",
+        second: "05",
+        expectedKind: "compact",
+        thread_source: "subagent",
+        source: { subagent: "compact" },
+        parent_thread_id: rootId,
+      },
+    ];
+    for (const fixture of fixtures) {
+      const { id, second } = fixture;
+      const payload: Record<string, unknown> = { ...fixture };
+      delete payload.id;
+      delete payload.second;
+      delete payload.expectedKind;
+      writeFileSync(
+        join(day, `rollout-2026-07-18T10-30-${second}-${id}.jsonl`),
+        JSON.stringify({
+          type: "session_meta",
+          payload: { id, cwd: "/work/project", ...payload },
+        }),
+      );
+    }
+
+    const provider = createCodexProvider({
+      codexDir: home,
+      now: () => Date.now(),
+    });
+    const candidates = provider.listCandidates();
+    expect(candidates).toHaveLength(5);
+    expect(
+      candidates.find((candidate) => candidate.id === rootId),
+    ).toMatchObject({
+      id: rootId,
+      threadKind: undefined,
+      parentSessionId: undefined,
+    });
+    for (const fixture of fixtures.slice(1)) {
+      expect(
+        candidates.find((candidate) => candidate.id === fixture.id),
+      ).toMatchObject({
+        threadKind: fixture.expectedKind,
+        parentSessionId: rootId,
+      });
+    }
   });
 
   it("prefers native name then preview, and refreshes the title while restating an unchanged rollout", () => {

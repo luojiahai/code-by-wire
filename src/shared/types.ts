@@ -6,9 +6,9 @@ export type { Family, ModelSelection };
 
 export type SessionState = "working" | "waiting" | "idle" | "ended";
 export type Management = "managed" | "observed";
-/** A non-root Codex agent thread. Root sessions omit this optional marker for backwards compatibility
- *  with providers and cached rows that predate session relationships. */
-export type SessionThreadKind = "subagent";
+/** A non-root Codex agent thread. Root sessions omit this optional marker; operational roles retain
+ * enough detail for the sidebar to distinguish ordinary workers from review/guardian/compact runs. */
+export type SessionThreadKind = "subagent" | "review" | "guardian" | "compact";
 
 export interface Usage {
   inputTokens: number;

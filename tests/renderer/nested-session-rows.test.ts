@@ -17,41 +17,44 @@ describe("nested session rows", () => {
     expect(row).toContain("onToggleChildren();");
     expect(row).toContain("event.stopPropagation();");
     expect(row).toContain("aria-expanded={childrenExpanded}");
-    expect(row).toContain("collapseSubagents(childCount)");
-    expect(row).toContain("expandSubagents(childCount)");
+    expect(row).toContain("collapseSubagents(descendantCount)");
+    expect(row).toContain("expandSubagents(descendantCount)");
   });
 
-  it("keeps disclosure stationary while actions replace the agent", () => {
-    const count = row.indexOf("{childCount}");
+  it("orders nested controls and keeps disclosure stationary while actions replace the badge", () => {
+    const count = row.indexOf("{descendantCount}");
     const disclosure = row.indexOf("aria-expanded={childrenExpanded}");
-    const agent = row.indexOf("<AgentIcon", disclosure);
-    const actions = row.indexOf('aria-haspopup="menu"', agent);
+    const badge = row.indexOf("{threadKindLabel}", disclosure);
+    const actions = row.indexOf('aria-haspopup="menu"', badge);
 
     expect(count).toBeGreaterThan(-1);
     expect(count).toBeLessThan(disclosure);
-    expect(disclosure).toBeLessThan(agent);
-    expect(agent).toBeLessThan(actions);
+    expect(disclosure).toBeLessThan(badge);
+    expect(badge).toBeLessThan(actions);
     expect(row).toContain(
-      '"pointer-events-none absolute right-1 top-1/2 grid size-5',
+      '"relative mr-1 flex h-5 shrink-0 items-center justify-end"',
     );
     expect(row).toContain(
-      'className="absolute right-1 top-1/2 -translate-y-1/2"',
+      '"pointer-events-none absolute right-0 top-0 grid size-5',
     );
     expect(row).toContain(
       '"opacity-100 group-hover:opacity-0 group-has-[:focus-visible]:opacity-0"',
     );
-    expect(row).toContain("const disclosurePosition = showAgentIcon");
-    expect(row).toMatch(/\? "right-6"\r?\n {4}: menu\.open/);
     expect(row).toContain(
-      '"pointer-events-none grid size-5 cursor-pointer place-items-center',
+      'className="grid size-5 shrink-0 cursor-pointer place-items-center',
     );
+    expect(row).toContain("t.shell.sessionRow.threadKind[session.threadKind]");
   });
 
-  it("renders the forest recursively and forces search/selection paths open", () => {
+  it("renders the forest recursively and leaves expansion to the chevron", () => {
     expect(sidebar).toContain("sessionForest(g.sessions)");
     expect(sidebar).toContain("renderSessionNode(child, depth + 1)");
+    expect(sidebar).toContain("isSessionFamilyCollapsed(");
+    expect(sidebar).toContain("descendantCount={node.descendantCount}");
     expect(sidebar).toContain(
-      'const forcedExpanded = query.trim() !== "" || hasSelectedDescendant;',
+      "showAgentIcon={depth === 0 && preferences.showAgentIcons}",
     );
+    expect(sidebar).not.toContain("forcedExpanded");
+    expect(sidebar).not.toContain("hasSelectedDescendant");
   });
 });

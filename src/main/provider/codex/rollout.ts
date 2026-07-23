@@ -1,5 +1,6 @@
 import { openSync, readSync, closeSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import type { SessionThreadKind } from "@shared/types";
 
 /** One discovered rollout file. `timestampMs` is parsed from the FILENAME (local time) — the
  *  correlation key; fs ctime/birthtime are never used (ctime is inode-change time on POSIX and
@@ -74,7 +75,7 @@ export interface RolloutHead {
   timestampMs: number | null;
   title: string | null;
   /** Present for Codex agent-thread rollouts, including detached ones whose parent is unavailable. */
-  threadKind?: "subagent";
+  threadKind?: SessionThreadKind;
   parentSessionId?: string;
 }
 
@@ -89,19 +90,26 @@ function threadRelationship(
   const subagent = sourceRecord ? sourceRecord.subagent : undefined;
   const subagentRecord = asRecord(subagent);
   const spawn = subagentRecord ? asRecord(subagentRecord.thread_spawn) : null;
-  const rawParent = meta.parent_thread_id ?? spawn?.parent_thread_id;
-  const parentSessionId =
-    typeof rawParent === "string" &&
-    rawParent.trim() !== "" &&
-    rawParent !== meta.id
-      ? rawParent
+  const validParent = (value: unknown): string | undefined =>
+    typeof value === "string" && value.trim() !== "" && value !== meta.id
+      ? value
       : undefined;
+  // Newer rollouts put the immediate parent directly on session_meta. Older spawned-agent
+  // rollouts only carry it inside source.subagent.thread_spawn. Validate the direct value before
+  // falling back: a blank or self-referential direct field must not mask a usable legacy parent.
+  const parentSessionId =
+    validParent(meta.parent_thread_id) ?? validParent(spawn?.parent_thread_id);
   const isSubagent =
     meta.thread_source === "subagent" ||
     source === "subagent" ||
     subagent !== undefined ||
     parentSessionId !== undefined;
-  return isSubagent ? { threadKind: "subagent", parentSessionId } : {};
+  if (!isSubagent) return {};
+  let threadKind: SessionThreadKind = "subagent";
+  if (subagent === "review") threadKind = "review";
+  else if (subagent === "compact") threadKind = "compact";
+  else if (subagentRecord?.other === "guardian") threadKind = "guardian";
+  return { threadKind, parentSessionId };
 }
 
 /** First human user text in a parsed line's payload, if this line is a user message. Codex records
