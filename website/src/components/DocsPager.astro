@@ -47,8 +47,8 @@ const { prev, next } = Astro.props;
     display: flex;
     justify-content: space-between;
     gap: 16px;
-    margin-top: 56px;
-    padding-top: 32px;
+    margin-top: 72px;
+    padding-top: 28px;
     border-top: 1px solid var(--border);
   }
   .docs-pager-side {
@@ -65,14 +65,22 @@ const { prev, next } = Astro.props;
     gap: 10px;
     padding: 12px 16px;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 5px;
     color: var(--text-dim);
+    background: var(--bg-soft);
     max-width: 100%;
     min-width: 0;
+    transition:
+      color 180ms ease,
+      border-color 180ms ease,
+      background-color 180ms ease,
+      transform 180ms ease;
   }
   .docs-pager-link:hover {
     border-color: var(--border-strong);
     color: var(--text);
+    background: var(--bg-raised);
+    transform: translateY(-1px);
   }
   .docs-pager-link span {
     display: flex;

@@ -31,7 +31,7 @@ const canonical = new URL(`${base}docs/${currentId}/`, Astro.site).href;
 <BaseLayout title={title} description={description} canonical={canonical}>
   <div class:list={['docs-shell', { 'no-toc': tocItems.length === 0 }]}>
     <DocsSidebar docs={docs} currentId={currentId} />
-    <main class="docs-content">
+    <main id="main-content" class="docs-content">
       <slot />
       <DocsPager prev={prev} next={next} />
     </main>
@@ -42,12 +42,12 @@ const canonical = new URL(`${base}docs/${currentId}/`, Astro.site).href;
 <style>
   .docs-shell {
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr) 220px;
+    grid-template-columns: 220px minmax(0, 1fr) 200px;
     grid-template-areas: 'sidebar content toc';
-    gap: 48px;
-    max-width: 1280px;
+    gap: 64px;
+    max-width: var(--page-width);
     margin: 0 auto;
-    padding: 64px 48px;
+    padding: 80px 48px 128px;
     align-items: start;
   }
   .docs-shell.no-toc {
@@ -57,11 +57,12 @@ const canonical = new URL(`${base}docs/${currentId}/`, Astro.site).href;
   .docs-content {
     grid-area: content;
     min-width: 0;
+    max-width: 760px;
   }
   @media (max-width: 1024px) {
     .docs-shell,
     .docs-shell.no-toc {
-      grid-template-columns: 240px minmax(0, 1fr);
+      grid-template-columns: 220px minmax(0, 1fr);
       grid-template-areas: 'sidebar content';
     }
   }
@@ -70,14 +71,14 @@ const canonical = new URL(`${base}docs/${currentId}/`, Astro.site).href;
     .docs-shell.no-toc {
       grid-template-columns: minmax(0, 1fr);
       grid-template-areas: 'sidebar' 'content';
-      padding: 32px 20px;
+      padding: 40px 20px 96px;
       gap: 0;
     }
   }
   @media (max-width: 640px) {
     .docs-shell,
     .docs-shell.no-toc {
-      padding: 24px 20px;
+      padding: 28px 20px 88px;
     }
   }
 </style>

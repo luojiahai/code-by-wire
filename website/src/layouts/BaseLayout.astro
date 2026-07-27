@@ -46,8 +46,9 @@ const ogImage = new URL(`${base}og.png`, Astro.site).href;
     <Analytics />
   </head>
   <body>
-    <Nav transition:persist />
+    <a href="#main-content" class="skip-link">Skip to content</a>
+    <Nav />
     <slot />
-    <Footer transition:persist />
+    <Footer />
   </body>
 </html>

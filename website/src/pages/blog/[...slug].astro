@@ -15,7 +15,8 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 ---
 <NarrowLayout title={`${post.data.title} · Code-by-wire blog`} description={post.data.description}>
-  <h1>{post.data.title}</h1>
+  <p class="eyebrow">Field note</p>
+  <h1 class="page-title">{post.data.title}</h1>
   <time class="mono post-date">{post.data.publishDate}</time>
   <div class="prose">
     <Content />
@@ -23,20 +24,15 @@ const { Content } = await render(post);
 </NarrowLayout>
 
 <style>
-  h1 {
-    font-weight: 600;
-    font-size: 36px;
-    margin-bottom: 12px;
+  .page-title {
+    max-width: 18ch;
+    margin-bottom: 18px;
+    font-size: clamp(2.75rem, 7vw, 4.75rem);
   }
   .post-date {
     color: var(--text-faint);
     font-size: 13px;
     display: block;
-    margin-bottom: 40px;
-  }
-  @media (max-width: 640px) {
-    h1 {
-      font-size: 30px;
-    }
+    margin-bottom: 56px;
   }
 </style>

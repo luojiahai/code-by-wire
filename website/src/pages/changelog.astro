@@ -16,19 +16,20 @@ import changelogRaw from '../../../CHANGELOG.md?raw';
 const changelogHtml = renderChangelog(changelogRaw.replace(/^# Changelog\n+/, ''));
 ---
 <NarrowLayout title="Changelog · Code-by-wire" description="Every notable change to Code-by-wire.">
-  <h1>Changelog</h1>
+  <p class="eyebrow">Release log</p>
+  <h1 class="page-title">What changed.</h1>
   <div class="prose" set:html={changelogHtml} />
 </NarrowLayout>
 
 <style>
-  h1 {
-    font-weight: 600;
-    font-size: 40px;
-    margin-bottom: 40px;
+  .page-title {
+    margin-bottom: 64px;
   }
   .prose :global(h2) {
-    font-size: 24px;
-    margin: 48px 0 16px;
+    margin: 56px 0 18px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 28px;
   }
   .prose :global(h2:first-child) {
     margin-top: 0;
@@ -38,12 +39,12 @@ const changelogHtml = renderChangelog(changelogRaw.replace(/^# Changelog\n+/, ''
     font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--text-faint);
+    color: var(--accent);
     margin: 24px 0 12px;
   }
   @media (max-width: 640px) {
-    h1 {
-      font-size: 32px;
+    .page-title {
+      margin-bottom: 48px;
     }
   }
 </style>

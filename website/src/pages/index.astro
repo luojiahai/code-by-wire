@@ -1,95 +1,220 @@
 ---
-// website/src/pages/index.astro
 import { Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import screenshot from '../assets/screenshot.png';
+
 const base = import.meta.env.BASE_URL;
 const features = [
   {
+    number: '01',
+    label: 'Session control',
     title: 'Every session in one rail',
     description:
-      'Manage every session running on your machine from one rail: grouped by project, searchable, each flagging its live state.',
+      'Find every local session by project and state. Search, resume, fork, or observe without losing the thread.',
   },
   {
-    title: 'Drive, fork, or just watch',
+    number: '02',
+    label: 'Transcript',
+    title: 'See what the agent actually did',
     description:
-      'Spawn a session in an embedded terminal, fork a live one, resume one you started elsewhere, or observe it read-only.',
+      'Messages, tool calls, and results are reconstructed from disk and arranged into one readable timeline.',
   },
   {
-    title: 'The full transcript',
-    description: 'Every message, tool call, and result, reconstructed from disk and rendered cleanly.',
-  },
-  {
-    title: 'The full telemetry',
+    number: '03',
+    label: 'Terminal',
+    title: 'Take the controls',
     description:
-      'Context pressure, spend, token throughput, duty cycle, git, tasks, subagents, and background shells, live per session.',
+      'Start a session in the embedded terminal, rejoin a live one, or stay read-only when observation is enough.',
   },
   {
-    title: 'The whole story',
+    number: '04',
+    label: 'Telemetry',
+    title: 'Pressure, spend, and pace',
     description:
-      'A cross-session Stats view with a year-long contributions calendar and exact, never-estimated totals.',
+      'Track context pressure, token throughput, duty cycle, cost, git state, tasks, subagents, and background shells as they change.',
   },
   {
-    title: 'Your rate limits in view',
+    number: '05',
+    label: 'History',
+    title: 'The work adds up',
     description:
-      "Your account's rate-limit windows, read straight from disk, with live reset countdowns.",
+      'Review a year of activity across sessions with exact totals drawn from the transcripts already on your machine.',
+  },
+  {
+    number: '06',
+    label: 'Limits',
+    title: 'Know when the window resets',
+    description:
+      'Keep account rate-limit windows and live reset countdowns visible while you decide what runs next.',
   },
 ];
 ---
 <BaseLayout
-  title="Code-by-wire · Pilot coding agents from one cockpit"
-  description="One live dashboard for every session: state, full transcript, an embedded terminal, and telemetry."
+  title="Code-by-wire · One control room for coding agents"
+  description="Observe and control every local Claude Code and Codex session from one live desktop dashboard."
 >
-  <section class="hero">
-    <h1 class="hero-in" style="animation-delay: 0s">
-      Pilot coding agents from one <span class="dim">cockpit</span>.
-    </h1>
-    <p class="hero-sub hero-in" style="animation-delay: 0.08s">
-      One live dashboard for every session: state, full transcript, an embedded terminal, and
-      telemetry.
-    </p>
-    <div class="hero-ctas hero-in" style="animation-delay: 0.16s">
-      <a href={`${base}download/`} class="btn-primary">Download</a>
-    </div>
-  </section>
+  <main id="main-content">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow hero-in">Local agent operations</p>
+        <h1 class="hero-in">
+          Your coding agents.<br />
+          <span>One control room.</span>
+        </h1>
+        <p class="hero-sub hero-in">
+          Observe and control every Claude Code and Codex session on your machine—transcripts,
+          terminals, telemetry, and all.
+        </p>
+        <div class="hero-actions hero-in">
+          <a href={`${base}download/`} class="btn-primary">
+            Download the app
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M3 8h9M8.5 3.5 13 8l-4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" />
+            </svg>
+          </a>
+          <a href={`${base}docs/`} class="text-link">Read the field guide <span>↗</span></a>
+        </div>
+        <div class="hero-meta hero-in">
+          <span><i aria-hidden="true"></i> macOS + Windows</span>
+          <span>Local-first</span>
+          <span>MIT licensed</span>
+        </div>
+      </div>
 
-  <section class="screenshot-section">
-    <div class="screenshot-frame" data-reveal>
-      <div class="chrome"><span></span><span></span><span></span></div>
-      <Image
-        src={screenshot}
-        alt="Code-by-wire showing a live coding agent session with the session rail, transcript, and telemetry panels"
-        width={1600}
-        priority
-      />
-    </div>
-  </section>
-
-  <section class="features">
-    <div class="section-head">
-      <h2>Features</h2>
-      <p>Needs Claude Code and/or Codex installed locally. Open the app and every session already running on your machine is there.</p>
-    </div>
-    <div class="feature-grid">
-      {
-        features.map((feature) => (
-          <div class="feature" data-reveal>
-            <h3>{feature.title}</h3>
-            <p>{feature.description}</p>
+      <aside class="signal-panel hero-in" aria-label="Example live session status">
+        <div class="panel-head">
+          <span class="panel-label">Live sessions</span>
+          <span class="panel-clock mono">03 active</span>
+        </div>
+        <div class="session-list">
+          <div class="session-row is-working">
+            <span class="status-mark" aria-hidden="true"></span>
+            <span class="session-copy">
+              <strong>payment-webhooks</strong>
+              <small>Claude Code · working</small>
+            </span>
+            <span class="session-time mono">18s</span>
           </div>
-        ))
-      }
-    </div>
-  </section>
+          <div class="session-row">
+            <span class="status-mark" aria-hidden="true"></span>
+            <span class="session-copy">
+              <strong>search-index</strong>
+              <small>Codex · waiting</small>
+            </span>
+            <span class="session-time mono">02m</span>
+          </div>
+          <div class="session-row is-muted">
+            <span class="status-mark" aria-hidden="true"></span>
+            <span class="session-copy">
+              <strong>release-notes</strong>
+              <small>Claude Code · idle</small>
+            </span>
+            <span class="session-time mono">47m</span>
+          </div>
+        </div>
+        <div class="panel-metrics">
+          <div>
+            <span class="mono">28.4</span>
+            <small>tokens / sec</small>
+          </div>
+          <div>
+            <span class="mono">42%</span>
+            <small>context</small>
+          </div>
+          <div>
+            <span class="mono">$1.27</span>
+            <small>session spend</small>
+          </div>
+        </div>
+        <div class="panel-foot mono">
+          <span>CBW / OPS</span>
+          <span>LOCAL SIGNAL</span>
+        </div>
+      </aside>
+    </section>
+
+    <section class="product-view" aria-labelledby="product-view-title">
+      <div class="product-view-head">
+        <div>
+          <p class="eyebrow">System overview</p>
+          <h2 id="product-view-title">The whole operation, in view.</h2>
+        </div>
+        <p>
+          Move from the session rail to the transcript, terminal, and live telemetry without
+          changing windows or reconstructing context.
+        </p>
+      </div>
+      <figure class="screenshot-frame" data-reveal>
+        <div class="window-bar">
+          <span class="window-title mono">code-by-wire / session: live</span>
+          <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
+          <span class="window-status mono"><i></i> connected</span>
+        </div>
+        <div class="screenshot-wrap">
+          <Image
+            src={screenshot}
+            alt="Code-by-wire showing the session rail, a live coding agent transcript, terminal controls, and telemetry panels"
+            width={1600}
+            priority
+          />
+        </div>
+        <figcaption>
+          <span>Session rail</span>
+          <span>Full transcript</span>
+          <span>Live telemetry</span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="features" aria-labelledby="features-title">
+      <div class="section-head">
+        <p class="eyebrow">One instrument panel</p>
+        <h2 id="features-title">Follow the work, not the windows.</h2>
+        <p>
+          Code-by-wire reads the same local session data your agents already produce. Nothing to
+          import, nothing to recreate.
+        </p>
+      </div>
+      <div class="feature-grid">
+        {
+          features.map((feature, index) => (
+            <article class:list={['feature', `feature-${index + 1}`]} data-reveal>
+              <div class="feature-top">
+                <span class="feature-number mono">{feature.number}</span>
+                <span class="feature-label mono">{feature.label}</span>
+              </div>
+              <div class="feature-copy">
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="final-cta" data-reveal>
+      <div>
+        <p class="eyebrow">Ready on launch</p>
+        <h2>Open the app. Your sessions are already there.</h2>
+      </div>
+      <div class="final-cta-actions">
+        <a href={`${base}download/`} class="btn-primary">
+          Download Code-by-wire
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M3 8h9M8.5 3.5 13 8l-4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" />
+          </svg>
+        </a>
+        <p>Requires Claude Code and/or Codex installed locally.</p>
+      </div>
+    </section>
+  </main>
 </BaseLayout>
 
 <script>
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const targets = document.querySelectorAll('[data-reveal]');
 
-  // Elements are visible by default (see global.css). Only opt into the
-  // hidden pre-reveal state once we're guaranteed to observe them, so a
-  // failed/blocked script never leaves content permanently hidden.
   if (!reduceMotion && 'IntersectionObserver' in window) {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -100,7 +225,7 @@ const features = [
           }
         }
       },
-      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+      { threshold: 0.12, rootMargin: '0px 0px -48px 0px' },
     );
     targets.forEach((el) => {
       el.classList.add('reveal-armed');
@@ -110,171 +235,725 @@ const features = [
 </script>
 
 <style>
+  main {
+    overflow: hidden;
+  }
+
   .hero {
-    max-width: 1280px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+    align-items: end;
+    gap: 80px;
+    max-width: var(--page-width);
     margin: 0 auto;
-    padding: 120px 48px 96px;
+    padding: 132px 48px 152px;
   }
-  h1 {
-    font-weight: 600;
-    font-size: 54px;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
-    margin-bottom: 28px;
-    max-width: 24ch;
+
+  .hero-copy {
+    position: relative;
+    z-index: 1;
   }
-  h1 .dim {
+
+  .hero h1 {
+    max-width: 12ch;
+    margin-bottom: 32px;
+    font-size: clamp(4rem, 7.4vw, 7.4rem);
+    font-weight: 610;
+    letter-spacing: -0.07em;
+    line-height: 0.88;
+    text-wrap: balance;
+  }
+
+  .hero h1 span {
     color: var(--text-dim);
   }
+
   .hero-sub {
-    font-size: 19px;
+    max-width: 54ch;
+    margin-bottom: 38px;
     color: var(--text-dim);
-    max-width: 46ch;
-    margin-bottom: 40px;
+    font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+    line-height: 1.65;
+    text-wrap: pretty;
   }
-  .hero-ctas {
+
+  .hero-actions {
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    gap: 26px;
+    margin-bottom: 44px;
   }
+
   .btn-primary {
-    font-weight: 600;
-    font-size: 15px;
-    line-height: 1;
-    background: #fff;
-    color: #0a0a0c;
-    padding: 14px 24px;
-    border-radius: 8px;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border: 1px solid var(--accent-bright);
+    border-radius: 5px;
+    color: #061311;
+    background: var(--accent-bright);
+    box-shadow: 0 12px 36px rgba(45, 212, 191, 0.18);
+    font-size: 14px;
+    font-weight: 650;
+    transition:
+      color 200ms ease,
+      background-color 200ms ease,
+      box-shadow 200ms ease,
+      transform 200ms ease;
   }
+
+  .btn-primary:hover {
+    color: var(--text);
+    background: var(--accent);
+    box-shadow: 0 16px 42px rgba(45, 212, 191, 0.28);
+    transform: translateY(-2px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(1px);
+  }
+
+  .text-link {
+    color: var(--text-dim);
+    font-size: 14px;
+    font-weight: 550;
+    transition: color 180ms ease;
+  }
+
+  .text-link span {
+    display: inline-block;
+    margin-left: 5px;
+    color: var(--accent);
+    transition: transform 180ms ease;
+  }
+
+  .text-link:hover {
+    color: var(--text);
+  }
+
+  .text-link:hover span {
+    transform: translate(2px, -2px);
+  }
+
+  .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 26px;
+    color: var(--text-faint);
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .hero-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hero-meta i {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+
+  .signal-panel {
+    position: relative;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: rgba(21, 23, 22, 0.78);
+    box-shadow:
+      var(--shadow),
+      inset 0 1px rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(20px);
+  }
+
+  .signal-panel::before {
+    position: absolute;
+    right: -40%;
+    bottom: -50%;
+    width: 34rem;
+    height: 34rem;
+    border-radius: 50%;
+    background: rgba(45, 212, 191, 0.06);
+    filter: blur(80px);
+    content: '';
+    pointer-events: none;
+  }
+
+  .panel-head,
+  .panel-foot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 18px;
+  }
+
+  .panel-head {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .panel-clock,
+  .panel-foot {
+    color: var(--text-faint);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .session-list {
+    position: relative;
+    padding: 8px;
+  }
+
+  .session-row {
+    display: grid;
+    grid-template-columns: 8px 1fr auto;
+    align-items: center;
+    gap: 13px;
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .session-row:last-child {
+    border-bottom: 0;
+  }
+
+  .status-mark {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--text-faint);
+  }
+
+  .is-working .status-mark {
+    background: var(--accent-bright);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+
+  .session-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .session-copy strong {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 550;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .session-copy small,
+  .session-time {
+    color: var(--text-faint);
+    font-size: 10px;
+  }
+
+  .is-muted {
+    opacity: 0.6;
+  }
+
+  .panel-metrics {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.12);
+  }
+
+  .panel-metrics div {
+    padding: 16px 12px;
+    border-right: 1px solid var(--border);
+  }
+
+  .panel-metrics div:last-child {
+    border-right: 0;
+  }
+
+  .panel-metrics span,
+  .panel-metrics small {
+    display: block;
+  }
+
+  .panel-metrics span {
+    margin-bottom: 5px;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .panel-metrics small {
+    color: var(--text-faint);
+    font-size: 9px;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .hero-in {
       opacity: 0;
-      transform: translateY(12px);
-      animation: hero-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      transform: translateY(14px);
+      animation: hero-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .hero-copy > :nth-child(2) {
+      animation-delay: 80ms;
+    }
+
+    .hero-copy > :nth-child(3) {
+      animation-delay: 150ms;
+    }
+
+    .hero-copy > :nth-child(4) {
+      animation-delay: 220ms;
+    }
+
+    .hero-copy > :nth-child(5),
+    .signal-panel {
+      animation-delay: 290ms;
     }
   }
+
   @keyframes hero-in {
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
-</style>
 
-<style>
-  .screenshot-section {
-    max-width: 1280px;
+  .product-view {
+    max-width: var(--page-width);
     margin: 0 auto;
-    padding: 0 48px 96px;
+    padding: 0 48px 152px;
   }
+
+  .product-view-head {
+    display: grid;
+    grid-template-columns: 1fr minmax(280px, 0.55fr);
+    align-items: end;
+    gap: 64px;
+    max-width: var(--page-width);
+    margin: 0 auto 52px;
+  }
+
+  .product-view-head h2,
+  .section-head h2,
+  .final-cta h2 {
+    max-width: 15ch;
+    font-size: clamp(2.5rem, 5vw, 4.75rem);
+    font-weight: 610;
+    letter-spacing: -0.055em;
+    line-height: 0.98;
+    text-wrap: balance;
+  }
+
+  .product-view-head > p,
+  .section-head > p:last-child {
+    max-width: 54ch;
+    color: var(--text-dim);
+    font-size: 15px;
+    line-height: 1.72;
+    text-wrap: pretty;
+  }
+
   .screenshot-frame {
-    border: 1px solid var(--border);
-    border-radius: 14px;
+    position: relative;
+    max-width: var(--page-width);
+    margin: 0 auto;
     overflow: hidden;
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    background: #090a0a;
+    box-shadow: var(--shadow);
+  }
+
+  .window-bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
     background: var(--bg-raised);
   }
-  .screenshot-frame .chrome {
+
+  .window-title,
+  .window-status {
+    color: var(--text-faint);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .window-controls {
     display: flex;
     gap: 6px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
   }
-  .screenshot-frame .chrome span {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+
+  .window-controls i {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
     background: var(--border-strong);
   }
-  .screenshot-frame :global(img) {
-    width: 100%;
-    display: block;
+
+  .window-status {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 7px;
   }
-  .features {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 0 48px 120px;
+
+  .window-status i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
   }
-  .section-head {
-    margin-bottom: 56px;
-  }
-  .section-head h2 {
-    font-size: 30px;
-    font-weight: 600;
-    margin-bottom: 12px;
-    letter-spacing: -0.01em;
-  }
-  .section-head p {
-    color: var(--text-dim);
-    font-size: 16px;
-  }
-  .feature-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    border-radius: 14px;
+
+  .screenshot-wrap {
+    position: relative;
     overflow: hidden;
   }
+
+  .screenshot-wrap::after {
+    position: absolute;
+    inset: 0;
+    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.42);
+    content: '';
+    pointer-events: none;
+  }
+
+  .screenshot-frame :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .screenshot-frame:hover :global(img) {
+    transform: scale(1.008);
+  }
+
+  figcaption {
+    display: grid;
+    grid-template-columns: 22% 53% 25%;
+    border-top: 1px solid var(--border);
+    color: var(--text-faint);
+    background: var(--bg-raised);
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 9px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  figcaption span {
+    padding: 11px 14px;
+    border-right: 1px solid var(--border);
+  }
+
+  figcaption span:last-child {
+    border-right: 0;
+  }
+
+  .features {
+    max-width: var(--page-width);
+    margin: 0 auto;
+    padding: 0 48px 160px;
+  }
+
+  .section-head {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    align-items: end;
+    gap: 64px;
+    margin-bottom: 56px;
+  }
+
+  .section-head .eyebrow {
+    grid-column: 1 / -1;
+    margin-bottom: -28px;
+  }
+
+  .section-head h2 {
+    max-width: 13ch;
+  }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--border);
+  }
+
   .feature {
-    background: var(--bg);
-    padding: 32px;
+    position: relative;
+    display: flex;
+    min-height: 300px;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 28px;
+    background: var(--bg-soft);
   }
+
+  .feature::after {
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
+    width: 5px;
+    height: 5px;
+    background: var(--border-strong);
+    content: '';
+    transition:
+      background-color 200ms ease,
+      transform 200ms ease;
+  }
+
+  .feature:hover::after {
+    background: var(--accent);
+    transform: rotate(45deg) scale(1.2);
+  }
+
+  .feature-1,
+  .feature-4,
+  .feature-5 {
+    grid-column: span 7;
+  }
+
+  .feature-2,
+  .feature-3,
+  .feature-6 {
+    grid-column: span 5;
+  }
+
+  .feature-1,
+  .feature-4 {
+    background:
+      radial-gradient(circle at 86% 12%, rgba(45, 212, 191, 0.08), transparent 16rem),
+      var(--bg-raised);
+  }
+
+  .feature-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-faint);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .feature-number {
+    color: var(--accent);
+  }
+
+  .feature-copy {
+    max-width: 34rem;
+    padding-right: 28px;
+  }
+
   .feature h3 {
-    font-size: 17px;
-    font-weight: 600;
-    margin-bottom: 10px;
+    max-width: 16ch;
+    margin-bottom: 14px;
+    font-size: clamp(1.45rem, 2.5vw, 2.25rem);
+    font-weight: 590;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    text-wrap: balance;
   }
+
   .feature p {
+    max-width: 52ch;
     color: var(--text-dim);
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.68;
+    text-wrap: pretty;
   }
-  @media (prefers-reduced-motion: no-preference) {
-    .feature-grid > :nth-child(1) {
-      transition-delay: 0s;
-    }
-    .feature-grid > :nth-child(2) {
-      transition-delay: 0.06s;
-    }
-    .feature-grid > :nth-child(3) {
-      transition-delay: 0.12s;
-    }
-    .feature-grid > :nth-child(4) {
-      transition-delay: 0.18s;
-    }
-    .feature-grid > :nth-child(5) {
-      transition-delay: 0.24s;
-    }
-    .feature-grid > :nth-child(6) {
-      transition-delay: 0.3s;
-    }
-  }
-</style>
 
-<style>
-  @media (max-width: 640px) {
+  .final-cta {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 80px;
+    max-width: calc(var(--page-width) - 96px);
+    margin: 0 auto 144px;
+    padding: 64px;
+    border: 1px solid rgba(45, 212, 191, 0.3);
+    border-radius: 9px;
+    background:
+      linear-gradient(105deg, rgba(45, 212, 191, 0.11), transparent 55%),
+      var(--bg-raised);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
+  }
+
+  .final-cta h2 {
+    max-width: 14ch;
+    font-size: clamp(2.25rem, 4.5vw, 4rem);
+  }
+
+  .final-cta-actions {
+    display: flex;
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .final-cta-actions p {
+    color: var(--text-faint);
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+
+  @media (max-width: 1280px) and (min-width: 961px) {
     .hero {
-      padding: 64px 20px 48px;
+      padding-top: 92px;
+      padding-bottom: 116px;
     }
-    h1 {
-      font-size: 34px;
-      max-width: 100%;
+
+    .hero h1 {
+      font-size: 5.2rem;
     }
-    .hero-sub {
-      font-size: 16px;
-    }
-    .screenshot-section {
-      padding: 0 20px 64px;
-    }
-    .features {
-      padding: 0 20px 64px;
-    }
-    .feature-grid {
+  }
+
+  @media (max-width: 960px) {
+    .hero {
       grid-template-columns: 1fr;
+      align-items: start;
+      gap: 64px;
+      padding-top: 104px;
+    }
+
+    .hero h1 {
+      font-size: clamp(4rem, 12vw, 6.5rem);
+    }
+
+    .signal-panel {
+      width: min(100%, 600px);
+      margin-left: auto;
+    }
+
+    .product-view-head,
+    .section-head,
+    .final-cta {
+      grid-template-columns: 1fr;
+      align-items: start;
+    }
+
+    .section-head .eyebrow {
+      grid-column: auto;
+      margin-bottom: -38px;
+    }
+
+    .final-cta-actions {
+      align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .hero {
+      gap: 52px;
+      padding: 80px 20px 104px;
+    }
+
+    .hero h1 {
+      font-size: clamp(3.4rem, 16vw, 5rem);
+      line-height: 0.92;
+    }
+
+    .hero-actions {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .hero-meta {
+      gap: 10px 18px;
+    }
+
+    .product-view {
+      padding: 0 20px 104px;
+    }
+
+    .product-view-head {
+      gap: 26px;
+      margin-bottom: 36px;
+    }
+
+    .window-bar {
+      grid-template-columns: 1fr auto;
+    }
+
+    .window-controls {
+      display: none;
+    }
+
+    .window-status {
+      grid-column: 2;
+    }
+
+    figcaption {
+      display: none;
+    }
+
+    .features {
+      padding: 0 20px 104px;
+    }
+
+    .section-head {
+      gap: 26px;
+      margin-bottom: 36px;
+    }
+
+    .section-head .eyebrow {
+      margin-bottom: -8px;
+    }
+
+    .feature {
+      min-height: 270px;
+      grid-column: 1 / -1;
+      padding: 24px;
+    }
+
+    .final-cta {
+      gap: 40px;
+      margin: 0 20px 96px;
+      padding: 38px 24px;
+    }
+
+    .final-cta-actions p {
+      max-width: 30ch;
+      line-height: 1.6;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .panel-metrics {
+      grid-template-columns: 1fr;
+    }
+
+    .panel-metrics div {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-metrics div:last-child {
+      border-bottom: 0;
     }
   }
 </style>

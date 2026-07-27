@@ -9,14 +9,19 @@ const posts = (await getCollection('blog')).sort(
 );
 ---
 <NarrowLayout title="Blog · Code-by-wire" description="News and updates from Code-by-wire.">
-  <h1>Blog</h1>
+  <p class="eyebrow">Field notes</p>
+  <h1 class="page-title">From the wire.</h1>
   <ul>
     {
-      posts.map((post) => (
+      posts.map((post, index) => (
         <li>
-          <a href={`${base}blog/${post.id}/`}>{post.data.title}</a>
-          <p>{post.data.description}</p>
-          <time class="mono">{post.data.publishDate}</time>
+          <span class="post-number mono">{String(index + 1).padStart(2, '0')}</span>
+          <div class="post-copy">
+            <a href={`${base}blog/${post.id}/`}>{post.data.title}</a>
+            <p>{post.data.description}</p>
+            <time class="mono">{post.data.publishDate}</time>
+          </div>
+          <span class="post-arrow" aria-hidden="true">↗</span>
         </li>
       ))
     }
@@ -24,10 +29,8 @@ const posts = (await getCollection('blog')).sort(
 </NarrowLayout>
 
 <style>
-  h1 {
-    font-weight: 600;
-    font-size: 40px;
-    margin-bottom: 40px;
+  .page-title {
+    margin-bottom: 64px;
   }
   ul {
     list-style: none;
@@ -35,18 +38,23 @@ const posts = (await getCollection('blog')).sort(
     margin: 0;
   }
   li {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 18px;
     border-top: 1px solid var(--border);
-    padding: 24px 0;
+    padding: 28px 0;
   }
   li:last-child {
     border-bottom: 1px solid var(--border);
   }
   a {
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 21px;
+    font-weight: 590;
+    letter-spacing: -0.025em;
+    transition: color 180ms ease;
   }
   a:hover {
-    color: var(--text-dim);
+    color: var(--accent-bright);
   }
   p {
     color: var(--text-dim);
@@ -59,9 +67,28 @@ const posts = (await getCollection('blog')).sort(
     display: block;
     margin-top: 10px;
   }
+  .post-number,
+  .post-arrow {
+    color: var(--text-faint);
+    font-size: 10px;
+  }
+  .post-number {
+    padding-top: 8px;
+  }
+  .post-arrow {
+    padding-top: 5px;
+    font-size: 15px;
+  }
   @media (max-width: 640px) {
-    h1 {
-      font-size: 32px;
+    .page-title {
+      margin-bottom: 48px;
+    }
+    li {
+      grid-template-columns: 28px 1fr;
+      gap: 12px;
+    }
+    .post-arrow {
+      display: none;
     }
   }
 </style>
