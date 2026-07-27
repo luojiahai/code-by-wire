@@ -18,9 +18,9 @@
   --text: #efede5;
   --text-dim: #a5a39c;
   --text-faint: #74736e;
-  --accent: #dd8261;
-  --accent-bright: #efa080;
-  --accent-soft: rgba(221, 130, 97, 0.12);
+  --accent: #2dd4bf;
+  --accent-bright: #5eead4;
+  --accent-soft: rgba(45, 212, 191, 0.12);
   --shadow: 0 30px 90px rgba(3, 4, 4, 0.52);
   --page-width: 1360px;
   --content-width: 760px;
@@ -46,7 +46,7 @@ body {
   background:
     radial-gradient(
       circle at 78% -12%,
-      rgba(221, 130, 97, 0.09),
+      rgba(45, 212, 191, 0.09),
       transparent 32rem
     ),
     var(--bg);
