@@ -10,20 +10,34 @@ interface Props {
 const { title, description } = Astro.props;
 ---
 <BaseLayout title={title} description={description}>
-  <main class="narrow-shell">
+  <main id="main-content" class="narrow-shell">
     <slot />
   </main>
 </BaseLayout>
 
 <style>
   .narrow-shell {
-    max-width: 760px;
+    position: relative;
+    max-width: var(--content-width);
     margin: 0 auto;
-    padding: 96px 48px;
+    padding: 112px 48px 144px;
+  }
+  .narrow-shell::before {
+    position: absolute;
+    top: 64px;
+    left: 48px;
+    width: 44px;
+    height: 1px;
+    background: var(--accent);
+    content: '';
   }
   @media (max-width: 640px) {
     .narrow-shell {
-      padding: 64px 20px;
+      padding: 84px 20px 96px;
+    }
+    .narrow-shell::before {
+      top: 48px;
+      left: 20px;
     }
   }
 </style>

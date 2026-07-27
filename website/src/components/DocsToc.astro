@@ -35,12 +35,14 @@ const { items } = Astro.props;
   }
   .docs-toc {
     position: sticky;
-    top: 32px;
+    top: 36px;
+    padding-left: 18px;
+    border-left: 1px solid var(--border);
   }
   .docs-toc-label {
     font-family: 'JetBrains Mono Variable', monospace;
     font-size: 12px;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-faint);
     margin-bottom: 16px;
@@ -60,6 +62,7 @@ const { items } = Astro.props;
     color: var(--text-dim);
     font-size: 13px;
     line-height: 1.5;
+    transition: color 180ms ease;
   }
   .docs-toc a:hover {
     color: var(--text);

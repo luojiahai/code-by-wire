@@ -1,0 +1,116 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+<BaseLayout
+  title="Page not found · Code-by-wire"
+  description="The requested Code-by-wire page could not be found."
+>
+  <main id="main-content" class="not-found">
+    <div class="error-code mono" aria-hidden="true">404 / NO SIGNAL</div>
+    <div class="error-copy">
+      <p class="eyebrow">Connection ended</p>
+      <h1>Nothing on this frequency.</h1>
+      <p>
+        The page may have moved, or the address is no longer active. Return to the control room
+        or open the docs.
+      </p>
+      <div class="actions">
+        <a href={base} class="primary">Back to home</a>
+        <a href={`${base}docs/`} class="secondary">Open the docs ↗</a>
+      </div>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .not-found {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.55fr) 1fr;
+    gap: 80px;
+    align-items: start;
+    min-height: 68dvh;
+    max-width: var(--page-width);
+    margin: 0 auto;
+    padding: 128px 48px 144px;
+  }
+
+  .error-code {
+    padding-top: 12px;
+    border-top: 1px solid var(--accent);
+    color: var(--text-faint);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  h1 {
+    max-width: 12ch;
+    margin-bottom: 28px;
+    font-size: clamp(3.5rem, 8vw, 7rem);
+    font-weight: 610;
+    letter-spacing: -0.065em;
+    line-height: 0.92;
+    text-wrap: balance;
+  }
+
+  .error-copy > p:not(.eyebrow) {
+    max-width: 54ch;
+    color: var(--text-dim);
+    font-size: 17px;
+    line-height: 1.7;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-top: 40px;
+  }
+
+  .primary {
+    padding: 13px 17px;
+    border: 1px solid var(--accent-bright);
+    border-radius: 5px;
+    color: var(--bg);
+    background: var(--accent-bright);
+    font-size: 14px;
+    font-weight: 650;
+    transition:
+      background-color 180ms ease,
+      transform 180ms ease;
+  }
+
+  .primary:hover {
+    background: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .secondary {
+    color: var(--text-dim);
+    font-size: 14px;
+    transition: color 180ms ease;
+  }
+
+  .secondary:hover {
+    color: var(--text);
+  }
+
+  @media (max-width: 720px) {
+    .not-found {
+      grid-template-columns: 1fr;
+      gap: 56px;
+      padding: 88px 20px 104px;
+    }
+
+    .error-code {
+      width: 160px;
+    }
+
+    .actions {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 20px;
+    }
+  }
+</style>

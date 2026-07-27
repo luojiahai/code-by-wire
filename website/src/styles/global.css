@@ -9,13 +9,25 @@
 
 :root {
   color-scheme: dark;
-  --bg: #0a0a0c;
-  --bg-raised: #111114;
-  --border: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text: #f2f2f3;
-  --text-dim: #9a9aa2;
-  --text-faint: #7c7c84;
+  --bg: #0b0c0c;
+  --bg-soft: #101211;
+  --bg-raised: #151716;
+  --bg-elevated: #1b1e1c;
+  --border: rgba(239, 236, 226, 0.1);
+  --border-strong: rgba(239, 236, 226, 0.2);
+  --text: #efede5;
+  --text-dim: #a5a39c;
+  --text-faint: #74736e;
+  --accent: #dd8261;
+  --accent-bright: #efa080;
+  --accent-soft: rgba(221, 130, 97, 0.12);
+  --shadow: 0 30px 90px rgba(3, 4, 4, 0.52);
+  --page-width: 1360px;
+  --content-width: 760px;
+  --z-skip: 100;
+  --z-nav: 30;
+  --z-drawer: 50;
+  --z-backdrop: 40;
 }
 
 html,
@@ -29,6 +41,55 @@ body {
 body {
   font-family: "Geist Variable", system-ui, sans-serif;
   line-height: 1.5;
+  min-width: 320px;
+  min-height: 100dvh;
+  background:
+    radial-gradient(
+      circle at 78% -12%,
+      rgba(221, 130, 97, 0.09),
+      transparent 32rem
+    ),
+    var(--bg);
+  overflow-x: hidden;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 4rem 4rem;
+  mask-image: linear-gradient(to bottom, black, transparent 75%);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body,
+h1,
+h2,
+h3,
+h4,
+p,
+ul {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  background: none;
+  cursor: pointer;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* [data-reveal] elements are visible by default. JS opts them into the
@@ -54,49 +115,153 @@ a {
 }
 
 :focus-visible {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 3px;
+}
+
+::selection {
+  color: var(--bg);
+  background: var(--accent-bright);
+}
+
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: var(--z-skip);
+  padding: 10px 14px;
+  border-radius: 6px;
+  color: var(--bg);
+  background: var(--text);
+  font-weight: 650;
+  transform: translateY(-160%);
+  transition: transform 180ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
 }
 
 .mono {
   font-family: "JetBrains Mono Variable", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  color: var(--accent-bright);
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.eyebrow::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: currentColor;
+  content: "";
+}
+
+.page-title {
+  max-width: 14ch;
+  margin-bottom: 24px;
+  font-size: clamp(2.75rem, 7vw, 5rem);
+  font-weight: 620;
+  letter-spacing: -0.055em;
+  line-height: 0.96;
+  text-wrap: balance;
+}
+
+.page-lead {
+  max-width: 60ch;
+  color: var(--text-dim);
+  font-size: clamp(1rem, 2vw, 1.125rem);
+  line-height: 1.72;
+  text-wrap: pretty;
 }
 
 .prose h2 {
+  margin: 52px 0 18px;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.prose h3 {
+  margin: 32px 0 14px;
+  color: var(--text);
+  font-size: 17px;
   font-weight: 600;
-  font-size: 22px;
-  margin: 40px 0 16px;
 }
 
 .prose p {
+  max-width: 66ch;
   color: var(--text-dim);
-  line-height: 1.7;
-  margin-bottom: 16px;
+  line-height: 1.78;
+  margin-bottom: 20px;
+  text-wrap: pretty;
 }
 
 .prose ul {
   padding-left: 20px;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .prose li {
   color: var(--text-dim);
-  line-height: 1.7;
-  margin-bottom: 8px;
+  line-height: 1.75;
+  margin-bottom: 10px;
+}
+
+.prose li::marker {
+  color: var(--accent);
 }
 
 .prose a {
-  text-decoration: underline;
+  color: var(--text);
+  text-decoration: underline var(--border-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition:
+    color 180ms ease,
+    text-decoration-color 180ms ease;
+}
+
+.prose a:hover {
+  color: var(--accent-bright);
+  text-decoration-color: currentColor;
 }
 
 .prose strong {
   color: var(--text);
+  font-weight: 620;
 }
 
 .prose code {
   font-family: "JetBrains Mono Variable", monospace;
   font-size: 0.9em;
   background: var(--bg-raised);
-  padding: 2px 6px;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  padding: 2px 6px 3px;
+  border-radius: 3px;
+}
+
+@media (max-width: 640px) {
+  .eyebrow {
+    margin-bottom: 18px;
+  }
+
+  .page-title {
+    margin-bottom: 20px;
+  }
 }

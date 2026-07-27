@@ -26,21 +26,17 @@ const { Content, headings } = await render(page);
   currentId={page.id}
   headings={headings}
 >
-  <h1>{page.data.title}</h1>
+  <p class="eyebrow">Operator manual</p>
+  <h1 class="page-title">{page.data.title}</h1>
   <div class="prose">
     <Content />
   </div>
 </DocsLayout>
 
 <style>
-  h1 {
-    font-weight: 600;
-    font-size: 36px;
-    margin-bottom: 40px;
-  }
-  @media (max-width: 640px) {
-    h1 {
-      font-size: 30px;
-    }
+  .page-title {
+    max-width: 18ch;
+    margin-bottom: 48px;
+    font-size: clamp(2.75rem, 7vw, 4.5rem);
   }
 </style>

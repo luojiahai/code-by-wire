@@ -33,29 +33,35 @@ const groups = [
   title="Download · Code-by-wire"
   description="Download Code-by-wire for macOS or Windows."
 >
-  <h1>Download</h1>
-  <p class="lead">
+  <p class="eyebrow">Desktop builds</p>
+  <h1 class="page-title">Take the controls.</h1>
+  <p class="page-lead">
     One click starts the download. Always the latest release. You'll need{' '}
     <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a> and/or{' '}
     <a href="https://developers.openai.com/codex/cli">Codex</a> installed locally, so there are
     sessions to observe and control.
   </p>
 
-  <div>
+  <div class="platforms">
     {
       groups.map((group) => (
         <section id={group.id} class="platform-group">
-          <h2>{group.label}</h2>
+          <div class="platform-heading">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d={group.iconPath} />
+            </svg>
+            <h2>{group.label}</h2>
+          </div>
           <div class="download-buttons">
             {group.platforms.map((p) => (
               <a href={`${releaseBase}/${p.file}`} class="download-btn">
-                <svg class="download-btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d={group.iconPath} />
-                </svg>
                 <span class="download-btn-text">
                   <strong>{p.name}</strong>
                   <span class="file-name">{p.file}</span>
                 </span>
+                <svg class="download-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 2v9m0 0 3.5-3.5M8 11 4.5 7.5M3 14h10" stroke="currentColor" stroke-width="1.4" />
+                </svg>
               </a>
             ))}
           </div>
@@ -66,50 +72,66 @@ const groups = [
 </NarrowLayout>
 
 <style>
-  h1 {
-    font-weight: 600;
-    font-size: 40px;
-    margin-bottom: 24px;
+  .page-lead {
+    margin-bottom: 64px;
   }
-  .lead {
-    color: var(--text-dim);
-    font-size: 17px;
-    line-height: 1.6;
-    margin-bottom: 48px;
+  .page-lead a {
+    color: var(--text);
+    text-decoration: underline var(--border-strong);
+    text-underline-offset: 4px;
   }
-  .lead a {
-    text-decoration: underline;
+  .platforms {
+    display: grid;
+    gap: 18px;
   }
   .platform-group {
-    margin-bottom: 40px;
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 32px;
+    padding: 24px 0;
+    border-top: 1px solid var(--border);
   }
-  .platform-group h2 {
+  .platform-heading {
+    display: flex;
+    align-items: center;
+    align-self: start;
+    gap: 12px;
+    padding-top: 16px;
+    color: var(--text-dim);
+  }
+  .platform-heading h2 {
+    color: var(--text);
+    font-size: 16px;
     font-weight: 600;
-    font-size: 22px;
-    margin-bottom: 16px;
   }
   .download-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--border);
   }
   .download-btn {
     display: flex;
     align-items: center;
-    gap: 16px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 20px;
+    justify-content: space-between;
+    gap: 18px;
+    min-width: 0;
+    padding: 18px;
+    background: var(--bg-soft);
+    transition:
+      color 200ms ease,
+      background-color 200ms ease;
   }
   .download-btn:hover {
-    border-color: var(--border-strong);
-  }
-  .download-btn-icon {
-    flex-shrink: 0;
-    color: var(--text-dim);
+    color: var(--accent-bright);
+    background: var(--bg-raised);
   }
   .download-btn-text {
     display: flex;
+    min-width: 0;
     flex-direction: column;
     gap: 4px;
   }
@@ -119,17 +141,33 @@ const groups = [
   }
   .download-btn-text .file-name {
     font-family: 'JetBrains Mono Variable', monospace;
-    font-size: 12px;
-    color: var(--text-dim);
+    overflow: hidden;
+    color: var(--text-faint);
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  @media (max-width: 640px) {
-    h1 {
-      font-size: 32px;
+  .download-arrow {
+    flex: none;
+    color: var(--text-faint);
+    transition: transform 200ms ease;
+  }
+  .download-btn:hover .download-arrow {
+    transform: translateY(2px);
+  }
+  @media (max-width: 700px) {
+    .page-lead {
+      margin-bottom: 48px;
     }
-    .download-btn {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 10px;
+    .platform-group {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    .platform-heading {
+      padding-top: 0;
+    }
+    .download-buttons {
+      grid-template-columns: 1fr;
     }
   }
 </style>

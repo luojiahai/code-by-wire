@@ -4,45 +4,39 @@ const base = import.meta.env.BASE_URL;
 ---
 <div class="footer-bar">
   <footer>
-    <a href={base} class="brand">
-      <img src={`${base}mark.svg`} alt="" class="brand-mark" width="35" height="20" />
-      <span class="brand-name">Code-by-wire</span>
-    </a>
-    <div class="footer-cols">
-      <div class="footer-col">
-        <h4>Product</h4>
-        <a href={`${base}download/`}>Download</a>
-        <a href={`${base}docs/`}>Docs</a>
-        <a href={`${base}changelog/`}>Changelog</a>
-      </div>
-      <div class="footer-col">
-        <h4>Community</h4>
-        <a href={`${base}blog/`}>Blog</a>
-        <a href="https://github.com/luojiahai/code-by-wire">GitHub</a>
-        <a href={`${base}sponsor/`}>Sponsor</a>
-      </div>
-      <div class="footer-col">
-        <h4>Legal</h4>
-        <a href="https://github.com/luojiahai/code-by-wire/blob/main/LICENSE">MIT License</a>
-      </div>
+    <div class="footer-intro">
+      <a href={base} class="brand">
+        <img src={`${base}mark.svg`} alt="" class="brand-mark" width="35" height="20" />
+        <span class="brand-name">Code-by-wire</span>
+      </a>
+      <p>The control surface for coding agents running on your machine.</p>
     </div>
-    <div class="footer-meta">© 2026 luojiahai</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href={`${base}download/`}>Download</a>
+      <a href={`${base}docs/`}>Docs</a>
+      <a href={`${base}changelog/`}>Changelog</a>
+      <a href="https://github.com/luojiahai/code-by-wire">GitHub</a>
+      <a href={`${base}sponsor/`}>Sponsor</a>
+    </nav>
+    <div class="footer-meta">
+      <span>© 2026 luojiahai</span>
+      <a href="https://github.com/luojiahai/code-by-wire/blob/main/LICENSE">MIT licensed</a>
+    </div>
   </footer>
 </div>
 
 <style>
   .footer-bar {
     border-top: 1px solid var(--border);
+    background: var(--bg-soft);
   }
   footer {
-    padding: 56px 48px;
-    max-width: 1280px;
+    padding: 64px 48px 32px;
+    max-width: var(--page-width);
     margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 32px;
+    display: grid;
+    grid-template-columns: minmax(240px, 1.4fr) 1fr;
+    gap: 64px 80px;
   }
   .brand {
     display: flex;
@@ -53,45 +47,64 @@ const base = import.meta.env.BASE_URL;
     display: block;
   }
   .brand-name {
-    font-weight: 600;
+    font-weight: 620;
     font-size: 15px;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.025em;
   }
-  .footer-cols {
-    display: flex;
-    gap: 64px;
-    flex-wrap: wrap;
-  }
-  .footer-col h4 {
-    font-family: 'JetBrains Mono Variable', monospace;
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-    margin-bottom: 16px;
-  }
-  .footer-col a {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  .footer-intro p {
+    max-width: 34ch;
+    margin-top: 18px;
     color: var(--text-dim);
     font-size: 14px;
-    margin-bottom: 10px;
+    line-height: 1.65;
+    text-wrap: pretty;
   }
-  .footer-col a:hover {
+  .footer-links {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .footer-links a {
+    color: var(--text-dim);
+    font-size: 13px;
+    transition: color 180ms ease;
+  }
+  .footer-links a:hover {
     color: var(--text);
   }
   .footer-meta {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
     color: var(--text-faint);
-    font-size: 13px;
+    font-size: 11px;
     font-family: 'JetBrains Mono Variable', monospace;
+    letter-spacing: 0.04em;
+  }
+  .footer-meta a {
+    transition: color 180ms ease;
+  }
+  .footer-meta a:hover {
+    color: var(--text);
   }
   @media (max-width: 640px) {
     footer {
-      padding: 40px 20px;
+      grid-template-columns: 1fr;
+      gap: 40px;
+      padding: 48px 20px 28px;
     }
-    .footer-cols {
-      gap: 32px;
+    .footer-links {
+      justify-content: flex-start;
+      gap: 14px 22px;
+    }
+    .footer-meta {
+      grid-column: auto;
+      flex-direction: column;
+      gap: 8px;
     }
   }
 </style>

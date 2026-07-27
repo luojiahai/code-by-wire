@@ -3,8 +3,9 @@
 import NarrowLayout from '../layouts/NarrowLayout.astro';
 ---
 <NarrowLayout title="Sponsor · Code-by-wire" description="Support Code-by-wire development.">
-  <h1>Sponsor</h1>
-  <p class="lead">
+  <p class="eyebrow">Independent software</p>
+  <h1 class="page-title">Back the work.</h1>
+  <p class="page-lead">
     Code-by-wire is a personal project, built and maintained in spare time. If it's useful to
     you, here's how to support it.
   </p>
@@ -17,6 +18,7 @@ import NarrowLayout from '../layouts/NarrowLayout.astro';
         <strong>GitHub Sponsors</strong>
         <span class="sponsor-desc">Recurring or one-time, through GitHub.</span>
       </span>
+      <span class="sponsor-arrow" aria-hidden="true">↗</span>
     </a>
     <a href="https://buymeacoffee.com/luojiahai" class="sponsor-card">
       <span class="sponsor-icon" aria-hidden="true">
@@ -26,37 +28,37 @@ import NarrowLayout from '../layouts/NarrowLayout.astro';
         <strong>Buy Me a Coffee</strong>
         <span class="sponsor-desc">A one-off way to say thanks.</span>
       </span>
+      <span class="sponsor-arrow" aria-hidden="true">↗</span>
     </a>
   </div>
 </NarrowLayout>
 
 <style>
-  h1 {
-    font-weight: 600;
-    font-size: 40px;
-    margin-bottom: 24px;
-  }
-  .lead {
-    color: var(--text-dim);
-    font-size: 17px;
-    line-height: 1.6;
-    margin-bottom: 48px;
+  .page-lead {
+    margin-bottom: 64px;
   }
   .sponsor-links {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    display: grid;
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--border);
   }
   .sponsor-card {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 20px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
     padding: 24px;
+    background: var(--bg-soft);
+    transition:
+      color 200ms ease,
+      background-color 200ms ease;
   }
   .sponsor-card:hover {
-    border-color: var(--border-strong);
+    color: var(--accent-bright);
+    background: var(--bg-raised);
   }
   .sponsor-icon {
     display: flex;
@@ -66,8 +68,9 @@ import NarrowLayout from '../layouts/NarrowLayout.astro';
     height: 40px;
     flex-shrink: 0;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 5px;
     color: var(--text-dim);
+    background: rgba(255, 255, 255, 0.02);
   }
   .sponsor-card strong {
     display: block;
@@ -78,14 +81,20 @@ import NarrowLayout from '../layouts/NarrowLayout.astro';
     color: var(--text-dim);
     font-size: 14px;
   }
+  .sponsor-arrow {
+    margin-left: auto;
+    color: var(--text-faint);
+    transition: transform 200ms ease;
+  }
+  .sponsor-card:hover .sponsor-arrow {
+    transform: translate(2px, -2px);
+  }
   @media (max-width: 640px) {
-    h1 {
-      font-size: 32px;
+    .page-lead {
+      margin-bottom: 48px;
     }
     .sponsor-card {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 12px;
+      padding: 20px;
     }
   }
 </style>

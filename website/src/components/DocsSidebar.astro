@@ -60,7 +60,8 @@ const { docs, currentId } = Astro.props;
   }
   .docs-sidebar {
     position: sticky;
-    top: 32px;
+    top: 28px;
+    padding-top: 8px;
   }
   .docs-sidebar nav ul {
     list-style: none;
@@ -68,21 +69,27 @@ const { docs, currentId } = Astro.props;
     margin: 0;
   }
   .docs-sidebar nav li {
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
   .docs-sidebar nav a {
     display: block;
-    padding: 6px 10px;
-    border-radius: 6px;
+    padding: 9px 11px;
+    border-left: 1px solid var(--border);
+    border-radius: 0 4px 4px 0;
     color: var(--text-dim);
-    font-size: 14px;
+    font-size: 13px;
+    transition:
+      color 180ms ease,
+      border-color 180ms ease,
+      background-color 180ms ease;
   }
   .docs-sidebar nav a:hover {
     color: var(--text);
   }
   .docs-sidebar nav a[aria-current='page'] {
     color: var(--text);
-    background: var(--bg-raised);
+    border-color: var(--accent);
+    background: linear-gradient(90deg, var(--accent-soft), transparent);
     font-weight: 600;
   }
   @media (max-width: 768px) {
@@ -94,8 +101,9 @@ const { docs, currentId } = Astro.props;
       font-size: 14px;
       padding: 10px 14px;
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 5px;
       margin-bottom: 24px;
+      background: var(--bg-raised);
     }
     .docs-sidebar-toggle .icon-close {
       display: none;
@@ -118,7 +126,7 @@ const { docs, currentId } = Astro.props;
       padding: 24px 20px;
       transform: translateX(-100%);
       transition: transform 0.2s ease;
-      z-index: 50;
+      z-index: var(--z-drawer);
       overflow-y: auto;
     }
     .docs-sidebar.is-open {
@@ -128,8 +136,9 @@ const { docs, currentId } = Astro.props;
       display: block;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 40;
+      background: rgba(5, 6, 6, 0.72);
+      backdrop-filter: blur(3px);
+      z-index: var(--z-backdrop);
     }
   }
 </style>
