@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createProjectStateStore } from "../src/main/project-state";
+import {
+  createProjectStateStore,
+  remapPlacements,
+} from "../src/main/project-state";
 
 describe("createProjectStateStore", () => {
   const dirs: string[] = [];
@@ -66,4 +69,80 @@ describe("createProjectStateStore", () => {
       expect(createProjectStateStore({ dir }).read()).toEqual({});
     },
   );
+
+  it("writes a whole state in one pass", () => {
+    const dir = tmp();
+    const store = createProjectStateStore({ dir, now: () => 1 });
+    store.write({ "/repo": { pinnedAtMs: 5 }, "/other": { hiddenAtMs: 6 } });
+    expect(createProjectStateStore({ dir }).read()).toEqual({
+      "/repo": { pinnedAtMs: 5 },
+      "/other": { hiddenAtMs: 6 },
+    });
+  });
+});
+
+describe("remapPlacements", () => {
+  it("moves an entry keyed on a subdirectory to its repo root", () => {
+    expect(
+      remapPlacements(
+        { "/w/repo/src": { pinnedAtMs: 5 } },
+        new Map([["/w/repo/src", "/w/repo"]]),
+      ),
+    ).toEqual({ "/w/repo": { pinnedAtMs: 5 } });
+  });
+
+  it("keeps the newer entry when a subdirectory and its repo root collide", () => {
+    expect(
+      remapPlacements(
+        { "/w/repo/src": { pinnedAtMs: 9 }, "/w/repo": { hiddenAtMs: 4 } },
+        new Map([
+          ["/w/repo/src", "/w/repo"],
+          ["/w/repo", "/w/repo"],
+        ]),
+      ),
+    ).toEqual({ "/w/repo": { pinnedAtMs: 9 } });
+
+    expect(
+      remapPlacements(
+        { "/w/repo/src": { pinnedAtMs: 1 }, "/w/repo": { hiddenAtMs: 4 } },
+        new Map([["/w/repo/src", "/w/repo"]]),
+      ),
+    ).toEqual({ "/w/repo": { hiddenAtMs: 4 } });
+  });
+
+  it("resolves two colliding subdirectories to the newest entry", () => {
+    expect(
+      remapPlacements(
+        { "/w/repo/a": { hiddenAtMs: 2 }, "/w/repo/b": { pinnedAtMs: 8 } },
+        new Map([
+          ["/w/repo/a", "/w/repo"],
+          ["/w/repo/b", "/w/repo"],
+        ]),
+      ),
+    ).toEqual({ "/w/repo": { pinnedAtMs: 8 } });
+  });
+
+  it("leaves entries with no live session untouched", () => {
+    expect(
+      remapPlacements(
+        { "/gone": { pinnedAtMs: 3 }, "/w/repo/src": { hiddenAtMs: 4 } },
+        new Map([["/w/repo/src", "/w/repo"]]),
+      ),
+    ).toEqual({ "/gone": { pinnedAtMs: 3 }, "/w/repo": { hiddenAtMs: 4 } });
+  });
+
+  it("returns null when nothing moves, so a second launch writes nothing", () => {
+    expect(
+      remapPlacements(
+        { "/w/repo": { pinnedAtMs: 5 } },
+        new Map([
+          ["/w/repo/src", "/w/repo"],
+          ["/w/repo", "/w/repo"],
+        ]),
+      ),
+    ).toBeNull();
+    expect(
+      remapPlacements({}, new Map([["/w/repo/src", "/w/repo"]])),
+    ).toBeNull();
+  });
 });

@@ -12,6 +12,10 @@ export interface TranscriptSummary {
   title: string;
   project: string;
   cwd: string;
+  /** The directory the session STARTED in: the first cwd any row recorded, else the caller's
+   *  fallback. Unlike `cwd` it never follows the agent — an agent running `cd` mid-task must not
+   *  move the session to another sidebar folder (see PersistedSession.originCwd). */
+  originCwd: string;
   branch?: string;
   model: Family;
   /** The last assistant turn's raw `message.model`, before normalization. Undefined when no turn
@@ -165,6 +169,9 @@ export function parseTranscript(
   fallbackCwd = "",
 ): TranscriptSummary {
   let cwd = fallbackCwd;
+  // Latched on the first row that carries a cwd and never reassigned — same pass, no second scan.
+  // The transcript's own first cwd wins over the caller's fallback (the registry's spawn dir).
+  let originCwd = "";
   let branch: string | undefined;
   let lastModelRaw: string | undefined;
   let lastActivityMs = 0;
@@ -193,7 +200,10 @@ export function parseTranscript(
       continue;
     }
 
-    if (typeof row.cwd === "string") cwd = row.cwd;
+    if (typeof row.cwd === "string") {
+      cwd = row.cwd;
+      if (!originCwd && row.cwd) originCwd = row.cwd;
+    }
     if (typeof row.gitBranch === "string") branch = row.gitBranch;
     // A7: a /rename writes a custom-title row; the newest one is the transcript's own title tier.
     if (row.type === "custom-title" && typeof row.customTitle === "string")
@@ -307,6 +317,7 @@ export function parseTranscript(
     title: deriveTitle(userPrompts, cwd, customTitle),
     project: basename(cwd) || "unknown",
     cwd,
+    originCwd: originCwd || fallbackCwd,
     branch,
     model: normalizeModelId(lastModelRaw),
     modelRaw: lastModelRaw,

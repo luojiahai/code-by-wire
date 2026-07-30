@@ -15,8 +15,9 @@ export function sortSessions(sessions: Session[]): Session[] {
   return [...active, ...ended];
 }
 
-/** Case-insensitive substring match on title, project, or merged repo label (so searching a repo's
- *  name also finds its worktree sessions) — the sidebar search box's filter. */
+/** Case-insensitive substring match on title, project, or the folder's repo label (so searching a
+ *  repository's name finds every session grouped under it, whatever subdirectory or worktree each
+ *  one started in) — the sidebar search box's filter. */
 export function filterSessions(sessions: Session[], query: string): Session[] {
   const q = query.trim().toLowerCase();
   if (!q) return sessions;
@@ -30,7 +31,26 @@ function sessionMatchesQuery(
   return (
     session.title.toLowerCase().includes(normalizedQuery) ||
     (session.project ?? "").toLowerCase().includes(normalizedQuery) ||
-    (session.worktree?.repoLabel ?? "").toLowerCase().includes(normalizedQuery)
+    sessionRepoLabel(session).toLowerCase().includes(normalizedQuery)
+  );
+}
+
+/** The folder a session belongs to: the repo root main resolved from where the session started, or
+ *  — as a backstop for a session whose probe failed but whose durable worktree row survived — the
+ *  worktree's main checkout, else the session's own directory. Undefined only when nothing is known.
+ *  The single source of the grouping key, so search, grouping, and the pinned rail can't disagree. */
+export function sessionRepoRoot(session: Session): string | undefined {
+  return (
+    session.repoRoot ?? session.worktree?.repoRoot ?? (session.cwd || undefined)
+  );
+}
+
+/** The folder's display name, on the same fallback chain as sessionRepoRoot. */
+export function sessionRepoLabel(session: Session): string {
+  return (
+    session.repoLabel ??
+    session.worktree?.repoLabel ??
+    (session.project || ungroupedLabel())
   );
 }
 
@@ -340,14 +360,13 @@ export function parentHint(cwd: string, homeDir: string): string {
   return parent;
 }
 
-/** Hermes-style sidebar grouping (design spec §left-sidebar), keyed by full working directory so
- *  two same-named folders at different paths stay separate (2026-07-04 spec §3). One group per
- *  cwd — sessions with no known cwd fall back to a name-keyed group, degrading to the old
- *  behavior. Groups order by most recent activity; inside a group, sessions keep the flat sort.
- *  When 2+ groups share a label, each path-keyed one carries a `hint` (its ~-abbreviated parent)
- *  so the sidebar can tell them apart.
- *  Worktree sessions key on their main checkout's root (2026-07-09 worktree-merge spec), so a repo
- *  and its linked worktrees form one group. */
+/** Hermes-style sidebar grouping (design spec §left-sidebar), keyed by the session's repo root — the
+ *  stable project identity main resolved from where the session STARTED (2026-07-31 spec): every
+ *  session started anywhere inside one repository shares one group, linked worktrees included, and
+ *  two same-named repositories at different paths stay separate. Sessions with no known directory at
+ *  all fall back to a name-keyed group, degrading to the old behavior. Groups order by most recent
+ *  activity; inside a group, sessions keep the flat sort. When 2+ groups share a label, each
+ *  path-keyed one carries a `hint` (its ~-abbreviated parent) so the sidebar can tell them apart. */
 export function groupSessionsByProject(
   sessions: Session[],
   homeDir = "",
@@ -359,14 +378,11 @@ export function groupSessionsByProject(
   >();
   for (const s of sessions) {
     const groupingSession = relationshipRoot(s, byId);
-    // A worktree session groups under its main checkout: root as the key (and the quick-add cwd),
-    // repo name as the label. A main-checkout session in the same repo produces the identical
-    // bucket values, so merge order doesn't matter.
-    const cwd =
-      groupingSession.worktree?.repoRoot ?? (groupingSession.cwd || undefined);
-    const label =
-      groupingSession.worktree?.repoLabel ??
-      (groupingSession.project || ungroupedLabel());
+    // The repo root is the key and the group's quick-add cwd; the repo label is the folder name.
+    // Sessions in one repository produce identical bucket values whatever subdirectory or worktree
+    // they started in, so merge order doesn't matter.
+    const cwd = sessionRepoRoot(groupingSession);
+    const label = sessionRepoLabel(groupingSession);
     const key = cwd ?? label;
     const bucket = buckets.get(key);
     if (bucket) bucket.sessions.push(s);

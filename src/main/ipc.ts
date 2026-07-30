@@ -45,10 +45,15 @@ import { applyTitleOverrides } from "@shared/title-override";
 import { applyPinOverrides } from "@shared/pin-override";
 import type { SessionTitleStore } from "./session-titles";
 import type { SessionPinStore } from "./session-pins";
-import type { ProjectStateStore } from "./project-state";
+import { remapPlacements, type ProjectStateStore } from "./project-state";
 import type { LaunchPresetStore } from "./launch-presets";
 import { emptyLaunchPresets, type LaunchPresets } from "@shared/extra-args";
-import { getOverview, readIndexDbCounts, readSessionTitles } from "./db/store";
+import {
+  getOverview,
+  readIndexDbCounts,
+  readSessionOrigins,
+  readSessionTitles,
+} from "./db/store";
 import {
   readTotals,
   readBreakdowns,
@@ -64,7 +69,7 @@ import {
   upsertWorktree,
   readAnalyticsDbCounts,
 } from "./db/analytics";
-import { createWorktreeMap } from "./git/worktrees";
+import { createRepoIdentityMap } from "./git/repo-identity";
 import {
   scanStep,
   collectScanTargets,
@@ -275,10 +280,11 @@ export function registerIpc({
     syncSessions(db, provider);
   };
 
-  // cwd → linked-worktree identity: live git detection cached per cwd, seeded from (and written
-  // back to) the durable analytics store so a deleted worktree's sessions keep merging across
-  // restarts. Without an analytics db the map still live-detects; it just forgets on restart.
-  const worktreeMap = createWorktreeMap(
+  // origin dir → project identity (repo root, label, worktree descriptor): live git detection cached
+  // per origin, seeded from (and written back to) the durable analytics store so a deleted worktree's
+  // sessions keep merging across restarts. Only worktree rows are durable — a main-checkout root is
+  // in-memory for the run. Without an analytics db the map still live-detects; it forgets on restart.
+  const repoIdentityMap = createRepoIdentityMap(
     analyticsDb
       ? {
           load: () => readWorktrees(analyticsDb),
@@ -286,6 +292,31 @@ export function registerIpc({
         }
       : { load: () => [], save: () => {} },
   );
+
+  // The one-shot placement remap (project pins/hides are keyed on the sidebar's group key, which
+  // this change moves from a session's own cwd to its repo root). Runs on the first overview that
+  // resolved ANY root — an empty set must not consume the one shot, because the launch that upgrades
+  // the index schema serves its first overview from a just-rebuilt (empty) table, which is exactly
+  // the launch that has to migrate. At most one write per launch: the flag is set before the write
+  // so a throwing store can't turn it into a per-poll retry.
+  let placementsRemapped = false;
+  const placementsNeedMigrating = (): boolean =>
+    !placementsRemapped && projectState !== undefined;
+  const migratePlacementsOnce = (roots: Map<string, string>): void => {
+    if (!placementsNeedMigrating() || !projectState || roots.size === 0) return;
+    placementsRemapped = true;
+    try {
+      const next = remapPlacements(projectState.read(), roots);
+      if (next) projectState.write(next);
+    } catch (err) {
+      // A failed migration costs pins/hides on renamed keys, never the session list.
+      logError(
+        "project-placement-remap-failed",
+        "project placement remap failed; serving unmigrated placements",
+        err,
+      );
+    }
+  };
 
   // A6 last tier: the user's global default effort. Read once per app run (edits apply on relaunch,
   // like readModelDefaults); applied only where no per-session source answered.
@@ -336,15 +367,33 @@ export function registerIpc({
             : s,
         )
       : pinned;
-    // Worktree sessions merge into their main repo's sidebar folder; tag them here, after the
-    // overlay and renames, so the lookup sees the best-known cwd.
-    const withWorktrees = withEffort.map((s) => {
-      const wt = s.cwd ? worktreeMap.lookup(s.cwd) : null;
-      return wt ? { ...s, worktree: wt } : s;
+    // The sidebar's stable folder identity: resolved from where each session STARTED, so an agent
+    // that `cd`s mid-task can't move it, and every session started anywhere inside one repository
+    // lands on that repository's root. The live cwd only stands in when no origin was recorded.
+    const origins = readSessionOrigins(db);
+    // Collected only while the one-shot migration is still pending — after it has run, nothing
+    // reads this again, and every poll would otherwise rebuild it for nobody.
+    const collectRoots = placementsNeedMigrating();
+    const resolvedRoots = new Map<string, string>();
+    const withRepoRoots = withEffort.map((s) => {
+      const origin = origins.get(s.id) || s.cwd || "";
+      const identity = repoIdentityMap.lookup(origin);
+      if (!identity) return s;
+      if (collectRoots) resolvedRoots.set(origin, identity.repoRoot);
+      return {
+        ...s,
+        repoRoot: identity.repoRoot,
+        repoLabel: identity.repoLabel,
+        // Only a linked checkout carries a descriptor, and its presence is what shows the badge.
+        ...(identity.worktree ? { worktree: identity.worktree } : {}),
+      };
     });
+    // Carry pins/hides onto the new keys before this overview reads them, so the very first render
+    // after the upgrade already shows the migrated placements.
+    migratePlacementsOnce(resolvedRoots);
     return attachCliStatus(
       {
-        sessions: withWorktrees,
+        sessions: withRepoRoots,
         account,
         homeDir: homedir(),
         projectState: projectState?.read() ?? {},

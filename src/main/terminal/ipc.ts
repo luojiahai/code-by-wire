@@ -71,6 +71,8 @@ function draftSession(
     title: project,
     project,
     cwd,
+    // A draft has only just spawned, so the spawn dir IS its origin.
+    originCwd: cwd,
     branch: undefined,
     state: "working",
     management: "managed",

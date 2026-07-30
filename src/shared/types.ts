@@ -189,8 +189,16 @@ export interface Session {
   /** Best-known working directory: the live statusLine capture when present, else the transcript's
    *  persisted cwd. Keys the sidebar's project groups. Absent when neither source knows. */
   cwd?: string;
-  /** Present when `cwd` is inside a linked git worktree; the sidebar merges this session into the
-   *  main repo's folder (see SessionWorktree). */
+  /** The sidebar folder this session belongs to, resolved in main from the directory the session
+   *  STARTED in (never from the live `cwd`): the git repository's root when that origin was inside
+   *  one, else the origin itself. Every session started anywhere inside one repository therefore
+   *  lands in one folder, and an agent running `cd` can't move it. Absent only when no working
+   *  directory is known at all — the ungrouped bucket. */
+  repoRoot?: string;
+  /** basename(repoRoot) — the folder's label, ready to render. The renderer does no path math. */
+  repoLabel?: string;
+  /** Present when the session's origin is inside a linked git worktree that folded into `repoRoot`;
+   *  drives the row's worktree badge and name (see SessionWorktree). */
   worktree?: SessionWorktree;
   /** Claude Code's own session cost (statusLine cost.total_cost_usd) — the Spend panel's small $
    *  readout. Display-only, never derived from a pricing table. Absent ⇒ no sample. */
@@ -232,8 +240,15 @@ export interface PersistedSession {
   title: string;
   project: string;
   /** The session's working directory: the transcript's recorded cwd, else the registry
-   *  candidate's. '' when neither source knows. Keys the sidebar's path-keyed project groups. */
+   *  candidate's. '' when neither source knows. This is a LIVE value — for Claude it tracks
+   *  wherever the agent currently is, so an agent running `cd` moves it. */
   cwd: string;
+  /** The directory the session STARTED in, frozen for its lifetime: Claude's first transcript cwd
+   *  (else the registry's spawn dir), Codex's rollout-head cwd. Main resolves the sidebar's stable
+   *  repo root from this, never from the live `cwd` — that freeze is what keeps a session in the
+   *  folder it was started in when the agent `cd`s away. Main-process-internal: it is deliberately
+   *  NOT on Session, so it never crosses the process boundary. */
+  originCwd: string;
   branch?: string;
   state: SessionState;
   management: Management;

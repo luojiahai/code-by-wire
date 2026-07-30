@@ -22,7 +22,7 @@ import {
   currentStreak,
 } from "@shared/stats";
 import { transaction, type SqliteDb } from "./driver";
-import type { WorktreeRow } from "../git/worktrees";
+import type { WorktreeRow } from "../git/repo-identity";
 
 /**
  * Bump when the turn schema changes. The analytics store is durable: a full disk scan is expensive to
@@ -310,7 +310,7 @@ export function upsertProcessedFile(
   db.prepare(UPSERT_PROCESSED).run({ path, mtime, lines });
 }
 
-/** Every persisted cwd → main-checkout mapping (see git/worktrees.ts) — the worktree map's seed at
+/** Every persisted cwd → main-checkout mapping (see git/repo-identity.ts) — the worktree map's seed at
  *  startup, so a deleted worktree's sessions keep merging across restarts. */
 export function readWorktrees(db: SqliteDb): WorktreeRow[] {
   const rows = db

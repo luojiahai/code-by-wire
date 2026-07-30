@@ -8,6 +8,7 @@ function persisted(over: Partial<PersistedSession>): PersistedSession {
     title: "t",
     project: "p",
     cwd: "",
+    originCwd: "",
     state: "ended",
     management: "observed",
     agent: "claude",

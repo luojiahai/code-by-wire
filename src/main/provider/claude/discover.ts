@@ -238,6 +238,9 @@ export function summarize(c: SessionCandidate): PersistedSession {
     title: t?.title ?? fallbackName,
     project: t?.project ?? fallbackName,
     cwd: t?.cwd ?? c.cwd,
+    // Where the session STARTED, not where the agent is now: the transcript's first recorded cwd,
+    // else the registry's spawn dir. The index freezes the first non-empty value it stores.
+    originCwd: t?.originCwd || c.cwd,
     branch: t?.branch,
     state: deriveSessionState({
       alive: c.alive,
