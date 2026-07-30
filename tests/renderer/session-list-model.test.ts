@@ -97,6 +97,20 @@ describe("session list model", () => {
     ]);
   });
 
+  it("filters by the repo label so a repo-name search finds a subdirectory session", () => {
+    const sub = mk({
+      id: "sub",
+      title: "port terminal",
+      project: "api",
+      repoRoot: "/w/repo",
+      repoLabel: "repo",
+    });
+    const other = mk({ id: "o", title: "other", project: "beta" });
+    expect(filterSessions([sub, other], "REPO").map((s) => s.id)).toEqual([
+      "sub",
+    ]);
+  });
+
   it("pinnedSessions keeps only pinned sessions, newest pin first", () => {
     const a = mk({ id: "a", pinnedAtMs: 100 });
     const b = mk({ id: "b" });

@@ -637,6 +637,43 @@ describe("parseTranscript", () => {
     });
     expect(parseTranscript(jsonl).createdMs).toBe(0);
   });
+
+  it("freezes originCwd at the first recorded cwd while cwd follows the agent's `cd`", () => {
+    const jsonl = [
+      {
+        type: "user",
+        isMeta: false,
+        cwd: "/w/app",
+        message: { role: "user", content: "go" },
+      },
+      {
+        type: "assistant",
+        cwd: "/w/app/packages/api",
+        message: { role: "assistant", content: [{ type: "text", text: "ok" }] },
+      },
+      {
+        type: "user",
+        isMeta: false,
+        cwd: "/w/app/packages/api",
+        message: { role: "user", content: "more" },
+      },
+    ]
+      .map((r) => JSON.stringify(r))
+      .join("\n");
+    const s = parseTranscript(jsonl);
+    expect(s.originCwd).toBe("/w/app");
+    expect(s.cwd).toBe("/w/app/packages/api");
+  });
+
+  it("falls back to the caller's cwd for originCwd when no row records one", () => {
+    const jsonl = JSON.stringify({
+      type: "user",
+      isMeta: false,
+      message: { role: "user", content: "hi" },
+    });
+    expect(parseTranscript(jsonl, "/w/spawned").originCwd).toBe("/w/spawned");
+    expect(parseTranscript(jsonl).originCwd).toBe("");
+  });
 });
 
 describe("firstTranscriptCwd", () => {

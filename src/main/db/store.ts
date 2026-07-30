@@ -15,8 +15,9 @@ import { transaction, type SqliteDb } from "./driver";
  *  disposable cache) to match — v10 adds effort_level (A6 transcript scan) — v11 adds the A9
  *  compaction columns — v12 adds the agent column (codex support) — v13 rebuilds Codex rows after
  *  correcting injected AGENTS.md text that older title derivation mistook for a user prompt — v14
- *  persists Codex parent/subagent thread relationships for sidebar nesting. */
-const SCHEMA_VERSION = 14;
+ *  persists Codex parent/subagent thread relationships for sidebar nesting — v15 adds origin_cwd,
+ *  the frozen start directory the sidebar's stable repo root resolves from. */
+const SCHEMA_VERSION = 15;
 
 function userVersion(db: SqliteDb): number {
   return (db.prepare("PRAGMA user_version").get() as { user_version: number })
@@ -37,6 +38,7 @@ export function migrate(db: SqliteDb): void {
         title TEXT NOT NULL,
         project TEXT NOT NULL,
         cwd TEXT NOT NULL DEFAULT '',
+        origin_cwd TEXT NOT NULL DEFAULT '',
         branch TEXT,
         state TEXT NOT NULL,
         management TEXT NOT NULL,
@@ -71,6 +73,7 @@ interface Row {
   title: string;
   project: string;
   cwd: string;
+  origin_cwd: string;
   branch: string | null;
   state: string;
   management: string;
@@ -128,6 +131,7 @@ function rowToPersisted(r: Row): PersistedSession {
     title: r.title,
     project: r.project,
     cwd: r.cwd,
+    originCwd: r.origin_cwd,
     branch: r.branch ?? undefined,
     state: r.state as PersistedSession["state"],
     management: r.management as PersistedSession["management"],
@@ -219,17 +223,26 @@ export function hydrate(p: PersistedSession): Session {
 
 const UPSERT = `
   INSERT INTO sessions
-    (id, title, project, cwd, branch, state, management, agent, thread_kind, parent_session_id, model, model_raw, last_activity_ms, created_ms, awaiting_user, transcript_mtime_ms,
+    (id, title, project, cwd, origin_cwd, branch, state, management, agent, thread_kind, parent_session_id, model, model_raw, last_activity_ms, created_ms, awaiting_user, transcript_mtime_ms,
      input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, usage_by_model, context_tokens, effort_level,
      compaction_count, compaction_reclaimed_tokens)
   VALUES
-    (@id, @title, @project, @cwd, @branch, @state, @management, @agent, @thread_kind, @parent_session_id, @model, @model_raw, @last_activity_ms, @created_ms, @awaiting_user, @transcript_mtime_ms,
+    (@id, @title, @project, @cwd, @origin_cwd, @branch, @state, @management, @agent, @thread_kind, @parent_session_id, @model, @model_raw, @last_activity_ms, @created_ms, @awaiting_user, @transcript_mtime_ms,
      @input_tokens, @output_tokens, @cache_read_tokens, @cache_creation_tokens, @cache_creation_5m_tokens, @cache_creation_1h_tokens, @usage_by_model, @context_tokens, @effort_level,
      @compaction_count, @compaction_reclaimed_tokens)
   ON CONFLICT(id) DO UPDATE SET
     title = excluded.title,
     project = excluded.project,
     cwd = excluded.cwd,
+    -- Last KNOWN origin wins: the transcript's own first cwd supersedes the registry spawn dir it
+    -- fell back to before the transcript existed, but a pass that resolves none (an unreadable
+    -- transcript, a registry row without a cwd) can never blank an origin already recorded — that
+    -- would move a live session to another sidebar folder. The value itself doesn't drift: both
+    -- providers derive it from a transcript head that appends never rewrite.
+    origin_cwd = CASE
+      WHEN excluded.origin_cwd != '' THEN excluded.origin_cwd
+      ELSE sessions.origin_cwd
+    END,
     branch = excluded.branch,
     state = excluded.state,
     management = excluded.management,
@@ -276,6 +289,7 @@ export function upsertSessions(
         title: s.title,
         project: s.project,
         cwd: s.cwd,
+        origin_cwd: s.originCwd,
         branch: s.branch ?? null,
         state: s.state,
         management: s.management,
@@ -328,6 +342,19 @@ export function getOverview(db: SqliteDb): IndexOverview {
   // freshest captures and derives the account before serving the renderer (the IndexOverview → OverviewData
   // seam), so the store never ships a half-built account that some other caller could read as real.
   return { sessions: persisted.map(hydrate) };
+}
+
+/**
+ * Session id → frozen origin directory, for main's repo-root resolution. A separate two-column read
+ * rather than a field on the hydrated Session on purpose: the origin is a main-process detail and
+ * `Session` crosses the IPC boundary. Ids whose origin is unknown ('') are omitted, so a caller's
+ * `?? session.cwd` fallback fires naturally.
+ */
+export function readSessionOrigins(db: SqliteDb): Map<string, string> {
+  const rows = db
+    .prepare("SELECT id, origin_cwd FROM sessions WHERE origin_cwd != ''")
+    .all() as { id: string; origin_cwd: string }[];
+  return new Map(rows.map((r) => [r.id, r.origin_cwd]));
 }
 
 /** A map of session id → stored title, for the stats By-session table to name rows the index knows. Reads

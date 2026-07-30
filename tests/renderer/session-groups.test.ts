@@ -90,11 +90,82 @@ describe("groupSessionsByProject", () => {
     expect(without?.hint).toBeUndefined();
   });
 
+  it("merges subdirectory sessions of one repository into a single group", () => {
+    const root = mk({
+      project: "repo",
+      cwd: "/w/repo",
+      repoRoot: "/w/repo",
+      repoLabel: "repo",
+      lastActivityMs: 100,
+    });
+    const sub = mk({
+      project: "api",
+      cwd: "/w/repo/packages/api",
+      repoRoot: "/w/repo",
+      repoLabel: "repo",
+      lastActivityMs: 200,
+    });
+    const groups = groupSessionsByProject([root, sub]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].key).toBe("/w/repo");
+    // The folder is named after the repository, not after the subdirectory a session started in.
+    expect(groups[0].label).toBe("repo");
+    expect(groups[0].cwd).toBe("/w/repo");
+    expect(groups[0].sessions).toHaveLength(2);
+  });
+
+  it("keeps two same-named repositories at different paths apart", () => {
+    const a = mk({
+      project: "app",
+      cwd: "/w/a/app",
+      repoRoot: "/w/a/app",
+      repoLabel: "app",
+    });
+    const b = mk({
+      project: "app",
+      cwd: "/w/b/app",
+      repoRoot: "/w/b/app",
+      repoLabel: "app",
+    });
+    const groups = groupSessionsByProject([a, b], "/Users/x");
+    expect(groups).toHaveLength(2);
+    expect(groups.map((g) => g.key).sort()).toEqual(["/w/a/app", "/w/b/app"]);
+    expect(groups.every((g) => g.hint !== undefined)).toBe(true);
+  });
+
+  it("groups a non-repository session on its frozen origin, wherever the agent wandered", () => {
+    // Main resolved the repo root from the origin, so the live cwd no longer decides anything.
+    const a = mk({
+      project: "child",
+      cwd: "/Users/x/.config/app/child",
+      repoRoot: "/Users/x/.config/app",
+      repoLabel: "app",
+    });
+    const b = mk({
+      project: "app",
+      cwd: "/Users/x/.config/app",
+      repoRoot: "/Users/x/.config/app",
+      repoLabel: "app",
+    });
+    const groups = groupSessionsByProject([a, b]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].key).toBe("/Users/x/.config/app");
+    expect(groups[0].label).toBe("app");
+  });
+
   it("merges worktree sessions into the main repo's group", () => {
-    const main = mk({ project: "repo", cwd: "/w/repo", lastActivityMs: 100 });
+    const main = mk({
+      project: "repo",
+      cwd: "/w/repo",
+      repoRoot: "/w/repo",
+      repoLabel: "repo",
+      lastActivityMs: 100,
+    });
     const wt = mk({
       project: "repo-wt",
       cwd: "/w/repo-wt",
+      repoRoot: "/w/repo",
+      repoLabel: "repo",
       worktree: { repoRoot: "/w/repo", repoLabel: "repo", name: "repo-wt" },
       lastActivityMs: 200,
     });
@@ -111,6 +182,8 @@ describe("groupSessionsByProject", () => {
     const wt = mk({
       project: "repo-wt",
       cwd: "/w/repo-wt",
+      repoRoot: "/w/repo",
+      repoLabel: "repo",
       worktree: { repoRoot: "/w/repo", repoLabel: "repo", name: "repo-wt" },
     });
     const [g] = groupSessionsByProject([wt]);
@@ -119,12 +192,31 @@ describe("groupSessionsByProject", () => {
     expect(g.cwd).toBe("/w/repo");
   });
 
+  it("falls back to a durable worktree row when no repo root was resolved", () => {
+    const wt = mk({
+      project: "repo-wt",
+      cwd: "/w/repo-wt",
+      worktree: { repoRoot: "/w/repo", repoLabel: "repo", name: "repo-wt" },
+    });
+    const [g] = groupSessionsByProject([wt]);
+    expect(g.key).toBe("/w/repo");
+    expect(g.label).toBe("repo");
+  });
+
   it("groups a subagent with its root session instead of its own cwd", () => {
-    const parent = mk({ id: "parent", project: "root", cwd: "/w/root" });
+    const parent = mk({
+      id: "parent",
+      project: "root",
+      cwd: "/w/root",
+      repoRoot: "/w/root",
+      repoLabel: "root",
+    });
     const child = mk({
       id: "child",
       project: "child",
       cwd: "/w/child",
+      repoRoot: "/w/child",
+      repoLabel: "child",
       threadKind: "subagent",
       parentSessionId: "parent",
     });

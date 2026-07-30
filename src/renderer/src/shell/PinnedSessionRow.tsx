@@ -6,7 +6,7 @@ import { AgentIcon } from "../ui/agent-icons";
 import { AGENTS } from "@shared/agents";
 import { pinnedModelBadge } from "../ui/meta";
 import { useI18n } from "../i18n";
-import { ungroupedLabel } from "./session-list-model";
+import { sessionRepoLabel } from "./session-list-model";
 import { useSessionMenu } from "./use-session-menu";
 import { SessionMenuDropdown } from "./SessionMenuDropdown";
 
@@ -52,8 +52,9 @@ export function PinnedSessionRow({
     onRename,
     onTogglePin,
   });
-  const repo =
-    session.worktree?.repoLabel ?? (session.project || ungroupedLabel());
+  // The same label the sidebar's folder uses, so the two surfaces can't disagree about what a
+  // project is called.
+  const repo = sessionRepoLabel(session);
   const branch = session.worktree?.name ?? session.branch;
   // The real checked-out branch, only when the row is showing a worktree *directory* name that
   // differs from it — surfaced as a tooltip so it costs no row width (2026-07-17 spec §2).

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { homedir, tmpdir } from "node:os";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import type { PersistedSession } from "@shared/types";
 import { IPC, type OverviewData } from "@shared/ipc";
 import type { Provider } from "../src/main/provider/types";
@@ -34,11 +34,16 @@ import { migrate, upsertSessions } from "../src/main/db/store";
 import { migrateAnalytics, upsertWorktree } from "../src/main/db/analytics";
 import { openTestDb } from "./helpers/sqlite";
 
+/** An absolute path spelled the way the host platform spells it, so assertions on the canonical
+ *  repo root hold on both CI runners (main rewrites separators to the platform's). */
+const P = (...parts: string[]): string => join(sep, "w", ...parts);
+
 const seed: PersistedSession = {
   id: "seed",
   title: "Seeded",
   project: "p",
-  cwd: "/w/p",
+  cwd: P("p"),
+  originCwd: P("p"),
   branch: undefined,
   state: "idle",
   management: "observed",
@@ -119,14 +124,24 @@ describe("registerIpc refresh", () => {
   it("attaches worktree identity from the persisted map, even when the directory is gone", async () => {
     const db = openTestDb();
     migrate(db);
-    upsertSessions(db, [{ ...seed, id: "wt", cwd: "/w/repo-wt" }, seed]);
+    upsertSessions(db, [
+      // The agent has since `cd`'d out of the worktree; the frozen origin is what resolves, so the
+      // badge and the folder both survive that.
+      {
+        ...seed,
+        id: "wt",
+        cwd: P("elsewhere"),
+        originCwd: P("repo-wt"),
+      },
+      seed,
+    ]);
 
     const analyticsDb = openTestDb();
     migrateAnalytics(analyticsDb);
     // Recorded while the worktree existed; the path itself no longer has to.
     upsertWorktree(analyticsDb, {
-      cwd: "/w/repo-wt",
-      repoRoot: "/w/repo",
+      cwd: P("repo-wt"),
+      repoRoot: P("repo"),
       name: "repo-wt",
     });
 
@@ -135,12 +150,16 @@ describe("registerIpc refresh", () => {
     const data = (await overview()) as OverviewData;
     const byId = new Map(data.sessions.map((s) => [s.id, s]));
     expect(byId.get("wt")?.worktree).toEqual({
-      repoRoot: "/w/repo",
+      repoRoot: P("repo"),
       repoLabel: "repo",
       name: "repo-wt",
     });
-    // A cwd with no mapping (and no repo on disk) stays untagged — today's behavior.
+    expect(byId.get("wt")?.repoRoot).toBe(P("repo"));
+    expect(byId.get("wt")?.repoLabel).toBe("repo");
+    // An origin with no mapping and no repo on disk keeps its own folder and stays untagged.
     expect(byId.get("seed")?.worktree).toBeUndefined();
+    expect(byId.get("seed")?.repoRoot).toBe(P("p"));
+    expect(byId.get("seed")?.repoLabel).toBe("p");
   });
 });
 
@@ -629,6 +648,7 @@ describe("registerIpc setProjectPlacement", () => {
       provider: provider(() => []),
       projectState: {
         read: () => ({ ...projectState }),
+        write: () => {},
         setPlacement: (key, placement) => {
           if (placement === "ordinary") delete projectState[key];
           else
@@ -671,6 +691,7 @@ describe("registerIpc setProjectPlacement", () => {
     };
     const projectPinStore = {
       read: () => ({ ...projectState }),
+      write: () => {},
       setPlacement: (key: string, placement: string) => {
         if (placement === "pinned") projectState[key] = { pinnedAtMs: 999 };
         else delete projectState[key];
@@ -710,6 +731,7 @@ describe("registerIpc setProjectPlacement", () => {
       const projectState: Record<string, { pinnedAtMs: number }> = {};
       const projectPinStore = {
         read: () => ({ ...projectState }),
+        write: () => {},
         setPlacement: (key: string, placement: string) => {
           if (placement === "pinned") projectState[key] = { pinnedAtMs: 999 };
           else delete projectState[key];
@@ -740,6 +762,7 @@ describe("registerIpc setProjectPlacement", () => {
       provider: provider(() => []),
       projectState: {
         read: () => ({}),
+        write: () => {},
         setPlacement: () => {
           writes += 1;
         },
@@ -758,6 +781,7 @@ describe("registerIpc setProjectPlacement", () => {
       provider: provider(() => []),
       projectState: {
         read: () => ({ ...projectState }),
+        write: () => {},
         setPlacement: () => {
           throw new Error("disk full");
         },
@@ -773,6 +797,162 @@ describe("registerIpc setProjectPlacement", () => {
       ) as OverviewData;
     }).not.toThrow();
     expect(overview?.projectState).toEqual(projectState);
+  });
+});
+
+describe("registerIpc project placement remap", () => {
+  /** A ProjectStateStore over a plain object that records every whole-state write. */
+  const placementStore = (
+    seedState: Record<string, { pinnedAtMs?: number; hiddenAtMs?: number }>,
+  ) => {
+    let state = { ...seedState };
+    const writes: (typeof state)[] = [];
+    return {
+      writes,
+      current: () => state,
+      store: {
+        read: () => ({ ...state }),
+        write: (next: typeof state) => {
+          writes.push(next);
+          state = { ...next };
+        },
+        setPlacement: () => {},
+      },
+    };
+  };
+
+  /** A session index plus the analytics worktree row that resolves `origin` to a repo root, so the
+   *  identity map answers from its seed instead of spawning git. */
+  const wired = (
+    origins: Record<string, string>,
+    worktrees: { cwd: string; repoRoot: string; name: string }[],
+  ) => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(
+      db,
+      Object.entries(origins).map(([id, originCwd]) => ({
+        ...seed,
+        id,
+        cwd: originCwd,
+        originCwd,
+      })),
+    );
+    const analyticsDb = openTestDb();
+    migrateAnalytics(analyticsDb);
+    for (const row of worktrees) upsertWorktree(analyticsDb, row);
+    return { db, analyticsDb };
+  };
+
+  it("moves a placement onto the repo root, writing once per launch", async () => {
+    const { db, analyticsDb } = wired({ a: P("repo-wt") }, [
+      { cwd: P("repo-wt"), repoRoot: P("repo"), name: "repo-wt" },
+    ]);
+    const placements = placementStore({ [P("repo-wt")]: { pinnedAtMs: 5 } });
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      analyticsDb,
+      projectState: placements.store,
+    });
+
+    const first = (await handlers.get(IPC.overview)!()) as OverviewData;
+    // The very first overview already serves the migrated placement.
+    expect(first.projectState).toEqual({ [P("repo")]: { pinnedAtMs: 5 } });
+    expect(placements.current()).toEqual({ [P("repo")]: { pinnedAtMs: 5 } });
+    expect(placements.writes).toHaveLength(1);
+
+    await handlers.get(IPC.overview)!();
+    expect(placements.writes).toHaveLength(1);
+  });
+
+  it("keeps the newer entry when a subdirectory and its repo root collide", async () => {
+    const { db, analyticsDb } = wired({ a: P("repo-wt"), b: P("repo") }, [
+      { cwd: P("repo-wt"), repoRoot: P("repo"), name: "repo-wt" },
+    ]);
+    const placements = placementStore({
+      [P("repo-wt")]: { pinnedAtMs: 9 },
+      [P("repo")]: { hiddenAtMs: 4 },
+    });
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      analyticsDb,
+      projectState: placements.store,
+    });
+
+    const data = (await handlers.get(IPC.overview)!()) as OverviewData;
+    expect(data.projectState).toEqual({ [P("repo")]: { pinnedAtMs: 9 } });
+  });
+
+  it("leaves keys with no live session alone and writes nothing on a second launch", async () => {
+    const { db, analyticsDb } = wired({ a: P("repo-wt") }, [
+      { cwd: P("repo-wt"), repoRoot: P("repo"), name: "repo-wt" },
+    ]);
+    // Already migrated (the repo root is the key), plus a folder whose sessions are long gone.
+    const placements = placementStore({
+      [P("repo")]: { pinnedAtMs: 5 },
+      [P("gone")]: { hiddenAtMs: 6 },
+    });
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      analyticsDb,
+      projectState: placements.store,
+    });
+
+    const data = (await handlers.get(IPC.overview)!()) as OverviewData;
+    expect(placements.writes).toHaveLength(0);
+    expect(data.projectState).toEqual({
+      [P("repo")]: { pinnedAtMs: 5 },
+      [P("gone")]: { hiddenAtMs: 6 },
+    });
+  });
+
+  it("keeps its one shot until sessions exist, so a rebuilt index still migrates", async () => {
+    // The launch that bumps the index schema serves its first overview from an empty table.
+    const { db, analyticsDb } = wired({}, [
+      { cwd: P("repo-wt"), repoRoot: P("repo"), name: "repo-wt" },
+    ]);
+    const placements = placementStore({ [P("repo-wt")]: { pinnedAtMs: 5 } });
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      analyticsDb,
+      projectState: placements.store,
+    });
+
+    await handlers.get(IPC.overview)!();
+    expect(placements.writes).toHaveLength(0);
+
+    upsertSessions(db, [
+      { ...seed, id: "a", cwd: P("repo-wt"), originCwd: P("repo-wt") },
+    ]);
+    const data = (await handlers.get(IPC.overview)!()) as OverviewData;
+    expect(data.projectState).toEqual({ [P("repo")]: { pinnedAtMs: 5 } });
+    expect(placements.writes).toHaveLength(1);
+  });
+
+  it("serves the overview when the remap write fails", async () => {
+    const { db, analyticsDb } = wired({ a: P("repo-wt") }, [
+      { cwd: P("repo-wt"), repoRoot: P("repo"), name: "repo-wt" },
+    ]);
+    registerIpc({
+      db,
+      provider: provider(() => []),
+      analyticsDb,
+      projectState: {
+        read: () => ({ [P("repo-wt")]: { pinnedAtMs: 5 } }),
+        write: () => {
+          throw new Error("disk full");
+        },
+        setPlacement: () => {},
+      },
+    });
+
+    const data = (await handlers.get(IPC.overview)!()) as OverviewData;
+    expect(data.sessions.map((s) => s.id)).toEqual(["a"]);
+    expect(data.projectState).toEqual({ [P("repo-wt")]: { pinnedAtMs: 5 } });
   });
 });
 

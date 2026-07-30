@@ -9,6 +9,7 @@ import {
   hydrate,
   pruneSessions,
   readSessionTitles,
+  readSessionOrigins,
   getSessionAgent,
 } from "../../src/main/db/store";
 import { openTestDb } from "../helpers/sqlite";
@@ -18,6 +19,7 @@ const snap = (over: Partial<PersistedSession> = {}): PersistedSession => ({
   title: "Title",
   project: "proj",
   cwd: "/work/proj",
+  originCwd: "/work/proj",
   branch: "main",
   state: "idle",
   management: "observed",
@@ -50,7 +52,7 @@ describe("store", () => {
     expect(
       (db.prepare("PRAGMA user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(14);
+    ).toBe(15);
   });
 
   it("round-trips a snapshot, coercing missing branch and the awaitingUser flag", () => {
@@ -124,6 +126,34 @@ describe("store", () => {
   it("hydrates cwd, mapping the empty sentinel to absent", () => {
     expect(hydrate(snap()).cwd).toBe("/work/proj");
     expect(hydrate(snap({ cwd: "" })).cwd).toBeUndefined();
+  });
+
+  it("keeps the origin off the hydrated session (main-process detail)", () => {
+    expect(hydrate(snap())).not.toHaveProperty("originCwd");
+  });
+
+  it("lets a resolved origin supersede the registry fallback it was stored with", () => {
+    const db = openTestDb();
+    migrate(db);
+    // First sight: the transcript hasn't been read yet, so the registry's spawn dir stands in.
+    upsertSessions(db, [snap({ originCwd: "/work/spawn" })]);
+    upsertSessions(db, [snap({ originCwd: "/work/proj" })]);
+    expect(readSessionOrigins(db).get("id-1")).toBe("/work/proj");
+  });
+
+  it("does not blank a known origin when a later pass resolves none", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [snap({ originCwd: "/work/proj" })]);
+    upsertSessions(db, [snap({ originCwd: "" })]);
+    expect(readSessionOrigins(db).get("id-1")).toBe("/work/proj");
+  });
+
+  it("omits sessions with no known origin from readSessionOrigins", () => {
+    const db = openTestDb();
+    migrate(db);
+    upsertSessions(db, [snap({ originCwd: "" })]);
+    expect(readSessionOrigins(db).size).toBe(0);
   });
 
   it("derives the 200K default window for an uncaptured Opus session", () => {

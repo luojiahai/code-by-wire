@@ -224,6 +224,9 @@ export function createCodexProvider(
       title: titleFor(c.id, head?.title, fallbackName),
       project: fallbackName,
       cwd: c.cwd,
+      // The rollout head's cwd IS the origin (codex records the session's start directory once and
+      // never rewrites it), so the live and frozen values coincide for this agent.
+      originCwd: c.cwd,
       branch: undefined,
       state: deriveSessionState(
         signalsFor(c.transcriptMtimeMs, managed.has(c.id)),
