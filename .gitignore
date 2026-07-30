@@ -22,6 +22,9 @@ docs/superpowers/
 .agents/
 docs/deck/
 
+# Generated knowledge graph (regenerate with /graphify): local only, never tracked
+graphify-out/
+
 .design-previews/
 .vercel
 .env*
