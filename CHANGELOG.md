@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.46] - 2026-08-01
+
+### Changed
+
+- The marketing site was redesigned end to end — home, download, blog,
+  changelog, sponsor, docs, and a new 404 page — with the accent color
+  brought in line with the app's brand.
+
+### Fixed
+
+- Sessions no longer drift between sidebar folders when an agent runs `cd`
+  mid-task, and two sessions started in different subdirectories of one
+  repository now group together. Each session keeps a frozen origin
+  directory and resolves one stable identity from it — the git repository
+  root when the origin is inside one, otherwise the origin itself — with a
+  guard that refuses to group on the home directory or a filesystem root.
+  Existing project pins and hides are remapped onto the new roots.
+
 ## [0.1.45] - 2026-07-23
 
 ### Changed
@@ -1117,7 +1135,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.45...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.46...HEAD
+[0.1.46]: https://github.com/luojiahai/code-by-wire/compare/v0.1.45...v0.1.46
 [0.1.45]: https://github.com/luojiahai/code-by-wire/compare/v0.1.44...v0.1.45
 [0.1.44]: https://github.com/luojiahai/code-by-wire/compare/v0.1.43...v0.1.44
 [0.1.43]: https://github.com/luojiahai/code-by-wire/compare/v0.1.42...v0.1.43
