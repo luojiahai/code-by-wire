@@ -69,7 +69,7 @@ function writeTranscript(
 }
 
 describe("incremental sync (real provider, scratch SQLite)", () => {
-  it("indexes live + recent-Ended, drops the ancient, is idempotent, and reparses only what changed", () => {
+  it("indexes live + recent-Ended, drops the ancient, is idempotent, and reparses only what changed", async () => {
     const home = makeHome();
     // A live session (registry + transcript).
     writeSession(home, 100, "live", "/w/live", "busy");
@@ -114,7 +114,7 @@ describe("incremental sync (real provider, scratch SQLite)", () => {
     const provider = { ...base, summarize };
 
     // AC1 + AC3 (first pass): both transcript-bearing sessions parsed; recent Ended appears, ancient doesn't.
-    const r1 = syncSessions(db, provider);
+    const r1 = await syncSessions(db, provider);
     expect(r1.parsedIds.sort()).toEqual(["ended", "live"]);
     const byId1 = Object.fromEntries(getSessions(db).map((s) => [s.id, s]));
     expect(byId1["live"].state).toBe("working");
@@ -135,7 +135,7 @@ describe("incremental sync (real provider, scratch SQLite)", () => {
     // AC2: a second pass with no file changes reparses nothing and leaves the rows identical.
     const before = getSessions(db);
     summarize.mockClear();
-    const r2 = syncSessions(db, provider);
+    const r2 = await syncSessions(db, provider);
     expect(r2.parsedIds).toEqual([]);
     expect(summarize).not.toHaveBeenCalled();
     expect(getSessions(db)).toEqual(before);
@@ -143,12 +143,12 @@ describe("incremental sync (real provider, scratch SQLite)", () => {
     // AC3: touch only the live transcript → only it reparses.
     utimesSync(livePath, new Date(NOW + 5_000), new Date(NOW + 5_000));
     summarize.mockClear();
-    const r3 = syncSessions(db, provider);
+    const r3 = await syncSessions(db, provider);
     expect(r3.parsedIds).toEqual(["live"]);
     expect(summarize).toHaveBeenCalledTimes(1);
   });
 
-  it("flips a live session to Ended on the next sync once its process is gone, without reparsing", () => {
+  it("flips a live session to Ended on the next sync once its process is gone, without reparsing", async () => {
     const home = makeHome();
     writeSession(home, 100, "live", "/w/live", "busy");
     writeTranscript(
@@ -170,12 +170,12 @@ describe("incremental sync (real provider, scratch SQLite)", () => {
       recentWindowMs: WINDOW,
     });
 
-    syncSessions(db, provider);
+    await syncSessions(db, provider);
     expect(getSessions(db)[0].state).toBe("working");
 
     // Process exits: pid no longer alive, transcript untouched. Next sync restates it to Ended, no parse.
     alivePid = -1;
-    const r = syncSessions(db, provider);
+    const r = await syncSessions(db, provider);
     expect(r.parsedIds).toEqual([]);
     expect(getSessions(db).find((s) => s.id === "live")!.state).toBe("ended");
   });

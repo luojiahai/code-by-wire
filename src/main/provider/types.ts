@@ -13,8 +13,10 @@ export interface Provider {
   readonly id: string;
   /** Cheap enumeration of the sessions worth indexing this pass — no transcript parsed. */
   listCandidates(): SessionCandidate[];
-  /** Parse a candidate's transcript into a full snapshot (the expensive step). */
-  summarize(candidate: SessionCandidate): PersistedSession;
+  /** Parse a candidate's transcript into a full snapshot — the expensive step, so it is async: the
+   *  claude provider ships the parse to the parse-worker utility process, keeping the main thread's
+   *  poll tick flat no matter how large the active transcript grows. */
+  summarize(candidate: SessionCandidate): Promise<PersistedSession>;
   /** Refresh a reused snapshot's state from fresh liveness, without reparsing the transcript. */
   restate(
     candidate: SessionCandidate,

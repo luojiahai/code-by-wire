@@ -50,7 +50,7 @@ function fake(agent: "claude" | "codex", calls: string[]): Provider {
 }
 
 describe("createCompositeProvider", () => {
-  it("unions listCandidates and dispatches summarize/restate by candidate.agent", () => {
+  it("unions listCandidates and dispatches summarize/restate by candidate.agent", async () => {
     const calls: string[] = [];
     const p = createCompositeProvider(
       { claude: fake("claude", calls), codex: fake("codex", calls) },
@@ -58,7 +58,7 @@ describe("createCompositeProvider", () => {
     );
     const cands = p.listCandidates();
     expect(cands.map((c) => c.id).sort()).toEqual(["claude-1", "codex-1"]);
-    p.summarize(cands.find((c) => c.agent === "codex")!);
+    await p.summarize(cands.find((c) => c.agent === "codex")!);
     expect(calls).toContain("summarize:codex:codex-1");
   });
   it("routes per-id reads through the agent resolver", () => {

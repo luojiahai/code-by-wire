@@ -5,7 +5,7 @@ import { createClaudeProvider } from "../../src/main/provider/claude";
 import { tempHomes } from "../helpers/temp-home";
 
 describe("ClaudeProvider", () => {
-  it("exposes its id and the incremental sync primitives", () => {
+  it("exposes its id and the incremental sync primitives", async () => {
     const provider = createClaudeProvider({
       claudeDir: resolve("tests/fixtures/claude-home"),
       isPidAlive: (pid) => pid === 1001, // only this one is alive
@@ -23,8 +23,53 @@ describe("ClaudeProvider", () => {
     expect(live.alive).toBe(true); // pid 1001 is the live one
 
     // summarize the live one → working; force it dead → ended, off the same transcript.
-    expect(provider.summarize(live).state).toBe("working");
-    expect(provider.summarize({ ...live, alive: false }).state).toBe("ended");
+    expect((await provider.summarize(live)).state).toBe("working");
+    expect((await provider.summarize({ ...live, alive: false })).state).toBe(
+      "ended",
+    );
+  });
+});
+
+describe("ClaudeProvider parseSession (parse-worker seam)", () => {
+  const claudeDir = resolve("tests/fixtures/claude-home");
+  const liveId = "aaaa1111-1111-1111-1111-111111111111";
+
+  it("ships summarize's parse to parseSession, then adorns the result in-process", async () => {
+    const shipped: string[] = [];
+    const provider = createClaudeProvider({
+      claudeDir,
+      isPidAlive: () => true,
+      managed: { has: (id) => id === liveId },
+      parseSession: async (c) => {
+        shipped.push(c.id);
+        // The worker returns a pure-filesystem snapshot; management is main's call, so whatever
+        // the worker said must be overridden by the registry.
+        const inProcess = createClaudeProvider({ claudeDir });
+        return {
+          ...(await inProcess.summarize(c)),
+          management: "observed" as const,
+        };
+      },
+    });
+    const live = provider.listCandidates().find((c) => c.id === liveId)!;
+    const s = await provider.summarize(live);
+    expect(shipped).toEqual([liveId]);
+    expect(s.management).toBe("managed"); // adorned after the worker round-trip
+    expect(s.state).toBe("working"); // the worker's parsed snapshot is what landed
+  });
+
+  it("falls back to the in-process parse when parseSession rejects", async () => {
+    const provider = createClaudeProvider({
+      claudeDir,
+      isPidAlive: () => true,
+      parseSession: () => Promise.reject(new Error("worker crashed")),
+    });
+    const live = provider.listCandidates().find((c) => c.id === liveId)!;
+    const s = await provider.summarize(live);
+    // A worker fault must not cost the row: the transcript was still parsed (title from its
+    // first user turn), not degraded to the registry skeleton.
+    expect(s.title).toBe("Add a login form to the settings page");
+    expect(s.state).toBe("working");
   });
 });
 
@@ -83,7 +128,7 @@ describe("ClaudeProvider managed labelling", () => {
   const claudeDir = resolve("tests/fixtures/claude-home");
   const liveId = "aaaa1111-1111-1111-1111-111111111111";
 
-  it("labels a session Managed when the registry has its id, Observed otherwise", () => {
+  it("labels a session Managed when the registry has its id, Observed otherwise", async () => {
     const provider = createClaudeProvider({
       claudeDir,
       isPidAlive: () => true,
@@ -93,20 +138,20 @@ describe("ClaudeProvider managed labelling", () => {
     const otherId = "bbbb2222-2222-2222-2222-222222222222";
     const live = candidates.find((c) => c.id === liveId)!;
     const other = candidates.find((c) => c.id === otherId)!;
-    expect(provider.summarize(live).management).toBe("managed");
-    expect(provider.summarize(other).management).toBe("observed");
+    expect((await provider.summarize(live)).management).toBe("managed");
+    expect((await provider.summarize(other)).management).toBe("observed");
   });
 
-  it("defaults to Observed when no registry is injected", () => {
+  it("defaults to Observed when no registry is injected", async () => {
     const provider = createClaudeProvider({
       claudeDir,
       isPidAlive: () => true,
     });
     const live = provider.listCandidates().find((c) => c.id === liveId)!;
-    expect(provider.summarize(live).management).toBe("observed");
+    expect((await provider.summarize(live)).management).toBe("observed");
   });
 
-  it("reverts a previously-Managed snapshot to Observed when the registry no longer has it (restate)", () => {
+  it("reverts a previously-Managed snapshot to Observed when the registry no longer has it (restate)", async () => {
     const provider = createClaudeProvider({
       claudeDir,
       isPidAlive: () => true,
@@ -114,7 +159,7 @@ describe("ClaudeProvider managed labelling", () => {
     });
     const live = provider.listCandidates().find((c) => c.id === liveId)!;
     const wasManaged = {
-      ...provider.summarize(live),
+      ...(await provider.summarize(live)),
       management: "managed" as const,
     };
     expect(provider.restate(live, wasManaged).management).toBe("observed");
@@ -153,7 +198,7 @@ describe("ClaudeProvider managed model", () => {
     return home;
   }
 
-  it("fronts the registry's picked model while the transcript has recorded no real model yet", () => {
+  it("fronts the registry's picked model while the transcript has recorded no real model yet", async () => {
     const id = "ffff5555-5555-5555-5555-555555555555";
     const provider = createClaudeProvider({
       claudeDir: homeWithModellessSession(id),
@@ -161,13 +206,13 @@ describe("ClaudeProvider managed model", () => {
       managed: { has: () => true, modelOf: () => "sonnet" },
     });
     const live = provider.listCandidates().find((c) => c.id === id)!;
-    const s = provider.summarize(live);
+    const s = await provider.summarize(live);
     // Without the picked model, normalizeModelId(undefined) would surface the Opus fallback — the flicker.
     expect(s.model).toBe("sonnet");
     expect(s.modelRaw).toBeUndefined();
   });
 
-  it("leaves an Observed model-less session on the normalize fallback (no picked model to vouch)", () => {
+  it("leaves an Observed model-less session on the normalize fallback (no picked model to vouch)", async () => {
     const id = "ffff5555-5555-5555-5555-555555555555";
     const provider = createClaudeProvider({
       claudeDir: homeWithModellessSession(id),
@@ -175,7 +220,7 @@ describe("ClaudeProvider managed model", () => {
       managed: { has: () => false },
     });
     const live = provider.listCandidates().find((c) => c.id === id)!;
-    expect(provider.summarize(live).model).toBe("opus");
+    expect((await provider.summarize(live)).model).toBe("opus");
   });
 });
 

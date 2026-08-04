@@ -38,19 +38,19 @@ describe("createCodexProvider", () => {
     expect(p.resolveTranscriptPath(ID)).toBe(path);
   });
 
-  it("observed + fresh mtime → working; observed + stale → ended", () => {
+  it("observed + fresh mtime → working; observed + stale → ended", async () => {
     const { home, path } = homeWithOneRollout();
     const now = Date.now();
     const p = createCodexProvider({ codexDir: home, now: () => now });
     let [c] = p.listCandidates();
-    expect(p.summarize(c).state).toBe("working"); // file just written → fresh
+    expect((await p.summarize(c)).state).toBe("working"); // file just written → fresh
     const stale = (now - CODEX_WORKING_WINDOW_MS - 60_000) / 1000;
     utimesSync(path, stale, stale);
     [c] = p.listCandidates();
-    expect(p.summarize(c).state).toBe("ended");
+    expect((await p.summarize(c)).state).toBe("ended");
   });
 
-  it("managed + fresh → working; managed + stale → idle (pty alive, codex at the prompt)", () => {
+  it("managed + fresh → working; managed + stale → idle (pty alive, codex at the prompt)", async () => {
     const { home, path } = homeWithOneRollout();
     const now = Date.now();
     const p = createCodexProvider({
@@ -58,26 +58,26 @@ describe("createCodexProvider", () => {
       now: () => now,
       managed: { has: (id) => id === ID },
     });
-    let s = p.summarize(p.listCandidates()[0]);
+    let s = await p.summarize(p.listCandidates()[0]);
     expect(s.state).toBe("working");
     expect(s.management).toBe("managed");
     const stale = (now - CODEX_WORKING_WINDOW_MS - 5_000) / 1000;
     utimesSync(path, stale, stale);
-    s = p.summarize(p.listCandidates()[0]);
+    s = await p.summarize(p.listCandidates()[0]);
     expect(s.state).toBe("idle");
   });
 
-  it("summarize carries the head title, agent codex, placeholder model, zero usage", () => {
+  it("summarize carries the head title, agent codex, placeholder model, zero usage", async () => {
     const { home } = homeWithOneRollout();
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
-    const s = p.summarize(p.listCandidates()[0]);
+    const s = await p.summarize(p.listCandidates()[0]);
     expect(s.title).toBe("add dark mode");
     expect(s.agent).toBe("codex");
     expect(s.usage.inputTokens).toBe(0);
     expect(s.createdMs).toBe(Date.parse("2026-07-18T10:30:01.000Z"));
   });
 
-  it("carries subagent relationships from discovery through summarize and restate", () => {
+  it("carries subagent relationships from discovery through summarize and restate", async () => {
     const { home, path } = homeWithOneRollout();
     const meta = JSON.stringify({
       timestamp: "2026-07-18T10:30:01.000Z",
@@ -98,7 +98,7 @@ describe("createCodexProvider", () => {
       threadKind: "review",
       parentSessionId: "parent-id",
     });
-    const summarized = p.summarize(candidate);
+    const summarized = await p.summarize(candidate);
     expect(summarized).toMatchObject({
       threadKind: "review",
       parentSessionId: "parent-id",
@@ -196,7 +196,7 @@ describe("createCodexProvider", () => {
     }
   });
 
-  it("prefers native name then preview, and refreshes the title while restating an unchanged rollout", () => {
+  it("prefers native name then preview, and refreshes the title while restating an unchanged rollout", async () => {
     const { home } = homeWithOneRollout();
     let metadata = { name: null as string | null, preview: "Native preview" };
     const p = createCodexProvider({
@@ -205,7 +205,7 @@ describe("createCodexProvider", () => {
       threadMetadata: { read: (id) => (id === ID ? metadata : null) },
     });
     const candidate = p.listCandidates()[0];
-    const previewed = p.summarize(candidate);
+    const previewed = await p.summarize(candidate);
     expect(previewed.title).toBe("Native preview");
 
     metadata = { ...metadata, name: "Native /rename" };
@@ -230,7 +230,7 @@ describe("createCodexProvider", () => {
     expect(withPty.listCandidates()).toHaveLength(1);
   });
 
-  it("a live managed pty with no rollout yet (codex hasn't flushed a turn) still surfaces as an idle skeleton candidate", () => {
+  it("a live managed pty with no rollout yet (codex hasn't flushed a turn) still surfaces as an idle skeleton candidate", async () => {
     // codex writes nothing to disk until the first turn completes — no registry-file analog like
     // claude's sessions/*.json. Without a skeleton candidate here, a zero-turn session is invisible
     // to discovery and the renderer's optimistic draft never gets superseded (issue: stuck "working").
@@ -253,7 +253,7 @@ describe("createCodexProvider", () => {
       cwd: "/Users/me/fresh-proj",
       transcriptPath: undefined,
     });
-    const s = p.summarize(c);
+    const s = await p.summarize(c);
     expect(s.state).toBe("idle");
     expect(s.management).toBe("managed");
   });
@@ -487,13 +487,13 @@ function writeTelemetryRollout(codexDir: string): string {
 }
 
 describe("codex telemetry (summarize + overlay + readMetrics)", () => {
-  it("summarize fills usage, per-model attribution, model, effort from the rollout", () => {
+  it("summarize fills usage, per-model attribution, model, effort from the rollout", async () => {
     const codexDir = mkdtempSync(join(tmpdir(), "codex-telemetry-"));
     try {
       writeTelemetryRollout(codexDir);
       const provider = createCodexProvider({ codexDir });
       const c = provider.listCandidates().find((x) => x.id === ROLLOUT_ID)!;
-      const s = provider.summarize(c);
+      const s = await provider.summarize(c);
       expect(s.usage.inputTokens).toBe(400);
       expect(s.usage.cacheReadTokens).toBe(600);
       expect(s.usageByModel).toEqual([
