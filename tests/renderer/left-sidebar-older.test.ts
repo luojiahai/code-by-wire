@@ -23,6 +23,14 @@ describe("LeftSidebar folder cap and Older expander (issue #431)", () => {
     expect(source).toContain("OLDER_PAGE_SIZE");
   });
 
+  it("badges the disclosure with buried sessions, not slots", () => {
+    expect(source).toContain("olderSessions(countFamilySessions(hidden))");
+  });
+
+  it("ends every Older errand when collapse-all closes the folders", () => {
+    expect(source).toContain("setOlderLimits(new Map())");
+  });
+
   it("no longer offers an active-only visibility toggle", () => {
     expect(source).not.toContain("showActiveOnly");
     expect(source).not.toContain("activeOnly");

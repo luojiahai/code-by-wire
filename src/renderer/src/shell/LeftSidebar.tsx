@@ -15,6 +15,7 @@ import { AgentIcon } from "../ui/agent-icons";
 import { useI18n } from "../i18n";
 import {
   capSessionForest,
+  countFamilySessions,
   filterGroups,
   filterSessions,
   groupSessionsByProject,
@@ -361,7 +362,7 @@ export function LeftSidebar({
             size={12}
             className="shrink-0"
           />
-          {t.shell.sidebar.olderSessions(hidden.length)}
+          {t.shell.sidebar.olderSessions(countFamilySessions(hidden))}
         </button>
         {expanded && (
           <div className="flex flex-col gap-px">
@@ -391,10 +392,10 @@ export function LeftSidebar({
     placement: ProjectPlacement,
   ) => {
     const cwd = g.cwd;
-    const forest = sessionForest(g.sessions);
-    const { visible, hidden } = capFolders
-      ? capSessionForest(forest, SESSIONS_PER_FOLDER)
-      : { visible: forest, hidden: [] as SessionTreeNode[] };
+    const { visible, hidden } = capSessionForest(
+      sessionForest(g.sessions),
+      capFolders ? SESSIONS_PER_FOLDER : Infinity,
+    );
     return (
       <div key={g.key}>
         <ProjectGroupRow
@@ -620,6 +621,8 @@ export function LeftSidebar({
                     );
                     if (!allCollapsed) {
                       setManuallyExpanded(new Set());
+                      // Collapsing every folder ends every Older errand, same as closing one by hand.
+                      setOlderLimits(new Map());
                     }
                   }}
                   title={

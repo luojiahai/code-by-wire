@@ -159,17 +159,28 @@ function isLiveFamily(node: SessionTreeNode): boolean {
  *  across the boundary. Every live family stays visible however many there are — a folder running
  *  eight sessions shows all eight — and ended families then fill whatever is left of `cap`. Input
  *  order carries the forest's sort (live first, then most recently active), so the ended families
- *  that survive are the newest and `hidden` stays in the same recency order. */
+ *  that survive are the newest and `hidden` stays in the same recency order. Pass `Infinity` to
+ *  suspend the cap (what search does) and every family comes back visible. */
 export function capSessionForest(
   roots: SessionTreeNode[],
   cap: number,
 ): { visible: SessionTreeNode[]; hidden: SessionTreeNode[] } {
-  const liveCount = roots.filter(isLiveFamily).length;
-  const ended = roots.filter((node) => !isLiveFamily(node));
+  let liveCount = 0;
+  const ended: SessionTreeNode[] = [];
+  for (const node of roots) {
+    if (isLiveFamily(node)) liveCount += 1;
+    else ended.push(node);
+  }
   const hidden = ended.slice(Math.max(0, cap - liveCount));
   if (hidden.length === 0) return { visible: roots, hidden: [] };
   const hiddenNodes = new Set(hidden);
   return { visible: roots.filter((node) => !hiddenNodes.has(node)), hidden };
+}
+
+/** How many sessions a set of families holds. The "Older (N)" badge counts sessions rather than
+ *  slots, so a hidden fork family owns up to everything it buries, not just its root. */
+export function countFamilySessions(nodes: SessionTreeNode[]): number {
+  return nodes.reduce((total, node) => total + 1 + node.descendantCount, 0);
 }
 
 function filterSessionsWithAncestors(

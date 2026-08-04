@@ -3,6 +3,7 @@ import {
   sortSessions,
   filterSessions,
   capSessionForest,
+  countFamilySessions,
   groupSessionsByProject,
   isSessionFamilyCollapsed,
   sessionForest,
@@ -261,6 +262,34 @@ describe("session list model", () => {
     const { visible, hidden } = capSessionForest(sessionForest(sessions), 1);
     expect(visible.map((n) => n.session.id)).toEqual(["stale-root"]);
     expect(hidden.map((n) => n.session.id)).toEqual(["e1", "e2"]);
+  });
+
+  it("capSessionForest suspends the cap when handed Infinity (what search does)", () => {
+    const sessions = [
+      mk({ id: "e1", state: "ended", lastActivityMs: 300 }),
+      mk({ id: "e2", state: "ended", lastActivityMs: 200 }),
+      mk({ id: "e3", state: "ended", lastActivityMs: 100 }),
+    ];
+    const { visible, hidden } = capSessionForest(
+      sessionForest(sessions),
+      Infinity,
+    );
+    expect(visible.map((n) => n.session.id)).toEqual(["e1", "e2", "e3"]);
+    expect(hidden).toEqual([]);
+  });
+
+  it("countFamilySessions counts buried sessions, not slots", () => {
+    const sessions = [
+      mk({ id: "root", state: "ended", lastActivityMs: 400 }),
+      mk({ id: "kid", parentSessionId: "root", state: "ended" }),
+      mk({ id: "grandkid", parentSessionId: "kid", state: "ended" }),
+      mk({ id: "lone", state: "ended", lastActivityMs: 100 }),
+    ];
+    const forest = sessionForest(sessions);
+    // Two top-level entries, four sessions between them.
+    expect(forest).toHaveLength(2);
+    expect(countFamilySessions(forest)).toBe(4);
+    expect(countFamilySessions([])).toBe(0);
   });
 
   it("caps folders at five entries by default", () => {
