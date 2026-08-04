@@ -6,6 +6,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.48] - 2026-08-04
+
+### Changed
+
+- The sidebar is one unified session list again: each folder shows at most
+  five top-level entries and the overflow collapses into an "Older (N)"
+  disclosure counting the sessions it buries. Every live family stays on
+  screen however many there are, ended families fill what's left of the
+  cap, and a fork keeps its shape on either side of the boundary. A
+  non-empty search suspends the cap so every match shows inline. This
+  replaces the active-only visibility toggle (zap icon) and its "Recent
+  (N)" row, both now retired; collapsing all folders from the header also
+  resets the disclosures.
+- Folder rows keep their "+" and "…" controls visible at rest instead of
+  revealing them on hover, so the cluster's geometry no longer shifts under
+  the cursor, and a folder now carries an "N live" badge beside its chevron
+  counting the live sessions it holds.
+
+### Fixed
+
+- The UI no longer stalls every few seconds on large `~/.claude`
+  directories or big transcripts. The renderer's poll-driven filesystem
+  work — session discovery, summarize, and the transcript, metrics,
+  shells, monitors, tasks and subagent reads, plus the reconcile sweeps —
+  now runs in a separate parse worker process rather than blocking the main
+  thread, with transcript documents relayed as a single string so the parse
+  cost leaves main entirely. Reaped-background head reads are cached
+  against file mtime (~440ms → ~39ms per steady-state pass), and git
+  glances refresh asynchronously instead of blocking the poll on first
+  sight, TTL expiry, and every branch switch. Any worker fault degrades to
+  the same read in-process, so a fault costs one janky pass, never a lost
+  row.
+
 ## [0.1.47] - 2026-08-04
 
 ### Added
@@ -1155,7 +1188,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.47...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.48...HEAD
+[0.1.48]: https://github.com/luojiahai/code-by-wire/compare/v0.1.47...v0.1.48
 [0.1.47]: https://github.com/luojiahai/code-by-wire/compare/v0.1.46...v0.1.47
 [0.1.46]: https://github.com/luojiahai/code-by-wire/compare/v0.1.45...v0.1.46
 [0.1.45]: https://github.com/luojiahai/code-by-wire/compare/v0.1.44...v0.1.45
