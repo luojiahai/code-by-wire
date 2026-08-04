@@ -14,6 +14,7 @@ import { Icon } from "../ui/icons";
 import { AgentIcon } from "../ui/agent-icons";
 import { useI18n } from "../i18n";
 import {
+  activeSessionCount,
   capSessionForest,
   countFamilySessions,
   filterGroups,
@@ -396,12 +397,16 @@ export function LeftSidebar({
       sessionForest(g.sessions),
       capFolders ? SESSIONS_PER_FOLDER : Infinity,
     );
+    // Counted off the filtered group, so the badge stays in step with search and the agent filter.
+    const activeCount = activeSessionCount(g.sessions);
     return (
       <div key={g.key}>
         <ProjectGroupRow
           group={g}
           collapsed={collapsed.has(g.key)}
           placement={placement}
+          activeCount={activeCount}
+          activeSessionsLabel={t.shell.sidebar.activeSessions(activeCount)}
           quickAddDisabled={!anySpawnable}
           quickAdding={quickAdding.has(g.key)}
           unavailableReason={t.settings.cli.unavailableReason}

@@ -177,6 +177,14 @@ export function capSessionForest(
   return { visible: roots.filter((node) => !hiddenNodes.has(node)), hidden };
 }
 
+/** How many of a folder's sessions are still live — the count its header badge shows. "Live" is
+ *  the same `state !== "ended"` the cap and the family counts use, so the badge can't disagree with
+ *  the rows below it. A group's session list is flat, so nested subagents are already included;
+ *  callers pass the filtered list, leaving the badge in step with search and the agent filter. */
+export function activeSessionCount(sessions: Session[]): number {
+  return sessions.filter((session) => session.state !== "ended").length;
+}
+
 /** How many sessions a set of families holds. The "Older (N)" badge counts sessions rather than
  *  slots, so a hidden fork family owns up to everything it buries, not just its root. */
 export function countFamilySessions(nodes: SessionTreeNode[]): number {

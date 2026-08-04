@@ -11,6 +11,8 @@ export function ProjectGroupRow({
   group,
   collapsed,
   placement,
+  activeCount,
+  activeSessionsLabel,
   quickAddDisabled,
   quickAdding,
   unavailableReason,
@@ -31,6 +33,9 @@ export function ProjectGroupRow({
   group: SessionGroup;
   collapsed: boolean;
   placement: ProjectPlacement;
+  /** Live sessions in this folder; 0 hides the badge entirely. */
+  activeCount: number;
+  activeSessionsLabel: string;
   quickAddDisabled: boolean;
   quickAdding: boolean;
   unavailableReason: string;
@@ -137,14 +142,22 @@ export function ProjectGroupRow({
             className={cx("transition-transform", !collapsed && "rotate-90")}
           />
         </span>
+        {activeCount > 0 && (
+          <span
+            // role="img" the way Lamp does: ARIA ignores aria-label on a roleless generic, and a
+            // bare digit inside the toggle's name tells a screen reader nothing.
+            role="img"
+            title={activeSessionsLabel}
+            aria-label={activeSessionsLabel}
+            className="shrink-0 rounded-full bg-(--ui-control-active-background) px-1.5 text-[0.64rem] tabular-nums text-(--ui-text-tertiary)"
+          >
+            {activeCount}
+          </span>
+        )}
       </button>
       {cwd && (
-        <div
-          className={cx(
-            "mr-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-100 ease-out group-hover/project:opacity-100 group-focus-within/project:opacity-100",
-            menuOpen && "opacity-100",
-          )}
-        >
+        // Always visible, not hover-revealed: the folder's two actions read as part of the row.
+        <div className="mr-1 flex shrink-0 items-center gap-0.5">
           <button
             type="button"
             onClick={(event) => {
