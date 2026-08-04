@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,6 +13,14 @@ const makeHome = tempHomes("cbw-git-");
 
 beforeEach(() => {
   _resetGitCache();
+});
+
+// Drain in-flight refreshes before tempHomes' rmSync: a test that kicks a refresh and never flushes
+// leaves a git.exe running with its cwd inside the temp dir, and Windows refuses to delete a
+// directory a live process holds (EPERM in CI). Registered AFTER tempHomes(), so vitest's stack
+// ordering of after-hooks runs this flush first, then the cleanup.
+afterEach(async () => {
+  await _flushGitReads();
 });
 
 function git(cwd: string, ...args: string[]): void {
