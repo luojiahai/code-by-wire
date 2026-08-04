@@ -10,6 +10,7 @@ import {
   pinnedSessions,
   filterGroups,
   partitionProjectGroups,
+  recentEndedSessions,
 } from "../../src/renderer/src/shell/session-list-model";
 import type { Session } from "@shared/types";
 
@@ -185,6 +186,93 @@ describe("session list model", () => {
         .every((s) => s.state !== "ended" && s.agent === "claude"),
     ).toBe(true);
     expect(filtered.find((g) => g.key === "/b")!.sessions).toEqual([]);
+  });
+
+  it("a search query bypasses the visibility filter but not the agent filter", () => {
+    const active = mk({
+      id: "a",
+      title: "auth flow",
+      state: "working",
+      project: "alpha",
+    });
+    const ended = mk({
+      id: "e",
+      title: "auth spike",
+      state: "ended",
+      project: "alpha",
+    });
+    const endedCodex = mk({
+      id: "ec",
+      title: "auth port",
+      state: "ended",
+      agent: "codex",
+      project: "alpha",
+    });
+    const groups = groupSessionsByProject([active, ended, endedCodex]);
+    const preferences = {
+      visibility: "active",
+      showAgentIcons: true,
+      agent: "claude",
+    } as const;
+
+    expect(
+      filterGroups(groups, preferences, "auth")[0].sessions.map((s) => s.id),
+    ).toEqual(["a", "e"]);
+    // Without a query the visibility filter still hides ended sessions.
+    expect(
+      filterGroups(groups, preferences)[0].sessions.map((s) => s.id),
+    ).toEqual(["a"]);
+  });
+
+  it("recentEndedSessions picks hidden ended sessions by recency, capped, agent-filtered", () => {
+    const active = mk({ id: "a", state: "working" });
+    const endedOld = mk({ id: "e1", state: "ended", lastActivityMs: 100 });
+    const endedNew = mk({ id: "e2", state: "ended", lastActivityMs: 300 });
+    const endedMid = mk({ id: "e3", state: "ended", lastActivityMs: 200 });
+    const endedCodex = mk({
+      id: "e4",
+      state: "ended",
+      agent: "codex",
+      lastActivityMs: 400,
+    });
+    // e5 is ended but already visible (retained as an ancestor of an active child).
+    const endedVisible = mk({ id: "e5", state: "ended", lastActivityMs: 500 });
+    const all = [
+      active,
+      endedOld,
+      endedNew,
+      endedMid,
+      endedCodex,
+      endedVisible,
+    ];
+    const preferences = {
+      visibility: "active",
+      showAgentIcons: true,
+      agent: "claude",
+    } as const;
+
+    const capped = recentEndedSessions(
+      all,
+      preferences,
+      new Set(["a", "e5"]),
+      2,
+    );
+    expect(capped.sessions.map((s) => s.id)).toEqual(["e2", "e3"]);
+    expect(capped.total).toBe(3);
+
+    const anyAgent = recentEndedSessions(
+      all,
+      { ...preferences, agent: "all" },
+      new Set(["a", "e5"]),
+      10,
+    );
+    expect(anyAgent.sessions.map((s) => s.id)).toEqual([
+      "e4",
+      "e2",
+      "e3",
+      "e1",
+    ]);
+    expect(anyAgent.total).toBe(4);
   });
 
   it("searching or active-filtering a child retains its ancestor context", () => {

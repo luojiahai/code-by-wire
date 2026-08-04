@@ -68,4 +68,5 @@ export type IconName =
   | "timer"
   | "triangle-alert"
   | "worktree"
-  | "x";
+  | "x"
+  | "zap";

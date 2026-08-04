@@ -8,9 +8,11 @@ const source = readFileSync(
 );
 
 describe("SessionFilterMenu control order", () => {
-  it("shows visibility, agent-icon preference, then agent selection", () => {
-    expect(source).toMatch(
-      /name="session-visibility"[\s\S]*showAgentIcons[\s\S]*name="session-agent"/,
-    );
+  it("shows the agent-icon preference, then agent selection", () => {
+    expect(source).toMatch(/showAgentIcons[\s\S]*name="session-agent"/);
+  });
+
+  it("no longer owns visibility — that is the header toggle's job (issue #420)", () => {
+    expect(source).not.toContain('name="session-visibility"');
   });
 });

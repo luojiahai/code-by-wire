@@ -61,6 +61,7 @@ import {
   Timer,
   TriangleAlert,
   X,
+  Zap,
   type LucideIcon,
   type LucideProps,
 } from "lucide-react";
@@ -160,6 +161,7 @@ const ICONS = {
   "triangle-alert": TriangleAlert,
   worktree: FolderGit2,
   x: X,
+  zap: Zap,
 } satisfies Record<IconName, LucideIcon>;
 
 /** A Lucide line icon at the cockpit's 1.75 stroke weight; color inherits via currentColor. */

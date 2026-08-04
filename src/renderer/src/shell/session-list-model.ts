@@ -155,11 +155,37 @@ export function filterGroups(
         !normalizedQuery || sessionMatchesQuery(session, normalizedQuery);
       return (
         matchesQuery &&
-        (preferences.visibility === "all" || session.state !== "ended") &&
+        // Typing a query is an explicit hunt, so it searches ended sessions too — the
+        // active-only toggle is a browsing mode, not a search scope (issue #420).
+        (preferences.visibility === "all" ||
+          normalizedQuery !== "" ||
+          session.state !== "ended") &&
         (preferences.agent === "all" || session.agent === preferences.agent)
       );
     }),
   }));
+}
+
+/** The per-folder "Recent (N)" expander's selection (issue #420): the ended sessions the active-only
+ *  filter is hiding right now — ended, matching the agent preference, and not already visible (an
+ *  ended ancestor retained for a live child stays out, it's on screen) — newest activity first,
+ *  capped to `limit`. `total` counts the whole hidden set so the row's badge and its "Show more"
+ *  paging can disagree with the slice. */
+export function recentEndedSessions(
+  sessions: Session[],
+  preferences: SessionsListPreferences,
+  visibleIds: ReadonlySet<string>,
+  limit: number,
+): { sessions: Session[]; total: number } {
+  const hidden = sessions
+    .filter(
+      (s) =>
+        s.state === "ended" &&
+        !visibleIds.has(s.id) &&
+        (preferences.agent === "all" || s.agent === preferences.agent),
+    )
+    .sort((a, b) => b.lastActivityMs - a.lastActivityMs);
+  return { sessions: hidden.slice(0, limit), total: hidden.length };
 }
 
 function filterSessionsWithAncestors(
