@@ -14,7 +14,15 @@ const { version } = JSON.parse(
 export default defineConfig({
   main: {
     build: {
-      rollupOptions: { external: ["better-sqlite3", "node-pty"] },
+      rollupOptions: {
+        external: ["better-sqlite3", "node-pty"],
+        // Second entry: the transcript parse-worker utilityProcess (src/main/parse-worker/),
+        // forked by client.ts as out/main/parse-worker.js.
+        input: {
+          index: resolve("src/main/index.ts"),
+          "parse-worker": resolve("src/main/parse-worker/worker.ts"),
+        },
+      },
     },
     resolve: {
       alias: { "@shared": resolve("src/shared") },

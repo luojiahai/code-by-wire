@@ -251,7 +251,9 @@ export function createCodexProvider(
   return {
     id: "codex",
     listCandidates: candidates,
-    summarize: summarizeCandidate,
+    // Codex parses only the rollout head + telemetry tail, never the whole file, so it stays
+    // in-process; promise-wrapped only to satisfy the Provider contract the claude parse-worker set.
+    summarize: (c) => Promise.resolve(summarizeCandidate(c)),
     restate: (c, prev) => {
       const rolloutTitle = c.transcriptPath
         ? headFor(c.transcriptPath, c.transcriptMtimeMs)?.title

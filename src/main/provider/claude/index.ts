@@ -1,6 +1,10 @@
 import { statSync } from "node:fs";
 import type { Provider } from "../types";
-import type { Management, PersistedSession } from "@shared/types";
+import type {
+  Management,
+  PersistedSession,
+  SessionCandidate,
+} from "@shared/types";
 import type { Family } from "@shared/models";
 import { readTextOrNull, resolveClaudeDir } from "../../claude-config";
 import {
@@ -66,6 +70,11 @@ export interface ClaudeProviderDeps {
     has(id: string): boolean;
     modelOf?(id: string): Family | undefined;
   };
+  /** Off-thread transcript parse for summarize — the composition root passes the parse-worker
+   *  client here, so the sync pass never parses a large transcript on the main thread. A rejection
+   *  falls back to the in-process parse (a worker fault may cost one janky pass, never a row).
+   *  Absent (tests), summarize parses in-process. */
+  parseSession?: (c: SessionCandidate) => Promise<PersistedSession>;
 }
 
 const DEFAULT_RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -231,8 +240,17 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
         recentWindowMs,
         sessionKindOf,
       }),
-    summarize: (c) => {
-      const s = summarize(c);
+    summarize: async (c) => {
+      let s: PersistedSession;
+      if (deps.parseSession) {
+        try {
+          s = await deps.parseSession(c);
+        } catch {
+          s = summarize(c); // worker fault — parse in-process rather than lose the row
+        }
+      } else {
+        s = summarize(c);
+      }
       return {
         ...s,
         management: management(c.id),

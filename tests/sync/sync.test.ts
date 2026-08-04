@@ -52,7 +52,7 @@ function fakeProvider(candidates: SessionCandidate[]): {
   summarize: ReturnType<typeof vi.fn>;
   restate: ReturnType<typeof vi.fn>;
 } {
-  const summarize = vi.fn((c: SessionCandidate) => snapOf(c));
+  const summarize = vi.fn((c: SessionCandidate) => Promise.resolve(snapOf(c)));
   const restate = vi.fn((c: SessionCandidate, prev: PersistedSession) => ({
     ...prev,
     state: c.alive ? prev.state : ("ended" as const),
@@ -82,11 +82,11 @@ function fakeProvider(candidates: SessionCandidate[]): {
 }
 
 describe("syncSessions", () => {
-  it("parses every transcript-bearing candidate on the first pass and persists them", () => {
+  it("parses every transcript-bearing candidate on the first pass and persists them", async () => {
     const db = openTestDb();
     migrate(db);
     const { provider, summarize } = fakeProvider([cand("a"), cand("b")]);
-    const r = syncSessions(db, provider);
+    const r = await syncSessions(db, provider);
     expect(r.parsedIds.sort()).toEqual(["a", "b"]);
     expect(summarize).toHaveBeenCalledTimes(2);
     expect(
@@ -96,45 +96,45 @@ describe("syncSessions", () => {
     ).toEqual(["a", "b"]);
   });
 
-  it("reparses nothing and leaves the rows identical on an unchanged second pass", () => {
+  it("reparses nothing and leaves the rows identical on an unchanged second pass", async () => {
     const db = openTestDb();
     migrate(db);
     const { provider, summarize, restate } = fakeProvider([
       cand("a"),
       cand("b"),
     ]);
-    syncSessions(db, provider);
+    await syncSessions(db, provider);
     const before = getPersisted(db);
     summarize.mockClear();
-    const r = syncSessions(db, provider);
+    const r = await syncSessions(db, provider);
     expect(r.parsedIds).toEqual([]);
     expect(summarize).not.toHaveBeenCalled();
     expect(restate).toHaveBeenCalledTimes(2); // reused, not reparsed
     expect(getPersisted(db)).toEqual(before);
   });
 
-  it("reparses only the candidate whose transcript mtime advanced", () => {
+  it("reparses only the candidate whose transcript mtime advanced", async () => {
     const db = openTestDb();
     migrate(db);
-    syncSessions(db, fakeProvider([cand("a"), cand("b")]).provider);
+    await syncSessions(db, fakeProvider([cand("a"), cand("b")]).provider);
     const second = fakeProvider([
       cand("a"),
       cand("b", { transcriptMtimeMs: 200 }),
     ]);
-    const r = syncSessions(db, second.provider);
+    const r = await syncSessions(db, second.provider);
     expect(r.parsedIds).toEqual(["b"]);
     expect(second.summarize).toHaveBeenCalledTimes(1);
     expect(second.summarize.mock.calls[0][0].id).toBe("b");
   });
 
-  it("flips a vanished process to ended without reparsing, then prunes when it drops out", () => {
+  it("flips a vanished process to ended without reparsing, then prunes when it drops out", async () => {
     const db = openTestDb();
     migrate(db);
-    syncSessions(db, fakeProvider([cand("a")]).provider);
+    await syncSessions(db, fakeProvider([cand("a")]).provider);
     expect(getSessions(db)[0].state).toBe("idle");
 
     // Same transcript (unchanged mtime), process gone → restated to ended, no parse.
-    const r = syncSessions(
+    const r = await syncSessions(
       db,
       fakeProvider([cand("a", { alive: false })]).provider,
     );
@@ -142,26 +142,26 @@ describe("syncSessions", () => {
     expect(getSessions(db)[0].state).toBe("ended");
 
     // A later pass no longer lists it → pruned out of the index.
-    const r2 = syncSessions(db, fakeProvider([]).provider);
+    const r2 = await syncSessions(db, fakeProvider([]).provider);
     expect(r2.prunedIds).toEqual(["a"]);
     expect(getSessions(db)).toEqual([]);
   });
 
-  it("persists a registry-only (no transcript) candidate without counting it as parsed", () => {
+  it("persists a registry-only (no transcript) candidate without counting it as parsed", async () => {
     const db = openTestDb();
     migrate(db);
     const { provider } = fakeProvider([
       cand("skel", { transcriptPath: undefined, transcriptMtimeMs: 0 }),
     ]);
-    const r = syncSessions(db, provider);
+    const r = await syncSessions(db, provider);
     expect(r.parsedIds).toEqual([]); // no transcript → not a parse
     expect(getSessions(db).map((s) => s.id)).toEqual(["skel"]);
   });
 
-  it("rolls back the upsert when pruning fails mid-pass, leaving the prior index intact", () => {
+  it("rolls back the upsert when pruning fails mid-pass, leaving the prior index intact", async () => {
     const db = openTestDb();
     migrate(db);
-    syncSessions(db, fakeProvider([cand("a")]).provider);
+    await syncSessions(db, fakeProvider([cand("a")]).provider);
     const before = getPersisted(db);
 
     // After the upsert has run, make the prune statement throw. Upsert and prune share one
@@ -172,13 +172,13 @@ describe("syncSessions", () => {
         throw new Error("prune boom");
       return realPrepare(sql);
     };
-    expect(() =>
+    await expect(
       syncSessions(
         db,
         fakeProvider([cand("a", { transcriptMtimeMs: 200 }), cand("z")])
           .provider,
       ),
-    ).toThrow("prune boom");
+    ).rejects.toThrow("prune boom");
     db.prepare = realPrepare;
 
     expect(getPersisted(db)).toEqual(before);

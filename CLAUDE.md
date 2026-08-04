@@ -21,9 +21,10 @@ lockfile from the root workspace. Run its commands from inside `website/`:
 
 ## Architecture
 
-Electron app, three processes:
+Electron app, three processes plus a utility process:
 
 - **main** (`src/main/`) — Node. Reads Claude Code and Codex transcripts (`provider/claude/`, `provider/codex/`), analytics in better-sqlite3 (`db/`), pty terminals (`terminal/`), git, settings. Request/response only — no background timers or `fs.watch`; the renderer polls.
+- **parse worker** (`src/main/parse-worker/`, its own bundle entry → `out/main/parse-worker.js`) — a `utilityProcess` main forks lazily so summarize's O(transcript-size) parse never blocks the main thread. Still request/response (rides renderer polls); on worker fault the provider parses in-process.
 - **preload** (`src/preload/`) — contextBridge exposing `window.api` to the renderer.
 - **renderer** (`src/renderer/src/`) — React 19 + Tailwind 4 + xterm.
 

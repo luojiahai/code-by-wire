@@ -18,7 +18,10 @@ export interface SyncResult {
  * no longer recent or live. Re-running with no file changes parses nothing and leaves the rows
  * identical.
  */
-export function syncSessions(db: SqliteDb, provider: Provider): SyncResult {
+export async function syncSessions(
+  db: SqliteDb,
+  provider: Provider,
+): Promise<SyncResult> {
   const stored = new Map(getPersisted(db).map((s) => [s.id, s]));
   const candidates = provider.listCandidates();
 
@@ -30,12 +33,12 @@ export function syncSessions(db: SqliteDb, provider: Provider): SyncResult {
       c.transcriptMtimeMs > 0 &&
       (!prev || c.transcriptMtimeMs > prev.transcriptMtimeMs);
     if (changed) {
-      snapshots.push(provider.summarize(c)); // new or advanced transcript → parse
+      snapshots.push(await provider.summarize(c)); // new or advanced transcript → parse
       parsedIds.push(c.id);
     } else if (prev) {
       snapshots.push(provider.restate(c, prev)); // unchanged → reuse, refresh state only, no parse
     } else {
-      snapshots.push(provider.summarize(c)); // first sight, no transcript → registry skeleton, no parse
+      snapshots.push(await provider.summarize(c)); // first sight, no transcript → registry skeleton, no parse
     }
   }
 

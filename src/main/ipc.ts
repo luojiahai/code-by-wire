@@ -252,7 +252,7 @@ export function registerIpc({
     set: () => false,
   };
 
-  const sync = async (): Promise<void> => {
+  const syncPass = async (): Promise<void> => {
     try {
       beforeSync?.();
     } catch (err) {
@@ -263,7 +263,7 @@ export function registerIpc({
         err,
       );
     }
-    syncSessions(db, provider);
+    await syncSessions(db, provider);
     if (!refreshSessionMetadata) return;
     try {
       const changed = await refreshSessionMetadata();
@@ -277,7 +277,29 @@ export function registerIpc({
       );
       return;
     }
-    syncSessions(db, provider);
+    await syncSessions(db, provider);
+  };
+
+  // summarize awaits the parse worker, so a pass yields the event loop mid-sweep and two callers
+  // (launch + first refresh, or refresh + a rename's sync) could interleave their read→upsert
+  // windows. Serialize: an idle sync starts its pass synchronously (the first discovery sweep
+  // still runs before the caller ever awaits — see the refresh ordering test), a busy one queues
+  // behind the tail. A failed pass rejects its own caller but must not poison the queue.
+  let pendingSyncs = 0;
+  let syncTail: Promise<void> = Promise.resolve();
+  const sync = (): Promise<void> => {
+    const run =
+      pendingSyncs === 0 ? syncPass() : syncTail.then(() => syncPass());
+    pendingSyncs++;
+    syncTail = run
+      .then(
+        () => undefined,
+        () => undefined,
+      )
+      .then(() => {
+        pendingSyncs--;
+      });
+    return run;
   };
 
   // origin dir → project identity (repo root, label, worktree descriptor): live git detection cached

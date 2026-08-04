@@ -67,7 +67,7 @@ const seed: PersistedSession = {
 const provider = (listCandidates: Provider["listCandidates"]): Provider => ({
   id: "fake",
   listCandidates,
-  summarize: (c) => ({ ...seed, id: c.id }),
+  summarize: (c) => Promise.resolve({ ...seed, id: c.id }),
   restate: (_c, prev) => prev,
   readTranscript: () => ({ status: "absent" }),
   readSubagentTranscript: () => ({ status: "absent" }),
@@ -102,6 +102,44 @@ describe("registerIpc refresh", () => {
     expect(listCandidates).toHaveBeenCalledTimes(1);
     resolveMetadata();
     await pending;
+    expect(listCandidates).toHaveBeenCalledTimes(2);
+  });
+
+  it("queues a concurrent sync behind the in-flight pass instead of interleaving sweeps", async () => {
+    // summarize awaits the parse worker, so a pass yields the event loop mid-sweep; without the
+    // serial queue a second caller's read→upsert window would interleave with the first's.
+    const db = openTestDb();
+    migrate(db);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const listCandidates = vi.fn(() => [
+      {
+        id: "a",
+        alive: true,
+        status: "busy",
+        cwd: P("p"),
+        agent: "claude" as const,
+        transcriptMtimeMs: 5, // advanced → this pass summarizes (and blocks on the gate)
+      },
+    ]);
+    const { sync } = registerIpc({
+      db,
+      provider: {
+        ...provider(listCandidates),
+        summarize: async (c) => {
+          await gate; // a parse in flight on the (fake) worker
+          return { ...seed, id: c.id };
+        },
+      },
+    });
+
+    const first = sync();
+    const second = sync();
+    await new Promise((r) => setTimeout(r, 0));
+    // The second pass must not have started its sweep while the first is parked on the parse.
+    expect(listCandidates).toHaveBeenCalledTimes(1);
+    release();
+    await Promise.all([first, second]);
     expect(listCandidates).toHaveBeenCalledTimes(2);
   });
 
