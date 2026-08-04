@@ -17,6 +17,7 @@ import { CustomSelect } from "../ui/CustomSelect";
 import { useI18n } from "../i18n";
 import { PageHeader, Card } from "./page-primitives";
 import { LaunchCommandField } from "./LaunchCommandField";
+import { defaultSpawnAgent, saveLastAgent } from "./agent-preference";
 
 /**
  * The inline create-a-Managed-session form (design spec §5): the app's sole create-a-session surface,
@@ -52,7 +53,11 @@ export function NewSessionView({
 }) {
   const { t } = useI18n();
   const [cwd, setCwd] = useState<string | null>(initialCwd ?? null);
-  const [agent, setAgent] = useState<AgentId>("claude");
+  // Defaults to the agent last chosen at spawn time (issue #420), so repeat launches
+  // never re-pick; defaultSpawnAgent falls back when that CLI can no longer spawn.
+  const [agent, setAgent] = useState<AgentId>(() =>
+    defaultSpawnAgent(canSpawnFor),
+  );
   const [model, setModel] = useState<ModelSelection>("default");
   const [defaults, setDefaults] = useState<ModelDefaults | null>(null);
   const [internalBusy, setInternalBusy] = useState(false);
@@ -81,6 +86,14 @@ export function NewSessionView({
       });
   }, []);
 
+  // CLI probes settle async, so the gate for the selected agent can flip after mount; fall back
+  // to a spawnable agent or the single-agent static label below could pin a dead selection.
+  useEffect(() => {
+    if (canSpawnFor(agent)) return;
+    const fallback = defaultSpawnAgent(canSpawnFor);
+    if (fallback !== agent && canSpawnFor(fallback)) setAgent(fallback);
+  }, [agent, canSpawnFor]);
+
   const argsCheck = validateExtraArgs(agent, extraArgs);
   const argsError = argsCheck.ok
     ? null
@@ -97,6 +110,7 @@ export function NewSessionView({
     if (!cwd || busy || !argsCheck.ok) return;
     setInternalBusy(true);
     setError(null);
+    saveLastAgent(window.localStorage, agent);
     try {
       await onCreate(cwd, model, agent, extraArgs);
     } catch (e) {
@@ -149,25 +163,33 @@ export function NewSessionView({
                   {t.shell.newSession.agent}
                 </label>
                 <div className="mt-1.5">
-                  <CustomSelect
-                    ariaLabel={t.shell.newSession.agent}
-                    value={agent}
-                    onChange={setAgent}
-                    options={AGENT_IDS.map((id) => {
-                      const canSpawn = canSpawnFor(id);
-                      return {
-                        value: id,
-                        label: AGENTS[id].label,
-                        leading: <AgentIcon agent={id} size={14} />,
-                        disabled: !canSpawn,
-                        secondary: canSpawn
-                          ? undefined
-                          : t.settings.cli.unavailableShort,
-                      };
-                    })}
-                    className="w-full py-2 pl-2.5 text-body"
-                    menuClassName="w-full"
-                  />
+                  {AGENT_IDS.filter(canSpawnFor).length === 1 ? (
+                    // Only one CLI can spawn — a picker would be a one-option quiz (issue #420).
+                    <div className="flex items-center gap-2 py-2 pl-2.5 text-body text-fg">
+                      <AgentIcon agent={agent} size={14} />
+                      {AGENTS[agent].label}
+                    </div>
+                  ) : (
+                    <CustomSelect
+                      ariaLabel={t.shell.newSession.agent}
+                      value={agent}
+                      onChange={setAgent}
+                      options={AGENT_IDS.map((id) => {
+                        const canSpawn = canSpawnFor(id);
+                        return {
+                          value: id,
+                          label: AGENTS[id].label,
+                          leading: <AgentIcon agent={id} size={14} />,
+                          disabled: !canSpawn,
+                          secondary: canSpawn
+                            ? undefined
+                            : t.settings.cli.unavailableShort,
+                        };
+                      })}
+                      className="w-full py-2 pl-2.5 text-body"
+                      menuClassName="w-full"
+                    />
+                  )}
                 </div>
               </div>
 

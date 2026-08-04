@@ -210,9 +210,6 @@ export const en = {
       showAllSessions: "Show all sessions",
       showActiveOnly: "Show active sessions only",
       filterMenuLabel: "Session filters",
-      visibilityGroup: "Visibility",
-      showAll: "Show all",
-      activeOnly: "Active only",
       showAgentIcons: "Show agent icons",
       agentGroup: "Agent",
       allAgents: "All agents",
@@ -232,6 +229,9 @@ export const en = {
       newSessionIn: (cwd: string) => `New session in ${cwd}`,
       newSessionWith: (label: string, cwd: string) =>
         `New ${label} session in ${cwd}`,
+      chooseAgentHint: "Right-click to choose the agent",
+      recentSessions: (count: number) => `Recent (${count})`,
+      showMoreSessions: "Show more",
     },
     sessionRow: {
       openSession: (title: string) => `Open ${title}`,

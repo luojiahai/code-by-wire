@@ -24,6 +24,8 @@ export function ProjectGroupRow({
   copyPathLabel,
   onToggle,
   onQuickAdd,
+  onQuickAddMenu,
+  chooseAgentHint,
   onSetPlacement,
 }: {
   group: SessionGroup;
@@ -42,6 +44,11 @@ export function ProjectGroupRow({
   copyPathLabel: string;
   onToggle: () => void;
   onQuickAdd: (button: HTMLButtonElement) => void;
+  /** Right-click on the "+": the agent picker for the non-default agent. Absent when fewer than
+   *  two agents can spawn — the click already does the only possible thing. */
+  onQuickAddMenu?: (button: HTMLButtonElement) => void;
+  /** Appended to the "+" tooltip while the right-click menu exists. */
+  chooseAgentHint?: string;
   onSetPlacement: (placement: ProjectPlacement) => Promise<void>;
 }) {
   const cwd = group.cwd;
@@ -144,9 +151,21 @@ export function ProjectGroupRow({
               event.stopPropagation();
               onQuickAdd(event.currentTarget);
             }}
+            onContextMenu={(event) => {
+              if (!onQuickAddMenu || quickAddDisabled || quickAdding) return;
+              event.preventDefault();
+              event.stopPropagation();
+              onQuickAddMenu(event.currentTarget);
+            }}
             disabled={quickAddDisabled || quickAdding}
             aria-label={newSessionLabel}
-            title={quickAddDisabled ? unavailableReason : newSessionLabel}
+            title={
+              quickAddDisabled
+                ? unavailableReason
+                : [newSessionLabel, chooseAgentHint]
+                    .filter(Boolean)
+                    .join("\n") || undefined
+            }
             className={cx(
               "grid size-5 place-items-center rounded-sm",
               !quickAddDisabled && !quickAdding

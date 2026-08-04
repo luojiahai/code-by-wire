@@ -20,6 +20,7 @@ import {
   partitionProjectGroups,
   projectGroupsForCollapse,
   isSessionFamilyCollapsed,
+  recentEndedSessions,
   sessionForest,
   toggleProjectGroups,
   pinnedSessions,
@@ -39,6 +40,10 @@ import {
 import { SessionFilterMenu } from "./SessionFilterMenu";
 import { ProjectGroupRow } from "./ProjectGroupRow";
 import { placeAnchoredMenu } from "./anchored-menu-position";
+import { defaultSpawnAgent, saveLastAgent } from "./agent-preference";
+
+/** How many hidden ended sessions one "Recent (N)" expansion (or one "Show more") reveals. */
+const RECENT_PAGE_SIZE = 10;
 
 /**
  * The left sidebar's content (design spec §4): an empty draggable top strip — the traffic lights
@@ -116,14 +121,32 @@ export function LeftSidebar({
     setPreferences(next);
     saveSessionsListPreferences(window.localStorage, next);
   };
-  const filterActive =
-    preferences.visibility === "active" || preferences.agent !== "all";
+  const activeOnly = preferences.visibility === "active";
+  // The visibility flip has its own one-click toggle (issue #420); the dropdown's highlight
+  // reflects only what it still owns (the agent filter).
+  const agentFilterActive = preferences.agent !== "all";
+  const filterActive = activeOnly || agentFilterActive;
   const searched = filterSessions(sessions, query);
   const pinned = pinnedSessions(searched);
   // Build families before project grouping so a child follows its root even if its own rollout cwd
   // differs. filterGroups applies search + preferences together and retains ancestor context.
   const allGroups = groupSessionsByProject(sessions, homeDir);
   const groups = filterGroups(allGroups, preferences, query);
+  const allGroupsByKey = new Map(allGroups.map((g) => [g.key, g]));
+  // Per-folder "Recent (N)" disclosure (issue #420): key → how many hidden ended sessions to
+  // reveal. Ephemeral by design — revealing history is an errand, not a mode.
+  const [recentLimits, setRecentLimits] = useState<ReadonlyMap<string, number>>(
+    new Map(),
+  );
+  const setRecentLimit = (key: string, limit: number | undefined) => {
+    setRecentLimits((current) => {
+      const next = new Map(current);
+      if (limit === undefined) next.delete(key);
+      else next.set(key, limit);
+      return next;
+    });
+  };
+  const showRecentRows = activeOnly && query.trim() === "";
   const {
     pinned: pinnedProjects,
     others: otherProjects,
@@ -140,6 +163,8 @@ export function LeftSidebar({
     collapsibleGroups.every((g) => collapsed.has(g.key));
   const toggleGroup = (key: string) => {
     const expanding = collapsed.has(key);
+    // Ephemeral by design (issue #420): a Recent disclosure closes with its folder.
+    if (!expanding) setRecentLimit(key, undefined);
     setCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -160,6 +185,7 @@ export function LeftSidebar({
   // guards a double-click from spawning twice.
   const quickAdd = async (key: string, cwd: string, agent: AgentId) => {
     if (quickAdding.has(key)) return;
+    saveLastAgent(window.localStorage, agent);
     setQuickAdding((prev) => new Set(prev).add(key));
     setCollapsed((prev) => {
       if (!prev.has(key)) return prev;
@@ -260,7 +286,8 @@ export function LeftSidebar({
     };
   }, [filterMenuOpen]);
   // A folder's "+" (and the top New session button) stay usable as long as any agent can spawn.
-  const anySpawnable = AGENT_IDS.some((a) => canSpawnFor(a));
+  const spawnableAgents = AGENT_IDS.filter((a) => canSpawnFor(a));
+  const anySpawnable = spawnableAgents.length > 0;
 
   const renderSessionNode = (
     node: SessionTreeNode,
@@ -305,6 +332,77 @@ export function LeftSidebar({
     );
   };
 
+  const renderRecentRows = (g: (typeof groups)[number]): ReactNode => {
+    if (!showRecentRows) return null;
+    const limit = recentLimits.get(g.key);
+    const recent = recentEndedSessions(
+      allGroupsByKey.get(g.key)?.sessions ?? [],
+      preferences,
+      new Set(g.sessions.map((s) => s.id)),
+      limit ?? RECENT_PAGE_SIZE,
+    );
+    if (recent.total === 0) return null;
+    const expanded = limit !== undefined;
+    const recentRowClass =
+      "flex h-6 w-full cursor-pointer items-center rounded-sm px-2 text-xs text-(--ui-text-quaternary) transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:text-fg hover:transition-none";
+    return (
+      <div className="pb-1">
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() =>
+            setRecentLimit(g.key, expanded ? undefined : RECENT_PAGE_SIZE)
+          }
+          className={cx(recentRowClass, "gap-1")}
+        >
+          <Icon
+            name={expanded ? "chevron-down" : "chevron-right"}
+            size={12}
+            className="shrink-0"
+          />
+          {t.shell.sidebar.recentSessions(recent.total)}
+        </button>
+        {expanded && (
+          <div className="flex flex-col gap-px">
+            {recent.sessions.map((s) => (
+              <SessionRow
+                key={s.id}
+                session={s}
+                selected={s.id === selectedId}
+                onSelect={() => onSelect(s.id)}
+                canSpawn={canSpawnFor(s.agent)}
+                onResume={onResume}
+                onFork={onFork}
+                onEnd={onEnd}
+                onRename={onRename}
+                onTogglePin={onTogglePin}
+                showAgentIcon={preferences.showAgentIcons}
+                depth={0}
+                descendantCount={0}
+                activeDescendantCount={0}
+                childrenExpanded={false}
+              />
+            ))}
+            {recent.total > recent.sessions.length && (
+              <button
+                type="button"
+                onClick={() =>
+                  setRecentLimit(
+                    g.key,
+                    (limit ?? RECENT_PAGE_SIZE) + RECENT_PAGE_SIZE,
+                  )
+                }
+                className={cx(recentRowClass, "pl-6")}
+              >
+                {t.shell.sidebar.showMoreSessions}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderProjectGroup = (
     g: (typeof groups)[number],
     placement: ProjectPlacement,
@@ -328,38 +426,57 @@ export function LeftSidebar({
           absolutePathLabel={t.shell.sidebar.absolutePath}
           copyPathLabel={t.shell.sidebar.copyPath}
           onToggle={() => toggleGroup(g.key)}
-          onQuickAdd={(button) => {
+          onQuickAdd={() => {
             if (!cwd) return;
-            const r = button.getBoundingClientRect();
-            setAgentMenu((cur) =>
-              cur?.key === g.key
-                ? null
-                : {
-                    key: g.key,
-                    cwd,
-                    left: Math.min(r.left, window.innerWidth - 176 - 8),
-                    top: r.bottom + 6,
-                  },
-            );
+            // One click spawns; the agent comes from the last spawn (issue #420). Switching
+            // agents lives on right-click (below) and in the New session form.
+            void quickAdd(g.key, cwd, defaultSpawnAgent(canSpawnFor));
           }}
+          onQuickAddMenu={
+            spawnableAgents.length > 1
+              ? (button) => {
+                  if (!cwd) return;
+                  const r = button.getBoundingClientRect();
+                  setAgentMenu((cur) =>
+                    cur?.key === g.key
+                      ? null
+                      : {
+                          key: g.key,
+                          cwd,
+                          left: Math.min(r.left, window.innerWidth - 176 - 8),
+                          top: r.bottom + 6,
+                        },
+                  );
+                }
+              : undefined
+          }
+          chooseAgentHint={
+            spawnableAgents.length > 1
+              ? t.shell.sidebar.chooseAgentHint
+              : undefined
+          }
           onSetPlacement={(next) => onSetProjectPlacement(g.key, next)}
         />
-        {!collapsed.has(g.key) &&
-          (g.sessions.length === 0 ? (
-            manuallyExpanded.has(g.key) && (
-              <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
-                {preferences.agent !== "all"
-                  ? t.shell.sidebar.noMatchingSessions
-                  : t.shell.sidebar.noActiveSessions}
-              </p>
-            )
-          ) : (
-            <div className="flex flex-col gap-px pb-1">
-              {sessionForest(g.sessions).map((node) =>
-                renderSessionNode(node, 0),
-              )}
-            </div>
-          ))}
+        {!collapsed.has(g.key) && (
+          <>
+            {g.sessions.length === 0 ? (
+              manuallyExpanded.has(g.key) && (
+                <p className="px-2 py-1 pb-2 text-xs text-(--ui-text-quaternary)">
+                  {preferences.agent !== "all"
+                    ? t.shell.sidebar.noMatchingSessions
+                    : t.shell.sidebar.noActiveSessions}
+                </p>
+              )
+            ) : (
+              <div className="flex flex-col gap-px pb-1">
+                {sessionForest(g.sessions).map((node) =>
+                  renderSessionNode(node, 0),
+                )}
+              </div>
+            )}
+            {renderRecentRows(g)}
+          </>
+        )}
       </div>
     );
   };
@@ -537,6 +654,36 @@ export function LeftSidebar({
                   />
                 </button>
                 <button
+                  type="button"
+                  onClick={() => {
+                    // Flipping visibility ends the resume errand — Recent disclosures reset.
+                    setRecentLimits(new Map());
+                    updatePreferences({
+                      ...preferences,
+                      visibility: activeOnly ? "all" : "active",
+                    });
+                  }}
+                  aria-pressed={activeOnly}
+                  aria-label={
+                    activeOnly
+                      ? t.shell.sidebar.showAllSessions
+                      : t.shell.sidebar.showActiveOnly
+                  }
+                  title={
+                    activeOnly
+                      ? t.shell.sidebar.showAllSessions
+                      : t.shell.sidebar.showActiveOnly
+                  }
+                  className={cx(
+                    "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
+                    activeOnly
+                      ? "border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-fg"
+                      : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
+                  )}
+                >
+                  <Icon name="activity" size={12} />
+                </button>
+                <button
                   ref={filterTriggerRef}
                   type="button"
                   onClick={() => {
@@ -548,14 +695,14 @@ export function LeftSidebar({
                     setFilterMenuPosition(null);
                     setFilterMenuOpen(true);
                   }}
-                  aria-pressed={filterActive}
+                  aria-pressed={agentFilterActive}
                   aria-expanded={filterMenuOpen}
                   aria-haspopup="menu"
                   aria-label={t.shell.sidebar.filterMenuLabel}
                   title={t.shell.sidebar.filterMenuLabel}
                   className={cx(
                     "grid size-5 cursor-pointer place-items-center rounded-sm border transition-colors duration-100 ease-out hover:transition-none",
-                    filterActive
+                    agentFilterActive
                       ? "border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-fg"
                       : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
                   )}

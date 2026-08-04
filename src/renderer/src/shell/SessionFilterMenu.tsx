@@ -28,33 +28,8 @@ export function SessionFilterMenu({
       }}
       className="w-48 rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1.5 shadow-(--shadow-md) backdrop-blur-xl"
     >
-      <fieldset className="m-0 border-0 p-0">
-        <legend className="px-2 pb-1 pt-0.5 text-[0.6875rem] font-medium text-(--ui-text-quaternary)">
-          {t.shell.sidebar.visibilityGroup}
-        </legend>
-        <label className={itemClass}>
-          <input
-            type="radio"
-            name="session-visibility"
-            value="all"
-            checked={preferences.visibility === "all"}
-            onChange={() => onChange({ ...preferences, visibility: "all" })}
-          />
-          {t.shell.sidebar.showAll}
-        </label>
-        <label className={itemClass}>
-          <input
-            type="radio"
-            name="session-visibility"
-            value="active"
-            checked={preferences.visibility === "active"}
-            onChange={() => onChange({ ...preferences, visibility: "active" })}
-          />
-          {t.shell.sidebar.activeOnly}
-        </label>
-      </fieldset>
-
-      <div className="my-1 border-t border-(--ui-stroke-tertiary)" />
+      {/* Visibility moved to the header's dedicated active/all toggle (issue #420) — this menu
+          owns only the occasional options. */}
       <label className={itemClass}>
         <input
           type="checkbox"
