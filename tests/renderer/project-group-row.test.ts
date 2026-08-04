@@ -39,10 +39,28 @@ describe("ProjectGroupRow action isolation", () => {
     );
   });
 
-  it("reveals quick add and the folder menu together while the menu is open", () => {
-    expect(source).toContain("group-hover/project:opacity-100");
-    expect(source).toContain("group-focus-within/project:opacity-100");
-    expect(source).toContain('menuOpen && "opacity-100"');
+  it("keeps quick add and the folder menu visible without hovering the row", () => {
+    expect(source).not.toContain("opacity-0");
+    expect(source).not.toContain("group-hover/project:opacity-100");
+    expect(source).not.toContain("group-focus-within/project:opacity-100");
+    expect(source).not.toContain('menuOpen && "opacity-100"');
+  });
+
+  it("badges the chevron with the live-session count only when there is one", () => {
+    expect(source).toMatch(
+      /activeCount > 0 && \(\s*<span[\s\S]*?\{activeSessionsBadge\}[\s\S]*?<\/span>\s*\)/,
+    );
+    // Spelled out ("3 live"), never a bare digit that could read as any other total. The words
+    // are the accessible name too, so the pill needs no role/aria-label of its own.
+    expect(source).not.toContain("{activeCount}<");
+    expect(source).not.toContain("aria-label={activeSessionsLabel}");
+    expect(source).toContain("title={activeSessionsLabel}");
+    // Sits after the chevron so a changing count never shifts the disclosure target.
+    expect(source).toMatch(/name="chevron-right"[\s\S]*?activeCount > 0/);
+    // Inside the toggle button, so it isn't gated on the cwd-only action cluster.
+    expect(source).toMatch(
+      /activeCount > 0[\s\S]*?<\/button>[\s\S]*?\{cwd && \(/,
+    );
   });
 
   it("portals a fixed right-opening menu and tracks viewport changes", () => {

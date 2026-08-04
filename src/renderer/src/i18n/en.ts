@@ -229,6 +229,9 @@ export const en = {
       chooseAgentHint: "Right-click to choose the agent",
       olderSessions: (count: number) => `Older (${count})`,
       showMoreSessions: "Show more",
+      activeSessionsBadge: (count: number) => `${count} live`,
+      activeSessions: (count: number) =>
+        `${count} active ${count === 1 ? "session" : "sessions"}`,
     },
     sessionRow: {
       openSession: (title: string) => `Open ${title}`,

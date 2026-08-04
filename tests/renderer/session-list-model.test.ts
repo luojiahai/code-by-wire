@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeSessionCount,
   sortSessions,
   filterSessions,
   capSessionForest,
@@ -503,5 +504,45 @@ describe("session list model", () => {
       "/b": { hiddenAtMs: 2 },
     });
     expect(result.hidden.map((g) => g.key)).toEqual(["/b", "/a"]);
+  });
+
+  it("activeSessionCount counts every live state and no ended one", () => {
+    expect(
+      activeSessionCount([
+        mk({ id: "w", state: "working" }),
+        mk({ id: "a", state: "waiting" }),
+        mk({ id: "i", state: "idle" }),
+        mk({ id: "e", state: "ended" }),
+      ]),
+    ).toBe(3);
+  });
+
+  it("activeSessionCount counts nested children, which a group's flat list holds", () => {
+    const group = groupSessionsByProject([
+      mk({ id: "root", cwd: "/repo", state: "ended" }),
+      mk({
+        id: "child",
+        cwd: "/repo",
+        state: "working",
+        parentSessionId: "root",
+      }),
+      mk({
+        id: "grandchild",
+        cwd: "/repo",
+        state: "waiting",
+        parentSessionId: "child",
+      }),
+    ])[0];
+    expect(activeSessionCount(group.sessions)).toBe(2);
+  });
+
+  it("activeSessionCount is 0 for a folder whose sessions all ended", () => {
+    expect(
+      activeSessionCount([
+        mk({ id: "a", state: "ended" }),
+        mk({ id: "b", state: "ended" }),
+      ]),
+    ).toBe(0);
+    expect(activeSessionCount([])).toBe(0);
   });
 });
