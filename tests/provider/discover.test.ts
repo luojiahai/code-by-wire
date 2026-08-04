@@ -6,6 +6,7 @@ import {
   summarize,
   restate,
   readSessionFiles,
+  createSessionKindCache,
 } from "../../src/main/provider/claude/discover";
 import type { SessionCandidate } from "@shared/types";
 import { tempHomes } from "../helpers/temp-home";
@@ -447,6 +448,65 @@ describe("listCandidates", () => {
     }).map((c) => c.id);
     expect(ids).not.toContain("reapedbg");
     expect(ids).toContain("reapedinter");
+  });
+
+  // Regression for the every-3s UI stall: each refresh tick ran the reaped-bg head-read against
+  // EVERY transcript-only candidate in the window (~1700 file opens per tick on a real ~/.claude),
+  // blocking the main process ~440ms every poll. The verdict is stable while the transcript's
+  // mtime stands still, so repeated passes must serve it from cache and only re-read on advance.
+  it("does not re-read an unchanged transcript's head across repeated passes", () => {
+    const home = makeHome();
+    writeTranscript(
+      home,
+      "-w-bg",
+      "reapedbg",
+      '{"type":"user","sessionKind":"bg","message":{"content":"hi"}}\n',
+      NOW / 1000 - 1,
+    );
+    writeTranscript(
+      home,
+      "-w-i",
+      "reapedinter",
+      '{"type":"user","message":{"content":"hi"}}\n',
+      NOW / 1000 - 1,
+    );
+    const reads: string[] = [];
+    const deps = {
+      claudeDir: home,
+      isPidAlive: () => true,
+      now: NOW,
+      recentWindowMs: WINDOW,
+      sessionKindOf: createSessionKindCache((path) => {
+        reads.push(path);
+        return path.includes("reapedbg") ? "bg" : undefined;
+      }),
+    };
+    for (let pass = 0; pass < 3; pass++) {
+      const ids = listCandidates(deps).map((c) => c.id);
+      expect(ids).not.toContain("reapedbg");
+      expect(ids).toContain("reapedinter");
+    }
+    // One head read per transcript for all three passes — the interactive (undefined) verdict must
+    // be cached too, since interactive is the overwhelmingly common case.
+    expect(reads.filter((p) => p.includes("reapedbg"))).toHaveLength(1);
+    expect(reads.filter((p) => p.includes("reapedinter"))).toHaveLength(1);
+  });
+
+  it("re-reads a transcript's head once its mtime advances", () => {
+    let verdict: string | undefined = undefined;
+    let reads = 0;
+    const kindOf = createSessionKindCache(() => {
+      reads++;
+      return verdict;
+    });
+    expect(kindOf("/t/a.jsonl", 1000)).toBeUndefined();
+    expect(kindOf("/t/a.jsonl", 1000)).toBeUndefined();
+    expect(reads).toBe(1); // unchanged mtime → cached, even for an undefined verdict
+    verdict = "bg";
+    expect(kindOf("/t/a.jsonl", 2000)).toBe("bg");
+    expect(reads).toBe(2); // advanced mtime → fresh read
+    expect(kindOf("/t/a.jsonl", 2000)).toBe("bg");
+    expect(reads).toBe(2);
   });
 
   it("survives a reaped candidate whose transcript path is unreadable (a directory)", () => {

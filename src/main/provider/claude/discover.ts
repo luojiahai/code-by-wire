@@ -35,6 +35,35 @@ export interface CandidateDeps {
   now: number;
   /** How far back (ms) a transcript-only (Ended) session still counts as recent. */
   recentWindowMs: number;
+  /** The reaped-bg verdict for a transcript head. The provider passes a per-instance
+   *  createSessionKindCache so repeated sweeps don't re-open every unchanged transcript;
+   *  absent (tests), each sweep reads fresh. */
+  sessionKindOf?: (path: string, mtimeMs: number) => string | undefined;
+}
+
+/**
+ * Memoize `transcriptSessionKind` by path, invalidated by mtime advance. Discovery runs on every
+ * renderer poll (~3s), and without this each pass re-opened the head of every transcript-only
+ * candidate in the window — ~1700 reads / ~440ms of main-process block per tick on a large
+ * ~/.claude, felt as a UI stall every poll. The verdict is a property of the file's first lines, so
+ * while the mtime stands still the cached answer (including undefined = interactive, the common
+ * case) is served; a changed file re-reads. Unbounded on purpose: one small entry per transcript
+ * path, thousands at most, for the life of the provider.
+ */
+export function createSessionKindCache(
+  read: (path: string) => string | undefined = transcriptSessionKind,
+): (path: string, mtimeMs: number) => string | undefined {
+  const cache = new Map<
+    string,
+    { mtimeMs: number; kind: string | undefined }
+  >();
+  return (path, mtimeMs) => {
+    const hit = cache.get(path);
+    if (hit && hit.mtimeMs === mtimeMs) return hit.kind;
+    const kind = read(path);
+    cache.set(path, { mtimeMs, kind });
+    return kind;
+  };
 }
 
 /**
@@ -164,10 +193,13 @@ export function listCandidates({
   isPidAlive,
   now,
   recentWindowMs,
+  sessionKindOf,
 }: CandidateDeps): SessionCandidate[] {
   const registry = registryById(claudeDir);
   const transcripts = indexTranscripts(claudeDir);
   const cutoff = now - recentWindowMs;
+  const kindOf =
+    sessionKindOf ?? ((path: string) => transcriptSessionKind(path));
 
   const ids = new Set<string>(registry.keys());
   for (const [id, t] of transcripts) {
@@ -182,7 +214,7 @@ export function listCandidates({
     // Reaped bg: its registry file is gone, but the transcript still reports sessionKind:"bg" (#158).
     // Only scan a transcript-only candidate — a registered non-bg session is genuinely interactive, so
     // it needs no read.
-    if (!raw && t && transcriptSessionKind(t.path) === "bg") continue;
+    if (!raw && t && kindOf(t.path, t.mtimeMs) === "bg") continue;
     out.push({
       id,
       alive: raw ? isPidAlive(raw.pid) : false,

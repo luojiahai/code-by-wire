@@ -4,6 +4,7 @@ import type { Management, PersistedSession } from "@shared/types";
 import type { Family } from "@shared/models";
 import { readTextOrNull, resolveClaudeDir } from "../../claude-config";
 import {
+  createSessionKindCache,
   indexTranscripts,
   listCandidates,
   summarize,
@@ -216,10 +217,20 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
     return { path: hit.path, mtimeMs: hit.mtimeMs };
   };
 
+  // Per-provider memo for the reaped-bg head read — see createSessionKindCache. Discovery runs on
+  // every renderer poll; without this each pass re-opened every transcript-only candidate's head.
+  const sessionKindOf = createSessionKindCache();
+
   return {
     id: "claude",
     listCandidates: () =>
-      listCandidates({ claudeDir, isPidAlive, now: now(), recentWindowMs }),
+      listCandidates({
+        claudeDir,
+        isPidAlive,
+        now: now(),
+        recentWindowMs,
+        sessionKindOf,
+      }),
     summarize: (c) => {
       const s = summarize(c);
       return {
