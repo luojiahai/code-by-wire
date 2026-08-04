@@ -200,6 +200,7 @@ export const zh: Translations = {
       chooseAgentHint: "右键选择智能体",
       olderSessions: (count) => `更早（${count}）`,
       showMoreSessions: "显示更多",
+      activeSessionsBadge: (count) => `${count} 进行中`,
       activeSessions: (count) => `${count} 个进行中的会话`,
     },
     sessionRow: {

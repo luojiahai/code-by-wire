@@ -406,6 +406,7 @@ export function LeftSidebar({
           collapsed={collapsed.has(g.key)}
           placement={placement}
           activeCount={activeCount}
+          activeSessionsBadge={t.shell.sidebar.activeSessionsBadge(activeCount)}
           activeSessionsLabel={t.shell.sidebar.activeSessions(activeCount)}
           quickAddDisabled={!anySpawnable}
           quickAdding={quickAdding.has(g.key)}

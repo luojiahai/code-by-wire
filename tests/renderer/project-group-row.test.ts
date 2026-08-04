@@ -48,10 +48,13 @@ describe("ProjectGroupRow action isolation", () => {
 
   it("badges the chevron with the live-session count only when there is one", () => {
     expect(source).toMatch(
-      /activeCount > 0 && \(\s*<span[\s\S]*?\{activeCount\}[\s\S]*?<\/span>\s*\)/,
+      /activeCount > 0 && \(\s*<span[\s\S]*?\{activeSessionsBadge\}[\s\S]*?<\/span>\s*\)/,
     );
+    // Spelled out ("3 live"), never a bare digit that could read as any other total. The words
+    // are the accessible name too, so the pill needs no role/aria-label of its own.
+    expect(source).not.toContain("{activeCount}<");
+    expect(source).not.toContain("aria-label={activeSessionsLabel}");
     expect(source).toContain("title={activeSessionsLabel}");
-    expect(source).toContain("aria-label={activeSessionsLabel}");
     // Sits after the chevron so a changing count never shifts the disclosure target.
     expect(source).toMatch(/name="chevron-right"[\s\S]*?activeCount > 0/);
     // Inside the toggle button, so it isn't gated on the cwd-only action cluster.

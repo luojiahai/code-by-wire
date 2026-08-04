@@ -12,6 +12,7 @@ export function ProjectGroupRow({
   collapsed,
   placement,
   activeCount,
+  activeSessionsBadge,
   activeSessionsLabel,
   quickAddDisabled,
   quickAdding,
@@ -35,6 +36,9 @@ export function ProjectGroupRow({
   placement: ProjectPlacement;
   /** Live sessions in this folder; 0 hides the badge entirely. */
   activeCount: number;
+  /** The badge's own words ("3 live") — a bare count would read as any other total. */
+  activeSessionsBadge: string;
+  /** The badge's fuller tooltip ("3 active sessions"). */
   activeSessionsLabel: string;
   quickAddDisabled: boolean;
   quickAdding: boolean;
@@ -144,14 +148,10 @@ export function ProjectGroupRow({
         </span>
         {activeCount > 0 && (
           <span
-            // role="img" the way Lamp does: ARIA ignores aria-label on a roleless generic, and a
-            // bare digit inside the toggle's name tells a screen reader nothing.
-            role="img"
             title={activeSessionsLabel}
-            aria-label={activeSessionsLabel}
             className="shrink-0 rounded-full bg-(--ui-control-active-background) px-1.5 text-[0.64rem] tabular-nums text-(--ui-text-tertiary)"
           >
-            {activeCount}
+            {activeSessionsBadge}
           </span>
         )}
       </button>
