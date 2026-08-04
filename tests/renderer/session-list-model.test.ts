@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   sortSessions,
   filterSessions,
-  filterActive,
-  filterGroupsActive,
+  capSessionForest,
+  countFamilySessions,
   groupSessionsByProject,
   isSessionFamilyCollapsed,
   sessionForest,
   pinnedSessions,
   filterGroups,
   partitionProjectGroups,
-  recentEndedSessions,
+  SESSIONS_PER_FOLDER,
 } from "../../src/renderer/src/shell/session-list-model";
 import type { Session } from "@shared/types";
 
@@ -65,26 +65,6 @@ describe("session list model", () => {
     const b = mk({ id: "b", title: "DB", project: "api" });
     expect(filterSessions([a, b], "AUT").map((s) => s.id)).toEqual(["a"]);
   });
-  it("filterActive drops only ended, preserving order", () => {
-    const w = mk({ id: "w", state: "working" });
-    const e = mk({ id: "e", state: "ended" });
-    const i = mk({ id: "i", state: "idle" });
-    const wa = mk({ id: "wa", state: "waiting" });
-    expect(filterActive([w, e, i, wa]).map((s) => s.id)).toEqual([
-      "w",
-      "i",
-      "wa",
-    ]);
-  });
-
-  it("a project with only ended sessions yields no group once filtered", () => {
-    const a = mk({ id: "a", state: "working", project: "alpha" });
-    const e1 = mk({ id: "e1", state: "ended", project: "beta" });
-    expect(
-      groupSessionsByProject(filterActive([a, e1])).map((g) => g.label),
-    ).toEqual(["alpha"]);
-  });
-
   it("filters by the merged repo label so repo-name search finds worktree sessions", () => {
     const wt = mk({
       id: "wt",
@@ -127,45 +107,12 @@ describe("session list model", () => {
     ).toEqual(["a"]);
   });
 
-  it("pinnedSessions keeps ended pins (the active filter never applies)", () => {
+  it("pinnedSessions keeps ended pins (the folder cap never reaches them)", () => {
     const e = mk({ id: "e", state: "ended", pinnedAtMs: 100 });
     expect(pinnedSessions([e]).map((s) => s.id)).toEqual(["e"]);
   });
 
-  it("filterGroupsActive keeps a folder whose sessions are all ended, as an empty group", () => {
-    const a = mk({ id: "a", state: "working", project: "alpha", cwd: "/a" });
-    const e1 = mk({ id: "e1", state: "ended", project: "beta", cwd: "/b" });
-    const out = filterGroupsActive(groupSessionsByProject([a, e1]));
-    expect(out.map((g) => g.label).sort()).toEqual(["alpha", "beta"]);
-    expect(out.find((g) => g.label === "beta")!.sessions).toEqual([]);
-    expect(
-      out.find((g) => g.label === "alpha")!.sessions.map((s) => s.id),
-    ).toEqual(["a"]);
-  });
-
-  it("filterGroupsActive preserves group identity and order", () => {
-    const a = mk({
-      id: "a",
-      state: "ended",
-      project: "alpha",
-      cwd: "/a",
-      lastActivityMs: 200,
-    });
-    const b = mk({
-      id: "b",
-      state: "working",
-      project: "beta",
-      cwd: "/b",
-      lastActivityMs: 100,
-    });
-    const groups = groupSessionsByProject([a, b]);
-    const out = filterGroupsActive(groups);
-    expect(out.map((g) => g.key)).toEqual(groups.map((g) => g.key));
-    expect(out.map((g) => g.cwd)).toEqual(groups.map((g) => g.cwd));
-    expect(out.map((g) => g.label)).toEqual(groups.map((g) => g.label));
-  });
-
-  it("filterGroups preserves every group while combining visibility and agent filters", () => {
+  it("filterGroups keeps ended sessions and preserves every group while applying the agent filter", () => {
     const groups = groupSessionsByProject([
       mk({ id: "ac", cwd: "/a", state: "working", agent: "claude" }),
       mk({ id: "ae", cwd: "/a", state: "ended", agent: "claude" }),
@@ -173,22 +120,20 @@ describe("session list model", () => {
     ]);
 
     const filtered = filterGroups(groups, {
-      visibility: "active",
       showAgentIcons: true,
       agent: "claude",
     });
 
     expect(filtered).toHaveLength(groups.length);
     expect(filtered.map((g) => g.key)).toEqual(groups.map((g) => g.key));
+    // Ended sessions survive: the folder cap, not a filter, decides what the sidebar shows.
     expect(
-      filtered
-        .flatMap((g) => g.sessions)
-        .every((s) => s.state !== "ended" && s.agent === "claude"),
-    ).toBe(true);
+      filtered.find((g) => g.key === "/a")!.sessions.map((s) => s.id),
+    ).toEqual(["ac", "ae"]);
     expect(filtered.find((g) => g.key === "/b")!.sessions).toEqual([]);
   });
 
-  it("a search query bypasses the visibility filter but not the agent filter", () => {
+  it("a search query narrows to matches and still respects the agent filter", () => {
     const active = mk({
       id: "a",
       title: "auth flow",
@@ -201,6 +146,12 @@ describe("session list model", () => {
       state: "ended",
       project: "alpha",
     });
+    const unrelated = mk({
+      id: "u",
+      title: "db migration",
+      state: "ended",
+      project: "alpha",
+    });
     const endedCodex = mk({
       id: "ec",
       title: "auth port",
@@ -208,9 +159,13 @@ describe("session list model", () => {
       agent: "codex",
       project: "alpha",
     });
-    const groups = groupSessionsByProject([active, ended, endedCodex]);
+    const groups = groupSessionsByProject([
+      active,
+      ended,
+      unrelated,
+      endedCodex,
+    ]);
     const preferences = {
-      visibility: "active",
       showAgentIcons: true,
       agent: "claude",
     } as const;
@@ -218,64 +173,130 @@ describe("session list model", () => {
     expect(
       filterGroups(groups, preferences, "auth")[0].sessions.map((s) => s.id),
     ).toEqual(["a", "e"]);
-    // Without a query the visibility filter still hides ended sessions.
+    // Without a query every claude session survives, ended ones included.
     expect(
       filterGroups(groups, preferences)[0].sessions.map((s) => s.id),
-    ).toEqual(["a"]);
+    ).toEqual(["a", "e", "u"]);
   });
 
-  it("recentEndedSessions picks hidden ended sessions by recency, capped, agent-filtered", () => {
-    const active = mk({ id: "a", state: "working" });
-    const endedOld = mk({ id: "e1", state: "ended", lastActivityMs: 100 });
-    const endedNew = mk({ id: "e2", state: "ended", lastActivityMs: 300 });
-    const endedMid = mk({ id: "e3", state: "ended", lastActivityMs: 200 });
-    const endedCodex = mk({
-      id: "e4",
-      state: "ended",
-      agent: "codex",
-      lastActivityMs: 400,
-    });
-    // e5 is ended but already visible (retained as an ancestor of an active child).
-    const endedVisible = mk({ id: "e5", state: "ended", lastActivityMs: 500 });
-    const all = [
-      active,
-      endedOld,
-      endedNew,
-      endedMid,
-      endedCodex,
-      endedVisible,
+  it("capSessionForest fills the cap with the newest ended families", () => {
+    const sessions = [
+      mk({ id: "live", state: "working", createdMs: 500 }),
+      mk({ id: "e1", state: "ended", lastActivityMs: 400 }),
+      mk({ id: "e2", state: "ended", lastActivityMs: 300 }),
+      mk({ id: "e3", state: "ended", lastActivityMs: 200 }),
+      mk({ id: "e4", state: "ended", lastActivityMs: 100 }),
     ];
-    const preferences = {
-      visibility: "active",
-      showAgentIcons: true,
-      agent: "claude",
-    } as const;
 
-    const capped = recentEndedSessions(
-      all,
-      preferences,
-      new Set(["a", "e5"]),
-      2,
-    );
-    expect(capped.sessions.map((s) => s.id)).toEqual(["e2", "e3"]);
-    expect(capped.total).toBe(3);
-
-    const anyAgent = recentEndedSessions(
-      all,
-      { ...preferences, agent: "all" },
-      new Set(["a", "e5"]),
-      10,
-    );
-    expect(anyAgent.sessions.map((s) => s.id)).toEqual([
-      "e4",
-      "e2",
-      "e3",
-      "e1",
-    ]);
-    expect(anyAgent.total).toBe(4);
+    const { visible, hidden } = capSessionForest(sessionForest(sessions), 3);
+    expect(visible.map((n) => n.session.id)).toEqual(["live", "e1", "e2"]);
+    expect(hidden.map((n) => n.session.id)).toEqual(["e3", "e4"]);
   });
 
-  it("searching or active-filtering a child retains its ancestor context", () => {
+  it("capSessionForest hides nothing when the folder fits", () => {
+    const sessions = [
+      mk({ id: "a", state: "ended", lastActivityMs: 200 }),
+      mk({ id: "b", state: "ended", lastActivityMs: 100 }),
+    ];
+    const { visible, hidden } = capSessionForest(sessionForest(sessions), 5);
+    expect(visible.map((n) => n.session.id)).toEqual(["a", "b"]);
+    expect(hidden).toEqual([]);
+  });
+
+  it("capSessionForest keeps every live family past the cap, hiding only ended ones", () => {
+    const sessions = [
+      mk({ id: "l1", state: "working", createdMs: 100 }),
+      mk({ id: "l2", state: "waiting", createdMs: 200 }),
+      mk({ id: "l3", state: "idle", createdMs: 300 }),
+      mk({ id: "e1", state: "ended", lastActivityMs: 50 }),
+    ];
+
+    const { visible, hidden } = capSessionForest(sessionForest(sessions), 2);
+    expect(visible.map((n) => n.session.id).sort()).toEqual(["l1", "l2", "l3"]);
+    expect(hidden.map((n) => n.session.id)).toEqual(["e1"]);
+  });
+
+  it("capSessionForest counts a family as one slot and never splits it", () => {
+    const sessions = [
+      mk({ id: "root", state: "ended", lastActivityMs: 400 }),
+      mk({
+        id: "kid-a",
+        parentSessionId: "root",
+        state: "ended",
+        lastActivityMs: 390,
+      }),
+      mk({
+        id: "kid-b",
+        parentSessionId: "root",
+        state: "ended",
+        lastActivityMs: 380,
+      }),
+      mk({ id: "e1", state: "ended", lastActivityMs: 300 }),
+      mk({ id: "e2", state: "ended", lastActivityMs: 200 }),
+    ];
+
+    const { visible, hidden } = capSessionForest(sessionForest(sessions), 2);
+    // The three-session family occupies exactly one of the two slots.
+    expect(visible.map((n) => n.session.id)).toEqual(["root", "e1"]);
+    expect(visible[0].children.map((n) => n.session.id)).toEqual([
+      "kid-a",
+      "kid-b",
+    ]);
+    expect(hidden.map((n) => n.session.id)).toEqual(["e2"]);
+  });
+
+  it("capSessionForest treats an ended root with a live descendant as a live family", () => {
+    const sessions = [
+      mk({ id: "stale-root", state: "ended", lastActivityMs: 10 }),
+      mk({
+        id: "live-kid",
+        parentSessionId: "stale-root",
+        state: "working",
+        createdMs: 900,
+        lastActivityMs: 900,
+      }),
+      mk({ id: "e1", state: "ended", lastActivityMs: 800 }),
+      mk({ id: "e2", state: "ended", lastActivityMs: 700 }),
+    ];
+
+    const { visible, hidden } = capSessionForest(sessionForest(sessions), 1);
+    expect(visible.map((n) => n.session.id)).toEqual(["stale-root"]);
+    expect(hidden.map((n) => n.session.id)).toEqual(["e1", "e2"]);
+  });
+
+  it("capSessionForest suspends the cap when handed Infinity (what search does)", () => {
+    const sessions = [
+      mk({ id: "e1", state: "ended", lastActivityMs: 300 }),
+      mk({ id: "e2", state: "ended", lastActivityMs: 200 }),
+      mk({ id: "e3", state: "ended", lastActivityMs: 100 }),
+    ];
+    const { visible, hidden } = capSessionForest(
+      sessionForest(sessions),
+      Infinity,
+    );
+    expect(visible.map((n) => n.session.id)).toEqual(["e1", "e2", "e3"]);
+    expect(hidden).toEqual([]);
+  });
+
+  it("countFamilySessions counts buried sessions, not slots", () => {
+    const sessions = [
+      mk({ id: "root", state: "ended", lastActivityMs: 400 }),
+      mk({ id: "kid", parentSessionId: "root", state: "ended" }),
+      mk({ id: "grandkid", parentSessionId: "kid", state: "ended" }),
+      mk({ id: "lone", state: "ended", lastActivityMs: 100 }),
+    ];
+    const forest = sessionForest(sessions);
+    // Two top-level entries, four sessions between them.
+    expect(forest).toHaveLength(2);
+    expect(countFamilySessions(forest)).toBe(4);
+    expect(countFamilySessions([])).toBe(0);
+  });
+
+  it("caps folders at five entries by default", () => {
+    expect(SESSIONS_PER_FOLDER).toBe(5);
+  });
+
+  it("searching a child retains its ancestor context", () => {
     const parent = mk({
       id: "parent",
       title: "Main task",
@@ -294,12 +315,9 @@ describe("session list model", () => {
     expect(
       filterGroups(
         groups,
-        { visibility: "all", showAgentIcons: true, agent: "all" },
+        { showAgentIcons: true, agent: "all" },
         "needle",
       )[0].sessions.map((session) => session.id),
-    ).toEqual(["child", "parent"]);
-    expect(
-      filterGroupsActive(groups)[0].sessions.map((session) => session.id),
     ).toEqual(["child", "parent"]);
   });
 
@@ -325,7 +343,7 @@ describe("session list model", () => {
 
     const groups = filterGroups(
       groupSessionsByProject([oldMatch, recentNonmatch, newMatch]),
-      { visibility: "all", showAgentIcons: true, agent: "all" },
+      { showAgentIcons: true, agent: "all" },
       "needle",
     );
 

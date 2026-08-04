@@ -207,8 +207,6 @@ export const en = {
       noPinnedSessions: "No pinned sessions.",
       expandAll: "Expand all",
       collapseAll: "Collapse all",
-      showAllSessions: "Show all sessions",
-      showActiveOnly: "Show active sessions only",
       filterMenuLabel: "Session filters",
       showAgentIcons: "Show agent icons",
       agentGroup: "Agent",
@@ -224,13 +222,12 @@ export const en = {
       absolutePath: "Absolute path",
       copyPath: "Copy path",
       noMatchingSessions: "No matching sessions.",
-      noActiveSessions: "No active sessions.",
       noSessionsYet: "No sessions yet.",
       newSessionIn: (cwd: string) => `New session in ${cwd}`,
       newSessionWith: (label: string, cwd: string) =>
         `New ${label} session in ${cwd}`,
       chooseAgentHint: "Right-click to choose the agent",
-      recentSessions: (count: number) => `Recent (${count})`,
+      olderSessions: (count: number) => `Older (${count})`,
       showMoreSessions: "Show more",
     },
     sessionRow: {
