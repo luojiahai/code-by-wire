@@ -681,7 +681,7 @@ export function LeftSidebar({
                       : "border-transparent text-(--ui-text-quaternary) hover:bg-(--ui-control-hover-background) hover:text-fg",
                   )}
                 >
-                  <Icon name="activity" size={12} />
+                  <Icon name="zap" size={12} />
                 </button>
                 <button
                   ref={filterTriggerRef}
