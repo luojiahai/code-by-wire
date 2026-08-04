@@ -2,9 +2,25 @@ import { describe, it, expect } from "vitest";
 import {
   detectClaims,
   applyClaims,
+  scanClaimableRollouts,
   type ClaimableRollout,
 } from "../../src/main/provider/codex/claim";
 import type { ManagedCodexPty } from "../../src/main/managed-registry";
+import type { RolloutFile } from "../../src/main/provider/codex/rollout";
+
+/** The in-process scan wired the way the composition root's fallback wires it. */
+const inProcessScan =
+  (
+    listRollouts: () => RolloutFile[],
+    readHead: (p: string) => { cwd: string } | null,
+  ) =>
+  (earliestMs: number, claimedRollouts: ReadonlySet<string>) =>
+    scanClaimableRollouts({
+      listRollouts,
+      readHead,
+      earliestMs,
+      claimedRollouts,
+    });
 
 const pty = (o: Partial<ManagedCodexPty> = {}): ManagedCodexPty => ({
   id: "draft-1",
@@ -67,40 +83,54 @@ describe("detectClaims", () => {
 });
 
 describe("applyClaims", () => {
-  it("head-reads only plausible candidates and fires apply per claim", () => {
+  it("head-reads only plausible candidates and fires apply per claim", async () => {
     const applied: unknown[] = [];
     const reads: string[] = [];
-    const claims = applyClaims({
+    const claims = await applyClaims({
       ptys: [pty()],
       claimedRollouts: new Set(),
-      listRollouts: () => [
-        { path: "/x/old.jsonl", id: "old", timestampMs: 1_000, mtimeMs: 1 },
-        { path: "/x/r1.jsonl", id: "r1", timestampMs: 11_000, mtimeMs: 2 },
-      ],
-      readHead: (p) => {
-        reads.push(p);
-        return { cwd: "/w" };
-      },
+      scan: inProcessScan(
+        () => [
+          { path: "/x/old.jsonl", id: "old", timestampMs: 1_000, mtimeMs: 1 },
+          { path: "/x/r1.jsonl", id: "r1", timestampMs: 11_000, mtimeMs: 2 },
+        ],
+        (p) => {
+          reads.push(p);
+          return { cwd: "/w" };
+        },
+      ),
       apply: (c) => applied.push(c),
     });
     expect(reads).toEqual(["/x/r1.jsonl"]); // the too-old rollout is filtered before any read
     expect(claims).toHaveLength(1);
     expect(applied).toEqual(claims);
   });
-  it("does nothing (and lists nothing) when no unclaimed codex pty exists", () => {
-    let listed = false;
-    const claims = applyClaims({
+  it("does nothing (and scans nothing) when no unclaimed codex pty exists", async () => {
+    let scanned = false;
+    const claims = await applyClaims({
       ptys: [],
       claimedRollouts: new Set(),
-      listRollouts: () => {
-        listed = true;
+      scan: () => {
+        scanned = true;
         return [];
       },
-      readHead: () => null,
       apply: () => {},
     });
     expect(claims).toEqual([]);
-    expect(listed).toBe(false);
+    expect(scanned).toBe(false);
+  });
+  it("accepts an async scan — the parse-worker routing the reconcile uses", async () => {
+    const applied: unknown[] = [];
+    const claims = await applyClaims({
+      ptys: [pty()],
+      claimedRollouts: new Set(),
+      scan: () => Promise.resolve([roll()]),
+      apply: (c) => applied.push(c),
+    });
+    expect(claims).toEqual([
+      { from: "draft-1", to: "r1", rolloutPath: "/x/r1.jsonl" },
+    ]);
+    expect(applied).toEqual(claims);
   });
 });
 
@@ -119,20 +149,19 @@ describe("resume pty claim-binding invariant", () => {
       detectClaims([resumed], [roll()], new Set(["/x/old.jsonl"])),
     ).toEqual([]);
   });
-  it("applyClaims stays lazy when every codex pty is claim-bound", () => {
-    let walked = false;
-    applyClaims({
+  it("applyClaims stays lazy when every codex pty is claim-bound", async () => {
+    let scanned = false;
+    await applyClaims({
       ptys: [pty({ claimedRollout: "/x/old.jsonl" })],
       claimedRollouts: new Set(["/x/old.jsonl"]),
-      listRollouts: () => {
-        walked = true;
+      scan: () => {
+        scanned = true;
         return [];
       },
-      readHead: () => null,
       apply: () => {
         throw new Error("nothing should claim");
       },
     });
-    expect(walked).toBe(false);
+    expect(scanned).toBe(false);
   });
 });

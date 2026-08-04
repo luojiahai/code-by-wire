@@ -58,11 +58,11 @@ describe("applyRotations", () => {
     };
   }
 
-  it("renames each rotated id in the registry, then hands (from, to) to the rename effect", () => {
+  it("renames each rotated id in the registry, then hands (from, to) to the rename effect", async () => {
     const managed = fakeManaged([{ id: "A", pid: 100 }]);
     const renamed: Array<[string, string]> = [];
 
-    const out = applyRotations(
+    const out = await applyRotations(
       managed,
       () => [{ pid: 100, sessionId: "B" }],
       (from, to) => renamed.push([from, to]),
@@ -73,10 +73,21 @@ describe("applyRotations", () => {
     expect(renamed).toEqual([["A", "B"]]); // and the effect (pty re-key + renderer hand-off) fires
   });
 
-  it("does nothing when no managed pty rotated", () => {
+  it("accepts an async registry read — the parse-worker routing the reconcile uses", async () => {
     const managed = fakeManaged([{ id: "A", pid: 100 }]);
     const renamed: Array<[string, string]> = [];
-    applyRotations(
+    await applyRotations(
+      managed,
+      () => Promise.resolve([{ pid: 100, sessionId: "B" }]),
+      (from, to) => renamed.push([from, to]),
+    );
+    expect(renamed).toEqual([["A", "B"]]);
+  });
+
+  it("does nothing when no managed pty rotated", async () => {
+    const managed = fakeManaged([{ id: "A", pid: 100 }]);
+    const renamed: Array<[string, string]> = [];
+    await applyRotations(
       managed,
       () => [{ pid: 100, sessionId: "A" }],
       (from, to) => renamed.push([from, to]),
@@ -85,10 +96,10 @@ describe("applyRotations", () => {
     expect(renamed).toEqual([]);
   });
 
-  it("skips the registry read entirely when nothing is managed — the common no-terminal case", () => {
+  it("skips the registry read entirely when nothing is managed — the common no-terminal case", async () => {
     const managed = fakeManaged([]);
     let reads = 0;
-    const out = applyRotations(
+    const out = await applyRotations(
       managed,
       () => {
         reads++;

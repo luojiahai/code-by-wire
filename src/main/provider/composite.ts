@@ -15,8 +15,15 @@ export function createCompositeProvider(
   const by = (id: string): Provider => providers[agentOf(id)];
   return {
     id: "composite",
-    listCandidates: () =>
-      Object.values(providers).flatMap((p) => p.listCandidates()),
+    listCandidates: async () =>
+      (
+        await Promise.all(
+          // Promise.resolve: a provider may answer synchronously (codex, test fakes).
+          Object.values(providers).map((p) =>
+            Promise.resolve(p.listCandidates()),
+          ),
+        )
+      ).flat(),
     summarize: (c) => providers[c.agent].summarize(c),
     restate: (c, prev) => providers[c.agent].restate(c, prev),
     readTranscript: (id, since) => by(id).readTranscript(id, since),

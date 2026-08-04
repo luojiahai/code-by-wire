@@ -20,7 +20,7 @@ import { createCodexLimitsService } from "./provider/codex/limits";
 import { createCodexThreadMetadataService } from "./provider/codex/thread-metadata";
 import { resolveCodexDir } from "./provider/codex/config";
 import { listRollouts, readRolloutHead } from "./provider/codex/rollout";
-import { applyClaims } from "./provider/codex/claim";
+import { applyClaims, scanClaimableRollouts } from "./provider/codex/claim";
 import { createCompositeProvider } from "./provider/composite";
 import type { Provider } from "./provider/types";
 import { AGENT_IDS, type AgentId } from "@shared/agents";
@@ -32,6 +32,7 @@ import { registerIpc } from "./ipc";
 import { createSettingsManager } from "./settings/manager";
 import { createStatusLineReader } from "./statusline/reader";
 import { createParseWorkerClient } from "./parse-worker/client";
+import { createRemoteClaudeReads } from "./parse-worker/remote";
 import { registerTerminalIpc } from "./terminal/ipc";
 import type { ResumeTarget } from "./terminal/resume-gate";
 import { registerShellTerminalIpc } from "./terminal/shell-ipc";
@@ -344,17 +345,20 @@ app
     // directly, unlike claudeDir's recovered-config-dir path above.
     const codexDir = resolveCodexDir();
     const recentWindowMs = readSessionWindowMs(claudeDir);
-    // The parse-worker utility process: summarize's O(transcript size) read+parse runs there, so
-    // an active session's growing transcript can't block the main thread on every poll tick. Lazy
-    // fork on first parse; on worker fault the provider parses in-process (see parseSession).
+    // The parse-worker utility process: every poll-driven O(transcript-size) and O(session-count)
+    // fs read runs there (#430, #432), so a growing transcript or a large session population can't
+    // block the main thread on any poll tick. Lazy fork on first call; on worker fault each read
+    // degrades to the same code in-process (see RemoteClaudeReads). The corrected login-shell PATH
+    // rides the fork env so the worker's git/gh spawns (readMetrics) resolve like main's would.
     const parseWorker = createParseWorkerClient(
       join(__dirname, "parse-worker.js"),
+      correctedPath ? { env: { ...process.env, PATH: correctedPath } } : {},
     );
     const claudeProvider = createClaudeProvider({
       managed,
       claudeDir,
       recentWindowMs,
-      parseSession: (c) => parseWorker.summarize(c),
+      remote: createRemoteClaudeReads(parseWorker, claudeDir),
     });
     // Codex account rate limits: OAuth wham/usage first (auth.json read-only), app-server fallback.
     // Same lazy-refresh contract as the claude usage service — refreshes ride renderer polls only.
@@ -436,24 +440,45 @@ app
     // Before each discovery sweep, follow any /clear that rotated a Managed pty's session id: relabel the
     // registry and re-key the live pty + renderer, so the rotated session stays Managed instead of being
     // re-derived as a read-only Observed one.
-    const reconcile = (): void => {
-      applyRotations(
+    const reconcile = async (): Promise<void> => {
+      await applyRotations(
         {
           entries: () => managed.entriesFor("claude"),
           rename: (from, to) => managed.rename(from, to),
         },
-        () => readSessionFiles(claudeDir),
+        // The registry sweep is a per-tick fs read while any managed claude pty is live, so route
+        // it through the parse worker; a worker fault degrades to the in-process read for the pass.
+        () =>
+          parseWorker
+            .call({ op: "readSessionFiles", claudeDir })
+            .catch(() => readSessionFiles(claudeDir)),
         renameInWindow,
       );
       // Codex claims land in the same beforeSync slot, so the re-key + rollout binding hit the
       // very pass that first discovers the rollout — no duplicate-row window between polls. Order
       // vs. the rotation pass above doesn't matter: the two tracks touch disjoint managed entries
       // (claude-agent vs codex-agent ids), so neither can observe the other's rename.
-      applyClaims({
+      await applyClaims({
         ptys: managed.codexEntries(),
         claimedRollouts: managed.claimedRollouts(),
-        listRollouts: () => listRollouts(codexDir),
-        readHead: (path) => readRolloutHead(path),
+        // Same split as the rotation sweep: the rollout walk + head-reads run in the worker (only
+        // the spawn floor and claimed paths ride the request), falling back in-process on a fault.
+        scan: (earliestMs, claimedRollouts) =>
+          parseWorker
+            .call({
+              op: "scanClaimableRollouts",
+              codexDir,
+              earliestMs,
+              claimedPaths: [...claimedRollouts],
+            })
+            .catch(() =>
+              scanClaimableRollouts({
+                listRollouts: () => listRollouts(codexDir),
+                readHead: (path) => readRolloutHead(path),
+                earliestMs,
+                claimedRollouts,
+              }),
+            ),
         apply: ({ from, to, rolloutPath }) => {
           managed.rename(from, to);
           managed.claim(to, rolloutPath);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
 import {
   appendFileSync,
@@ -8,15 +8,25 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { createClaudeProvider } from "../src/main/provider/claude";
+import { createClaudeReader } from "../src/main/provider/claude/reader";
 import { _setPrRunner, _resetPrCache } from "../src/main/git/read-pr";
+import { _flushGitReads, _resetGitCache } from "../src/main/git/read-git";
 import { tempHomes } from "./helpers/temp-home";
 
 const makeHome = tempHomes("cbw-metrics-");
 
 beforeEach(() => {
+  _resetGitCache();
   _resetPrCache();
   _setPrRunner(() => Promise.resolve(null)); // never spawn gh in tests
+});
+
+// Drain in-flight git refreshes before tempHomes' rmSync: a readMetrics that kicks readGit's
+// fire-and-forget refresh and never flushes leaves a git.exe running with its cwd inside the temp
+// repo, and Windows refuses to delete a directory a live process holds (EPERM in CI). Registered
+// AFTER tempHomes(), so vitest's stack ordering of after-hooks runs this flush before the cleanup.
+afterEach(async () => {
+  await _flushGitReads();
 });
 
 function git(cwd: string, ...args: string[]): void {
@@ -109,42 +119,60 @@ function scaffold(): { claudeDir: string; id: string; repo: string } {
   return { claudeDir, id, repo };
 }
 
-describe("provider.readMetrics", () => {
-  it("returns token speed and git for the session, with a change token", () => {
+describe("reader.readMetrics", () => {
+  it("returns token speed and git for the session, with a change token", async () => {
     const { claudeDir, id } = scaffold();
-    const provider = createClaudeProvider({ claudeDir });
-    const r = provider.readMetrics(id);
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
+    const first = provider.readMetrics(id);
+    expect(first.status).toBe("changed");
+    if (first.status !== "changed") return;
+    expect(first.metrics.tokenSpeed?.outputTps).toBeCloseTo(100, 5);
+    // readGit is non-blocking: the first read kicks the resolve and serves git:null; the glance
+    // lands on the next poll (the change token folds it in, so the renderer refetches).
+    expect(first.metrics.git).toBeNull();
+    await _flushGitReads();
+    const r = provider.readMetrics(id, first.mtimeMs);
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
-    expect(r.metrics.tokenSpeed?.outputTps).toBeCloseTo(100, 5);
     expect(r.metrics.git?.branch).toBe("main");
     expect(typeof r.mtimeMs).toBe("number");
   });
 
-  it("only asks gh for a PR when the glance found a browsable remote", () => {
+  it("only asks gh for a PR when the glance found a browsable remote", async () => {
     let calls = 0;
     _setPrRunner(() => {
       calls++;
       return Promise.resolve(null);
     });
 
-    // No origin: a remote-less repo can't have a PR, so gh is never spawned.
+    // No origin: a remote-less repo can't have a PR, so gh is never spawned — even once the git
+    // glance has settled.
     const bare = scaffold();
-    createClaudeProvider({ claudeDir: bare.claudeDir }).readMetrics(bare.id);
+    const bareReader = createClaudeReader({
+      claudeDir: bare.claudeDir,
+      isPidAlive: () => false,
+    });
+    bareReader.readMetrics(bare.id);
+    await _flushGitReads();
+    bareReader.readMetrics(bare.id);
     expect(calls).toBe(0);
 
-    // With an origin the glance carries a browsable remoteUrl, so the PR lookup fires.
+    // With an origin the settled glance carries a browsable remoteUrl, so the PR lookup fires.
     const withRemote = scaffold();
     git(withRemote.repo, "remote", "add", "origin", "git@github.com:o/r.git");
-    createClaudeProvider({
+    const remoteReader = createClaudeReader({
       claudeDir: withRemote.claudeDir,
-    }).readMetrics(withRemote.id);
+      isPidAlive: () => false,
+    });
+    remoteReader.readMetrics(withRemote.id);
+    await _flushGitReads();
+    remoteReader.readMetrics(withRemote.id);
     expect(calls).toBe(1);
   });
 
   it("skips the recompute when the change token is unchanged", () => {
     const { claudeDir, id } = scaffold();
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = provider.readMetrics(id);
     if (first.status !== "changed") throw new Error("expected changed");
     expect(provider.readMetrics(id, first.mtimeMs).status).toBe("unchanged");
@@ -152,14 +180,16 @@ describe("provider.readMetrics", () => {
 
   it("is absent for an unknown session", () => {
     const { claudeDir } = scaffold();
-    expect(createClaudeProvider({ claudeDir }).readMetrics("nope").status).toBe(
-      "absent",
-    );
+    expect(
+      createClaudeReader({ claudeDir, isPidAlive: () => false }).readMetrics(
+        "nope",
+      ).status,
+    ).toBe("absent");
   });
 
   it("re-reads when the remote-control manifest changes though the transcript did not", () => {
     const { claudeDir, id } = scaffold();
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = provider.readMetrics(id);
     if (first.status !== "changed") throw new Error("expected changed");
     expect(first.metrics.remoteControl).toBeNull();
@@ -178,7 +208,7 @@ describe("provider.readMetrics", () => {
     expect(second.metrics.remoteControl).toBe(true);
   });
 
-  it("resolves git once a cwd-less transcript gains a cwd, instead of pinning null forever", () => {
+  it("resolves git once a cwd-less transcript gains a cwd, instead of pinning null forever", async () => {
     const claudeDir = makeHome();
     const repo = initRepo("main");
     const id = "sess-nocwd";
@@ -190,26 +220,30 @@ describe("provider.readMetrics", () => {
         message: { content: "hi" },
       },
     ]);
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = provider.readMetrics(id);
     if (first.status !== "changed") throw new Error("expected changed");
     expect(first.metrics.git).toBeNull(); // no cwd yet → no git
 
     writeTranscript(claudeDir, "proj", id, turn(id, repo)); // a later row supplies the cwd
+    provider.readMetrics(id); // resolves the cwd and kicks the git glance
+    await _flushGitReads();
     const second = provider.readMetrics(id);
     expect(second.status).toBe("changed");
     if (second.status !== "changed") return;
     expect(second.metrics.git?.branch).toBe("main"); // re-resolved, not pinned to the cwd-less first read
   });
 
-  it("re-resolves cwd after readTranscript invalidates a moved transcript (shared path cache)", () => {
+  it("re-resolves cwd after readTranscript invalidates a moved transcript (shared path cache)", async () => {
     const claudeDir = makeHome();
     const repoA = initRepo("main");
     const repoB = initRepo("develop");
     const id = "sess-move";
     writeTranscript(claudeDir, "projA", id, turn(id, repoA));
-    const provider = createClaudeProvider({ claudeDir });
-    const before = provider.readMetrics(id); // caches pathById=projA, cwdById=repoA
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
+    provider.readMetrics(id); // caches pathById=projA, cwdById=repoA; kicks the git glance
+    await _flushGitReads();
+    const before = provider.readMetrics(id);
     if (before.status === "changed")
       expect(before.metrics.git?.branch).toBe("main");
 
@@ -218,19 +252,23 @@ describe("provider.readMetrics", () => {
     writeTranscript(claudeDir, "projB", id, turn(id, repoB));
     provider.readTranscript(id); // the transcript poll runs first and refreshes the shared path cache
 
+    provider.readMetrics(id); // re-resolves the cwd and kicks the new repo's glance
+    await _flushGitReads();
     const after = provider.readMetrics(id);
     expect(after.status).toBe("changed");
     if (after.status !== "changed") return;
     expect(after.metrics.git?.branch).toBe("develop"); // re-resolved to the new cwd, not the stale repoA
   });
 
-  it("reuses the cached token speed when only git moves, not the transcript", () => {
+  it("reuses the cached token speed when only git moves, not the transcript", async () => {
     const { claudeDir, id, repo } = scaffold();
     const projFile = join(claudeDir, "projects", "proj", `${id}.jsonl`);
     const FIXED = new Date("2026-06-11T12:00:00.000Z");
     utimesSync(projFile, FIXED, FIXED);
 
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
+    provider.readMetrics(id); // kick the git glance so the baseline token carries the real branch
+    await _flushGitReads();
     const first = provider.readMetrics(id);
     if (first.status !== "changed") throw new Error("expected changed");
     expect(first.metrics.tokenSpeed?.outputTps).toBeCloseTo(100, 5); // 1000 / 10s
@@ -248,9 +286,11 @@ describe("provider.readMetrics", () => {
     );
     utimesSync(projFile, FIXED, FIXED);
 
-    // Switch branches: .git/HEAD's mtime moves and the branch changes, so the git portion of the
-    // token moves and forces a rebuild.
+    // Switch branches: .git/HEAD's mtime moves and the branch changes, so once the refreshed
+    // glance lands, the git portion of the token moves and forces a rebuild.
     git(repo, "checkout", "-q", "-b", "feature");
+    provider.readMetrics(id, first.mtimeMs); // serves the stale glance, kicks the refresh
+    await _flushGitReads();
 
     const second = provider.readMetrics(id, first.mtimeMs);
     expect(second.status).toBe("changed"); // git moved → token moved
@@ -294,7 +334,7 @@ describe("provider.readMetrics", () => {
         .map((r) => JSON.stringify(r))
         .join("\n") + "\n",
     );
-    const p = createClaudeProvider({ claudeDir });
+    const p = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const read = p.readMetrics("sess-sub", 0);
     expect(read.status).toBe("changed");
     if (read.status !== "changed") return;
@@ -319,7 +359,7 @@ describe("provider.readMetrics", () => {
         },
       }) + "\n",
     );
-    const p = createClaudeProvider({ claudeDir });
+    const p = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = p.readMetrics("sess-mt", 0);
     expect(first.status).toBe("changed");
     if (first.status !== "changed") return;

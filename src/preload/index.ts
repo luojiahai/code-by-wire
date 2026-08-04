@@ -6,6 +6,10 @@ import {
   type IpcRendererEvent,
 } from "electron";
 import { IPC, type AppApi } from "@shared/ipc";
+import {
+  fromTranscriptWire,
+  type TranscriptReadWire,
+} from "@shared/transcript";
 import { TERMINAL } from "@shared/terminal";
 import { SHELL_TERMINAL } from "@shared/shell-terminal";
 
@@ -37,8 +41,16 @@ const api: AppApi = {
     ipcRenderer.invoke(IPC.launchPresetsSet, presets),
   setProjectPlacement: (key, placement) =>
     ipcRenderer.invoke(IPC.setProjectPlacement, key, placement),
-  readTranscript: (id, sinceMtimeMs) =>
-    ipcRenderer.invoke(IPC.readTranscript, id, sinceMtimeMs),
+  // Transcript docs cross IPC in wire form (one JSON string) so main only relays a memcpy-cheap
+  // string; the parse back into a doc happens here, on the renderer's own thread, where it lands.
+  readTranscript: async (id, sinceMtimeMs) =>
+    fromTranscriptWire(
+      (await ipcRenderer.invoke(
+        IPC.readTranscript,
+        id,
+        sinceMtimeMs,
+      )) as TranscriptReadWire,
+    ),
   getToolResult: (id, toolUseId, agentId) =>
     ipcRenderer.invoke(IPC.getToolResult, id, toolUseId, agentId),
   getUpdateState: () => ipcRenderer.invoke(IPC.updateGetState),
@@ -65,8 +77,15 @@ const api: AppApi = {
   repairStatusline: () => ipcRenderer.invoke(IPC.statuslineRepair),
   getCaffeinate: () => ipcRenderer.invoke(IPC.caffeinateGet),
   setCaffeinate: (on) => ipcRenderer.invoke(IPC.caffeinateSet, on),
-  readSubagentTranscript: (id, agentId, sinceMtimeMs) =>
-    ipcRenderer.invoke(IPC.readSubagentTranscript, id, agentId, sinceMtimeMs),
+  readSubagentTranscript: async (id, agentId, sinceMtimeMs) =>
+    fromTranscriptWire(
+      (await ipcRenderer.invoke(
+        IPC.readSubagentTranscript,
+        id,
+        agentId,
+        sinceMtimeMs,
+      )) as TranscriptReadWire,
+    ),
   readTasks: (id, sinceMtimeMs) =>
     ipcRenderer.invoke(IPC.readTasks, id, sinceMtimeMs),
   readShells: (id, sinceMtimeMs) =>

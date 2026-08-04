@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createClaudeProvider } from "../../src/main/provider/claude";
+import { createClaudeReader } from "../../src/main/provider/claude/reader";
 import { tempHomes } from "../helpers/temp-home";
 
 const makeHome = tempHomes("cbw-shells-");
@@ -49,11 +49,14 @@ const shellRows = (id: string, tuid: string, taskId: string) => [
   },
 ];
 
-describe("provider.readShells", () => {
+describe("reader.readShells", () => {
   it("lists the session's background shells without the output path", () => {
     const claudeDir = makeHome();
     writeTranscript(claudeDir, "s1", shellRows("s1", "t1", "bg1"));
-    const r = createClaudeProvider({ claudeDir }).readShells("s1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readShells("s1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.shells).toHaveLength(1);
@@ -71,7 +74,10 @@ describe("provider.readShells", () => {
         message: { content: "hi" },
       },
     ]);
-    const r = createClaudeProvider({ claudeDir }).readShells("s2");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readShells("s2");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.shells).toEqual([]);
@@ -80,7 +86,7 @@ describe("provider.readShells", () => {
   it("dedupes on the transcript mtime", () => {
     const claudeDir = makeHome();
     writeTranscript(claudeDir, "s1", shellRows("s1", "t1", "bg1"));
-    const p = createClaudeProvider({ claudeDir });
+    const p = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = p.readShells("s1");
     if (first.status !== "changed") throw new Error("expected changed");
     expect(p.readShells("s1", first.mtimeMs).status).toBe("unchanged");
@@ -88,13 +94,15 @@ describe("provider.readShells", () => {
 
   it("is absent for an unknown session", () => {
     const claudeDir = makeHome();
-    expect(createClaudeProvider({ claudeDir }).readShells("nope").status).toBe(
-      "absent",
-    );
+    expect(
+      createClaudeReader({ claudeDir, isPidAlive: () => false }).readShells(
+        "nope",
+      ).status,
+    ).toBe("absent");
   });
 });
 
-describe("provider.readShellOutput", () => {
+describe("reader.readShellOutput", () => {
   it("reads the live .output file and labels the source", () => {
     const claudeDir = makeHome();
     const out = join(makeHome(), "bg1.output");
@@ -130,7 +138,10 @@ describe("provider.readShellOutput", () => {
         toolUseResult: { backgroundTaskId: "bg1" },
       },
     ]);
-    const r = createClaudeProvider({ claudeDir }).readShellOutput("s1", "bg1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readShellOutput("s1", "bg1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.output.source).toBe("live");
@@ -173,7 +184,7 @@ describe("provider.readShellOutput", () => {
         toolUseResult: { backgroundTaskId: "bg1" },
       },
     ]);
-    const p = createClaudeProvider({ claudeDir });
+    const p = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = p.readShellOutput("s1", "bg1");
     if (first.status !== "changed") throw new Error("expected changed");
     expect(p.readShellOutput("s1", "bg1", first.mtimeMs).status).toBe(
@@ -240,7 +251,10 @@ describe("provider.readShellOutput", () => {
         },
       },
     ]);
-    const r = createClaudeProvider({ claudeDir }).readShellOutput("s1", "bg1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readShellOutput("s1", "bg1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.output.source).toBe("snapshot");
@@ -250,7 +264,7 @@ describe("provider.readShellOutput", () => {
   it("rejects a shellId with a path separator, and an unknown shell", () => {
     const claudeDir = makeHome();
     writeTranscript(claudeDir, "s1", shellRows("s1", "t1", "bg1"));
-    const p = createClaudeProvider({ claudeDir });
+    const p = createClaudeReader({ claudeDir, isPidAlive: () => false });
     expect(p.readShellOutput("s1", "../etc/passwd").status).toBe("absent");
     expect(p.readShellOutput("s1", "nope").status).toBe("absent");
   });

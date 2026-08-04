@@ -92,16 +92,23 @@ describe("registerIpc refresh", () => {
       resolveMetadata = () => resolve(true);
     });
     const listCandidates = vi.fn(() => []);
+    // The pass awaits the reconcile and (worker-backed) discovery, so the sweep is no longer
+    // synchronous with the sync() call. The guarantee that matters: the first sweep has fully
+    // synced BEFORE the metadata refresh is even requested, and a changed refresh re-sweeps.
+    let sweepsWhenMetadataRequested = -1;
     const { sync } = registerIpc({
       db,
       provider: provider(listCandidates),
-      refreshSessionMetadata: () => metadata,
+      refreshSessionMetadata: () => {
+        sweepsWhenMetadataRequested = listCandidates.mock.calls.length;
+        return metadata;
+      },
     });
 
     const pending = sync();
-    expect(listCandidates).toHaveBeenCalledTimes(1);
     resolveMetadata();
     await pending;
+    expect(sweepsWhenMetadataRequested).toBe(1);
     expect(listCandidates).toHaveBeenCalledTimes(2);
   });
 

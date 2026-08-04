@@ -118,6 +118,43 @@ export type TranscriptRead =
   | { status: "changed"; mtimeMs: number; doc: TranscriptDoc }
   | ReadSettled;
 
+/**
+ * The wire form of a TranscriptRead, used everywhere a doc crosses a process boundary. A changed
+ * doc travels as ONE JSON string instead of a structured-clone object tree: deserializing a string
+ * is a memcpy, so the main process can relay a tens-of-MB doc from the parse worker to the renderer
+ * without an O(doc) decode on its thread. The string is parsed back into a TranscriptDoc only in the
+ * renderer (preload), where it lands anyway.
+ */
+export type TranscriptReadWire =
+  | { status: "changed"; mtimeMs: number; docJson: string }
+  | ReadSettled;
+
+/** Serialize a read for the wire. Called where the doc was parsed (the worker, or main only on the
+ *  in-process fallback path), so the stringify cost lands off the main thread in the steady state. */
+export function toTranscriptWire(read: TranscriptRead): TranscriptReadWire {
+  if (read.status !== "changed") return read;
+  return {
+    status: "changed",
+    mtimeMs: read.mtimeMs,
+    docJson: JSON.stringify(read.doc),
+  };
+}
+
+/** Parse a wire read back into the domain shape — the renderer-side (preload) half of the relay.
+ *  A malformed docJson degrades to `error` (keep the last doc and retry), never a throw. */
+export function fromTranscriptWire(wire: TranscriptReadWire): TranscriptRead {
+  if (wire.status !== "changed") return wire;
+  try {
+    return {
+      status: "changed",
+      mtimeMs: wire.mtimeMs,
+      doc: JSON.parse(wire.docJson) as TranscriptDoc,
+    };
+  } catch {
+    return { status: "error" };
+  }
+}
+
 /** The on-demand detail behind a tool row: the full command, the complete captured output, and the
  *  status read from the result block ("pending" when the result hasn't landed yet). Read fresh from disk
  *  on each fetch, so the modal trusts this over the row event's status, which can lag a poll behind.

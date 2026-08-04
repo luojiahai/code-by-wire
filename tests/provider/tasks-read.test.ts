@@ -18,7 +18,7 @@ function writeTask(
 }
 
 describe("provider.readTasks", () => {
-  it("returns changed tasks, then unchanged for the echoed token", () => {
+  it("returns changed tasks, then unchanged for the echoed token", async () => {
     const home = makeHome();
     writeTask(home, "sid", "1.json", {
       id: "1",
@@ -29,16 +29,19 @@ describe("provider.readTasks", () => {
     });
     const provider = createClaudeProvider({ claudeDir: home });
 
-    const r = provider.readTasks("sid");
+    const r = await provider.readTasks("sid");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.tasks).toEqual([{ id: "1", subject: "A", status: "pending" }]);
-    expect(provider.readTasks("sid", r.mtimeMs).status).toBe("unchanged");
+    expect((await provider.readTasks("sid", r.mtimeMs)).status).toBe(
+      "unchanged",
+    );
   });
 
-  it("is absent for a session with no tasks dir", () => {
-    expect(
-      createClaudeProvider({ claudeDir: makeHome() }).readTasks("nope").status,
-    ).toBe("absent");
+  it("is absent for a session with no tasks dir", async () => {
+    const r = await createClaudeProvider({ claudeDir: makeHome() }).readTasks(
+      "nope",
+    );
+    expect(r.status).toBe("absent");
   });
 });

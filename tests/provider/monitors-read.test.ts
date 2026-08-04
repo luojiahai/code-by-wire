@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createClaudeProvider } from "../../src/main/provider/claude";
+import { createClaudeReader } from "../../src/main/provider/claude/reader";
 import { tempHomes } from "../helpers/temp-home";
 
 const makeHome = tempHomes("cbw-monitors-");
@@ -76,11 +76,14 @@ const eventRow = (taskId: string, event: string) => ({
   },
 });
 
-describe("provider.readMonitors", () => {
+describe("reader.readMonitors", () => {
   it("lists the session's monitors without the output path", () => {
     const claudeDir = makeHome();
     writeTranscript(claudeDir, "s1", monitorRows("s1", "t1", "b1"));
-    const r = createClaudeProvider({ claudeDir }).readMonitors("s1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readMonitors("s1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.monitors).toHaveLength(1);
@@ -98,7 +101,10 @@ describe("provider.readMonitors", () => {
         message: { content: "hi" },
       },
     ]);
-    const r = createClaudeProvider({ claudeDir }).readMonitors("s2");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readMonitors("s2");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.monitors).toEqual([]);
@@ -107,7 +113,7 @@ describe("provider.readMonitors", () => {
   it("dedupes on the transcript mtime", () => {
     const claudeDir = makeHome();
     writeTranscript(claudeDir, "s1", monitorRows("s1", "t1", "b1"));
-    const p = createClaudeProvider({ claudeDir });
+    const p = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = p.readMonitors("s1");
     if (first.status !== "changed") throw new Error("expected changed");
     expect(p.readMonitors("s1", first.mtimeMs).status).toBe("unchanged");
@@ -116,18 +122,23 @@ describe("provider.readMonitors", () => {
   it("is absent for an unknown session", () => {
     const claudeDir = makeHome();
     expect(
-      createClaudeProvider({ claudeDir }).readMonitors("nope").status,
+      createClaudeReader({ claudeDir, isPidAlive: () => false }).readMonitors(
+        "nope",
+      ).status,
     ).toBe("absent");
   });
 });
 
-describe("provider.readMonitorOutput", () => {
+describe("reader.readMonitorOutput", () => {
   it("reads the authoritative .output file and labels the source live", () => {
     const claudeDir = makeHome();
     const out = join(makeHome(), "b1.output");
     writeFileSync(out, "draft: success\nRUN_COMPLETED: success\n");
     writeTranscript(claudeDir, "s1", monitorRows("s1", "t1", "b1", out));
-    const r = createClaudeProvider({ claudeDir }).readMonitorOutput("s1", "b1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readMonitorOutput("s1", "b1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.output.source).toBe("live");
@@ -140,7 +151,10 @@ describe("provider.readMonitorOutput", () => {
       ...monitorRows("s1", "t1", "b1"),
       eventRow("b1", "draft: success"),
     ]);
-    const r = createClaudeProvider({ claudeDir }).readMonitorOutput("s1", "b1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readMonitorOutput("s1", "b1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.output.source).toBe("snapshot");
@@ -150,7 +164,7 @@ describe("provider.readMonitorOutput", () => {
   it("rejects a monitorId with a path separator, and an unknown monitor", () => {
     const claudeDir = makeHome();
     writeTranscript(claudeDir, "s1", monitorRows("s1", "t1", "b1"));
-    const p = createClaudeProvider({ claudeDir });
+    const p = createClaudeReader({ claudeDir, isPidAlive: () => false });
     expect(p.readMonitorOutput("s1", "../etc/passwd").status).toBe("absent");
     expect(p.readMonitorOutput("s1", "nope").status).toBe("absent");
   });

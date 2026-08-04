@@ -61,103 +61,133 @@ afterEach(() => {
 describe("createParseWorkerClient", () => {
   it("forks lazily, correlates out-of-order replies by seq, and resolves each caller", async () => {
     const client = makeClient();
-    expect(forked).toHaveLength(0); // nothing spawned until the first parse
+    expect(forked).toHaveLength(0); // nothing spawned until the first call
 
-    const a = client.summarize(candidate);
-    const b = client.summarize({ ...candidate, id: "s2" });
+    const a = client.call({ op: "summarize", candidate });
+    const b = client.call({
+      op: "summarize",
+      candidate: { ...candidate, id: "s2" },
+    });
     expect(forked).toHaveLength(1); // one worker serves both
     const w = lastWorker();
     const [reqA, reqB] = w.sent;
 
     // Answer in reverse order; seq correlation must route each to its own caller.
-    w.reply({ seq: reqB.seq, ok: true, session: session("s2") });
-    w.reply({ seq: reqA.seq, ok: true, session: session("s1") });
+    w.reply({ seq: reqB.seq, ok: true, result: session("s2") });
+    w.reply({ seq: reqA.seq, ok: true, result: session("s1") });
     await expect(b).resolves.toMatchObject({ id: "s2" });
     await expect(a).resolves.toMatchObject({ id: "s1" });
   });
 
+  it("multiplexes different ops over the same worker, typed by the op map", async () => {
+    const client = makeClient();
+    const t = client.call({
+      op: "readTranscript",
+      claudeDir: "/c",
+      id: "s1",
+      since: 3,
+    });
+    const w = lastWorker();
+    expect(w.sent[0]).toMatchObject({
+      op: "readTranscript",
+      claudeDir: "/c",
+      id: "s1",
+      since: 3,
+    });
+    w.reply({
+      seq: w.sent[0].seq,
+      ok: true,
+      result: { status: "unchanged", mtimeMs: 3 },
+    });
+    await expect(t).resolves.toEqual({ status: "unchanged", mtimeMs: 3 });
+  });
+
   it("rejects on an ok:false reply with the worker's error message", async () => {
     const client = makeClient();
-    const p = client.summarize(candidate);
+    const p = client.call({ op: "summarize", candidate });
     const w = lastWorker();
     w.reply({ seq: w.sent[0].seq, ok: false, error: "parse boom" });
     await expect(p).rejects.toThrow("parse boom");
   });
 
-  it("rejects in-flight requests when the worker dies, then respawns on the next parse", async () => {
+  it("rejects in-flight requests when the worker dies, then respawns on the next call", async () => {
     const client = makeClient();
-    const p = client.summarize(candidate);
+    const p = client.call({ op: "summarize", candidate });
     lastWorker().exit(1);
     await expect(p).rejects.toThrow("parse worker exited");
 
-    const p2 = client.summarize(candidate);
+    const p2 = client.call({ op: "summarize", candidate });
     expect(forked).toHaveLength(2); // a fresh fork, not the dead one
     const w2 = lastWorker();
-    w2.reply({ seq: w2.sent[0].seq, ok: true, session: session("s1") });
+    w2.reply({ seq: w2.sent[0].seq, ok: true, result: session("s1") });
     await expect(p2).resolves.toMatchObject({ id: "s1" });
   });
 
   it("stops respawning after three consecutive crashes and rejects immediately", async () => {
     const client = makeClient();
     for (let i = 0; i < 3; i++) {
-      const p = client.summarize(candidate);
+      const p = client.call({ op: "summarize", candidate });
       lastWorker().exit(9);
       await expect(p).rejects.toThrow("parse worker exited");
     }
     expect(forked).toHaveLength(3);
-    // The circuit is open: no fourth fork, the caller falls straight back to in-process parse.
-    await expect(client.summarize(candidate)).rejects.toThrow("crash-looped");
+    // The circuit is open: no fourth fork, the caller falls straight back to in-process reads.
+    await expect(client.call({ op: "summarize", candidate })).rejects.toThrow(
+      "crash-looped",
+    );
     expect(forked).toHaveLength(3);
   });
 
   it("resets the crash counter on any successful round-trip", async () => {
     const client = makeClient();
     for (let i = 0; i < 2; i++) {
-      const p = client.summarize(candidate);
+      const p = client.call({ op: "summarize", candidate });
       lastWorker().exit(9);
       await expect(p).rejects.toThrow("parse worker exited");
     }
     // One healthy reply — two prior crashes must stop counting toward the cutoff.
-    const ok = client.summarize(candidate);
+    const ok = client.call({ op: "summarize", candidate });
     const w = lastWorker();
-    w.reply({ seq: w.sent[0].seq, ok: true, session: session("s1") });
+    w.reply({ seq: w.sent[0].seq, ok: true, result: session("s1") });
     await ok;
     // Two more crashes: the first rides the still-alive healthy worker, the second a respawn.
     for (let i = 0; i < 2; i++) {
-      const p = client.summarize(candidate);
+      const p = client.call({ op: "summarize", candidate });
       lastWorker().exit(9);
       await expect(p).rejects.toThrow("parse worker exited");
     }
     // Still under the cutoff (2 since the success, not 4) → a fresh fork is allowed.
-    void client.summarize(candidate).catch(() => {});
+    void client.call({ op: "summarize", candidate }).catch(() => {});
     expect(forked).toHaveLength(5);
   });
 
   it("times out a hung request, kills the worker, and ignores the late reply", async () => {
     vi.useFakeTimers();
     const client = makeClient();
-    const p = client.summarize(candidate);
+    const p = client.call({ op: "summarize", candidate });
     const w = lastWorker();
     vi.advanceTimersByTime(30_000);
     await expect(p).rejects.toThrow("timed out");
     expect(w.killed).toBe(true);
 
     // The reply that eventually arrives from the killed worker must be dropped, not crash.
-    w.reply({ seq: w.sent[0].seq, ok: true, session: session("s1") });
+    w.reply({ seq: w.sent[0].seq, ok: true, result: session("s1") });
 
-    // The next parse gets a fresh worker (the timed-out one was abandoned).
-    void client.summarize(candidate).catch(() => {});
+    // The next call gets a fresh worker (the timed-out one was abandoned).
+    void client.call({ op: "summarize", candidate }).catch(() => {});
     expect(forked).toHaveLength(2);
   });
 
-  it("dispose rejects in-flight requests, kills the worker, and refuses further parses", async () => {
+  it("dispose rejects in-flight requests, kills the worker, and refuses further calls", async () => {
     const client = makeClient();
-    const p = client.summarize(candidate);
+    const p = client.call({ op: "summarize", candidate });
     const w = lastWorker();
     client.dispose();
     await expect(p).rejects.toThrow("disposed");
     expect(w.killed).toBe(true);
-    await expect(client.summarize(candidate)).rejects.toThrow("disposed");
+    await expect(client.call({ op: "summarize", candidate })).rejects.toThrow(
+      "disposed",
+    );
     // A post-dispose exit of the killed worker must not count as a crash or log noise-throw.
     w.exit(0);
   });
@@ -170,6 +200,22 @@ describe("createParseWorkerClient", () => {
       },
     );
     const client = makeClient();
-    await expect(client.summarize(candidate)).rejects.toThrow("ENOENT");
+    await expect(client.call({ op: "summarize", candidate })).rejects.toThrow(
+      "ENOENT",
+    );
+  });
+
+  it("passes the configured env through to the fork", async () => {
+    const { utilityProcess } = await import("electron");
+    const client = createParseWorkerClient("/out/parse-worker.js", {
+      env: { PATH: "/opt/homebrew/bin" },
+    });
+    void client.call({ op: "summarize", candidate }).catch(() => {});
+    const calls = (utilityProcess.fork as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[calls.length - 1]).toEqual([
+      "/out/parse-worker.js",
+      [],
+      expect.objectContaining({ env: { PATH: "/opt/homebrew/bin" } }),
+    ]);
   });
 });
