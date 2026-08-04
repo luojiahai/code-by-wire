@@ -53,7 +53,10 @@ describe("reader.readShells", () => {
   it("lists the session's background shells without the output path", () => {
     const claudeDir = makeHome();
     writeTranscript(claudeDir, "s1", shellRows("s1", "t1", "bg1"));
-    const r = createClaudeReader({ claudeDir, isPidAlive: () => false }).readShells("s1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readShells("s1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.shells).toHaveLength(1);
@@ -71,7 +74,10 @@ describe("reader.readShells", () => {
         message: { content: "hi" },
       },
     ]);
-    const r = createClaudeReader({ claudeDir, isPidAlive: () => false }).readShells("s2");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readShells("s2");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.shells).toEqual([]);
@@ -88,9 +94,11 @@ describe("reader.readShells", () => {
 
   it("is absent for an unknown session", () => {
     const claudeDir = makeHome();
-    expect(createClaudeReader({ claudeDir, isPidAlive: () => false }).readShells("nope").status).toBe(
-      "absent",
-    );
+    expect(
+      createClaudeReader({ claudeDir, isPidAlive: () => false }).readShells(
+        "nope",
+      ).status,
+    ).toBe("absent");
   });
 });
 
@@ -130,7 +138,10 @@ describe("reader.readShellOutput", () => {
         toolUseResult: { backgroundTaskId: "bg1" },
       },
     ]);
-    const r = createClaudeReader({ claudeDir, isPidAlive: () => false }).readShellOutput("s1", "bg1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readShellOutput("s1", "bg1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.output.source).toBe("live");
@@ -240,7 +251,10 @@ describe("reader.readShellOutput", () => {
         },
       },
     ]);
-    const r = createClaudeReader({ claudeDir, isPidAlive: () => false }).readShellOutput("s1", "bg1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readShellOutput("s1", "bg1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.output.source).toBe("snapshot");

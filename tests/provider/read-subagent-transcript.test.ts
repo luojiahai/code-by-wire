@@ -68,7 +68,9 @@ describe("readSubagentTranscript", () => {
     );
 
     const provider = createClaudeProvider({ claudeDir: home });
-    const r = fromTranscriptWire(await provider.readSubagentTranscript(id, "a1"));
+    const r = fromTranscriptWire(
+      await provider.readSubagentTranscript(id, "a1"),
+    );
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.doc.events).toEqual([

@@ -121,7 +121,11 @@ function mtimeToken(gitDir: string): string {
 /** Recompute an entry off-thread: resolve the .git dir when unknown (or when the TTL wants the
  *  repo-ness re-probed), then the branch + remote detail spawns. Settles the entry's TTL and clears
  *  `fetching` whatever happens, so a failed pass retries on the next stale poll. */
-async function refresh(cwd: string, entry: Entry, gitDir?: string | null): Promise<void> {
+async function refresh(
+  cwd: string,
+  entry: Entry,
+  gitDir?: string | null,
+): Promise<void> {
   try {
     const resolved = gitDir ?? (await resolveGitDir(cwd));
     entry.gitDir = resolved;
@@ -133,7 +137,8 @@ async function refresh(cwd: string, entry: Entry, gitDir?: string | null): Promi
     // Token BEFORE the detail spawns: if HEAD moves mid-refresh the token is already stale, so the
     // next poll sees the mismatch and refreshes again rather than trusting a torn read.
     const token = mtimeToken(resolved);
-    const branch = (await git(cwd, ["symbolic-ref", "--short", "HEAD"])) || null;
+    const branch =
+      (await git(cwd, ["symbolic-ref", "--short", "HEAD"])) || null;
     const remoteUrl = normalizeRemoteUrl(
       await git(cwd, ["remote", "get-url", "origin"]),
     );

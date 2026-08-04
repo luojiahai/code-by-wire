@@ -5,10 +5,7 @@ import type {
   SessionCandidate,
 } from "@shared/types";
 import type { Family } from "@shared/models";
-import type {
-  ToolResultDetail,
-  TranscriptReadWire,
-} from "@shared/transcript";
+import type { ToolResultDetail, TranscriptReadWire } from "@shared/transcript";
 import { toTranscriptWire } from "@shared/transcript";
 import type { MetricsRead } from "@shared/metrics";
 import type {

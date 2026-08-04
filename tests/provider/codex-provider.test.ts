@@ -307,7 +307,9 @@ describe("createCodexProvider", () => {
         remoteControl: null,
       },
     });
-    expect(await p.readSubagentTranscript(ID, "a")).toEqual({ status: "absent" });
+    expect(await p.readSubagentTranscript(ID, "a")).toEqual({
+      status: "absent",
+    });
     expect(await p.readShellOutput(ID, "s")).toEqual({ status: "absent" });
     expect(await p.readMonitorOutput(ID, "m")).toEqual({ status: "absent" });
     expect(p.resolveSessionCwd(ID)).toBe("/Users/me/proj");
@@ -387,11 +389,13 @@ describe("createCodexProvider", () => {
       status: "ok",
     });
     expect(await p.getToolResult(ID, "nope")).toEqual({ found: false });
-    expect(await p.getToolResult("unknown-id", "call_1")).toEqual({ found: false });
+    expect(await p.getToolResult("unknown-id", "call_1")).toEqual({
+      found: false,
+    });
   });
 
   describe("resolveResumeTarget", () => {
-    it("stale observed rollout → resumable: not alive, head cwd, rollout path", async () => {
+    it("stale observed rollout → resumable: not alive, head cwd, rollout path", () => {
       const { home, path } = homeWithOneRollout();
       const now = Date.now();
       const stale = (now - CODEX_WORKING_WINDOW_MS - 60_000) / 1000;
@@ -404,13 +408,13 @@ describe("createCodexProvider", () => {
       });
     });
 
-    it("fresh mtime → alive (an external writer may still own it)", async () => {
+    it("fresh mtime → alive (an external writer may still own it)", () => {
       const { home } = homeWithOneRollout();
       const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
       expect(p.resolveResumeTarget(ID)?.alive).toBe(true);
     });
 
-    it("managed id → alive even when the rollout is stale (the app's own pty owns it)", async () => {
+    it("managed id → alive even when the rollout is stale (the app's own pty owns it)", () => {
       const { home, path } = homeWithOneRollout();
       const now = Date.now();
       const stale = (now - CODEX_WORKING_WINDOW_MS - 60_000) / 1000;
@@ -423,7 +427,7 @@ describe("createCodexProvider", () => {
       expect(p.resolveResumeTarget(ID)?.alive).toBe(true);
     });
 
-    it("unknown id → null (nothing to resume)", async () => {
+    it("unknown id → null (nothing to resume)", () => {
       const { home } = homeWithOneRollout();
       const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
       expect(
@@ -517,7 +521,7 @@ describe("codex telemetry (summarize + overlay + readMetrics)", () => {
     }
   });
 
-  it("overlaySessions attaches liveContext, real window, TUI contextPct, and rateLimits to codex rows only", async () => {
+  it("overlaySessions attaches liveContext, real window, TUI contextPct, and rateLimits to codex rows only", () => {
     const codexDir = mkdtempSync(join(tmpdir(), "codex-overlay-"));
     try {
       writeTelemetryRollout(codexDir);

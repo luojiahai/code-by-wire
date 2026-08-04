@@ -211,10 +211,11 @@ describe("createParseWorkerClient", () => {
       env: { PATH: "/opt/homebrew/bin" },
     });
     void client.call({ op: "summarize", candidate }).catch(() => {});
-    expect(utilityProcess.fork).toHaveBeenLastCalledWith(
+    const calls = (utilityProcess.fork as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[calls.length - 1]).toEqual([
       "/out/parse-worker.js",
       [],
       expect.objectContaining({ env: { PATH: "/opt/homebrew/bin" } }),
-    );
+    ]);
   });
 });

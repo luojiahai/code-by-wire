@@ -18,7 +18,10 @@ export function createCompositeProvider(
     listCandidates: async () =>
       (
         await Promise.all(
-          Object.values(providers).map((p) => p.listCandidates()),
+          // Promise.resolve: a provider may answer synchronously (codex, test fakes).
+          Object.values(providers).map((p) =>
+            Promise.resolve(p.listCandidates()),
+          ),
         )
       ).flat(),
     summarize: (c) => providers[c.agent].summarize(c),

@@ -80,7 +80,10 @@ describe("reader.readMonitors", () => {
   it("lists the session's monitors without the output path", () => {
     const claudeDir = makeHome();
     writeTranscript(claudeDir, "s1", monitorRows("s1", "t1", "b1"));
-    const r = createClaudeReader({ claudeDir, isPidAlive: () => false }).readMonitors("s1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readMonitors("s1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.monitors).toHaveLength(1);
@@ -98,7 +101,10 @@ describe("reader.readMonitors", () => {
         message: { content: "hi" },
       },
     ]);
-    const r = createClaudeReader({ claudeDir, isPidAlive: () => false }).readMonitors("s2");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readMonitors("s2");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.monitors).toEqual([]);
@@ -116,7 +122,9 @@ describe("reader.readMonitors", () => {
   it("is absent for an unknown session", () => {
     const claudeDir = makeHome();
     expect(
-      createClaudeReader({ claudeDir, isPidAlive: () => false }).readMonitors("nope").status,
+      createClaudeReader({ claudeDir, isPidAlive: () => false }).readMonitors(
+        "nope",
+      ).status,
     ).toBe("absent");
   });
 });
@@ -127,7 +135,10 @@ describe("reader.readMonitorOutput", () => {
     const out = join(makeHome(), "b1.output");
     writeFileSync(out, "draft: success\nRUN_COMPLETED: success\n");
     writeTranscript(claudeDir, "s1", monitorRows("s1", "t1", "b1", out));
-    const r = createClaudeReader({ claudeDir, isPidAlive: () => false }).readMonitorOutput("s1", "b1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readMonitorOutput("s1", "b1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.output.source).toBe("live");
@@ -140,7 +151,10 @@ describe("reader.readMonitorOutput", () => {
       ...monitorRows("s1", "t1", "b1"),
       eventRow("b1", "draft: success"),
     ]);
-    const r = createClaudeReader({ claudeDir, isPidAlive: () => false }).readMonitorOutput("s1", "b1");
+    const r = createClaudeReader({
+      claudeDir,
+      isPidAlive: () => false,
+    }).readMonitorOutput("s1", "b1");
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.output.source).toBe("snapshot");

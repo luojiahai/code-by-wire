@@ -10,9 +10,17 @@ import type { RolloutFile } from "../../src/main/provider/codex/rollout";
 
 /** The in-process scan wired the way the composition root's fallback wires it. */
 const inProcessScan =
-  (listRollouts: () => RolloutFile[], readHead: (p: string) => { cwd: string } | null) =>
+  (
+    listRollouts: () => RolloutFile[],
+    readHead: (p: string) => { cwd: string } | null,
+  ) =>
   (earliestMs: number, claimedRollouts: ReadonlySet<string>) =>
-    scanClaimableRollouts({ listRollouts, readHead, earliestMs, claimedRollouts });
+    scanClaimableRollouts({
+      listRollouts,
+      readHead,
+      earliestMs,
+      claimedRollouts,
+    });
 
 const pty = (o: Partial<ManagedCodexPty> = {}): ManagedCodexPty => ({
   id: "draft-1",

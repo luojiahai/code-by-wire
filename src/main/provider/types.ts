@@ -1,8 +1,5 @@
 import type { PersistedSession, SessionCandidate } from "@shared/types";
-import type {
-  TranscriptReadWire,
-  ToolResultDetail,
-} from "@shared/transcript";
+import type { TranscriptReadWire, ToolResultDetail } from "@shared/transcript";
 import type {
   TaskRead,
   ShellsRead,

@@ -113,9 +113,7 @@ describe("createParseRequestHandler", () => {
 
   it("routes readSessionFiles and scanClaimableRollouts through their seams", () => {
     const handle = createParseRequestHandler({
-      readSessionFiles: (dir) => [
-        { pid: 1, sessionId: `s-${dir}`, cwd: "/w" },
-      ],
+      readSessionFiles: (dir) => [{ pid: 1, sessionId: `s-${dir}`, cwd: "/w" }],
       scanRollouts: (dir, earliestMs, claimed) => [
         {
           path: `${dir}/r.jsonl`,

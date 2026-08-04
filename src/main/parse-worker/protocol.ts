@@ -1,8 +1,5 @@
 import type { PersistedSession, SessionCandidate } from "@shared/types";
-import type {
-  ToolResultDetail,
-  TranscriptReadWire,
-} from "@shared/transcript";
+import type { ToolResultDetail, TranscriptReadWire } from "@shared/transcript";
 import { toTranscriptWire } from "@shared/transcript";
 import type { MetricsRead } from "@shared/metrics";
 import type {

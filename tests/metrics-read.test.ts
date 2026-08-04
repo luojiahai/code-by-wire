@@ -172,9 +172,11 @@ describe("reader.readMetrics", () => {
 
   it("is absent for an unknown session", () => {
     const { claudeDir } = scaffold();
-    expect(createClaudeReader({ claudeDir, isPidAlive: () => false }).readMetrics("nope").status).toBe(
-      "absent",
-    );
+    expect(
+      createClaudeReader({ claudeDir, isPidAlive: () => false }).readMetrics(
+        "nope",
+      ).status,
+    ).toBe("absent");
   });
 
   it("re-reads when the remote-control manifest changes though the transcript did not", () => {
