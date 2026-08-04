@@ -56,18 +56,18 @@ describe("createCompositeProvider", () => {
       { claude: fake("claude", calls), codex: fake("codex", calls) },
       () => "claude",
     );
-    const cands = p.listCandidates();
+    const cands = await p.listCandidates();
     expect(cands.map((c) => c.id).sort()).toEqual(["claude-1", "codex-1"]);
     await p.summarize(cands.find((c) => c.agent === "codex")!);
     expect(calls).toContain("summarize:codex:codex-1");
   });
-  it("routes per-id reads through the agent resolver", () => {
+  it("routes per-id reads through the agent resolver", async () => {
     const calls: string[] = [];
     const p = createCompositeProvider(
       { claude: fake("claude", calls), codex: fake("codex", calls) },
       (id) => (id.startsWith("codex") ? "codex" : "claude"),
     );
-    p.readTranscript("codex-9");
+    await p.readTranscript("codex-9");
     p.resolveSessionCwd("someone");
     p.resolveTranscriptPath("codex-10");
     expect(calls).toContain("readTranscript:codex:codex-9");

@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { createClaudeProvider } from "../src/main/provider/claude";
+import { createClaudeReader } from "../src/main/provider/claude/reader";
 import { _setPrRunner, _resetPrCache } from "../src/main/git/read-pr";
 import { tempHomes } from "./helpers/temp-home";
 
@@ -109,10 +109,10 @@ function scaffold(): { claudeDir: string; id: string; repo: string } {
   return { claudeDir, id, repo };
 }
 
-describe("provider.readMetrics", () => {
+describe("reader.readMetrics", () => {
   it("returns token speed and git for the session, with a change token", () => {
     const { claudeDir, id } = scaffold();
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const r = provider.readMetrics(id);
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
@@ -130,21 +130,25 @@ describe("provider.readMetrics", () => {
 
     // No origin: a remote-less repo can't have a PR, so gh is never spawned.
     const bare = scaffold();
-    createClaudeProvider({ claudeDir: bare.claudeDir }).readMetrics(bare.id);
+    createClaudeReader({
+      claudeDir: bare.claudeDir,
+      isPidAlive: () => false,
+    }).readMetrics(bare.id);
     expect(calls).toBe(0);
 
     // With an origin the glance carries a browsable remoteUrl, so the PR lookup fires.
     const withRemote = scaffold();
     git(withRemote.repo, "remote", "add", "origin", "git@github.com:o/r.git");
-    createClaudeProvider({
+    createClaudeReader({
       claudeDir: withRemote.claudeDir,
+      isPidAlive: () => false,
     }).readMetrics(withRemote.id);
     expect(calls).toBe(1);
   });
 
   it("skips the recompute when the change token is unchanged", () => {
     const { claudeDir, id } = scaffold();
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = provider.readMetrics(id);
     if (first.status !== "changed") throw new Error("expected changed");
     expect(provider.readMetrics(id, first.mtimeMs).status).toBe("unchanged");
@@ -152,14 +156,14 @@ describe("provider.readMetrics", () => {
 
   it("is absent for an unknown session", () => {
     const { claudeDir } = scaffold();
-    expect(createClaudeProvider({ claudeDir }).readMetrics("nope").status).toBe(
+    expect(createClaudeReader({ claudeDir, isPidAlive: () => false }).readMetrics("nope").status).toBe(
       "absent",
     );
   });
 
   it("re-reads when the remote-control manifest changes though the transcript did not", () => {
     const { claudeDir, id } = scaffold();
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = provider.readMetrics(id);
     if (first.status !== "changed") throw new Error("expected changed");
     expect(first.metrics.remoteControl).toBeNull();
@@ -190,7 +194,7 @@ describe("provider.readMetrics", () => {
         message: { content: "hi" },
       },
     ]);
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = provider.readMetrics(id);
     if (first.status !== "changed") throw new Error("expected changed");
     expect(first.metrics.git).toBeNull(); // no cwd yet → no git
@@ -208,7 +212,7 @@ describe("provider.readMetrics", () => {
     const repoB = initRepo("develop");
     const id = "sess-move";
     writeTranscript(claudeDir, "projA", id, turn(id, repoA));
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const before = provider.readMetrics(id); // caches pathById=projA, cwdById=repoA
     if (before.status === "changed")
       expect(before.metrics.git?.branch).toBe("main");
@@ -230,7 +234,7 @@ describe("provider.readMetrics", () => {
     const FIXED = new Date("2026-06-11T12:00:00.000Z");
     utimesSync(projFile, FIXED, FIXED);
 
-    const provider = createClaudeProvider({ claudeDir });
+    const provider = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = provider.readMetrics(id);
     if (first.status !== "changed") throw new Error("expected changed");
     expect(first.metrics.tokenSpeed?.outputTps).toBeCloseTo(100, 5); // 1000 / 10s
@@ -294,7 +298,7 @@ describe("provider.readMetrics", () => {
         .map((r) => JSON.stringify(r))
         .join("\n") + "\n",
     );
-    const p = createClaudeProvider({ claudeDir });
+    const p = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const read = p.readMetrics("sess-sub", 0);
     expect(read.status).toBe("changed");
     if (read.status !== "changed") return;
@@ -319,7 +323,7 @@ describe("provider.readMetrics", () => {
         },
       }) + "\n",
     );
-    const p = createClaudeProvider({ claudeDir });
+    const p = createClaudeReader({ claudeDir, isPidAlive: () => false });
     const first = p.readMetrics("sess-mt", 0);
     expect(first.status).toBe("changed");
     if (first.status !== "changed") return;

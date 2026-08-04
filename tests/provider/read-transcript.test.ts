@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClaudeProvider } from "../../src/main/provider/claude";
+import { fromTranscriptWire } from "../../src/shared/transcript";
 import { tempHomes } from "../helpers/temp-home";
 
 const makeHome = tempHomes("cbw-rt-");
@@ -28,7 +29,7 @@ function writeSubagent(
 }
 
 describe("readTranscript — subagents", () => {
-  it("attaches the reconstructed forest from the subagents dir", () => {
+  it("attaches the reconstructed forest from the subagents dir", async () => {
     const home = makeHome();
     const id = "sid-1";
     writeMain(
@@ -81,7 +82,7 @@ describe("readTranscript — subagents", () => {
     );
 
     const provider = createClaudeProvider({ claudeDir: home });
-    const r = provider.readTranscript(id);
+    const r = fromTranscriptWire(await provider.readTranscript(id));
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.doc.subagents).toEqual([
@@ -99,10 +100,12 @@ describe("readTranscript — subagents", () => {
       },
     ]);
     // Echoing the token back yields unchanged.
-    expect(provider.readTranscript(id, r.mtimeMs).status).toBe("unchanged");
+    expect((await provider.readTranscript(id, r.mtimeMs)).status).toBe(
+      "unchanged",
+    );
   });
 
-  it("returns an empty forest when there is no subagents dir", () => {
+  it("returns an empty forest when there is no subagents dir", async () => {
     const home = makeHome();
     writeMain(
       home,
@@ -113,7 +116,9 @@ describe("readTranscript — subagents", () => {
         message: { content: [{ type: "text", text: "hi" }] },
       }),
     );
-    const r = createClaudeProvider({ claudeDir: home }).readTranscript("sid-2");
+    const r = fromTranscriptWire(
+      await createClaudeProvider({ claudeDir: home }).readTranscript("sid-2"),
+    );
     expect(r.status === "changed" && r.doc.subagents).toEqual([]);
   });
 });

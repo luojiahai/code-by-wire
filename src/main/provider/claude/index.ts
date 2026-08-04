@@ -5,10 +5,62 @@ import type {
   SessionCandidate,
 } from "@shared/types";
 import type { Family } from "@shared/models";
+import type {
+  ToolResultDetail,
+  TranscriptReadWire,
+} from "@shared/transcript";
+import { toTranscriptWire } from "@shared/transcript";
+import type { MetricsRead } from "@shared/metrics";
+import type {
+  MonitorOutputRead,
+  MonitorsRead,
+  ShellOutputRead,
+  ShellsRead,
+  TaskRead,
+} from "@shared/ipc";
 import { resolveClaudeDir } from "../../claude-config";
 import { summarize, restate } from "./discover";
 import { resolveResumeTarget, resolveSessionCwd } from "./resume-target";
 import { createClaudeReader } from "./reader";
+
+/**
+ * The worker-backed twin of the reader's read surface (plus summarize), one method per parse-worker
+ * op. The composition root builds it over the parse-worker client; tests stub single methods. Every
+ * method may reject — the provider answers a rejection with the same read in-process, so a worker
+ * fault costs one janky pass, never a lost result.
+ */
+export interface RemoteClaudeReads {
+  summarize(c: SessionCandidate): Promise<PersistedSession>;
+  listCandidates(
+    now: number,
+    recentWindowMs: number,
+  ): Promise<SessionCandidate[]>;
+  readTranscript(id: string, since?: number): Promise<TranscriptReadWire>;
+  readSubagentTranscript(
+    id: string,
+    agentId: string,
+    since?: number,
+  ): Promise<TranscriptReadWire>;
+  getToolResult(
+    id: string,
+    toolUseId: string,
+    agentId?: string,
+  ): Promise<ToolResultDetail>;
+  readTasks(id: string, since?: number): Promise<TaskRead>;
+  readShells(id: string, since?: number): Promise<ShellsRead>;
+  readShellOutput(
+    id: string,
+    shellId: string,
+    since?: number,
+  ): Promise<ShellOutputRead>;
+  readMonitors(id: string, since?: number): Promise<MonitorsRead>;
+  readMonitorOutput(
+    id: string,
+    monitorId: string,
+    since?: number,
+  ): Promise<MonitorOutputRead>;
+  readMetrics(id: string, since?: number): Promise<MetricsRead>;
+}
 
 export interface ClaudeProviderDeps {
   claudeDir?: string;
@@ -26,16 +78,17 @@ export interface ClaudeProviderDeps {
     has(id: string): boolean;
     modelOf?(id: string): Family | undefined;
   };
-  /** Off-thread transcript parse for summarize — the composition root passes the parse-worker
-   *  client here, so the sync pass never parses a large transcript on the main thread. A rejection
-   *  falls back to the in-process parse (a worker fault may cost one janky pass, never a row).
-   *  Absent (tests), summarize parses in-process. */
-  parseSession?: (c: SessionCandidate) => Promise<PersistedSession>;
+  /** Off-thread reads — the composition root passes the parse-worker-backed RemoteClaudeReads here,
+   *  so neither the sync pass nor a poll-driven view read touches a transcript on the main thread.
+   *  Partial so tests stub one method; any absent method (and any rejection) runs the same read
+   *  in-process via the local reader. */
+  remote?: Partial<RemoteClaudeReads>;
 }
 
 const DEFAULT_RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
-/** A pid is alive if signalling it succeeds, or fails only because we lack permission. */
+/** A pid is alive if signalling it succeeds, or fails only because we lack permission. Exported for
+ *  the parse worker, whose reader probes liveness with the same rule main does. */
 export function defaultIsPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -45,17 +98,33 @@ export function defaultIsPidAlive(pid: number): boolean {
   }
 }
 
+/** Prefer the worker's answer; on any fault (or no worker wired) run the read in-process. */
+async function orLocal<T>(
+  viaWorker: Promise<T> | undefined,
+  local: () => T,
+): Promise<T> {
+  if (viaWorker) {
+    try {
+      return await viaWorker;
+    } catch {
+      // worker fault — fall through to the in-process read rather than lose the result
+    }
+  }
+  return local();
+}
+
 export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
   const claudeDir = resolveClaudeDir(deps.claudeDir);
   const isPidAlive = deps.isPidAlive ?? defaultIsPidAlive;
   const now = deps.now ?? (() => Date.now());
   const recentWindowMs = deps.recentWindowMs ?? DEFAULT_RECENT_WINDOW_MS;
   const managed = deps.managed ?? { has: () => false };
+  const remote = deps.remote ?? {};
 
   // The whole filesystem-read surface (transcript/metrics/shells/monitors/tasks reads, discovery
-  // sweep, per-session path caches) lives in the reader so the same code can be hosted in the
-  // parse worker. What stays HERE is main-process-only: managed-ness, model adornment, and the
-  // resume/liveness resolution the pty gate depends on.
+  // sweep, per-session path caches) lives in the reader; in the steady state the WORKER's twin
+  // instance serves it and this one only answers faults. What stays main-only in this file:
+  // managed-ness, model adornment, and the resume/liveness resolution the pty gate depends on.
   const reader = createClaudeReader({ claudeDir, isPidAlive });
 
   // Managed-ness is recomputed from the registry on every snapshot, not trusted from the stored row:
@@ -77,19 +146,14 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
 
   return {
     id: "claude",
-    listCandidates: () =>
-      reader.listCandidates({ now: now(), recentWindowMs }),
+    listCandidates: () => {
+      const t = now();
+      return orLocal(remote.listCandidates?.(t, recentWindowMs), () =>
+        reader.listCandidates({ now: t, recentWindowMs }),
+      );
+    },
     summarize: async (c) => {
-      let s: PersistedSession;
-      if (deps.parseSession) {
-        try {
-          s = await deps.parseSession(c);
-        } catch {
-          s = summarize(c); // worker fault — parse in-process rather than lose the row
-        }
-      } else {
-        s = summarize(c);
-      }
+      const s = await orLocal(remote.summarize?.(c), () => summarize(c));
       return {
         ...s,
         management: management(c.id),
@@ -104,18 +168,41 @@ export function createClaudeProvider(deps: ClaudeProviderDeps = {}): Provider {
       resolveResumeTarget({ claudeDir, isPidAlive, id }),
     resolveSessionCwd: (id) => resolveSessionCwd({ claudeDir, id }),
     resolveTranscriptPath: (id) => reader.resolveTranscriptPath(id),
-    readTranscript: (id, sinceMtimeMs) => reader.readTranscript(id, sinceMtimeMs),
+    // The local fallback stringifies on main (toTranscriptWire) — the one case the O(doc) cost is
+    // paid on the main thread, bounded to worker-fault passes.
+    readTranscript: (id, since) =>
+      orLocal(remote.readTranscript?.(id, since), () =>
+        toTranscriptWire(reader.readTranscript(id, since)),
+      ),
     getToolResult: (id, toolUseId, agentId) =>
-      reader.getToolResult(id, toolUseId, agentId),
-    readSubagentTranscript: (id, agentId, sinceMtimeMs) =>
-      reader.readSubagentTranscript(id, agentId, sinceMtimeMs),
-    readTasks: (id, sinceMtimeMs) => reader.readTasks(id, sinceMtimeMs),
-    readShells: (id, sinceMtimeMs) => reader.readShells(id, sinceMtimeMs),
-    readShellOutput: (id, shellId, sinceMtimeMs) =>
-      reader.readShellOutput(id, shellId, sinceMtimeMs),
-    readMonitors: (id, sinceMtimeMs) => reader.readMonitors(id, sinceMtimeMs),
-    readMonitorOutput: (id, monitorId, sinceMtimeMs) =>
-      reader.readMonitorOutput(id, monitorId, sinceMtimeMs),
-    readMetrics: (id, sinceMtimeMs) => reader.readMetrics(id, sinceMtimeMs),
+      orLocal(remote.getToolResult?.(id, toolUseId, agentId), () =>
+        reader.getToolResult(id, toolUseId, agentId),
+      ),
+    readSubagentTranscript: (id, agentId, since) =>
+      orLocal(remote.readSubagentTranscript?.(id, agentId, since), () =>
+        toTranscriptWire(reader.readSubagentTranscript(id, agentId, since)),
+      ),
+    readTasks: (id, since) =>
+      orLocal(remote.readTasks?.(id, since), () => reader.readTasks(id, since)),
+    readShells: (id, since) =>
+      orLocal(remote.readShells?.(id, since), () =>
+        reader.readShells(id, since),
+      ),
+    readShellOutput: (id, shellId, since) =>
+      orLocal(remote.readShellOutput?.(id, shellId, since), () =>
+        reader.readShellOutput(id, shellId, since),
+      ),
+    readMonitors: (id, since) =>
+      orLocal(remote.readMonitors?.(id, since), () =>
+        reader.readMonitors(id, since),
+      ),
+    readMonitorOutput: (id, monitorId, since) =>
+      orLocal(remote.readMonitorOutput?.(id, monitorId, since), () =>
+        reader.readMonitorOutput(id, monitorId, since),
+      ),
+    readMetrics: (id, since) =>
+      orLocal(remote.readMetrics?.(id, since), () =>
+        reader.readMetrics(id, since),
+      ),
   };
 }

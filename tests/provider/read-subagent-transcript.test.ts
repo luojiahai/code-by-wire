@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClaudeProvider } from "../../src/main/provider/claude";
+import { fromTranscriptWire } from "../../src/shared/transcript";
 import { tempHomes } from "../helpers/temp-home";
 
 const makeHome = tempHomes("cbw-rst-");
@@ -29,7 +30,7 @@ function writeSubagent(
 }
 
 describe("readSubagentTranscript", () => {
-  it("parses a subagent's sidechain file into a rendered doc", () => {
+  it("parses a subagent's sidechain file into a rendered doc", async () => {
     const home = makeHome();
     const id = "sid-1";
     writeMain(
@@ -67,7 +68,7 @@ describe("readSubagentTranscript", () => {
     );
 
     const provider = createClaudeProvider({ claudeDir: home });
-    const r = provider.readSubagentTranscript(id, "a1");
+    const r = fromTranscriptWire(await provider.readSubagentTranscript(id, "a1"));
     expect(r.status).toBe("changed");
     if (r.status !== "changed") return;
     expect(r.doc.events).toEqual([
@@ -81,12 +82,12 @@ describe("readSubagentTranscript", () => {
     expect(r.doc.turns).toEqual([]);
     expect(r.doc.context).toBeNull();
     // Echoing the token back yields unchanged.
-    expect(provider.readSubagentTranscript(id, "a1", r.mtimeMs).status).toBe(
-      "unchanged",
-    );
+    expect(
+      (await provider.readSubagentTranscript(id, "a1", r.mtimeMs)).status,
+    ).toBe("unchanged");
   });
 
-  it("returns absent for an unknown agent id", () => {
+  it("returns absent for an unknown agent id", async () => {
     const home = makeHome();
     const id = "sid-2";
     writeMain(
@@ -99,10 +100,12 @@ describe("readSubagentTranscript", () => {
       }),
     );
     const provider = createClaudeProvider({ claudeDir: home });
-    expect(provider.readSubagentTranscript(id, "nope").status).toBe("absent");
+    expect((await provider.readSubagentTranscript(id, "nope")).status).toBe(
+      "absent",
+    );
   });
 
-  it("returns absent when the agent file is missing though the subagents dir exists", () => {
+  it("returns absent when the agent file is missing though the subagents dir exists", async () => {
     const home = makeHome();
     const id = "sid-3";
     writeMain(
@@ -128,20 +131,20 @@ describe("readSubagentTranscript", () => {
       }),
     );
     const provider = createClaudeProvider({ claudeDir: home });
-    expect(provider.readSubagentTranscript(id, "missing").status).toBe(
+    expect((await provider.readSubagentTranscript(id, "missing")).status).toBe(
       "absent",
     );
   });
 
-  it("returns absent when the session has no transcript", () => {
+  it("returns absent when the session has no transcript", async () => {
     const home = makeHome();
     const provider = createClaudeProvider({ claudeDir: home });
-    expect(provider.readSubagentTranscript("ghost", "a1").status).toBe(
+    expect((await provider.readSubagentTranscript("ghost", "a1")).status).toBe(
       "absent",
     );
   });
 
-  it("rejects a traversal agentId instead of reading a file outside the subagents dir", () => {
+  it("rejects a traversal agentId instead of reading a file outside the subagents dir", async () => {
     const home = makeHome();
     const id = "sid-4";
     writeMain(
@@ -165,8 +168,8 @@ describe("readSubagentTranscript", () => {
       }),
     );
     const provider = createClaudeProvider({ claudeDir: home });
-    expect(provider.readSubagentTranscript(id, "x/../../evil").status).toBe(
-      "absent",
-    );
+    expect(
+      (await provider.readSubagentTranscript(id, "x/../../evil")).status,
+    ).toBe("absent");
   });
 });

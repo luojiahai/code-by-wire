@@ -32,6 +32,7 @@ import { registerIpc } from "./ipc";
 import { createSettingsManager } from "./settings/manager";
 import { createStatusLineReader } from "./statusline/reader";
 import { createParseWorkerClient } from "./parse-worker/client";
+import { createRemoteClaudeReads } from "./parse-worker/remote";
 import { registerTerminalIpc } from "./terminal/ipc";
 import type { ResumeTarget } from "./terminal/resume-gate";
 import { registerShellTerminalIpc } from "./terminal/shell-ipc";
@@ -344,17 +345,20 @@ app
     // directly, unlike claudeDir's recovered-config-dir path above.
     const codexDir = resolveCodexDir();
     const recentWindowMs = readSessionWindowMs(claudeDir);
-    // The parse-worker utility process: summarize's O(transcript size) read+parse runs there, so
-    // an active session's growing transcript can't block the main thread on every poll tick. Lazy
-    // fork on first parse; on worker fault the provider parses in-process (see parseSession).
+    // The parse-worker utility process: every poll-driven O(transcript-size) and O(session-count)
+    // fs read runs there (#430, #432), so a growing transcript or a large session population can't
+    // block the main thread on any poll tick. Lazy fork on first call; on worker fault each read
+    // degrades to the same code in-process (see RemoteClaudeReads). The corrected login-shell PATH
+    // rides the fork env so the worker's git/gh spawns (readMetrics) resolve like main's would.
     const parseWorker = createParseWorkerClient(
       join(__dirname, "parse-worker.js"),
+      correctedPath ? { env: { ...process.env, PATH: correctedPath } } : {},
     );
     const claudeProvider = createClaudeProvider({
       managed,
       claudeDir,
       recentWindowMs,
-      parseSession: (c) => parseWorker.call({ op: "summarize", candidate: c }),
+      remote: createRemoteClaudeReads(parseWorker, claudeDir),
     });
     // Codex account rate limits: OAuth wham/usage first (auth.json read-only), app-server fallback.
     // Same lazy-refresh contract as the claude usage service — refreshes ride renderer polls only.

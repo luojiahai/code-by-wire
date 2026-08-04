@@ -7,6 +7,7 @@ import type {
   Usage,
 } from "@shared/types";
 import { normalizeModelId } from "@shared/models";
+import { toTranscriptWire } from "@shared/transcript";
 import { deriveSessionState } from "../claude/state";
 import { projectFromCwd } from "../../project-name";
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -286,11 +287,13 @@ export function createCodexProvider(
       } catch {
         return { status: "error" }; // transient read failure on an existing file
       }
-      return {
+      // Wire form for the renderer relay (see TranscriptReadWire). Codex parses in-process — a
+      // rollout is head+tail-bounded, not a growing 59MB transcript — so the stringify rides here.
+      return toTranscriptWire({
         status: "changed",
         mtimeMs,
         doc: { ...parseRolloutEvents(text), subagents: [] },
-      };
+      });
     },
     getToolResult: (id, toolUseId) => {
       const path = rolloutPathFor(id);

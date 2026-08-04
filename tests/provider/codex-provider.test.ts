@@ -14,6 +14,7 @@ import {
   CODEX_WORKING_WINDOW_MS,
 } from "../../src/main/provider/codex";
 import type { Session } from "@shared/types";
+import { fromTranscriptWire } from "../../src/shared/transcript";
 
 const ID = "11111111-2222-3333-4444-555555555555";
 const META = `{"timestamp":"2026-07-18T10:30:01.000Z","type":"session_meta","payload":{"id":"${ID}","timestamp":"2026-07-18T10:30:01.000Z","cwd":"/Users/me/proj","originator":"codex_cli_rs","cli_version":"0.29.0"}}`;
@@ -29,10 +30,10 @@ function homeWithOneRollout(): { home: string; path: string } {
 }
 
 describe("createCodexProvider", () => {
-  it("lists a candidate per rollout, tagged agent codex, with the head cwd", () => {
+  it("lists a candidate per rollout, tagged agent codex, with the head cwd", async () => {
     const { home, path } = homeWithOneRollout();
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
-    const [c] = p.listCandidates();
+    const [c] = await p.listCandidates();
     expect(c).toMatchObject({ id: ID, agent: "codex", cwd: "/Users/me/proj" });
     expect(c.transcriptMtimeMs).toBeGreaterThan(0);
     expect(p.resolveTranscriptPath(ID)).toBe(path);
@@ -42,11 +43,11 @@ describe("createCodexProvider", () => {
     const { home, path } = homeWithOneRollout();
     const now = Date.now();
     const p = createCodexProvider({ codexDir: home, now: () => now });
-    let [c] = p.listCandidates();
+    let [c] = await p.listCandidates();
     expect((await p.summarize(c)).state).toBe("working"); // file just written → fresh
     const stale = (now - CODEX_WORKING_WINDOW_MS - 60_000) / 1000;
     utimesSync(path, stale, stale);
-    [c] = p.listCandidates();
+    [c] = await p.listCandidates();
     expect((await p.summarize(c)).state).toBe("ended");
   });
 
@@ -58,19 +59,19 @@ describe("createCodexProvider", () => {
       now: () => now,
       managed: { has: (id) => id === ID },
     });
-    let s = await p.summarize(p.listCandidates()[0]);
+    let s = await p.summarize((await p.listCandidates())[0]);
     expect(s.state).toBe("working");
     expect(s.management).toBe("managed");
     const stale = (now - CODEX_WORKING_WINDOW_MS - 5_000) / 1000;
     utimesSync(path, stale, stale);
-    s = await p.summarize(p.listCandidates()[0]);
+    s = await p.summarize((await p.listCandidates())[0]);
     expect(s.state).toBe("idle");
   });
 
   it("summarize carries the head title, agent codex, placeholder model, zero usage", async () => {
     const { home } = homeWithOneRollout();
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
-    const s = await p.summarize(p.listCandidates()[0]);
+    const s = await p.summarize((await p.listCandidates())[0]);
     expect(s.title).toBe("add dark mode");
     expect(s.agent).toBe("codex");
     expect(s.usage.inputTokens).toBe(0);
@@ -93,7 +94,7 @@ describe("createCodexProvider", () => {
     });
     writeFileSync(path, [meta, USER].join("\n"));
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
-    const candidate = p.listCandidates()[0];
+    const candidate = (await p.listCandidates())[0];
     expect(candidate).toMatchObject({
       threadKind: "review",
       parentSessionId: "parent-id",
@@ -109,7 +110,7 @@ describe("createCodexProvider", () => {
     });
   });
 
-  it("discovers user, guardian, review, and spawned-agent rollouts without filtering", () => {
+  it("discovers user, guardian, review, and spawned-agent rollouts without filtering", async () => {
     const home = mkdtempSync(join(tmpdir(), "codexp-kinds-"));
     const day = join(home, "sessions", "2026", "07", "18");
     mkdirSync(day, { recursive: true });
@@ -177,7 +178,7 @@ describe("createCodexProvider", () => {
       codexDir: home,
       now: () => Date.now(),
     });
-    const candidates = provider.listCandidates();
+    const candidates = await provider.listCandidates();
     expect(candidates).toHaveLength(5);
     expect(
       candidates.find((candidate) => candidate.id === rootId),
@@ -204,7 +205,7 @@ describe("createCodexProvider", () => {
       now: () => Date.now(),
       threadMetadata: { read: (id) => (id === ID ? metadata : null) },
     });
-    const candidate = p.listCandidates()[0];
+    const candidate = (await p.listCandidates())[0];
     const previewed = await p.summarize(candidate);
     expect(previewed.title).toBe("Native preview");
 
@@ -215,19 +216,19 @@ describe("createCodexProvider", () => {
     expect(p.restate(candidate, previewed).title).toBe("add dark mode");
   });
 
-  it("a stale rollout claimed by a live pty still surfaces as a candidate", () => {
+  it("a stale rollout claimed by a live pty still surfaces as a candidate", async () => {
     const { home, path } = homeWithOneRollout();
     const now = Date.now();
     const stale = (now - 40 * 24 * 60 * 60 * 1000) / 1000; // beyond any recent window
     utimesSync(path, stale, stale);
     const without = createCodexProvider({ codexDir: home, now: () => now });
-    expect(without.listCandidates()).toHaveLength(0);
+    expect(await without.listCandidates()).toHaveLength(0);
     const withPty = createCodexProvider({
       codexDir: home,
       now: () => now,
       managed: { has: (id) => id === ID },
     });
-    expect(withPty.listCandidates()).toHaveLength(1);
+    expect(await withPty.listCandidates()).toHaveLength(1);
   });
 
   it("a live managed pty with no rollout yet (codex hasn't flushed a turn) still surfaces as an idle skeleton candidate", async () => {
@@ -246,7 +247,7 @@ describe("createCodexProvider", () => {
         ],
       },
     });
-    const [c] = p.listCandidates();
+    const [c] = await p.listCandidates();
     expect(c).toMatchObject({
       id: draftId,
       agent: "codex",
@@ -258,7 +259,7 @@ describe("createCodexProvider", () => {
     expect(s.management).toBe("managed");
   });
 
-  it("a claimed managed pty (rollout landed) doesn't also produce a duplicate skeleton row", () => {
+  it("a claimed managed pty (rollout landed) doesn't also produce a duplicate skeleton row", async () => {
     const { home } = homeWithOneRollout();
     const p = createCodexProvider({
       codexDir: home,
@@ -275,28 +276,28 @@ describe("createCodexProvider", () => {
         ],
       },
     });
-    expect(p.listCandidates()).toHaveLength(1); // the real rollout row, not a second skeleton
+    expect(await p.listCandidates()).toHaveLength(1); // the real rollout row, not a second skeleton
   });
 
-  it("ending a zero-turn managed session (pty removed from the registry, no rollout ever written) drops out of candidates entirely", () => {
+  it("ending a zero-turn managed session (pty removed from the registry, no rollout ever written) drops out of candidates entirely", async () => {
     const home = mkdtempSync(join(tmpdir(), "codexp-ended-"));
     const p = createCodexProvider({
       codexDir: home,
       now: () => Date.now(),
       managed: { has: () => false, codexEntries: () => [] }, // pty already gone (killed)
     });
-    expect(p.listCandidates()).toHaveLength(0);
+    expect(await p.listCandidates()).toHaveLength(0);
   });
 
-  it("unimplemented readers settle absent; resolveSessionCwd works", () => {
+  it("unimplemented readers settle absent; resolveSessionCwd works", async () => {
     const { home } = homeWithOneRollout();
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
-    expect(p.readTasks(ID)).toEqual({ status: "absent" });
-    expect(p.readShells(ID)).toEqual({ status: "absent" });
-    expect(p.readMonitors(ID)).toEqual({ status: "absent" });
+    expect(await p.readTasks(ID)).toEqual({ status: "absent" });
+    expect(await p.readShells(ID)).toEqual({ status: "absent" });
+    expect(await p.readMonitors(ID)).toEqual({ status: "absent" });
     // readMetrics is live (not stubbed): the fixture rollout resolves, so this settles a changed
     // snapshot rather than absent — the fixture cwd isn't a real repo, so git/pr/speed are null.
-    expect(p.readMetrics(ID)).toMatchObject({
+    expect(await p.readMetrics(ID)).toMatchObject({
       status: "changed",
       metrics: {
         tokenSpeed: null,
@@ -306,23 +307,23 @@ describe("createCodexProvider", () => {
         remoteControl: null,
       },
     });
-    expect(p.readSubagentTranscript(ID, "a")).toEqual({ status: "absent" });
-    expect(p.readShellOutput(ID, "s")).toEqual({ status: "absent" });
-    expect(p.readMonitorOutput(ID, "m")).toEqual({ status: "absent" });
+    expect(await p.readSubagentTranscript(ID, "a")).toEqual({ status: "absent" });
+    expect(await p.readShellOutput(ID, "s")).toEqual({ status: "absent" });
+    expect(await p.readMonitorOutput(ID, "m")).toEqual({ status: "absent" });
     expect(p.resolveSessionCwd(ID)).toBe("/Users/me/proj");
     expect(p.resolveSessionCwd("unknown")).toBeNull();
   });
 
-  it("readTranscript parses the rollout and honors the mtime change token", () => {
+  it("readTranscript parses the rollout and honors the mtime change token", async () => {
     const { home, path } = homeWithOneRollout();
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
-    const first = p.readTranscript(ID);
+    const first = fromTranscriptWire(await p.readTranscript(ID));
     if (first.status !== "changed")
       throw new Error(`expected changed, got ${first.status}`);
     expect(first.doc.events).toEqual([{ kind: "user", text: "add dark mode" }]);
     expect(first.doc.subagents).toEqual([]);
     expect(first.doc.waitingReason).toBeNull();
-    expect(p.readTranscript(ID, first.mtimeMs)).toEqual({
+    expect(await p.readTranscript(ID, first.mtimeMs)).toEqual({
       status: "unchanged",
       mtimeMs: first.mtimeMs,
     });
@@ -338,21 +339,25 @@ describe("createCodexProvider", () => {
     appendFileSync(path, "\n" + ASSIST);
     const later = (first.mtimeMs + 5_000) / 1000;
     utimesSync(path, later, later);
-    const second = p.readTranscript(ID, first.mtimeMs);
+    const second = fromTranscriptWire(
+      await p.readTranscript(ID, first.mtimeMs),
+    );
     if (second.status !== "changed")
       throw new Error(`expected changed, got ${second.status}`);
     expect(second.doc.events).toHaveLength(2);
   });
 
-  it("readTranscript settles absent for an unknown id", () => {
+  it("readTranscript settles absent for an unknown id", async () => {
     const { home } = homeWithOneRollout();
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
-    expect(p.readTranscript("00000000-0000-0000-0000-000000000000")).toEqual({
+    expect(
+      await p.readTranscript("00000000-0000-0000-0000-000000000000"),
+    ).toEqual({
       status: "absent",
     });
   });
 
-  it("getToolResult pulls the full command and output by call id", () => {
+  it("getToolResult pulls the full command and output by call id", async () => {
     const { home, path } = homeWithOneRollout();
     const CALL = JSON.stringify({
       timestamp: "2026-07-18T10:30:06.000Z",
@@ -375,18 +380,18 @@ describe("createCodexProvider", () => {
     });
     appendFileSync(path, "\n" + CALL + "\n" + OUT);
     const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
-    expect(p.getToolResult(ID, "call_1")).toEqual({
+    expect(await p.getToolResult(ID, "call_1")).toEqual({
       found: true,
       command: "pwd",
       output: "/Users/me/proj\n",
       status: "ok",
     });
-    expect(p.getToolResult(ID, "nope")).toEqual({ found: false });
-    expect(p.getToolResult("unknown-id", "call_1")).toEqual({ found: false });
+    expect(await p.getToolResult(ID, "nope")).toEqual({ found: false });
+    expect(await p.getToolResult("unknown-id", "call_1")).toEqual({ found: false });
   });
 
   describe("resolveResumeTarget", () => {
-    it("stale observed rollout → resumable: not alive, head cwd, rollout path", () => {
+    it("stale observed rollout → resumable: not alive, head cwd, rollout path", async () => {
       const { home, path } = homeWithOneRollout();
       const now = Date.now();
       const stale = (now - CODEX_WORKING_WINDOW_MS - 60_000) / 1000;
@@ -399,13 +404,13 @@ describe("createCodexProvider", () => {
       });
     });
 
-    it("fresh mtime → alive (an external writer may still own it)", () => {
+    it("fresh mtime → alive (an external writer may still own it)", async () => {
       const { home } = homeWithOneRollout();
       const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
       expect(p.resolveResumeTarget(ID)?.alive).toBe(true);
     });
 
-    it("managed id → alive even when the rollout is stale (the app's own pty owns it)", () => {
+    it("managed id → alive even when the rollout is stale (the app's own pty owns it)", async () => {
       const { home, path } = homeWithOneRollout();
       const now = Date.now();
       const stale = (now - CODEX_WORKING_WINDOW_MS - 60_000) / 1000;
@@ -418,7 +423,7 @@ describe("createCodexProvider", () => {
       expect(p.resolveResumeTarget(ID)?.alive).toBe(true);
     });
 
-    it("unknown id → null (nothing to resume)", () => {
+    it("unknown id → null (nothing to resume)", async () => {
       const { home } = homeWithOneRollout();
       const p = createCodexProvider({ codexDir: home, now: () => Date.now() });
       expect(
@@ -492,7 +497,9 @@ describe("codex telemetry (summarize + overlay + readMetrics)", () => {
     try {
       writeTelemetryRollout(codexDir);
       const provider = createCodexProvider({ codexDir });
-      const c = provider.listCandidates().find((x) => x.id === ROLLOUT_ID)!;
+      const c = (await provider.listCandidates()).find(
+        (x) => x.id === ROLLOUT_ID,
+      )!;
       const s = await provider.summarize(c);
       expect(s.usage.inputTokens).toBe(400);
       expect(s.usage.cacheReadTokens).toBe(600);
@@ -510,7 +517,7 @@ describe("codex telemetry (summarize + overlay + readMetrics)", () => {
     }
   });
 
-  it("overlaySessions attaches liveContext, real window, TUI contextPct, and rateLimits to codex rows only", () => {
+  it("overlaySessions attaches liveContext, real window, TUI contextPct, and rateLimits to codex rows only", async () => {
     const codexDir = mkdtempSync(join(tmpdir(), "codex-overlay-"));
     try {
       writeTelemetryRollout(codexDir);
@@ -550,30 +557,30 @@ describe("codex telemetry (summarize + overlay + readMetrics)", () => {
     }
   });
 
-  it("readMetrics returns a changed snapshot with the unchanged-token contract", () => {
+  it("readMetrics returns a changed snapshot with the unchanged-token contract", async () => {
     const codexDir = mkdtempSync(join(tmpdir(), "codex-metrics-"));
     try {
       writeTelemetryRollout(codexDir);
       const provider = createCodexProvider({ codexDir });
-      const first = provider.readMetrics(ROLLOUT_ID);
+      const first = await provider.readMetrics(ROLLOUT_ID);
       expect(first.status).toBe("changed");
       if (first.status !== "changed") return;
       // one token_count → no completed interval → null speed; temp cwd is not a repo → null git
       expect(first.metrics.tokenSpeed).toBeNull();
       expect(first.metrics.voiceEnabled).toBeNull();
       expect(first.metrics.remoteControl).toBeNull();
-      const second = provider.readMetrics(ROLLOUT_ID, first.mtimeMs);
+      const second = await provider.readMetrics(ROLLOUT_ID, first.mtimeMs);
       expect(second.status).toBe("unchanged");
     } finally {
       rmSync(codexDir, { recursive: true, force: true });
     }
   });
 
-  it("readMetrics settles absent for an unknown id", () => {
+  it("readMetrics settles absent for an unknown id", async () => {
     const codexDir = mkdtempSync(join(tmpdir(), "codex-metrics-absent-"));
     try {
       const provider = createCodexProvider({ codexDir });
-      expect(provider.readMetrics("no-such-id").status).toBe("absent");
+      expect((await provider.readMetrics("no-such-id")).status).toBe("absent");
     } finally {
       rmSync(codexDir, { recursive: true, force: true });
     }

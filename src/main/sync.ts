@@ -23,7 +23,7 @@ export async function syncSessions(
   provider: Provider,
 ): Promise<SyncResult> {
   const stored = new Map(getPersisted(db).map((s) => [s.id, s]));
-  const candidates = provider.listCandidates();
+  const candidates = await provider.listCandidates();
 
   const snapshots: PersistedSession[] = [];
   const parsedIds: string[] = [];
