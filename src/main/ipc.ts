@@ -128,8 +128,9 @@ export interface IpcDeps {
    *  (cached by the caller). Defaults to empty overrides. */
   modelDefaults?: () => ModelDefaults;
   /** Runs at the start of every sync, before discovery. Used to follow `/clear` rotations so the
-   *  provider labels a rotated session correctly on the same tick. Its failure must not block the sync. */
-  beforeSync?: () => void;
+   *  provider labels a rotated session correctly on the same tick. Its failure must not block the sync.
+   *  Awaited: the reconcile's registry/rollout sweeps ride the parse worker. */
+  beforeSync?: () => void | Promise<void>;
   /** Optional metadata enrichment. Discovery runs before this is awaited so a slow external service
    * cannot leave the index empty; a successful refresh is followed by a second pass. */
   refreshSessionMetadata?: () => Promise<boolean>;
@@ -254,7 +255,7 @@ export function registerIpc({
 
   const syncPass = async (): Promise<void> => {
     try {
-      beforeSync?.();
+      await beforeSync?.();
     } catch (err) {
       // A reconcile failure must not cost the session list.
       logError(
@@ -280,11 +281,11 @@ export function registerIpc({
     await syncSessions(db, provider);
   };
 
-  // summarize awaits the parse worker, so a pass yields the event loop mid-sweep and two callers
-  // (launch + first refresh, or refresh + a rename's sync) could interleave their read→upsert
-  // windows. Serialize: an idle sync starts its pass synchronously (the first discovery sweep
-  // still runs before the caller ever awaits — see the refresh ordering test), a busy one queues
-  // behind the tail. A failed pass rejects its own caller but must not poison the queue.
+  // The pass awaits the parse worker throughout (reconcile, discovery, summarize), so it yields
+  // the event loop mid-sweep and two callers (launch + first refresh, or refresh + a rename's
+  // sync) could interleave their read→upsert windows. Serialize: an idle sync starts its pass
+  // immediately, a busy one queues behind the tail — this queue is the only interleaving guard.
+  // A failed pass rejects its own caller but must not poison the queue.
   let pendingSyncs = 0;
   let syncTail: Promise<void> = Promise.resolve();
   const sync = (): Promise<void> => {

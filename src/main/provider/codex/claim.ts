@@ -56,28 +56,54 @@ export function detectClaims(
 }
 
 /**
- * The impure wrapper the beforeSync reconcile calls (the same slot as claude's applyRotations, so
- * a claim's relabel + re-key land in the pass that first discovers the rollout — no duplicate-row
- * window). Lazy: with no unclaimed codex pty nothing can claim, so the rollout walk is skipped
- * entirely. Head-reads run only on rollouts that pass the cheap filename-time filter.
+ * The fs half of a claim pass: walk the rollouts, keep the ones a pending pty could possibly claim
+ * (filename-time at/after `earliestMs`, not already claimed), and head-read each survivor for its
+ * cwd. Split from applyClaims so the parse worker can run this scan off the main thread — the
+ * managed-pty state stays in main and only `earliestMs` + the claimed paths ride the request.
  */
-export function applyClaims(deps: {
-  ptys: ManagedCodexPty[];
-  claimedRollouts: ReadonlySet<string>;
+export function scanClaimableRollouts(deps: {
   listRollouts: () => RolloutFile[];
   readHead: (path: string) => { cwd: string } | null;
-  apply: (claim: Claim) => void;
-}): Claim[] {
-  const pending = deps.ptys.filter((p) => p.claimedRollout === undefined);
-  if (pending.length === 0) return [];
-  const earliest =
-    Math.min(...pending.map((p) => p.spawnedAtMs)) - CLAIM_SLACK_MS;
+  earliestMs: number;
+  claimedRollouts: ReadonlySet<string>;
+}): ClaimableRollout[] {
   const candidates: ClaimableRollout[] = [];
   for (const r of deps.listRollouts()) {
-    if (r.timestampMs < earliest || deps.claimedRollouts.has(r.path)) continue;
+    if (r.timestampMs < deps.earliestMs || deps.claimedRollouts.has(r.path))
+      continue;
     const head = deps.readHead(r.path);
     if (head) candidates.push({ ...r, cwd: head.cwd });
   }
+  return candidates;
+}
+
+/** The earliest rollout filename-time a set of pending ptys could claim (spawn minus slack), or
+ *  null when nothing is pending — the lazy gate that keeps a no-codex tick from walking rollouts. */
+export function claimScanFloor(pending: ManagedCodexPty[]): number | null {
+  if (pending.length === 0) return null;
+  return Math.min(...pending.map((p) => p.spawnedAtMs)) - CLAIM_SLACK_MS;
+}
+
+/**
+ * The impure wrapper the beforeSync reconcile calls (the same slot as claude's applyRotations, so
+ * a claim's relabel + re-key land in the pass that first discovers the rollout — no duplicate-row
+ * window). Lazy: with no unclaimed codex pty nothing can claim, so the rollout scan is skipped
+ * entirely. `scan` is async so the composition root can route it through the parse worker;
+ * head-reads run only on rollouts that pass the cheap filename-time filter either way.
+ */
+export async function applyClaims(deps: {
+  ptys: ManagedCodexPty[];
+  claimedRollouts: ReadonlySet<string>;
+  scan: (
+    earliestMs: number,
+    claimedRollouts: ReadonlySet<string>,
+  ) => Promise<ClaimableRollout[]> | ClaimableRollout[];
+  apply: (claim: Claim) => void;
+}): Promise<Claim[]> {
+  const pending = deps.ptys.filter((p) => p.claimedRollout === undefined);
+  const earliest = claimScanFloor(pending);
+  if (earliest === null) return [];
+  const candidates = await deps.scan(earliest, deps.claimedRollouts);
   const claims = detectClaims(pending, candidates, deps.claimedRollouts);
   for (const c of claims) deps.apply(c);
   return claims;

@@ -58,16 +58,17 @@ export interface RenamableRegistry {
  * pty and hand the rotation to the renderer. Runs before each sync, so the relabel lands the same tick.
  *
  * `readRegistry` is lazy: with no Managed pty this run, nothing can have rotated, so we skip the on-disk
- * read entirely — the common case (browsing Observed sessions, no terminal open) costs nothing.
+ * read entirely — the common case (browsing Observed sessions, no terminal open) costs nothing. It may
+ * be async so the composition root can route the sweep through the parse worker.
  */
-export function applyRotations(
+export async function applyRotations(
   managed: RenamableRegistry,
-  readRegistry: () => RegistryEntry[],
+  readRegistry: () => Promise<RegistryEntry[]> | RegistryEntry[],
   rename: (from: string, to: string) => void,
-): Rotation[] {
+): Promise<Rotation[]> {
   const managedPtys = managed.entries();
   if (managedPtys.length === 0) return [];
-  const rotations = detectRotations(managedPtys, readRegistry());
+  const rotations = detectRotations(managedPtys, await readRegistry());
   for (const { from, to } of rotations) {
     managed.rename(from, to);
     rename(from, to);

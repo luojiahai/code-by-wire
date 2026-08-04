@@ -1,31 +1,51 @@
 import { utilityProcess, type UtilityProcess } from "electron";
-import type { PersistedSession, SessionCandidate } from "@shared/types";
-import type { ParseRequest, ParseResponse } from "./protocol";
+import type {
+  ParseOp,
+  ParseOpResults,
+  ParseRequest,
+  ParseRequestBody,
+  ParseResponse,
+} from "./protocol";
 import { logError, logWarn } from "../log-buffer";
 
-/** A hung worker must not wedge the sync pass forever; past this the request rejects (the provider
- *  parses in-process) and the worker is killed so the next call gets a fresh one. Generous: the
- *  worst measured in-process parse was ~0.5s, so 30s only trips on a genuinely stuck process. */
+/** A hung worker must not wedge its callers forever; past this the request rejects (the caller
+ *  falls back to its in-process read) and the worker is killed so the next call gets a fresh one.
+ *  Generous: the worst measured in-process read was ~0.5s, so 30s only trips on a genuinely stuck
+ *  process. */
 const REQUEST_TIMEOUT_MS = 30_000;
 
 /** After this many worker deaths with no successful round-trip in between, stop respawning — a
  *  worker that can't boot (bad bundle, missing file) would otherwise crash-loop on every poll.
- *  Every summarize then rejects and the provider parses in-process for the rest of the run. */
+ *  Every call then rejects and the callers read in-process for the rest of the run. */
 const MAX_CONSECUTIVE_CRASHES = 3;
 
 export interface ParseWorkerClient {
-  summarize(c: SessionCandidate): Promise<PersistedSession>;
+  /** One request/response round-trip, typed by op. Rejects on any worker fault; the caller's
+   *  contract is to fall back to its in-process implementation, never to lose the result. */
+  call<Op extends ParseOp>(
+    body: Extract<ParseRequestBody, { op: Op }>,
+  ): Promise<ParseOpResults[Op]>;
   dispose(): void;
+}
+
+export interface ParseWorkerOptions {
+  /** Environment for the forked worker. The composition root passes the recovered login-shell PATH
+   *  here so the worker's git/gh spawns (readMetrics' sources) resolve the same binaries main does
+   *  in a packaged, Finder-launched build. */
+  env?: Record<string, string | undefined>;
 }
 
 /**
  * Main-side handle on the parse-worker utility process: request/response with seq correlation over
- * the parent port. Lazy — the process forks on the first summarize, so app launch pays nothing.
+ * the parent port. Lazy — the process forks on the first call, so app launch pays nothing.
  * Failure contract: any fault (spawn failure, crash, timeout, ok:false response) surfaces as a
- * rejection, and the claude provider's summarize catches it and parses in-process — degraded to
- * the old jank for that pass, but never a lost row.
+ * rejection, and each caller catches it and runs its in-process fallback — degraded to the old
+ * jank for that pass, but never a lost result.
  */
-export function createParseWorkerClient(modulePath: string): ParseWorkerClient {
+export function createParseWorkerClient(
+  modulePath: string,
+  options: ParseWorkerOptions = {},
+): ParseWorkerClient {
   let child: UtilityProcess | null = null;
   let seq = 0;
   let consecutiveCrashes = 0;
@@ -33,7 +53,7 @@ export function createParseWorkerClient(modulePath: string): ParseWorkerClient {
   const pending = new Map<
     number,
     {
-      resolve: (s: PersistedSession) => void;
+      resolve: (result: unknown) => void;
       reject: (err: Error) => void;
       timer: ReturnType<typeof setTimeout>;
     }
@@ -50,6 +70,7 @@ export function createParseWorkerClient(modulePath: string): ParseWorkerClient {
   const spawn = (): UtilityProcess => {
     const c = utilityProcess.fork(modulePath, [], {
       serviceName: "code-by-wire transcript parse",
+      ...(options.env ? { env: options.env } : {}),
     });
     c.on("message", (msg: ParseResponse) => {
       consecutiveCrashes = 0; // a round-trip proves the bundle boots and answers
@@ -57,7 +78,7 @@ export function createParseWorkerClient(modulePath: string): ParseWorkerClient {
       if (!p) return; // timed-out request whose reply arrived late
       pending.delete(msg.seq);
       clearTimeout(p.timer);
-      if (msg.ok) p.resolve(msg.session);
+      if (msg.ok) p.resolve(msg.result);
       else p.reject(new Error(msg.error));
     });
     c.on("exit", (code) => {
@@ -68,13 +89,13 @@ export function createParseWorkerClient(modulePath: string): ParseWorkerClient {
         logError(
           "parse-worker-crash-loop",
           `parse worker died ${consecutiveCrashes}x without a successful reply; ` +
-            "parsing in-process for the rest of this run",
+            "reading in-process for the rest of this run",
           new Error(`exit code ${code}`),
         );
       } else {
         logWarn(
           "parse-worker-exited",
-          `parse worker exited (code ${code}); respawning on next parse`,
+          `parse worker exited (code ${code}); respawning on next call`,
         );
       }
       rejectAll(`parse worker exited (code ${code})`);
@@ -83,7 +104,9 @@ export function createParseWorkerClient(modulePath: string): ParseWorkerClient {
   };
 
   return {
-    summarize(candidate: SessionCandidate): Promise<PersistedSession> {
+    call<Op extends ParseOp>(
+      body: Extract<ParseRequestBody, { op: Op }>,
+    ): Promise<ParseOpResults[Op]> {
       if (disposed) return Promise.reject(new Error("parse worker disposed"));
       if (consecutiveCrashes >= MAX_CONSECUTIVE_CRASHES)
         return Promise.reject(new Error("parse worker crash-looped"));
@@ -96,7 +119,7 @@ export function createParseWorkerClient(modulePath: string): ParseWorkerClient {
       }
       const c = child;
       const id = ++seq;
-      return new Promise<PersistedSession>((resolve, reject) => {
+      return new Promise<ParseOpResults[Op]>((resolve, reject) => {
         const timer = setTimeout(() => {
           pending.delete(id);
           reject(new Error("parse worker timed out"));
@@ -105,8 +128,14 @@ export function createParseWorkerClient(modulePath: string): ParseWorkerClient {
           if (child === c) child = null;
           c.kill();
         }, REQUEST_TIMEOUT_MS);
-        pending.set(id, { resolve, reject, timer });
-        const req: ParseRequest = { seq: id, candidate };
+        pending.set(id, {
+          // The wire carries `result` untyped across the process boundary; ParseOpResults is the
+          // one written-down contract for what each op returns (see protocol.ts).
+          resolve: resolve as (result: unknown) => void,
+          reject,
+          timer,
+        });
+        const req: ParseRequest = { seq: id, ...body };
         c.postMessage(req);
       });
     },
