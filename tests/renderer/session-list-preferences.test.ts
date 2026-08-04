@@ -20,14 +20,12 @@ describe("sessions list preferences", () => {
     localStorage.setItem(
       KEY,
       JSON.stringify({
-        visibility: "active",
         showAgentIcons: false,
         agent: "codex",
       }),
     );
 
     expect(loadSessionsListPreferences(localStorage)).toEqual({
-      visibility: "active",
       showAgentIcons: false,
       agent: "codex",
     });
@@ -37,16 +35,30 @@ describe("sessions list preferences", () => {
     localStorage.setItem(
       KEY,
       JSON.stringify({
-        visibility: "hidden",
         showAgentIcons: false,
         agent: "other",
       }),
     );
 
     expect(loadSessionsListPreferences(localStorage)).toEqual({
-      visibility: "all",
       showAgentIcons: false,
       agent: "all",
+    });
+  });
+
+  it("ignores a retired visibility field left by an older build (issue #431)", () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        visibility: "active",
+        showAgentIcons: false,
+        agent: "codex",
+      }),
+    );
+
+    expect(loadSessionsListPreferences(localStorage)).toEqual({
+      showAgentIcons: false,
+      agent: "codex",
     });
   });
 
@@ -62,30 +74,16 @@ describe("sessions list preferences", () => {
     );
   });
 
-  it("migrates the legacy active-only preference when v2 is absent", () => {
+  it("ignores the retired legacy active-only key (issue #431)", () => {
     localStorage.setItem("cbw.sessionsActiveOnly.v1", "true");
 
-    expect(loadSessionsListPreferences(localStorage)).toEqual({
-      visibility: "active",
-      showAgentIcons: true,
-      agent: "all",
-    });
-  });
-
-  it("does not migrate the legacy preference when v2 exists", () => {
-    localStorage.setItem("cbw.sessionsActiveOnly.v1", "true");
-    localStorage.setItem(KEY, JSON.stringify({ showAgentIcons: false }));
-
-    expect(loadSessionsListPreferences(localStorage)).toEqual({
-      visibility: "all",
-      showAgentIcons: false,
-      agent: "all",
-    });
+    expect(loadSessionsListPreferences(localStorage)).toEqual(
+      DEFAULT_SESSIONS_LIST_PREFERENCES,
+    );
   });
 
   it("saves the complete value and ignores storage failures", () => {
     const value = {
-      visibility: "active",
       showAgentIcons: false,
       agent: "claude",
     } as const;

@@ -54,13 +54,6 @@ export function sessionRepoLabel(session: Session): string {
   );
 }
 
-/** The active-only toggle's filter (2026-07-04 sidebar spec §4): live sessions (working, waiting,
- *  idle) stay; ended drop. Order-preserving — composes before grouping, so a project whose sessions
- *  are all ended simply grows no group. */
-export function filterActive(sessions: Session[]): Session[] {
-  return sessions.filter((s) => s.state !== "ended");
-}
-
 /** Label for sessions whose transcript carries no project path. Resolved from the live locale at
  *  call time via `tNow()` — this module is pure (no React), so it can't call `useI18n()`; never
  *  capture the string at module scope, or a locale switch wouldn't take effect. */
@@ -98,26 +91,12 @@ export function isSessionFamilyCollapsed(
 }
 
 /** The PINNED section's selection (2026-07-17 pinned-sessions spec): pinned sessions only, newest
- *  pin first. Composes AFTER filterSessions (search narrows pins too); the active-only filter is
- *  never applied here — pins are explicit favorites, so ended pins stay visible. */
+ *  pin first. Composes AFTER filterSessions (search narrows pins too); ended pins stay visible —
+ *  pins are explicit favorites, and the per-folder cap never reaches them. */
 export function pinnedSessions(sessions: Session[]): Session[] {
   return sessions
     .filter((s) => s.pinnedAtMs !== undefined)
     .sort((a, b) => (b.pinnedAtMs ?? 0) - (a.pinnedAtMs ?? 0));
-}
-
-/** The active-only toggle's group-level filter (2026-07-17 spec): every group survives — folders
- *  always render — but each group's rows narrow to live sessions. Runs AFTER grouping, so folder
- *  ordering derives from all (search-matched) sessions and toggling the filter never reshuffles
- *  folders; a group can come back empty, which the sidebar renders as a bare folder header. */
-export function filterGroupsActive(groups: SessionGroup[]): SessionGroup[] {
-  return groups.map((g) => ({
-    ...g,
-    sessions: filterSessionsWithAncestors(
-      g.sessions,
-      (session) => session.state !== "ended",
-    ),
-  }));
 }
 
 export function filterGroups(
@@ -153,39 +132,44 @@ export function filterGroups(
     sessions: filterSessionsWithAncestors(group.sessions, (session) => {
       const matchesQuery =
         !normalizedQuery || sessionMatchesQuery(session, normalizedQuery);
+      // Ended sessions are never filtered out (issue #431): a folder's own cap decides how much
+      // history it shows inline, so search and the agent preference are the only narrowing here.
       return (
         matchesQuery &&
-        // Typing a query is an explicit hunt, so it searches ended sessions too — the
-        // active-only toggle is a browsing mode, not a search scope (issue #420).
-        (preferences.visibility === "all" ||
-          normalizedQuery !== "" ||
-          session.state !== "ended") &&
         (preferences.agent === "all" || session.agent === preferences.agent)
       );
     }),
   }));
 }
 
-/** The per-folder "Recent (N)" expander's selection (issue #420): the ended sessions the active-only
- *  filter is hiding right now — ended, matching the agent preference, and not already visible (an
- *  ended ancestor retained for a live child stays out, it's on screen) — newest activity first,
- *  capped to `limit`. `total` counts the whole hidden set so the row's badge and its "Show more"
- *  paging can disagree with the slice. */
-export function recentEndedSessions(
-  sessions: Session[],
-  preferences: SessionsListPreferences,
-  visibleIds: ReadonlySet<string>,
-  limit: number,
-): { sessions: Session[]; total: number } {
-  const hidden = sessions
-    .filter(
-      (s) =>
-        s.state === "ended" &&
-        !visibleIds.has(s.id) &&
-        (preferences.agent === "all" || s.agent === preferences.agent),
-    )
-    .sort((a, b) => b.lastActivityMs - a.lastActivityMs);
-  return { sessions: hidden.slice(0, limit), total: hidden.length };
+/** How many top-level entries one folder shows before the rest fall into its "Older (N)"
+ *  disclosure (issue #431). */
+export const SESSIONS_PER_FOLDER = 5;
+
+/** A family is live while anything in it still runs — an ended root keeps its slot when a fork
+ *  below it is working, which is also why filterGroups retains ended ancestors. */
+function isLiveFamily(node: SessionTreeNode): boolean {
+  return node.session.state !== "ended" || node.activeDescendantCount > 0;
+}
+
+/** Split one folder's forest into the entries it shows inline and the ones its "Older (N)"
+ *  disclosure hides (issue #431).
+ *
+ *  Families are the unit: a root and its nested children occupy a single slot and never split
+ *  across the boundary. Every live family stays visible however many there are — a folder running
+ *  eight sessions shows all eight — and ended families then fill whatever is left of `cap`. Input
+ *  order carries the forest's sort (live first, then most recently active), so the ended families
+ *  that survive are the newest and `hidden` stays in the same recency order. */
+export function capSessionForest(
+  roots: SessionTreeNode[],
+  cap: number,
+): { visible: SessionTreeNode[]; hidden: SessionTreeNode[] } {
+  const liveCount = roots.filter(isLiveFamily).length;
+  const ended = roots.filter((node) => !isLiveFamily(node));
+  const hidden = ended.slice(Math.max(0, cap - liveCount));
+  if (hidden.length === 0) return { visible: roots, hidden: [] };
+  const hiddenNodes = new Set(hidden);
+  return { visible: roots.filter((node) => !hiddenNodes.has(node)), hidden };
 }
 
 function filterSessionsWithAncestors(
