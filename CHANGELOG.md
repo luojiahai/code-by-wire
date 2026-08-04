@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.47] - 2026-08-04
+
+### Added
+
+- New sessions now default to the last-used agent (persisted across
+  restarts). With a single spawnable CLI, the folder "+" spawns directly
+  with no agent menu; with several, "+" spawns the last-used agent on
+  click and right-click opens the agent picker.
+- In active-only sidebar mode, folders with hidden ended sessions show a
+  muted "Recent (N)" row that expands its most recent ended sessions in
+  place, paged 10 at a time via "Show more"; a non-empty search query now
+  bypasses the visibility filter entirely so ended sessions stay findable.
+
+### Changed
+
+- The sidebar's active/all visibility flip is a dedicated one-click header
+  toggle again (zap icon, highlighted in active-only mode), separate from
+  the filter dropdown, which now holds only the agent filter and the
+  agent-icons checkbox.
+
 ## [0.1.46] - 2026-08-01
 
 ### Changed
@@ -1135,7 +1155,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.46...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.47...HEAD
+[0.1.47]: https://github.com/luojiahai/code-by-wire/compare/v0.1.46...v0.1.47
 [0.1.46]: https://github.com/luojiahai/code-by-wire/compare/v0.1.45...v0.1.46
 [0.1.45]: https://github.com/luojiahai/code-by-wire/compare/v0.1.44...v0.1.45
 [0.1.44]: https://github.com/luojiahai/code-by-wire/compare/v0.1.43...v0.1.44
