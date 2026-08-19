@@ -8,7 +8,7 @@ export interface EditKey {
   ctrlKey: boolean;
   shiftKey: boolean;
   /** True while an IME composition is active (real `KeyboardEvent.isComposing`). We bail in that
-   *  window so the keystroke reaches xterm's composition handler instead of becoming a readline byte. */
+   *  window so no keystroke of an IME session is reinterpreted as a control byte or a shortcut. */
   isComposing: boolean;
 }
 
@@ -25,8 +25,9 @@ export interface EditKey {
  */
 export function macEditSequence(e: EditKey): string | null {
   if (e.type !== "keydown") return null;
-  // Mid-composition (CJK/dead-key): let xterm's composition handler own the key. We run before it, so
-  // translating here would inject a readline byte into the middle of an IME session and corrupt it.
+  // Mid-composition (CJK/dead-key): translating here would inject a readline byte into the middle of
+  // an IME session and corrupt it. Both terminal key handlers already swallow the whole composition
+  // window before reaching us; this keeps the contract standalone.
   if (e.isComposing) return null;
   if (e.ctrlKey || e.shiftKey) return null;
   const cmd = e.metaKey && !e.altKey;

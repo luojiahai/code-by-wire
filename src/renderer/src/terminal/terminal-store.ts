@@ -8,6 +8,7 @@ import type { OsKind } from "@shared/platform";
 import { tNow } from "../i18n";
 import { editSequence } from "./key-bindings";
 import { clipboardKeyAction } from "../xterm/clipboard-keys";
+import { deferToKeypress } from "../xterm/ime-punctuation";
 import {
   attachClipboardContextMenu,
   runClipboardAction,
@@ -229,6 +230,11 @@ export function createTerminalStore({
       // plus cmd/option + arrows and deletes → readline bytes on macOS. Reads handle.id so
       // input still follows a /clear rename.
       handle.term.attachCustomKeyEventHandler((e) => {
+        // Mid-IME (CJK/dead-key): swallow the whole composition window. xterm's CompositionHelper
+        // finalizes a live composition on any keydown whose keyCode isn't 229 and then emits the RAW
+        // key, so a Chinese IME substituting `\` for `、` would send `\` to the pty. Returning false
+        // keeps xterm out of it entirely; the IME's own compositionend commits the real text.
+        if (e.isComposing) return false;
         const action = clipboardKeyAction(e, os, handle.term.hasSelection());
         if (action !== null) {
           e.preventDefault();
@@ -236,7 +242,12 @@ export function createTerminalStore({
           return false; // we own the combo; xterm must not also emit its ^V/^C byte
         }
         const seq = editSequence(e, isMac);
-        if (seq === null) return true; // not ours — plain keys, etc.
+        if (seq === null) {
+          // Punctuation a CJK IME may rewrite: let xterm's keypress handler emit the converted
+          // character instead of the physical key (see ime-punctuation). No preventDefault — the
+          // keypress must still fire.
+          return !deferToKeypress(e);
+        }
         e.preventDefault();
         api.write(handle.id, seq);
         return false; // we sent the bytes; stop xterm emitting its own sequence

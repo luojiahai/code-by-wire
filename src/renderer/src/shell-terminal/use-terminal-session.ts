@@ -22,6 +22,7 @@ import {
 import { shellRouter } from "./router-instance";
 import { macEditSequence } from "../ui/mac-edit-sequence";
 import { clipboardKeyAction } from "../xterm/clipboard-keys";
+import { deferToKeypress } from "../xterm/ime-punctuation";
 import {
   attachClipboardContextMenu,
   runClipboardAction,
@@ -354,12 +355,21 @@ export function useTerminalSession({
       },
     };
     term.attachCustomKeyEventHandler((e) => {
+      // Mid-IME (CJK/dead-key): swallow the whole composition window. xterm's CompositionHelper
+      // finalizes a live composition on any keydown whose keyCode isn't 229 and then emits the RAW
+      // key, so a Chinese IME substituting `\` for `、` would send `\` to the pty. Returning false
+      // keeps xterm out of it entirely; the IME's own compositionend commits the real text.
+      if (e.isComposing) return false;
       const action = clipboardKeyAction(e, os, term.hasSelection());
       if (action !== null) {
         e.preventDefault();
         void runClipboardAction(action, clipDeps); // never rejects
         return false; // we own the combo; xterm must not also emit its ^V/^C byte
       }
+      // Punctuation a CJK IME may rewrite: let xterm's keypress handler emit the converted
+      // character instead of the physical key (see ime-punctuation). No preventDefault — the
+      // keypress must still fire.
+      if (deferToKeypress(e)) return false;
       if (os !== "mac") return true;
       const seq = macEditSequence(e);
       if (seq === null) return true; // not ours — plain keys, etc.

@@ -151,6 +151,7 @@ function keydown(props: {
   altKey?: boolean;
   ctrlKey?: boolean;
   shiftKey?: boolean;
+  isComposing?: boolean;
 }): KeyboardEvent {
   return {
     type: "keydown",
@@ -159,6 +160,7 @@ function keydown(props: {
     altKey: props.altKey ?? false,
     ctrlKey: props.ctrlKey ?? false,
     shiftKey: props.shiftKey ?? false,
+    isComposing: props.isComposing ?? false,
     preventDefault: vi.fn(),
   } as unknown as KeyboardEvent;
 }
@@ -519,6 +521,90 @@ describe("createTerminalStore", () => {
     expect(data[1]).toBe("L1");
     expect(data[2]).toContain("exited");
     expect(data).toHaveLength(3);
+  });
+});
+
+describe("IME composition", () => {
+  // xterm's CompositionHelper.keydown finalizes a live composition on any keydown whose keyCode
+  // isn't 229, then lets Terminal._keyDown emit the RAW key — so a Chinese IME substituting `\` for
+  // `、` sends `\` to the pty (issue #439). The handler swallows the whole composition window
+  // instead; the IME's own compositionend commits the real text.
+  it("swallows a mid-composition keystroke instead of letting xterm emit the raw key", () => {
+    const h = harness();
+    h.store.create("a");
+    const backslash = keydown({ key: "\\", isComposing: true });
+    expect(h.made[0].pressKey(backslash)).toBe(false); // xterm must not see it at all
+    expect(h.api.write).not.toHaveBeenCalled(); // and we send nothing of our own
+    // preventDefault is a vi.fn() mock on the event; asserting on the reference is intentional.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(backslash.preventDefault).not.toHaveBeenCalled(); // the IME still owns the keystroke
+  });
+
+  it("swallows Shift+Enter mid-composition (compositionend commits; a second Enter submits)", () => {
+    const h = harness();
+    h.store.create("a");
+    expect(
+      h.made[0].pressKey(
+        keydown({ key: "Enter", shiftKey: true, isComposing: true }),
+      ),
+    ).toBe(false);
+    expect(h.api.write).not.toHaveBeenCalled(); // no Esc+CR mid-IME
+  });
+
+  it("swallows the clipboard combos mid-composition too", async () => {
+    const h = harness("windows");
+    h.setClipboardText("hello");
+    h.store.create("a");
+    const t = h.made[0];
+    expect(
+      t.pressKey(keydown({ key: "v", ctrlKey: true, isComposing: true })),
+    ).toBe(false);
+    await Promise.resolve(); // let any stray clipboard promise settle before asserting
+    expect(h.clipboard.readText).not.toHaveBeenCalled();
+    expect(t.pastes).toEqual([]);
+    expect(h.api.write).not.toHaveBeenCalled();
+  });
+});
+
+describe("IME punctuation substitution (issue #439)", () => {
+  // A third-party CJK IME rewrites `\` to `、` with NO composition: the keydown reports the
+  // physical key and only the keypress carries the converted character. xterm's keydown path would
+  // send the physical `\` and cancel the event, killing that keypress — so the handler steps aside.
+  it("declines a punctuation keydown so xterm's keypress handler can emit the real character", () => {
+    const h = harness();
+    h.store.create("a");
+    const evt = keydown({ key: "\\" });
+    expect(h.made[0].pressKey(evt)).toBe(false); // xterm must not emit the physical key
+    // preventDefault is a vi.fn() mock on the event; asserting on the reference is intentional.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(evt.preventDefault).not.toHaveBeenCalled(); // cancelling would suppress the keypress
+    expect(h.api.write).not.toHaveBeenCalled(); // we send nothing ourselves
+  });
+
+  it("passes the keypress through — that event carries the converted character", () => {
+    const h = harness();
+    h.store.create("a");
+    const press = {
+      ...keydown({ key: "\\" }),
+      type: "keypress",
+    } as unknown as KeyboardEvent;
+    expect(h.made[0].pressKey(press)).toBe(true); // xterm's _keyPress emits it
+  });
+
+  it("leaves letters on xterm's keydown path", () => {
+    const h = harness();
+    h.store.create("a");
+    expect(h.made[0].pressKey(keydown({ key: "a" }))).toBe(true);
+  });
+
+  it("still lets the mac editing combos win over the punctuation deferral", () => {
+    const h = harness();
+    h.store.create("a");
+    // cmd+Backspace is not punctuation, but prove a modifier combo never gets deferred.
+    expect(
+      h.made[0].pressKey(keydown({ key: "Backspace", metaKey: true })),
+    ).toBe(false);
+    expect(h.api.write).toHaveBeenCalledWith("a", "\x15"); // Ctrl-U, not a deferral
   });
 });
 
