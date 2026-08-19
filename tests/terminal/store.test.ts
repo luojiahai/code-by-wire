@@ -566,6 +566,48 @@ describe("IME composition", () => {
   });
 });
 
+describe("IME punctuation substitution (issue #439)", () => {
+  // A third-party CJK IME rewrites `\` to `、` with NO composition: the keydown reports the
+  // physical key and only the keypress carries the converted character. xterm's keydown path would
+  // send the physical `\` and cancel the event, killing that keypress — so the handler steps aside.
+  it("declines a punctuation keydown so xterm's keypress handler can emit the real character", () => {
+    const h = harness();
+    h.store.create("a");
+    const evt = keydown({ key: "\\" });
+    expect(h.made[0].pressKey(evt)).toBe(false); // xterm must not emit the physical key
+    // preventDefault is a vi.fn() mock on the event; asserting on the reference is intentional.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(evt.preventDefault).not.toHaveBeenCalled(); // cancelling would suppress the keypress
+    expect(h.api.write).not.toHaveBeenCalled(); // we send nothing ourselves
+  });
+
+  it("passes the keypress through — that event carries the converted character", () => {
+    const h = harness();
+    h.store.create("a");
+    const press = {
+      ...keydown({ key: "\\" }),
+      type: "keypress",
+    } as unknown as KeyboardEvent;
+    expect(h.made[0].pressKey(press)).toBe(true); // xterm's _keyPress emits it
+  });
+
+  it("leaves letters on xterm's keydown path", () => {
+    const h = harness();
+    h.store.create("a");
+    expect(h.made[0].pressKey(keydown({ key: "a" }))).toBe(true);
+  });
+
+  it("still lets the mac editing combos win over the punctuation deferral", () => {
+    const h = harness();
+    h.store.create("a");
+    // cmd+Backspace is not punctuation, but prove a modifier combo never gets deferred.
+    expect(
+      h.made[0].pressKey(keydown({ key: "Backspace", metaKey: true })),
+    ).toBe(false);
+    expect(h.api.write).toHaveBeenCalledWith("a", "\x15"); // Ctrl-U, not a deferral
+  });
+});
+
 describe("clipboard keybindings (windows — the platforms where xterm swallowed Ctrl+C/V)", () => {
   it("Ctrl+V pastes clipboard text through xterm instead of sending ^V", async () => {
     const h = harness("windows");

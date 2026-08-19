@@ -8,6 +8,7 @@ import type { OsKind } from "@shared/platform";
 import { tNow } from "../i18n";
 import { editSequence } from "./key-bindings";
 import { clipboardKeyAction } from "../xterm/clipboard-keys";
+import { deferToKeypress } from "../xterm/ime-punctuation";
 import {
   attachClipboardContextMenu,
   runClipboardAction,
@@ -241,7 +242,12 @@ export function createTerminalStore({
           return false; // we own the combo; xterm must not also emit its ^V/^C byte
         }
         const seq = editSequence(e, isMac);
-        if (seq === null) return true; // not ours — plain keys, etc.
+        if (seq === null) {
+          // Punctuation a CJK IME may rewrite: let xterm's keypress handler emit the converted
+          // character instead of the physical key (see ime-punctuation). No preventDefault — the
+          // keypress must still fire.
+          return !deferToKeypress(e);
+        }
         e.preventDefault();
         api.write(handle.id, seq);
         return false; // we sent the bytes; stop xterm emitting its own sequence

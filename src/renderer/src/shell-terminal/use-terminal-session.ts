@@ -22,6 +22,7 @@ import {
 import { shellRouter } from "./router-instance";
 import { macEditSequence } from "../ui/mac-edit-sequence";
 import { clipboardKeyAction } from "../xterm/clipboard-keys";
+import { deferToKeypress } from "../xterm/ime-punctuation";
 import {
   attachClipboardContextMenu,
   runClipboardAction,
@@ -365,6 +366,10 @@ export function useTerminalSession({
         void runClipboardAction(action, clipDeps); // never rejects
         return false; // we own the combo; xterm must not also emit its ^V/^C byte
       }
+      // Punctuation a CJK IME may rewrite: let xterm's keypress handler emit the converted
+      // character instead of the physical key (see ime-punctuation). No preventDefault — the
+      // keypress must still fire.
+      if (deferToKeypress(e)) return false;
       if (os !== "mac") return true;
       const seq = macEditSequence(e);
       if (seq === null) return true; // not ours — plain keys, etc.
