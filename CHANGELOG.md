@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.49] - 2026-08-19
+
+### Fixed
+
+- A very large transcript no longer takes the app down or leaves a blank
+  pane behind. A rollout past the ~512MB ceiling on a JS string cannot be
+  read whole, and in Electron's main process that overflow is an
+  uncatchable process abort rather than a throw — a 1.4GB Codex rollout
+  killed the packaged app seconds into launch, and `pnpm dev` on every
+  run. Every whole-file read that can be handed an arbitrary transcript
+  path — both analytics scanners, the Codex telemetry cache reached from
+  session sync, `readTranscript` and `getToolResult` — now checks the size
+  first and degrades per file: the scanners record the file's mtime so it
+  stops being pending and the pass can still settle, retrying only if it
+  ever shrinks, and opening such a session reports it as absent so the
+  transcript panel shows its empty state instead of a permanently blank
+  pane re-polling every 1.5s. An oversized session's turns don't land in
+  analytics; reading them in bounded chunks is follow-up work.
+- Punctuation converted by a Chinese IME now reaches the terminal as the
+  converted character instead of the physical key — typing `、` no longer
+  sends `\`. Both terminals decline keystrokes for the whole composition
+  window, so xterm can't finalize a live composition early and emit the
+  raw key, and they decline unmodified ASCII punctuation on keydown so the
+  keypress that carries the converted character still fires. Plain letters
+  and punctuation still arrive exactly once, and Ctrl+C still sends
+  SIGINT.
+
 ## [0.1.48] - 2026-08-04
 
 ### Changed
@@ -1188,7 +1215,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   served from an embedded SQLite index.
 - Unsigned `.dmg` published to GitHub Releases.
 
-[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.48...HEAD
+[Unreleased]: https://github.com/luojiahai/code-by-wire/compare/v0.1.49...HEAD
+[0.1.49]: https://github.com/luojiahai/code-by-wire/compare/v0.1.48...v0.1.49
 [0.1.48]: https://github.com/luojiahai/code-by-wire/compare/v0.1.47...v0.1.48
 [0.1.47]: https://github.com/luojiahai/code-by-wire/compare/v0.1.46...v0.1.47
 [0.1.46]: https://github.com/luojiahai/code-by-wire/compare/v0.1.45...v0.1.46
