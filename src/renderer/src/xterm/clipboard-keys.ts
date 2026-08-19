@@ -28,7 +28,8 @@ export function clipboardKeyAction(
   hasSelection: boolean,
 ): ClipboardKeyAction | null {
   if (e.type !== "keydown") return null;
-  // Mid-composition (CJK/dead-key): the keystroke belongs to xterm's IME handler.
+  // Mid-composition (CJK/dead-key): never a clipboard combo. Both terminal key handlers already
+  // swallow the whole composition window before reaching us; this keeps the contract standalone.
   if (e.isComposing) return null;
   if (os === "mac") return null;
   // metaKey never participates; altKey excluded because AltGr = Ctrl+Alt on European Windows

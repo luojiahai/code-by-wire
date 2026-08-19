@@ -19,7 +19,7 @@ import { macEditSequence, type EditKey } from "../ui/mac-edit-sequence";
 export function editSequence(e: EditKey, isMac: boolean): string | null {
   if (
     e.type === "keydown" &&
-    !e.isComposing && // mid-IME: let xterm's composition handler own the key
+    !e.isComposing && // mid-IME: never a remap — the callers swallow that window, this stands alone
     e.shiftKey &&
     e.key === "Enter" &&
     !e.metaKey &&

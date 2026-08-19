@@ -229,6 +229,11 @@ export function createTerminalStore({
       // plus cmd/option + arrows and deletes → readline bytes on macOS. Reads handle.id so
       // input still follows a /clear rename.
       handle.term.attachCustomKeyEventHandler((e) => {
+        // Mid-IME (CJK/dead-key): swallow the whole composition window. xterm's CompositionHelper
+        // finalizes a live composition on any keydown whose keyCode isn't 229 and then emits the RAW
+        // key, so a Chinese IME substituting `\` for `、` would send `\` to the pty. Returning false
+        // keeps xterm out of it entirely; the IME's own compositionend commits the real text.
+        if (e.isComposing) return false;
         const action = clipboardKeyAction(e, os, handle.term.hasSelection());
         if (action !== null) {
           e.preventDefault();
