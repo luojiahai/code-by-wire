@@ -287,8 +287,10 @@ export function createCodexProvider(
         return { status: "unchanged", mtimeMs };
       // Too big to turn into a string: the read below aborts the process outright rather than
       // throwing (see MAX_TEXT_FILE_BYTES), so opening one runaway rollout would take the app down.
-      // Report it as a read failure and let the panel surface that instead.
-      if (size > MAX_TEXT_FILE_BYTES) return { status: "error" };
+      // Settled as `absent`, not `error`: `error` is the TRANSIENT contract (keep the last value and
+      // retry), and this condition never resolves on its own — with no last value to keep, the panel
+      // would hold blank forever while re-polling. `absent` reaches the empty state on the first read.
+      if (size > MAX_TEXT_FILE_BYTES) return { status: "absent" };
       let text: string;
       try {
         text = readFileSync(path, "utf8");

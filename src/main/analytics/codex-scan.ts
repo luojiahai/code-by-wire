@@ -126,7 +126,7 @@ export function scanCodexStep(
 
   for (const target of pending) {
     // Checked before the read, not after: an oversized whole-file read aborts the process outright
-    // (see MAX_SCAN_FILE_BYTES). Unlike the Claude scanner this loop has no per-file line budget —
+    // (see MAX_TEXT_FILE_BYTES). Unlike the Claude scanner this loop has no per-file line budget —
     // the `completeLines > remaining` guard below runs only after the file is already in memory —
     // so the very first pending rollout is read in full however large it is.
     if (isOversizedTextFile(target.path, maxFileBytes)) {
