@@ -350,4 +350,37 @@ describe("freshTargets (walk cache)", () => {
     expect(c.atMs).toBe(1500);
     expect(c.targets).not.toBe(a.targets);
   });
+
+  // Companion to the Codex scanner's guard: the same whole-file utf8 read lives here, and past V8's
+  // string cap it aborts Electron's main process (SIGTRAP) rather than throwing something catchable.
+  it("skips a transcript too large to read whole instead of reading it", () => {
+    const home = makeHome();
+    writeTurns(home, "-a", "s1", [{ id: "a1", input: 7 }], MT);
+    const db = openTestDb();
+    migrateAnalytics(db);
+
+    // A byte cap far below the fixture stands in for the real 512MB cap.
+    const progress = scanStep(db, home, 1_000_000, collectScanTargets(home), 8);
+
+    expect(readTotals(db).turns).toBe(0);
+    // Recorded anyway, so it stops being pending and `done` can settle.
+    expect(progress).toMatchObject({ done: true, wrote: false });
+    expect(readProcessedFiles(db).size).toBe(1);
+  });
+
+  it("still ingests a transcript that fits under the byte cap", () => {
+    const home = makeHome();
+    writeTurns(home, "-a", "s1", [{ id: "a1", input: 7 }], MT);
+    const db = openTestDb();
+    migrateAnalytics(db);
+    const progress = scanStep(
+      db,
+      home,
+      1_000_000,
+      collectScanTargets(home),
+      1_000_000,
+    );
+    expect(readTotals(db).turns).toBe(1);
+    expect(progress).toMatchObject({ done: true, wrote: true });
+  });
 });

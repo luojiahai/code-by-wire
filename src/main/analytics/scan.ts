@@ -25,6 +25,28 @@ const PARTIAL_MTIME = -1;
  *  pathologically large append is split by. */
 const DEFAULT_MAX_LINES = 5000;
 
+/** The largest file the scanners will read whole. V8 refuses to build a string longer than
+ *  0x1fffffe8 chars, and a utf8 read yields at most one char per byte — so a file past this many
+ *  bytes cannot be turned into a string. Plain Node reports that as a catchable ERR_STRING_TOO_LONG,
+ *  but inside Electron's main process the same overflow is a hard process abort (SIGTRAP) that no
+ *  try/catch can intercept — it killed the app ~2.5s into launch on the first poll that reached a
+ *  1.4GB Codex rollout. So the size is checked BEFORE the read, never recovered from after it. */
+export const MAX_SCAN_FILE_BYTES = 0x1fffffe8;
+
+/** Whether reading `path` whole could overflow V8's string cap. A file that vanished or can't be
+ *  stat'd is not "oversized": the read then fails on its own and takes the existing unreadable path,
+ *  which already records the mtime and moves on. */
+export function isOversizedScanFile(
+  path: string,
+  maxBytes: number = MAX_SCAN_FILE_BYTES,
+): boolean {
+  try {
+    return statSync(path).size > maxBytes;
+  } catch {
+    return false;
+  }
+}
+
 /** One file the analytics scan ingests: a parent Transcript or one of its subagent files. `keyPrefix`
  *  seeds id-less turns' surrogate keys; a subagent passes its own so an id-less subagent turn can't
  *  collide with an id-less parent turn that shares the session. */
@@ -118,6 +140,7 @@ export function scanStep(
   claudeDir: string,
   maxLines: number = DEFAULT_MAX_LINES,
   targets: ScanTarget[] = collectScanTargets(claudeDir),
+  maxFileBytes: number = MAX_SCAN_FILE_BYTES,
 ): ScanProgress & { wrote: boolean } {
   const stored = readProcessedFiles(db);
   const pending = targets
@@ -134,6 +157,19 @@ export function scanStep(
   let budget = maxLines;
   for (const t of pending) {
     if (budget <= 0) break;
+    // Too big to turn into a string: reading it would abort the whole process, so treat it exactly
+    // like an unreadable file — record its mtime so it stops being pending and `done` can settle,
+    // and retry only if it ever shrinks below the cap.
+    if (isOversizedScanFile(t.path, maxFileBytes)) {
+      upsertProcessedFile(
+        db,
+        t.path,
+        t.mtimeMs,
+        stored.get(t.path)?.lines ?? 0,
+      );
+      filesDone++;
+      continue;
+    }
     let content: string;
     try {
       content = readFileSync(t.path, "utf8");
