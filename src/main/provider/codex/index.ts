@@ -16,6 +16,7 @@ import { listRollouts, readRolloutHead, type RolloutHead } from "./rollout";
 import { parseRolloutEvents } from "./transcript-events";
 import { extractToolResult } from "./tool-result";
 import { createScanCache } from "../../util/scan-cache";
+import { MAX_TEXT_FILE_BYTES, isOversizedTextFile } from "../../util/file-size";
 import {
   codexContextPct,
   scanRolloutTelemetry,
@@ -274,13 +275,22 @@ export function createCodexProvider(
       const path = rolloutPathFor(id);
       if (!path) return { status: "absent" };
       let mtimeMs: number;
+      let size: number;
       try {
-        mtimeMs = statSync(path).mtimeMs;
+        const st = statSync(path);
+        mtimeMs = st.mtimeMs;
+        size = st.size;
       } catch {
         return { status: "absent" }; // vanished between resolve and stat
       }
       if (sinceMtimeMs !== undefined && mtimeMs === sinceMtimeMs)
         return { status: "unchanged", mtimeMs };
+      // Too big to turn into a string: the read below aborts the process outright rather than
+      // throwing (see MAX_TEXT_FILE_BYTES), so opening one runaway rollout would take the app down.
+      // Settled as `absent`, not `error`: `error` is the TRANSIENT contract (keep the last value and
+      // retry), and this condition never resolves on its own — with no last value to keep, the panel
+      // would hold blank forever while re-polling. `absent` reaches the empty state on the first read.
+      if (size > MAX_TEXT_FILE_BYTES) return { status: "absent" };
       let text: string;
       try {
         text = readFileSync(path, "utf8");
@@ -298,6 +308,8 @@ export function createCodexProvider(
     getToolResult: (id, toolUseId) => {
       const path = rolloutPathFor(id);
       if (!path) return { found: false };
+      // Same process-aborting whole-file read as readTranscript above.
+      if (isOversizedTextFile(path)) return { found: false };
       try {
         return extractToolResult(readFileSync(path, "utf8"), toolUseId);
       } catch {

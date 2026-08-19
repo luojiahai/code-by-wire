@@ -61,4 +61,26 @@ describe("createScanCache", () => {
     writeFileSync(file, "now");
     expect(cache.read(file)).toBe("now");
   });
+
+  // Regression: this read reached a 1.4GB Codex rollout via the codex provider's telemetry cache and
+  // killed the app. Past V8's string cap the read aborts the process (SIGTRAP) instead of throwing,
+  // so the try/catch below it never runs — the size has to gate the read.
+  it("returns null for a file too large to read whole, without parsing it", () => {
+    const file = join(dir, "huge.jsonl");
+    writeFileSync(file, "way past the cap");
+    let parses = 0;
+    const cache = createScanCache((text) => {
+      parses++;
+      return text;
+    }, 4); // stands in for the real 512MB cap
+    expect(cache.read(file)).toBeNull();
+    expect(parses).toBe(0);
+  });
+
+  it("still parses a file that fits under the cap", () => {
+    const file = join(dir, "small.jsonl");
+    writeFileSync(file, "ok");
+    const cache = createScanCache((text) => text.toUpperCase(), 1_000_000);
+    expect(cache.read(file)).toBe("OK");
+  });
 });

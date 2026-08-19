@@ -6,7 +6,11 @@ import {
   extractCodexTurns,
   scanCodexStep,
 } from "../../src/main/analytics/codex-scan";
-import { migrateAnalytics, readTotals } from "../../src/main/db/analytics";
+import {
+  migrateAnalytics,
+  readProcessedFiles,
+  readTotals,
+} from "../../src/main/db/analytics";
 import { openTestDb } from "../helpers/sqlite";
 import { tempHomes } from "../helpers/temp-home";
 
@@ -155,5 +159,57 @@ describe("Codex analytics scan", () => {
       cacheReadTokens: 10,
       outputTokens: 5,
     });
+  });
+
+  // Regression: a 1.4GB Codex rollout crashed the packaged app ~2.5s into launch. This loop reads each
+  // pending file whole BEFORE its `completeLines > remaining` budget check, so the first pending
+  // rollout is read at any size — and a utf8 read past V8's string cap aborts Electron's main process
+  // outright (SIGTRAP), which the surrounding try/catch cannot intercept.
+  it("skips a rollout too large to read whole instead of reading it", () => {
+    const home = makeHome();
+    const db = openTestDb();
+    migrateAnalytics(db);
+    const path = rollout(
+      home,
+      [
+        line({ type: "session_meta", payload: { id: ID, cwd: "/work/app" } }),
+        context("gpt-5.3-codex"),
+        token("2026-07-22T09:00:10.000Z", 1000, 600, 100, 20),
+      ].join("\n"),
+    );
+    const targets = collectCodexScanTargets(home);
+    expect(targets).toHaveLength(1);
+
+    // A byte cap far below the fixture stands in for the real 512MB cap.
+    const progress = scanCodexStep(db, home, 5000, targets, 8);
+
+    // Skipped, not read: no turns ingested...
+    expect(readTotals(db, undefined, "codex").turns).toBe(0);
+    // ...but recorded, so it stops being pending and the scan can still settle `done`.
+    expect(progress).toMatchObject({ filesDone: 1, done: true, wrote: false });
+    expect(readProcessedFiles(db).get(path)?.mtime).toBeGreaterThan(0);
+  });
+
+  it("still ingests a rollout that fits under the byte cap", () => {
+    const home = makeHome();
+    const db = openTestDb();
+    migrateAnalytics(db);
+    rollout(
+      home,
+      [
+        line({ type: "session_meta", payload: { id: ID, cwd: "/work/app" } }),
+        context("gpt-5.3-codex"),
+        token("2026-07-22T09:00:10.000Z", 1000, 600, 100, 20),
+      ].join("\n"),
+    );
+    const progress = scanCodexStep(
+      db,
+      home,
+      5000,
+      collectCodexScanTargets(home),
+      1_000_000,
+    );
+    expect(readTotals(db, undefined, "codex").turns).toBe(1);
+    expect(progress).toMatchObject({ done: true, wrote: true });
   });
 });

@@ -1,4 +1,5 @@
 import { readFileSync, statSync } from "node:fs";
+import { MAX_TEXT_FILE_BYTES, isOversizedTextFile } from "../util/file-size";
 import { transaction, type SqliteDb } from "../db/driver";
 import {
   upsertTurns,
@@ -118,6 +119,7 @@ export function scanStep(
   claudeDir: string,
   maxLines: number = DEFAULT_MAX_LINES,
   targets: ScanTarget[] = collectScanTargets(claudeDir),
+  maxFileBytes: number = MAX_TEXT_FILE_BYTES,
 ): ScanProgress & { wrote: boolean } {
   const stored = readProcessedFiles(db);
   const pending = targets
@@ -134,6 +136,19 @@ export function scanStep(
   let budget = maxLines;
   for (const t of pending) {
     if (budget <= 0) break;
+    // Too big to turn into a string: reading it would abort the whole process, so treat it exactly
+    // like an unreadable file — record its mtime so it stops being pending and `done` can settle,
+    // and retry only if it ever shrinks below the cap.
+    if (isOversizedTextFile(t.path, maxFileBytes)) {
+      upsertProcessedFile(
+        db,
+        t.path,
+        t.mtimeMs,
+        stored.get(t.path)?.lines ?? 0,
+      );
+      filesDone++;
+      continue;
+    }
     let content: string;
     try {
       content = readFileSync(t.path, "utf8");
