@@ -20,11 +20,8 @@ import {
   totalsAreZero,
   totalsToUsage,
 } from "../provider/codex/token-math";
-import {
-  MAX_SCAN_FILE_BYTES,
-  isOversizedScanFile,
-  type ScanTarget,
-} from "./scan";
+import type { ScanTarget } from "./scan";
+import { MAX_TEXT_FILE_BYTES, isOversizedTextFile } from "../util/file-size";
 
 const DEFAULT_MAX_LINES = 5000;
 
@@ -116,7 +113,7 @@ export function scanCodexStep(
   codexDir: string,
   maxLines: number = DEFAULT_MAX_LINES,
   targets: ScanTarget[] = collectCodexScanTargets(codexDir),
-  maxFileBytes: number = MAX_SCAN_FILE_BYTES,
+  maxFileBytes: number = MAX_TEXT_FILE_BYTES,
 ): ScanProgress & { wrote: boolean } {
   const stored = readProcessedFiles(db);
   const pending = targets
@@ -132,7 +129,7 @@ export function scanCodexStep(
     // (see MAX_SCAN_FILE_BYTES). Unlike the Claude scanner this loop has no per-file line budget —
     // the `completeLines > remaining` guard below runs only after the file is already in memory —
     // so the very first pending rollout is read in full however large it is.
-    if (isOversizedScanFile(target.path, maxFileBytes)) {
+    if (isOversizedTextFile(target.path, maxFileBytes)) {
       upsertProcessedFile(
         db,
         target.path,
