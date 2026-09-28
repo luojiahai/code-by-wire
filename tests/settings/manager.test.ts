@@ -19,7 +19,7 @@ import { tempHomes } from "../helpers/temp-home";
 
 const makeWinHome = tempHomes("cbw-mgr-win-");
 
-const NOW = 1781000000000; // fixed clock (ms) for deterministic backup timestamps
+const NOW = 1781000000000; // fixed clock (ms) for deterministic install timestamps
 
 const makeHome = tempHomes("cbw-settings-");
 
@@ -85,42 +85,6 @@ describe("install — clean (AC #2)", () => {
   });
 });
 
-describe("install — backup before modification (AC #3)", () => {
-  it("writes a timestamped backup whose bytes equal the original, before modifying", () => {
-    const home = makeHome();
-    // Deliberately non-canonical (single-line, no trailing newline) so this can't pass against a backup
-    // taken from the reserialized in-memory settings instead of the raw pre-install bytes.
-    const original = '{"theme":"dark"}';
-    writeFileSync(settingsPath(home), original);
-    const mgr = createSettingsManager({
-      claudeDir: home,
-      now: () => NOW,
-      platform: "linux",
-    });
-
-    const { backupPath } = mgr.install();
-
-    expect(backupPath).not.toBeNull();
-    expect(backupPath!.endsWith(".bak")).toBe(true);
-    expect(backupPath!.startsWith(home)).toBe(true); // next to settings.json, easy to find by hand
-    expect(readFileSync(backupPath!, "utf8")).toBe(original); // exact pre-install bytes, formatting and all
-  });
-
-  it("writes no backup when there was no settings.json to back up", () => {
-    const home = makeHome();
-    const mgr = createSettingsManager({
-      claudeDir: home,
-      now: () => NOW,
-      platform: "linux",
-    });
-
-    const { backupPath } = mgr.install();
-
-    expect(backupPath).toBeNull();
-    expect(readdirSync(home).filter((f) => f.endsWith(".bak"))).toHaveLength(0);
-  });
-});
-
 describe("install — wrap an existing statusLine (AC #1)", () => {
   it("records the original command in state.json and reports it wrapped, not clobbered", () => {
     const home = makeHome();
@@ -157,7 +121,6 @@ describe("install — wrap an existing statusLine (AC #1)", () => {
     const state = readState(home);
     expect(state.wrappedCommand).toBe("my-prompt --color");
     expect(state.originalAbsent).toBe(false);
-    expect(state.backupPath).toBe(result.backupPath);
     expect(result.wrappedExisting).toBe(true);
   });
 
@@ -174,75 +137,307 @@ describe("install — wrap an existing statusLine (AC #1)", () => {
     const state = readState(home);
     expect(state.originalAbsent).toBe(true);
     expect(state.wrappedCommand).toBeNull();
-    expect(state.backupPath).toBeNull();
   });
 });
 
-describe("uninstall — restore byte-for-byte (AC #4)", () => {
-  it("restores arbitrary original bytes exactly (4-space indent, no trailing newline, existing statusLine)", () => {
-    const home = makeHome();
-    // Deliberately not our canonical format: byte-for-byte must hold regardless of formatting.
-    const original =
-      '{\n    "theme": "dark",\n    "statusLine": {"type":"command","command":"my-prompt","padding":2}\n}';
-    writeFileSync(settingsPath(home), original);
-    const mgr = createSettingsManager({
+describe("uninstall — removes only its own statusLine", () => {
+  const linuxMgr = (home: string) =>
+    createSettingsManager({
       claudeDir: home,
       now: () => NOW,
       platform: "linux",
     });
+  const edit = (home: string, fn: (s: Record<string, unknown>) => void) => {
+    const s = readJson(home);
+    fn(s);
+    writeFileSync(settingsPath(home), JSON.stringify(s, null, 2));
+  };
 
-    const { backupPath } = mgr.install();
-    expect(readRaw(home)).not.toBe(original); // proves install actually changed the file
-    mgr.uninstall();
-
-    expect(readRaw(home)).toBe(original); // byte-for-byte
-    expect(mgr.isInstalled()).toBe(false);
-    expect(existsSync(backupPath!)).toBe(true); // backups are kept as an audit/recovery trail
-  });
-
-  it('restores "no settings.json" by deleting the file install created', () => {
-    const home = makeHome();
-    const mgr = createSettingsManager({
-      claudeDir: home,
-      now: () => NOW,
-      platform: "linux",
-    });
-
-    mgr.install();
-    expect(existsSync(settingsPath(home))).toBe(true);
-    mgr.uninstall();
-
-    expect(existsSync(settingsPath(home))).toBe(false);
-    expect(mgr.isInstalled()).toBe(false);
-  });
-
-  it("throws rather than silently leaving wrapped settings when the backup is gone", () => {
+  it("keeps edits made after install and restores the original statusLine", () => {
     const home = makeHome();
     writeFileSync(
       settingsPath(home),
       JSON.stringify(
-        { statusLine: { type: "command", command: "mine" } },
+        {
+          model: "sonnet",
+          statusLine: { type: "command", command: "my-prompt", padding: 2 },
+          theme: "dark",
+        },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+
+    edit(home, (s) => {
+      s.model = "opus";
+      s.hooks = { Stop: [{ hooks: [{ type: "command", command: "notify" }] }] };
+      s.enabledPlugins = { "aileron@aileron": true };
+    });
+
+    mgr.uninstall();
+
+    const after = readJson(home);
+    expect(after).toEqual({
+      model: "opus",
+      statusLine: { type: "command", command: "my-prompt", padding: 2 },
+      theme: "dark",
+      hooks: { Stop: [{ hooks: [{ type: "command", command: "notify" }] }] },
+      enabledPlugins: { "aileron@aileron": true },
+    });
+    expect(Object.keys(after)).toEqual([
+      "model",
+      "statusLine",
+      "theme",
+      "hooks",
+      "enabledPlugins",
+    ]);
+    expect(mgr.isInstalled()).toBe(false);
+  });
+
+  it("keeps extras tuned on the wrapped block while installed", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    mgr.setRefreshInterval(5);
+
+    mgr.uninstall();
+
+    expect(readJson(home).statusLine).toEqual({
+      type: "command",
+      command: "my-prompt",
+      refreshInterval: 5,
+    });
+  });
+
+  it("removes the statusLine key when there was no original, keeping later edits", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify({ theme: "dark" }, null, 2),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    edit(home, (s) => {
+      s.model = "opus";
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home)).toEqual({ theme: "dark", model: "opus" });
+  });
+
+  it("deletes a file it created when our statusLine was its only key", () => {
+    const home = makeHome();
+    const mgr = linuxMgr(home);
+    mgr.install();
+
+    mgr.uninstall();
+
+    expect(existsSync(settingsPath(home))).toBe(false);
+  });
+
+  it("keeps a file it created once other keys were added to it", () => {
+    const home = makeHome();
+    const mgr = linuxMgr(home);
+    mgr.install();
+    edit(home, (s) => {
+      s.model = "opus";
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home)).toEqual({ model: "opus" });
+  });
+
+  it("leaves a foreign statusLine that replaced ours untouched", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    const foreign = { type: "command", command: "ccstatusline", padding: 0 };
+    edit(home, (s) => {
+      s.statusLine = foreign;
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home).statusLine).toEqual(foreign);
+  });
+
+  it("restores a statusLine that an external tool stripped, from the record", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        {
+          statusLine: {
+            type: "command",
+            command: "my-prompt",
+            refreshInterval: 10,
+          },
+          theme: "dark",
+        },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    edit(home, (s) => {
+      delete s.statusLine;
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home)).toEqual({
+      theme: "dark",
+      statusLine: {
+        type: "command",
+        command: "my-prompt",
+        refreshInterval: 10,
+      },
+    });
+  });
+
+  it("does not recreate a settings.json deleted while installed", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    rmSync(settingsPath(home));
+
+    mgr.uninstall();
+
+    expect(existsSync(settingsPath(home))).toBe(false);
+    expect(existsSync(join(home, ".code-by-wire", "state.json"))).toBe(false);
+  });
+
+  it("throws without writing when settings.json turned invalid while installed", () => {
+    const home = makeHome();
+    const mgr = linuxMgr(home);
+    mgr.install();
+    writeFileSync(settingsPath(home), "{ not valid json");
+
+    expect(() => mgr.uninstall()).toThrow(/not valid JSON/);
+    expect(readRaw(home)).toBe("{ not valid json");
+    expect(existsSync(join(home, ".code-by-wire", "state.json"))).toBe(true);
+  });
+
+  it("install writes no .bak file", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify({ theme: "dark" }, null, 2),
+    );
+    const mgr = linuxMgr(home);
+
+    mgr.install();
+
+    expect(readdirSync(home).filter((f) => f.endsWith(".bak"))).toHaveLength(0);
+    expect("backupPath" in readState(home)).toBe(false);
+  });
+
+  it("uninstalls a legacy record with a backupPath and deletes that backup", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    const legacyBackup = join(
+      home,
+      "settings.json.2026-01-01T00-00-00-000Z.bak",
+    );
+    const otherBackup = join(
+      home,
+      "settings.json.2025-01-01T00-00-00-000Z.bak",
+    );
+    const stale = JSON.stringify({
+      statusLine: { type: "command", command: "my-prompt" },
+    });
+    writeFileSync(legacyBackup, stale);
+    writeFileSync(otherBackup, stale);
+    const statePath = join(home, ".code-by-wire", "state.json");
+    writeFileSync(
+      statePath,
+      JSON.stringify({ ...readState(home), backupPath: legacyBackup }, null, 2),
+    );
+    edit(home, (s) => {
+      s.model = "opus";
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home)).toEqual({
+      statusLine: { type: "command", command: "my-prompt" },
+      model: "opus",
+    });
+    expect(existsSync(legacyBackup)).toBe(false);
+    expect(existsSync(otherBackup)).toBe(true);
+    expect(existsSync(statePath)).toBe(false);
+  });
+
+  it("restores the original on win32, where the command is the powershell .ps1 form", () => {
+    const dir = makeWinHome();
+    writeFileSync(
+      settingsPath(dir),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
         null,
         2,
       ),
     );
     const mgr = createSettingsManager({
-      claudeDir: home,
+      claudeDir: dir,
       now: () => NOW,
-      platform: "linux",
+      platform: "win32",
+    });
+    mgr.install();
+    expect(readJson(dir).statusLine.command).toMatch(/^powershell .*\.ps1"$/);
+    edit(dir, (s) => {
+      s.model = "opus";
     });
 
-    const { backupPath } = mgr.install();
-    rmSync(backupPath!); // the backup vanishes
+    mgr.uninstall();
 
-    expect(() => mgr.uninstall()).toThrow(/backup missing/);
-    expect(mgr.isInstalled()).toBe(true); // still wrapped — we did NOT silently clear it
-    expect(existsSync(join(home, ".code-by-wire", "state.json"))).toBe(true); // record kept so a retry can restore
+    expect(readJson(dir)).toEqual({
+      statusLine: { type: "command", command: "my-prompt" },
+      model: "opus",
+    });
   });
 });
 
 describe("trust-safety", () => {
-  it("install is idempotent: a second install neither re-wraps nor writes a second backup", () => {
+  it("install is idempotent: a second install does not re-wrap", () => {
     const home = makeHome();
     const original =
       JSON.stringify(
@@ -260,16 +455,14 @@ describe("trust-safety", () => {
       platform: "linux",
     });
 
-    const first = mgr.install();
+    mgr.install();
     const second = mgr.install(); // must be a no-op
 
-    expect(readdirSync(home).filter((f) => f.endsWith(".bak"))).toHaveLength(1); // no second backup
     expect(readState(home).wrappedCommand).toBe("my-prompt"); // still the user's, not our own command
     expect(second.wrappedExisting).toBe(true);
-    expect(second.backupPath).toBe(first.backupPath);
 
     mgr.uninstall();
-    expect(readRaw(home)).toBe(original); // round-trip still pristine
+    expect(readJson(home)).toEqual(JSON.parse(original)); // round-trip restores the original
   });
 
   it("refuses to touch a malformed settings.json (parse before any write)", () => {
@@ -285,7 +478,6 @@ describe("trust-safety", () => {
     expect(() => mgr.install()).toThrow();
     expect(readRaw(home)).toBe(malformed); // untouched
     expect(existsSync(join(home, ".code-by-wire", "state.json"))).toBe(false); // no state written
-    expect(readdirSync(home).filter((f) => f.endsWith(".bak"))).toHaveLength(0); // no backup written
   });
 
   it("uninstall is a no-op when nothing was installed", () => {
@@ -404,10 +596,6 @@ describe("trust-safety — desync between settings.json and state.json", () => {
 
     // state.json is rebuilt with the original command recovered from the wrapper, not our own wrapper path.
     expect(readState(home).wrappedCommand).toBe("mine");
-    // ...and the new backup holds the reconstructed original, so uninstall can still restore it.
-    expect(
-      JSON.parse(readFileSync(healed.backupPath!, "utf8")).statusLine.command,
-    ).toBe("mine");
 
     mgr.uninstall();
     expect(readJson(home).statusLine.command).toBe("mine");
@@ -452,10 +640,6 @@ describe("trust-safety — desync between settings.json and state.json", () => {
     ).toContain("| mine");
     // …the stripped file's other keys survive…
     expect(readJson(home).theme).toBe("dark");
-    // …and the new backup holds the reconstructed original, so uninstall restores the user's prompt.
-    expect(
-      JSON.parse(readFileSync(healed.backupPath!, "utf8")).statusLine.command,
-    ).toBe("mine");
     mgr.uninstall();
     expect(readJson(home).statusLine.command).toBe("mine");
   });
@@ -576,7 +760,6 @@ describe("trust-safety — valid-but-non-object settings.json", () => {
     expect(() => mgr.install()).toThrow(/not a JSON object/i);
     expect(readRaw(home)).toBe("[]"); // untouched
     expect(existsSync(join(home, ".code-by-wire", "state.json"))).toBe(false); // no state written
-    expect(readdirSync(home).filter((f) => f.endsWith(".bak"))).toHaveLength(0); // no backup written
   });
 
   it("refuses a settings.json that is the literal null, with a clear error not a raw TypeError", () => {
@@ -590,31 +773,6 @@ describe("trust-safety — valid-but-non-object settings.json", () => {
 
     expect(() => mgr.install()).toThrow(/not a JSON object/i);
     expect(readRaw(home)).toBe("null"); // untouched
-  });
-});
-
-describe("trust-safety — reinstall after uninstall (backup collision)", () => {
-  it("does not collide on the backup filename when the clock has not advanced", () => {
-    const home = makeHome();
-    const original =
-      JSON.stringify(
-        { statusLine: { type: "command", command: "mine" } },
-        null,
-        2,
-      ) + "\n";
-    writeFileSync(settingsPath(home), original);
-    const mgr = createSettingsManager({
-      claudeDir: home,
-      now: () => NOW,
-      platform: "linux",
-    });
-
-    mgr.install();
-    mgr.uninstall(); // keeps the first backup as an audit trail
-    expect(() => mgr.install()).not.toThrow(); // same NOW must not throw EEXIST on the kept backup
-
-    expect(mgr.isInstalled()).toBe(true);
-    expect(readdirSync(home).filter((f) => f.endsWith(".bak"))).toHaveLength(2); // both backups kept, distinct names
   });
 });
 
@@ -674,11 +832,10 @@ describe.skipIf(process.platform === "win32")(
         platform: "linux",
       });
 
-      const { backupPath } = mgr.install();
+      mgr.install();
 
       const mask = 0o777;
-      expect(statSync(backupPath!).mode & mask).toBe(0o600); // backup must not widen a 0600 secret to 0644
-      expect(statSync(settingsPath(home)).mode & mask).toBe(0o600); // nor the live wrapped file
+      expect(statSync(settingsPath(home)).mode & mask).toBe(0o600); // the live wrapped file must not widen to 0644
 
       mgr.uninstall();
       expect(statSync(settingsPath(home)).mode & mask).toBe(0o600); // nor the restored file
@@ -731,7 +888,7 @@ describe("install — materializes the wrapper script (issue #11)", () => {
     expect(src).not.toMatch(/\| \S/); // no call-through pipe to any command
   });
 
-  it("re-install self-heals a deleted wrapper without minting a second backup", () => {
+  it("re-install self-heals a deleted wrapper", () => {
     const home = makeHome();
     writeFileSync(
       settingsPath(home),
@@ -752,7 +909,6 @@ describe("install — materializes the wrapper script (issue #11)", () => {
     mgr.install(); // already-wrapped path must rewrite it
 
     expect(existsSync(wrapperPath(home))).toBe(true);
-    expect(readdirSync(home).filter((f) => f.endsWith(".bak"))).toHaveLength(1);
   });
 
   it("uninstall removes the wrapper and the capture dir", () => {
@@ -1048,10 +1204,9 @@ describe("install — carries upstream statusLine extras through the wrap", () =
       padding: 2,
       refreshInterval: 10,
     });
-    // ...and the reconstructed backup carries them too, so uninstall restores the tuned original.
-    expect(
-      JSON.parse(readFileSync(healed.backupPath!, "utf8")).statusLine,
-    ).toEqual({
+    // ...and the record carries them too, so uninstall restores the tuned original.
+    mgr.uninstall();
+    expect(readJson(home).statusLine).toEqual({
       type: "command",
       command: "mine",
       padding: 2,
