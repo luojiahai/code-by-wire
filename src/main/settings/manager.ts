@@ -1,7 +1,5 @@
 import {
   chmodSync,
-  copyFileSync,
-  existsSync,
   lstatSync,
   mkdirSync,
   renameSync,
@@ -36,9 +34,9 @@ interface ClaudeSettings {
 /** Our record of an active install, kept out of the user's settings.json. Absent ⇒ not installed. */
 interface InstallState {
   installedAt: string;
-  /** The pristine backup to restore on uninstall; null when there was no settings.json to back up. */
-  backupPath: string | null;
-  /** settings.json did not exist before install; uninstall restores that by deleting it. */
+  /** Legacy: the whole-file backup older builds wrote at install. Uninstall deletes it; never written now. */
+  backupPath?: string | null;
+  /** settings.json did not exist before install; uninstall deletes it if our statusLine was its only key. */
   originalAbsent: boolean;
   /** The statusLine command we wrapped, for the wrapper script (issue #11) to call through to. */
   wrappedCommand: string | null;
@@ -53,7 +51,7 @@ interface InstallState {
 export interface SettingsManagerDeps {
   /** Claude config dir; defaults via resolveClaudeDir (CLAUDE_CONFIG_DIR, else ~/.claude). Tests inject a temp dir. */
   claudeDir?: string;
-  /** Wall clock (ms) for the backup timestamp; injected so tests are deterministic. */
+  /** Wall clock (ms) for the install timestamp; injected so tests are deterministic. */
   now?: () => number;
   /** Host platform; defaults to process.platform. Tests inject "win32" or "darwin" to exercise both paths. */
   platform?: NodeJS.Platform;
@@ -62,8 +60,6 @@ export interface SettingsManagerDeps {
 export interface InstallResult {
   /** True when an existing statusLine was wrapped; false on a clean first install. */
   wrappedExisting: boolean;
-  /** Absolute path of the timestamped backup, or null when there was no settings.json to back up. */
-  backupPath: string | null;
   /** True when this install self-healed a desync between settings.json and our record: a wrapped
    *  settings.json whose state.json had vanished (original recovered from the wrapper script), or a
    *  surviving state.json whose statusLine entry an external edit stripped (original recovered from
@@ -139,7 +135,9 @@ export function createSettingsManager(
     const s = v as Record<string, unknown>;
     return (
       typeof s.installedAt === "string" &&
-      (typeof s.backupPath === "string" || s.backupPath === null) &&
+      (typeof s.backupPath === "string" ||
+        s.backupPath === null ||
+        s.backupPath === undefined) &&
       typeof s.originalAbsent === "boolean" &&
       (typeof s.wrappedCommand === "string" || s.wrappedCommand === null) &&
       typeof s.wrappedExisting === "boolean" &&
@@ -190,17 +188,6 @@ export function createSettingsManager(
     }
   }
 
-  /** A backup path that does not already exist, so the kept-forever audit trail never collides — even on a
-   *  same-millisecond reinstall (the injected fixed test clock makes this the common case, not the rare one). */
-  function freeBackupPath(iso: string): string {
-    const stamp = iso.replace(/[:.]/g, "-");
-    let candidate = join(claudeDir, `settings.json.${stamp}.bak`);
-    for (let i = 1; existsSync(candidate); i++) {
-      candidate = join(claudeDir, `settings.json.${stamp}-${i}.bak`);
-    }
-    return candidate;
-  }
-
   /** Write via a temp file + rename so a crash or partial write can never leave a truncated settings.json /
    *  state.json on disk — the file flips from old to new atomically. Preserves an explicit mode when given.
    *  A symlinked target (settings.json linked into a dotfiles repo) is written THROUGH instead, since a
@@ -244,15 +231,14 @@ export function createSettingsManager(
     return parsed?.statusLine?.command === appCommand;
   }
 
-  /** Wrap a not-yet-wrapped settings.json from scratch: back it up byte-for-byte, materialize the wrapper,
-   *  record state.json, and point the statusLine at our wrapper. The single source of the wrap, reused by the
-   *  self-heal path with a reconstructed (raw, parsed) so a recovered original is backed up, not the wrapped
-   *  bytes. `raw === null` means there was no settings.json; uninstall restores that by deleting the file. */
+  /** Wrap a not-yet-wrapped settings.json from scratch: materialize the wrapper, record state.json, and point
+   *  the statusLine at our wrapper. The single source of the wrap, reused by the self-heal path with reconstructed
+   *  settings so the record holds the recovered original, not our wrapper. `parsed === null` means there was no
+   *  settings.json. */
   function freshInstall(
-    raw: string | null,
     parsed: ClaudeSettings | null,
   ): Omit<InstallResult, "healed"> {
-    const originalAbsent = raw === null;
+    const originalAbsent = parsed === null;
     const original = parsed?.statusLine;
     const wrappedExisting = original !== undefined;
     // A hand-edited file could hold a non-string command; only a real string is callable.
@@ -264,22 +250,15 @@ export function createSettingsManager(
     ensureAppDir();
     writeWrapper(wrappedCommand); // the side-channel script the new statusLine will run
 
-    let backupPath: string | null = null;
     let mode: number | undefined;
-    if (raw !== null) {
-      try {
-        mode = statSync(settingsPath).mode & 0o777;
-      } catch {
-        mode = undefined; // settings.json vanished between read and stat; back up without an explicit mode
-      }
-      backupPath = freeBackupPath(iso);
-      writeFileSync(backupPath, raw, { flag: "wx", mode }); // never overwrite an existing backup
-      if (mode !== undefined) chmodSync(backupPath, mode); // keep a 0600 secret at 0600, not the default 0644
+    try {
+      mode = statSync(settingsPath).mode & 0o777;
+    } catch {
+      mode = undefined; // no file on disk: a clean install, or a heal rebuilding a deleted one
     }
 
     const state: InstallState = {
       installedAt: iso,
-      backupPath,
       originalAbsent,
       wrappedCommand,
       wrappedExisting,
@@ -295,7 +274,7 @@ export function createSettingsManager(
     };
     writeFileAtomic(settingsPath, JSON.stringify(next, null, 2) + "\n", mode); // mode preserved while wrapped
 
-    return { wrappedExisting, backupPath };
+    return { wrappedExisting };
   }
 
   // Every wrapper we might have written into appDir, each with its recoverer. A statusLine command "is ours"
@@ -320,7 +299,7 @@ export function createSettingsManager(
   }
 
   function install(): InstallResult {
-    const { raw, parsed } = readSettings(); // single read; throws on a file we can't safely touch
+    const { parsed } = readSettings(); // single read; throws on a file we can't safely touch
     const current = parsed?.statusLine?.command;
 
     // Wrapped with our current command and an intact record → idempotent: rewrite the wrapper (self-heals a
@@ -341,19 +320,15 @@ export function createSettingsManager(
             JSON.stringify({ ...state, wrappedExtras: extras }, null, 2) + "\n",
           );
         }
-        return {
-          wrappedExisting: state.wrappedExisting,
-          backupPath: state.backupPath,
-          healed: false,
-        };
+        return { wrappedExisting: state.wrappedExisting, healed: false };
       }
     }
 
     // The statusLine points at one of OUR wrappers — our current command with a vanished record, or a wrapper
     // from another platform / an older build. Re-wrapping as-is would bury the user's real command behind our
     // own wrapper path (and on Windows a .sh path hands the prompt to cmd's file association). Recover their
-    // original from the wrapper the command points at and reinstall clean, so freshInstall backs up the
-    // original, not the wrapped bytes.
+    // original from the wrapper the command points at and reinstall clean, so freshInstall records the
+    // original, not our wrapper.
     const own =
       typeof current === "string" ? ownWrapperFor(current) : undefined;
     if (own) {
@@ -369,16 +344,14 @@ export function createSettingsManager(
               command: recovered,
             }
           : undefined;
-      const healedSettings: ClaudeSettings = { ...parsed, statusLine };
-      const healedRaw = JSON.stringify(healedSettings, null, 2) + "\n";
-      return { ...freshInstall(healedRaw, healedSettings), healed: true };
+      return { ...freshInstall({ ...parsed, statusLine }), healed: true };
     }
 
     // The mirror desync: our record survived but the statusLine entry is gone — an external edit
     // stripped it (ccstatusline's uninstall deletes whichever statusLine is present, ours included).
     // Re-wrapping the stripped file as-is would record wrappedCommand=null, silently dropping the
     // user's own prompt from the regenerated wrapper. Rebuild the settings as they stood before the
-    // strip and reinstall from that, so the new wrapper's call-through and backup carry the original.
+    // strip and reinstall from that, so the new wrapper's call-through carries the original.
     if (parsed?.statusLine === undefined) {
       const state = readState(); // throws on a corrupt record — same contract as the wrapped branch
       if (state !== null && state.wrappedCommand !== null) {
@@ -390,12 +363,11 @@ export function createSettingsManager(
             command: state.wrappedCommand,
           },
         };
-        const healedRaw = JSON.stringify(healedSettings, null, 2) + "\n";
-        return { ...freshInstall(healedRaw, healedSettings), healed: true };
+        return { ...freshInstall(healedSettings), healed: true };
       }
     }
 
-    return { ...freshInstall(raw, parsed), healed: false };
+    return { ...freshInstall(parsed), healed: false };
   }
 
   function uninstall(): void {
@@ -411,23 +383,43 @@ export function createSettingsManager(
       return; // genuinely nothing we installed
     }
 
-    if (state.originalAbsent) {
-      rmSync(settingsPath, { force: true }); // restore "did not exist"
-    } else {
-      if (!state.backupPath || !existsSync(state.backupPath)) {
-        // leave state.json intact so a retry can still restore once the backup is back
-        throw new Error(
-          `code-by-wire: cannot restore settings.json; backup missing (${state.backupPath})`,
+    // Take back only the statusLine key, from the file as it stands now: everything else, including edits
+    // made since install, is the user's. A statusLine that is neither ours nor absent replaced ours after
+    // install and stays. A stripped one gets the original back, mirroring install()'s heal.
+    const { parsed } = readSettings(); // throws before any write on a file we can't safely touch
+    const current = parsed?.statusLine;
+    const ours =
+      typeof current?.command === "string" &&
+      ownWrapperFor(current.command) !== undefined;
+    if (
+      parsed !== null &&
+      (ours || (current === undefined && state.wrappedCommand !== null))
+    ) {
+      const next: ClaudeSettings = { ...parsed };
+      if (state.wrappedCommand === null) delete next.statusLine;
+      else
+        next.statusLine = {
+          ...(ours ? statusLineExtras(current) : (state.wrappedExtras ?? {})),
+          type: "command",
+          command: state.wrappedCommand,
+        };
+      if (state.originalAbsent && Object.keys(next).length === 0) {
+        rmSync(settingsPath, { force: true });
+      } else {
+        writeFileAtomic(
+          settingsPath,
+          JSON.stringify(next, null, 2) + "\n",
+          statSync(settingsPath).mode & 0o777,
         );
       }
-      copyFileSync(state.backupPath, settingsPath); // byte-for-byte restore
-      chmodSync(settingsPath, statSync(state.backupPath).mode & 0o777); // ...and its original permissions
     }
 
     // Our own artifacts go too — every wrapper we might have written (the current platform's and any
     // leftover from another platform / an older build) and the captured side-channel files. Best-effort:
     // a failure here must not block restoring the user's settings, which already succeeded above.
     for (const w of ownWrappers) rmSync(w.path, { force: true });
+    if (typeof state.backupPath === "string")
+      rmSync(state.backupPath, { force: true });
     rmSync(join(appDir, "statusline"), { recursive: true, force: true });
     rmSync(statePath, { force: true });
   }
