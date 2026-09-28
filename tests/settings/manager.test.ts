@@ -178,6 +178,291 @@ describe("install — wrap an existing statusLine (AC #1)", () => {
   });
 });
 
+describe("uninstall — removes only its own statusLine", () => {
+  const linuxMgr = (home: string) =>
+    createSettingsManager({
+      claudeDir: home,
+      now: () => NOW,
+      platform: "linux",
+    });
+  const edit = (home: string, fn: (s: Record<string, unknown>) => void) => {
+    const s = readJson(home);
+    fn(s);
+    writeFileSync(settingsPath(home), JSON.stringify(s, null, 2));
+  };
+
+  it("keeps edits made after install and restores the original statusLine", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        {
+          model: "sonnet",
+          statusLine: { type: "command", command: "my-prompt", padding: 2 },
+          theme: "dark",
+        },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+
+    edit(home, (s) => {
+      s.model = "opus";
+      s.hooks = { Stop: [{ hooks: [{ type: "command", command: "notify" }] }] };
+      s.enabledPlugins = { "aileron@aileron": true };
+    });
+
+    mgr.uninstall();
+
+    const after = readJson(home);
+    expect(after).toEqual({
+      model: "opus",
+      statusLine: { type: "command", command: "my-prompt", padding: 2 },
+      theme: "dark",
+      hooks: { Stop: [{ hooks: [{ type: "command", command: "notify" }] }] },
+      enabledPlugins: { "aileron@aileron": true },
+    });
+    expect(Object.keys(after)).toEqual([
+      "model",
+      "statusLine",
+      "theme",
+      "hooks",
+      "enabledPlugins",
+    ]);
+    expect(mgr.isInstalled()).toBe(false);
+  });
+
+  it("keeps extras tuned on the wrapped block while installed", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    mgr.setRefreshInterval(5);
+
+    mgr.uninstall();
+
+    expect(readJson(home).statusLine).toEqual({
+      type: "command",
+      command: "my-prompt",
+      refreshInterval: 5,
+    });
+  });
+
+  it("removes the statusLine key when there was no original, keeping later edits", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify({ theme: "dark" }, null, 2),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    edit(home, (s) => {
+      s.model = "opus";
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home)).toEqual({ theme: "dark", model: "opus" });
+  });
+
+  it("deletes a file it created when our statusLine was its only key", () => {
+    const home = makeHome();
+    const mgr = linuxMgr(home);
+    mgr.install();
+
+    mgr.uninstall();
+
+    expect(existsSync(settingsPath(home))).toBe(false);
+  });
+
+  it("keeps a file it created once other keys were added to it", () => {
+    const home = makeHome();
+    const mgr = linuxMgr(home);
+    mgr.install();
+    edit(home, (s) => {
+      s.model = "opus";
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home)).toEqual({ model: "opus" });
+  });
+
+  it("leaves a foreign statusLine that replaced ours untouched", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    const foreign = { type: "command", command: "ccstatusline", padding: 0 };
+    edit(home, (s) => {
+      s.statusLine = foreign;
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home).statusLine).toEqual(foreign);
+  });
+
+  it("restores a statusLine that an external tool stripped, from the record", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        {
+          statusLine: {
+            type: "command",
+            command: "my-prompt",
+            refreshInterval: 10,
+          },
+          theme: "dark",
+        },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    edit(home, (s) => {
+      delete s.statusLine;
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home)).toEqual({
+      theme: "dark",
+      statusLine: {
+        type: "command",
+        command: "my-prompt",
+        refreshInterval: 10,
+      },
+    });
+  });
+
+  it("does not recreate a settings.json deleted while installed", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    rmSync(settingsPath(home));
+
+    mgr.uninstall();
+
+    expect(existsSync(settingsPath(home))).toBe(false);
+    expect(existsSync(join(home, ".code-by-wire", "state.json"))).toBe(false);
+  });
+
+  it("install writes no .bak file", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify({ theme: "dark" }, null, 2),
+    );
+    const mgr = linuxMgr(home);
+
+    mgr.install();
+
+    expect(readdirSync(home).filter((f) => f.endsWith(".bak"))).toHaveLength(0);
+    expect("backupPath" in readState(home)).toBe(false);
+  });
+
+  it("uninstalls a legacy record with a backupPath and deletes that backup", () => {
+    const home = makeHome();
+    writeFileSync(
+      settingsPath(home),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = linuxMgr(home);
+    mgr.install();
+    const legacyBackup = join(
+      home,
+      "settings.json.2026-01-01T00-00-00-000Z.bak",
+    );
+    const otherBackup = join(
+      home,
+      "settings.json.2025-01-01T00-00-00-000Z.bak",
+    );
+    const stale = JSON.stringify({
+      statusLine: { type: "command", command: "my-prompt" },
+    });
+    writeFileSync(legacyBackup, stale);
+    writeFileSync(otherBackup, stale);
+    const statePath = join(home, ".code-by-wire", "state.json");
+    writeFileSync(
+      statePath,
+      JSON.stringify({ ...readState(home), backupPath: legacyBackup }, null, 2),
+    );
+    edit(home, (s) => {
+      s.model = "opus";
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(home)).toEqual({
+      statusLine: { type: "command", command: "my-prompt" },
+      model: "opus",
+    });
+    expect(existsSync(legacyBackup)).toBe(false);
+    expect(existsSync(otherBackup)).toBe(true);
+    expect(existsSync(statePath)).toBe(false);
+  });
+
+  it("restores the original on win32, where the command is the powershell .ps1 form", () => {
+    const dir = makeWinHome();
+    writeFileSync(
+      settingsPath(dir),
+      JSON.stringify(
+        { statusLine: { type: "command", command: "my-prompt" } },
+        null,
+        2,
+      ),
+    );
+    const mgr = createSettingsManager({
+      claudeDir: dir,
+      now: () => NOW,
+      platform: "win32",
+    });
+    mgr.install();
+    expect(readJson(dir).statusLine.command).toMatch(/^powershell .*\.ps1"$/);
+    edit(dir, (s) => {
+      s.model = "opus";
+    });
+
+    mgr.uninstall();
+
+    expect(readJson(dir)).toEqual({
+      statusLine: { type: "command", command: "my-prompt" },
+      model: "opus",
+    });
+  });
+});
+
 describe("uninstall — restore byte-for-byte (AC #4)", () => {
   it("restores arbitrary original bytes exactly (4-space indent, no trailing newline, existing statusLine)", () => {
     const home = makeHome();
