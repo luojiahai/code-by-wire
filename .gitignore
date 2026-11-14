@@ -26,5 +26,4 @@ docs/deck/
 graphify-out/
 
 .design-previews/
-.vercel
 .env*
